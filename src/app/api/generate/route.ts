@@ -137,8 +137,8 @@ export async function POST(req: Request) {
       fallbackModel = 'google/gemini-pro-1.5';       // Fast fallback
     } else {
       // Standard: strictly use free models so it works even with 0 balance
-      primaryModel = 'google/gemini-2.0-flash-lite-preview-02-05:free';
-      fallbackModel = 'meta-llama/llama-3.3-70b-instruct:free'; // Standard fallback
+      primaryModel = 'meta-llama/llama-3.3-70b-instruct:free';
+      fallbackModel = 'google/gemini-2.0-flash-lite-preview-02-05:free'; // Standard fallback
     }
 
     console.log(`[Generate] User: ${user.id} | Plan: ${plan} | Mode: ${secureMode} | Primary: ${primaryModel} | Slides: ${finalSlideCount} | Used: ${usedGenerations}/${monthlyLimit}`);
