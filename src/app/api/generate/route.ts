@@ -130,14 +130,14 @@ export async function POST(req: Request) {
 
     if (secureMode === 'premium') {
       primaryModel = 'deepseek/deepseek-r1';
-      fallbackModel = 'anthropic/claude-3.7-sonnet'; // Elite fallback
+      fallbackModel = 'anthropic/claude-3.5-sonnet'; // Elite fallback
     } else if (secureMode === 'fast') {
       primaryModel = 'anthropic/claude-3.5-sonnet';
       fallbackModel = 'google/gemini-pro-1.5';       // Fast fallback
     } else {
       // Standard: strictly use free models so it works even with 0 balance
       primaryModel = 'meta-llama/llama-3.3-70b-instruct:free';
-      fallbackModel = 'google/gemini-2.0-flash-lite-preview-02-05'; // Fallback without :free if possible, or try another
+      fallbackModel = 'google/gemini-2.0-flash-exp:free'; // Fallback free model
     }
 
     console.log(`[Generate] User: ${user.id} | Plan: ${plan} | Mode: ${secureMode} | Primary: ${primaryModel} | Slides: ${finalSlideCount} | Used: ${usedGenerations}/${monthlyLimit}`);
