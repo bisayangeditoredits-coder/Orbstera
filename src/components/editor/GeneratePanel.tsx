@@ -240,19 +240,32 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         try {
           // Strip out <think>...</think> tags completely so it doesn't break JSON.parse
           const textWithoutTags = accumulatedText.replace(/<(?:think|thought)>[\s\S]*?<\/(?:think|thought)>/gi, '');
-          const cleanJson = textWithoutTags.trim().replace(/```json|```/g, '');
-          const finalData = JSON.parse(cleanJson);
-          if (finalData.slides) {
-            if (appendMode === 'append') {
-              // Merge: keep existing slides and push new ones on top
-              const existingSlides = usePresentationStore.getState().presentation?.slides || [];
-              storeSetPresentation({ ...finalData, slides: [...existingSlides, ...finalData.slides] });
+          
+          // Find the first { and last } to ignore conversational text from free models
+          const firstBrace = textWithoutTags.indexOf('{');
+          const lastBrace = textWithoutTags.lastIndexOf('}');
+          
+          if (firstBrace !== -1 && lastBrace !== -1 && lastBrace >= firstBrace) {
+            const cleanJson = textWithoutTags.substring(firstBrace, lastBrace + 1);
+            const finalData = JSON.parse(cleanJson);
+            
+            if (finalData.slides) {
+              if (appendMode === 'append') {
+                // Merge: keep existing slides and push new ones on top
+                const existingSlides = usePresentationStore.getState().presentation?.slides || [];
+                storeSetPresentation({ ...finalData, slides: [...existingSlides, ...finalData.slides] });
+              } else {
+                storeSetPresentation(finalData);
+              }
             } else {
-              storeSetPresentation(finalData);
+               throw new Error('JSON parsed but no slides array found.');
             }
+          } else {
+            throw new Error('No valid JSON object found in response.');
           }
         } catch (e) {
-          console.warn('Final JSON parse failed, but streamed slides should be active');
+          console.error('Final JSON parse failed:', e, accumulatedText);
+          throw new Error('The AI generated an invalid format. Please try again.');
         }
 
         setActivePanel('layers');
