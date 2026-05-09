@@ -61,7 +61,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const recognitionRef = useRef<any>(null);
 
   const toggleVoice = () => {
-    if (!isPaid) return;
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
@@ -512,7 +511,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                 <label className="text-[10px] font-black text-textMuted uppercase tracking-[0.2em] block">Your Vision</label>
                 {/* Voice Protocol badge */}
                 <span className="text-[9px] font-bold text-primary/60 uppercase tracking-wider flex items-center gap-1">
-                  <Mic size={9} /> Voice Protocol {!isPaid && <Crown size={8} className="text-amber-400" />}
+                  <Mic size={9} /> Voice Protocol
                 </span>
               </div>
               <div className="animated-border shadow-[0_32px_64px_-16px_rgba(59,130,246,0.2)]">
@@ -547,17 +546,14 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                       {/* Voice Protocol Mic */}
                       <button
                         onClick={toggleVoice}
-                        title={!isPaid ? 'Voice Protocol — Pro members only' : isListening ? 'Stop listening' : 'Start voice input'}
+                        title={isListening ? 'Stop listening' : 'Start voice input'}
                         className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all shadow-sm relative ${
-                          !isPaid
-                            ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
-                            : isListening
+                          isListening
                             ? 'bg-red-50 border-red-200 text-red-500 animate-pulse'
                             : 'bg-[#F8F9FA] border-black/[0.04] text-black/40 hover:text-primary hover:bg-primary/[0.04] hover:border-primary/20'
                         }`}
                       >
                         {isListening ? <MicOff size={16} /> : <Mic size={16} />}
-                        {!isPaid && <Crown size={8} className="absolute -top-1 -right-1 text-amber-400" />}
                       </button>
 
                       {selectedFile && (

@@ -94,7 +94,6 @@ export function MagicEditToolbar() {
   };
 
   const toggleVoice = () => {
-    if (!isPro) return;
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
@@ -141,10 +140,10 @@ export function MagicEditToolbar() {
               <input
                 type="text"
                 value={prompt}
-                onChange={(e) => isPro && setPrompt(e.target.value)}
+                onChange={(e) => (isPro || isListening) && setPrompt(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && isPro) { e.preventDefault(); handleMagicEdit(); } }}
-                disabled={isLoading || !isPro}
-                placeholder={isPro ? (isListening ? '🎤 Listening...' : (!selectedElementId ? `Generate AI Background... e.g. "cyberpunk city"` : `Edit with AI... e.g. "make it more exciting"`)) : `🔒 Pro feature — upgrade to edit with AI`}
+                disabled={isLoading || (!isPro && !isListening)}
+                placeholder={isListening ? '🎤 Listening...' : isPro ? (!selectedElementId ? `Generate AI Background... e.g. "cyberpunk city"` : `Edit with AI... e.g. "make it more exciting"`) : `🔒 Pro feature — upgrade to edit with AI`}
                 className={`flex-1 bg-transparent border-none outline-none text-[13px] font-medium px-1 h-9 ${
                   isPro
                     ? 'text-textMain placeholder:text-textMuted/50'
@@ -155,17 +154,14 @@ export function MagicEditToolbar() {
               {/* Voice mic button */}
               <button
                 onClick={toggleVoice}
-                title={!isPro ? 'Pro only' : isListening ? 'Stop' : 'Voice input'}
+                title={isListening ? 'Stop' : 'Voice input'}
                 className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all relative ${
-                  !isPro
-                    ? 'text-gray-300 cursor-not-allowed'
-                    : isListening
+                  isListening
                     ? 'bg-red-50 text-red-500 animate-pulse'
                     : 'text-textMuted hover:text-primary hover:bg-primary/5'
                 }`}
               >
                 {isListening ? <MicOff size={15} /> : <Mic size={15} />}
-                {!isPro && <Crown size={7} className="absolute -top-0.5 -right-0.5 text-amber-400" />}
               </button>
 
               {isPro ? (

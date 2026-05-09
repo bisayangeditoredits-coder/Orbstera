@@ -18,6 +18,7 @@ const tiers = [
       { text: 'Standard AI model (Llama 3.3)', included: true },
       { text: 'PPTX export with watermark', included: true },
       { text: 'Basic slide templates', included: true },
+      { text: 'Voice Protocol (Hands-free generation)', included: true },
       { text: 'AI Magic Edit (inline editing)', included: false },
       { text: 'Fast & Elite AI intelligence modes', included: false },
       { text: 'Claude 3.5 Sonnet / DeepSeek R1', included: false },
