@@ -101,24 +101,35 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const isLoading = editor.isGenerating;
   const searchParams = useSearchParams();
 
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+
   // Fetch user plan and survey status on mount
   useEffect(() => {
     const fetchUser = async () => {
+      setIsProfileLoading(true);
       try {
         const { createClient } = await import('@/lib/supabase');
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
+        
         if (user) {
-          const { data: profile } = await supabase
+          const { data: profile, error } = await supabase
             .from('profiles')
             .select('plan, survey_completed')
             .eq('id', user.id)
-            .single();
-          setProfileData(profile);
-          if (profile?.plan) setUserPlan(profile.plan.toLowerCase());
+            .maybeSingle(); // Use maybeSingle to avoid errors if row doesn't exist yet
+
+          if (profile) {
+            setProfileData(profile);
+            if (profile.plan) setUserPlan(profile.plan.toLowerCase());
+          }
         }
-      } catch (_) {}
+      } catch (err) {
+        console.error('Error fetching user profile:', err);
+      } finally {
+        setIsProfileLoading(false);
+      }
     };
     fetchUser();
   }, []);
@@ -161,8 +172,9 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
     }
 
     // ── SURVEY GATE ──
-    // If logged in but survey not done (or profile missing), show survey
-    if (user && (!profileData || !profileData.survey_completed)) {
+    // If logged in but survey not done, show survey. 
+    // Don't show if still loading profile to prevent flashing survey for existing users.
+    if (user && !isProfileLoading && (!profileData || !profileData.survey_completed)) {
       setShowSurvey(true);
       return;
     }
@@ -353,7 +365,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           <SurveyModal 
             onComplete={() => {
               setShowSurvey(false);
-              setProfileData({ ...profileData, survey_completed: true });
+              // Optimistically update local state so it doesn't show again in this session
+              setProfileData(prev => ({ ...prev, survey_completed: true }));
               executeGenerate('replace');
             }} 
           />
