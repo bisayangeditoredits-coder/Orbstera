@@ -210,8 +210,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                 const content = json.choices?.[0]?.delta?.content || '';
                 accumulatedText += content;
 
-                // ── Extract Reasoning (e.g. from DeepSeek R1 or models with <thought> tags) ──
-                const thoughtMatch = accumulatedText.match(/<thought>([\s\S]*?)(?:<\/thought>|$)/i);
+                // ── Extract Reasoning (e.g. from DeepSeek R1 <think> tags) ──
+                const thoughtMatch = accumulatedText.match(/<(?:think|thought)>([\s\S]*?)(?:<\/(?:think|thought)>|$)/i);
                 if (thoughtMatch && thoughtMatch[1]) {
                   setEditorState({ reasoning: thoughtMatch[1].trim() });
                 }
@@ -238,7 +238,9 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
         // Final attempt to parse full JSON — in append mode merge slides instead of replacing
         try {
-          const cleanJson = accumulatedText.trim().replace(/```json|```/g, '');
+          // Strip out <think>...</think> tags completely so it doesn't break JSON.parse
+          const textWithoutTags = accumulatedText.replace(/<(?:think|thought)>[\s\S]*?<\/(?:think|thought)>/gi, '');
+          const cleanJson = textWithoutTags.trim().replace(/```json|```/g, '');
           const finalData = JSON.parse(cleanJson);
           if (finalData.slides) {
             if (appendMode === 'append') {
