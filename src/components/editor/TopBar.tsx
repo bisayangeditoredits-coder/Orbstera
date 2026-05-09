@@ -357,6 +357,18 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
     else { setActivePanel(panel); setPanelOpen(true); }
   };
 
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link', err);
+    }
+  };
+
   const isExporting = exportStep >= 0 && !exportDone && !exportError;
 
   return (
@@ -481,9 +493,12 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
             <span>Design</span>
           </div>
 
-          <button className="h-[36px] px-[14px] text-textMain bg-white border border-borderSubtle hover:bg-hoverSurface rounded-lg shadow-sm transition-all flex items-center gap-2 text-[13px] font-semibold active:scale-[0.97]">
-            <Share2 size={16} className="text-textSecondary" />
-            <span className="hidden md:inline">Share</span>
+          <button 
+            onClick={handleShare}
+            className="h-[36px] px-[14px] text-textMain bg-white border border-borderSubtle hover:bg-hoverSurface rounded-lg shadow-sm transition-all flex items-center gap-2 text-[13px] font-semibold active:scale-[0.97]"
+          >
+            {isCopied ? <CheckCircle size={16} className="text-emerald-500" /> : <Share2 size={16} className="text-textSecondary" />}
+            <span className="hidden md:inline">{isCopied ? 'Copied Link!' : 'Share'}</span>
           </button>
 
           <button
@@ -498,7 +513,7 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
 
           <button
             id="tour-export"
-            onClick={handleExport}
+            onClick={handleExportCheck}
             disabled={!presentation || isExporting}
             className="h-[36px] px-[16px] flex items-center gap-2 text-[13px] font-bold text-white bg-primary hover:bg-primary/90 rounded-lg shadow-md hover:shadow-primary/30 transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed relative overflow-hidden group"
           >
