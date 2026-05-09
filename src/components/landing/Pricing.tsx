@@ -36,7 +36,7 @@ const tiers = [
     icon: <Crown size={20} className="text-amber-400" />,
     features: [
       { text: '30 AI presentations per month', included: true },
-      { text: 'Up to 12 slides per presentation', included: true },
+      { text: 'Up to 25 slides per presentation', included: true },
       { text: 'Elite AI model (Claude 3.5 Sonnet)', included: true },
       { text: 'PPTX export — no watermark', included: true },
       { text: 'All premium templates & themes', included: true },
@@ -58,7 +58,7 @@ const tiers = [
     icon: <Zap size={20} className="text-purple-400" />,
     features: [
       { text: '100 AI presentations per month', included: true },
-      { text: 'Up to 30 slides per presentation', included: true },
+      { text: 'Up to 40 slides per presentation', included: true },
       { text: 'Elite AI: Claude 3.5 + DeepSeek R1', included: true },
       { text: 'PPTX export — no watermark, custom branding', included: true },
       { text: 'All templates + cinematic AI images', included: true },

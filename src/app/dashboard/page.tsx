@@ -34,21 +34,27 @@ export default function DashboardPage() {
   const [generationsUsed, setGenerationsUsed] = useState(0);
 
   useEffect(() => {
-    async function init() {
+    async function init(retryCount = 0) {
       try {
-        // Fetch user profile
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Creator';
           setUserName(name);
-          const { data: profile } = await supabase.from('profiles').select('plan, generations_used').eq('id', user.id).single();
+          
+          // Fast check: auth metadata
+          if (user.user_metadata?.plan) {
+            setUserPlan(user.user_metadata.plan.toLowerCase());
+          }
+
+          const { data: profile } = await supabase.from('profiles').select('plan, generations_used').eq('id', user.id).maybeSingle();
           if (profile) {
             setUserPlan(profile.plan?.toLowerCase() || 'free');
             setGenerationsUsed(profile.generations_used || 0);
+          } else if (retryCount < 3 && searchParams.get('payment') === 'success') {
+            setTimeout(() => init(retryCount + 1), 2000);
           }
         }
-        // Fetch presentations
         const res = await fetch('/api/presentations');
         if (res.ok) setPresentations(await res.json());
       } catch (e) {
@@ -58,7 +64,7 @@ export default function DashboardPage() {
       }
     }
     init();
-  }, []);
+  }, [searchParams]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -73,10 +79,10 @@ export default function DashboardPage() {
     finally { setIsDeleting(false); }
   };
 
-  const planLabel  = userPlan === 'creator_pro' ? 'Creator Pro' : userPlan === 'pro' ? 'Student Pro' : 'Free';
-  const genLimit   = userPlan === 'creator_pro' ? 100 : userPlan === 'pro' ? 30 : 3;
+  const planLabel  = userPlan === 'creator_pro' ? 'Creator Pro' : (userPlan === 'student_pro' || userPlan === 'pro') ? 'Student Pro' : 'Free';
+  const genLimit   = userPlan === 'creator_pro' ? 100 : (userPlan === 'student_pro' || userPlan === 'pro') ? 30 : 3;
   const genLeft    = Math.max(0, genLimit - generationsUsed);
-  const isPaid     = userPlan === 'pro' || userPlan === 'creator_pro';
+  const isPaid     = userPlan === 'student_pro' || userPlan === 'pro' || userPlan === 'creator_pro';
 
   const recentDecks = presentations.slice(0, 4);
 

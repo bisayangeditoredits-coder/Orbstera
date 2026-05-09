@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Orbstera AI — Cinematic Presentation Generation
 
-## Getting Started
+Orbstera is an elite, industrial-grade AI presentation platform designed to transform raw ideas into stunning, architecturally sound cinematic decks in seconds.
 
-First, run the development server:
+## 🚀 Vision
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+We believe that presentations should be more than just slides; they should be immersive experiences. Orbstera combines high-end design aesthetics with cutting-edge AI models to deliver professional results that traditionally take days of manual work.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## ✨ Core Features
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Neural Prompt v4**: Transform single-sentence ideas into 30+ slide strategic presentations.
+- **Cinematic AI Images**: Deeply integrated image generation using Flux/Stable Diffusion models.
+- **Voice Protocol**: Professional hands-free presentation architecting.
+- **AI Enhancer**: Upload legacy PPTX files and watch Orbstera redesign them into modern masterpieces.
+- **Architectural Typography**: Perfectly balanced heading and body pairings (Space Grotesk + Inter).
+- **Industrial Minimalist Design**: A premium dark-mode interface built for creative professionals.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🛠️ Technology Stack
 
-## Learn More
+- **Framework**: [Next.js 14](https://nextjs.org/) (App Router)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) + [Framer Motion](https://www.framer.com/motion/)
+- **Database**: [Supabase](https://supabase.com/)
+- **Intelligence**: [OpenRouter](https://openrouter.ai/) (DeepSeek R1, Claude 3.5 Sonnet, Llama 3.3)
+- **Storage**: [Cloudflare R2](https://www.cloudflare.com/products/r2/)
+- **Payments**: [Dodo Payments](https://dodopayments.com/)
+- **Cache**: [Upstash Redis](https://upstash.com/)
 
-To learn more about Next.js, take a look at the following resources:
+## 🚦 Getting Started
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. **Clone the repository**
+2. **Install dependencies**: `npm install`
+3. **Environment Variables**: Copy `.env.example` to `.env.local` and fill in the secrets.
+4. **Run development server**: `npm run dev`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 💎 Monetization Model
 
-## Deploy on Vercel
+Orbstera utilizes a tiered subscription model managed via Dodo Payments:
+- **Free**: 3 generations/mo, 5 slides max, Standard Intelligence.
+- **Student Pro**: 30 generations/mo, 25 slides max, Fast Intelligence (Claude 3.5).
+- **Creator Pro**: 100 generations/mo, 30 slides max, Elite Intelligence (DeepSeek R1).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🛡️ License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Private and Confidential. Built by the Orbstera Creative Team.

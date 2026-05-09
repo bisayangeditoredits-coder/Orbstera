@@ -15,12 +15,25 @@ export async function POST(req: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Update the specific user's app_metadata and user_metadata
-    const { data: user, error } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
+    // 1. Update the specific user's user_metadata in the auth system
+    const { data: user, error: authError } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
       user_metadata: { plan: newPlan }
     });
 
-    if (error) throw error;
+    if (authError) throw authError;
+
+    // 2. Upsert the user's plan in the public.profiles table
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .upsert({ 
+        id: targetUserId,
+        plan: newPlan,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+
+    if (profileError) {
+      console.error('Profile update error (plan changed in auth but failed in profiles):', profileError);
+    }
 
     return NextResponse.json({ success: true, user });
   } catch (error: any) {

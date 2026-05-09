@@ -33,7 +33,7 @@ const TONES = [
   { value: 'minimal', label: 'Minimal' },
 ];
 
-const SLIDE_COUNTS = [2, 5, 10, 15, 20, 25, 30];
+const SLIDE_COUNTS = [2, 5, 10, 15, 20, 25, 30, 35, 40];
 
 export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const [prompt, setPrompt] = useState('');
@@ -50,10 +50,10 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const [profileData, setProfileData] = useState<any>(null);
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const isPaid = userPlan === 'pro' || userPlan === 'creator_pro';
+  const isPaid = userPlan === 'student_pro' || userPlan === 'pro' || userPlan === 'creator_pro';
   const isCreatorPro = userPlan === 'creator_pro';
   // Plan-based max slides (mirrors server MAX_SLIDES)
-  const maxSlidesForPlan = isCreatorPro ? 30 : isPaid ? 25 : 5;
+  const maxSlidesForPlan = isCreatorPro ? 40 : isPaid ? 25 : 5;
 
   // ── Voice Protocol ──────────────────────────────────────────
   const [isListening, setIsListening] = useState(false);
@@ -105,7 +105,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
   // Fetch user plan and survey status on mount
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUser = async (retryCount = 0) => {
       setIsProfileLoading(true);
       try {
         const { createClient } = await import('@/lib/supabase');
@@ -114,15 +114,23 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         setUser(user);
         
         if (user) {
-          const { data: profile, error } = await supabase
+          // Check user_metadata first for fastest response after payment
+          if (user.user_metadata?.plan) {
+            setUserPlan(user.user_metadata.plan.toLowerCase());
+          }
+
+          const { data: profile } = await supabase
             .from('profiles')
             .select('plan, survey_completed')
             .eq('id', user.id)
-            .maybeSingle(); // Use maybeSingle to avoid errors if row doesn't exist yet
+            .maybeSingle();
 
           if (profile) {
             setProfileData(profile);
             if (profile.plan) setUserPlan(profile.plan.toLowerCase());
+          } else if (retryCount < 3 && searchParams.get('payment') === 'success') {
+            // If payment was successful but profile isn't updated yet, retry after a short delay
+            setTimeout(() => fetchUser(retryCount + 1), 2000);
           }
         }
       } catch (err) {
@@ -132,7 +140,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       }
     };
     fetchUser();
-  }, []);
+  }, [searchParams]); // Re-run if URL params change (e.g. after payment redirect)
 
   // Auto-trigger from URL params — runs exactly ONCE on mount
   useEffect(() => {

@@ -9,10 +9,6 @@ export async function POST(req: Request) {
     const body = await req.text();
     const signature = req.headers.get('x-dodo-signature');
 
-    if (!signature) {
-      return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
-    }
-
     // Initialize Supabase inside the handler to avoid build-time errors
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -23,6 +19,21 @@ export async function POST(req: Request) {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const webhookSecret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET;
+
+    if (webhookSecret && signature) {
+      const crypto = await import('crypto');
+      const hmac = crypto.createHmac('sha256', webhookSecret);
+      hmac.update(body);
+      const computedSignature = hmac.digest('hex');
+
+      if (computedSignature !== signature) {
+        console.error('[Dodo Webhook] Invalid signature');
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      }
+    } else {
+      console.warn('[Dodo Webhook] WARNING: DODO_PAYMENTS_WEBHOOK_SECRET is not set. Skipping signature verification.');
+    }
 
     // Parse webhook payload
     const payload = JSON.parse(body);
@@ -39,17 +50,29 @@ export async function POST(req: Request) {
       if (userId && planId) {
         console.log(`[Dodo Webhook] Upgrading user ${userId} to ${planId}`);
         
-        const { error } = await supabaseAdmin
+        // 1. Upsert public.profiles table (Primary source for UI)
+        // Using upsert ensures that if the profile doesn't exist yet, it gets created.
+        const { error: profileError } = await supabaseAdmin
           .from('profiles')
-          .update({ 
+          .upsert({ 
+            id: userId,
             plan: planId,
             updated_at: new Date().toISOString() 
-          })
-          .eq('id', userId);
+          }, { onConflict: 'id' });
 
-        if (error) {
-          console.error('[Dodo Webhook] Supabase Update Error:', error);
+        if (profileError) {
+          console.error('[Dodo Webhook] Profiles Update Error:', profileError);
           return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
+        }
+
+        // 2. Update auth.user_metadata (Secondary source for quick access)
+        const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+          user_metadata: { plan: planId }
+        });
+
+        if (authError) {
+          console.error('[Dodo Webhook] Auth Metadata Update Error:', authError);
+          // We don't return 500 here because the profiles table was updated successfully
         }
       }
     }

@@ -21,7 +21,7 @@ const testimonials = [
   },
   {
     quote:
-      "PPTMaker's export actually works. The fonts, the layers, the layout — everything translates perfectly into PowerPoint.",
+      "Orbstera's export actually works. The fonts, the layers, the layout — everything translates perfectly into PowerPoint.",
     author: "Elena R.",
     role: "Creative Lead",
     initials: "ER",
@@ -29,7 +29,7 @@ const testimonials = [
   },
   {
     quote:
-      "I pitched to a VC using a PPTMaker deck on Monday. Got a second meeting on Wednesday. Coincidence? I think not.",
+      "I pitched to a VC using an Orbstera deck on Monday. Got a second meeting on Wednesday. Coincidence? I think not.",
     author: "James K.",
     role: "Co-founder, Stellar AI",
     initials: "JK",

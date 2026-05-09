@@ -41,7 +41,7 @@ export function MagicEditToolbar() {
             .eq('id', user.id)
             .single();
           const plan = profile?.plan?.toLowerCase() || 'free';
-          setIsPro(plan === 'pro' || plan === 'creator_pro');
+          setIsPro(plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro');
         }
       } catch (_) {}
       setPlanChecked(true);

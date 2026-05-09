@@ -15,7 +15,7 @@ export default function SettingsPage() {
   const supabase = createClient();
   const router = useRouter();
 
-  const isPro = profile?.plan?.toLowerCase() === 'creator_pro' || profile?.plan?.toLowerCase() === 'pro';
+  const isPro = profile?.plan?.toLowerCase() === 'creator_pro' || profile?.plan?.toLowerCase() === 'student_pro' || profile?.plan?.toLowerCase() === 'pro';
 
   useEffect(() => {
     const getUser = async () => {

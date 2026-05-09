@@ -68,17 +68,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Please sign in to generate presentations.' }, { status: 401 });
     }
 
-    // Fetch the freshest data straight from the public profiles table!
+    // ─── PLAN DETECTION (3 tiers) ───────────────────────────
+    // Fetch profile, but fallback to user_metadata for instant updates after payment
     const { data: profile } = await supabase
       .from('profiles')
       .select('plan, generations_used')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
-    // ─── PLAN DETECTION (3 tiers) ───────────────────────────
-    const plan = profile?.plan?.toLowerCase() || 'free';
+    const plan = profile?.plan?.toLowerCase() || user.user_metadata?.plan?.toLowerCase() || 'free';
     const isFree = plan === 'free' || !plan;
-    const isStudentPro = plan === 'student_pro';
+    const isStudentPro = plan === 'student_pro' || plan === 'pro';
     const isCreatorPro = plan === 'creator_pro';
     const isPaid = isStudentPro || isCreatorPro;
     const usedGenerations = profile?.generations_used || 0;
@@ -86,13 +86,15 @@ export async function POST(req: Request) {
     // ─── FAIR MONTHLY LIMITS (profit-positive per tier) ─────
     const LIMITS: Record<string, number> = {
       free:        3,
+      pro:         30,
       student_pro: 30,
       creator_pro: 100,
     };
     const MAX_SLIDES: Record<string, number> = {
       free:        5,
+      pro:         25,
       student_pro: 25,
-      creator_pro: 50,
+      creator_pro: 40,
     };
 
     const monthlyLimit = LIMITS[plan] || 3;

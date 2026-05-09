@@ -12,7 +12,7 @@ export function CTA() {
           Ready to build your best presentation?
         </h2>
         <p className="text-xl text-textMuted mb-10 max-w-2xl mx-auto">
-          Join thousands of professionals who have upgraded their workflow with PPTMaker AI.
+          Join thousands of professionals who have upgraded their workflow with Orbstera AI.
         </p>
         
         <div className="flex flex-col md:flex-row justify-center gap-4 w-full max-w-md mx-auto">

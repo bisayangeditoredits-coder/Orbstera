@@ -49,7 +49,7 @@ Return the modified JSON.`;
           headers: {
             'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
             'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-            'X-Title': 'PPTMaker AI Magic Edit',
+            'X-Title': 'Orbstera AI Magic Edit',
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
