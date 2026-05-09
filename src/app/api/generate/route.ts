@@ -78,28 +78,25 @@ export async function POST(req: Request) {
     // ─── PLAN DETECTION (3 tiers) ───────────────────────────
     const plan = profile?.plan?.toLowerCase() || 'free';
     const isFree = plan === 'free' || !plan;
-    const isStudentPro = plan === 'pro';
+    const isStudentPro = plan === 'student_pro';
     const isCreatorPro = plan === 'creator_pro';
     const isPaid = isStudentPro || isCreatorPro;
     const usedGenerations = profile?.generations_used || 0;
 
     // ─── FAIR MONTHLY LIMITS (profit-positive per tier) ─────
-    // Free:         3 generations/mo  | Cost to us: ~$0.00 (free model) | Revenue: $0
-    // Student Pro:  30 generations/mo | Cost to us: ~$0.30 (claude)     | Revenue: $5  → ~$4.70 profit
-    // Creator Pro: 100 generations/mo | Cost to us: ~$1.00 (claude/r1)  | Revenue: $19 → ~$18 profit
     const LIMITS: Record<string, number> = {
       free:        3,
-      pro:         30,
+      student_pro: 30,
       creator_pro: 100,
     };
     const MAX_SLIDES: Record<string, number> = {
       free:        5,
-      pro:         25,
+      student_pro: 25,
       creator_pro: 50,
     };
 
-    const monthlyLimit = LIMITS[plan] ?? 3;
-    const maxSlides = MAX_SLIDES[plan] ?? 5;
+    const monthlyLimit = LIMITS[plan] || 3;
+    const maxSlides = MAX_SLIDES[plan] || 5;
 
     // ─── ENFORCE SLIDE CAP (respect the user's chosen count, capped at plan max) ─
     const finalSlideCount = Math.min(Math.max(1, slideCount), maxSlides);
