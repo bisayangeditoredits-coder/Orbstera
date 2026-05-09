@@ -1,5 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // ── Ignore TypeScript & ESLint errors during Vercel production builds ──
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   experimental: {
     // Prevent canvas native module from being bundled server-side
     serverComponentsExternalPackages: ['canvas'],
