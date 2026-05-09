@@ -2,10 +2,13 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
+  // ✅ Skip middleware entirely for the auth callback — let it handle itself
+  if (request.nextUrl.pathname.startsWith('/auth/callback')) {
+    return NextResponse.next();
+  }
+
   let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
+    request: { headers: request.headers },
   });
 
   const supabase = createServerClient(
@@ -16,40 +19,43 @@ export async function middleware(request: NextRequest) {
         get(name: string) {
           return request.cookies.get(name)?.value;
         },
+        // ✅ Write to BOTH request (for this request) AND response (to persist)
         set(name: string, value: string, options: CookieOptions) {
           request.cookies.set({ name, value, ...options });
-          response = NextResponse.next({
-            request: { headers: request.headers },
-          });
+          response = NextResponse.next({ request: { headers: request.headers } });
           response.cookies.set({ name, value, ...options });
         },
         remove(name: string, options: CookieOptions) {
           request.cookies.set({ name, value: '', ...options });
-          response = NextResponse.next({
-            request: { headers: request.headers },
-          });
+          response = NextResponse.next({ request: { headers: request.headers } });
           response.cookies.set({ name, value: '', ...options });
         },
       },
     }
   );
 
-  // This will refresh session if expired - essential for SSR
-  await supabase.auth.getSession();
+  // Refresh session if expired — required for SSR
   const { data: { user } } = await supabase.auth.getUser();
 
-  const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard') || 
-                          request.nextUrl.pathname.startsWith('/editor');
+  const pathname = request.nextUrl.pathname;
 
+  const isProtectedRoute =
+    pathname.startsWith('/editor') ||
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/settings') ||
+    pathname.startsWith('/admin');
+
+  // 🔒 Unauthenticated user hitting protected route → send to login
   if (isProtectedRoute && !user) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  if (request.nextUrl.pathname.startsWith('/login') && user) {
+  // ✅ Authenticated user hitting /login → redirect to editor (not back to login loop)
+  if (pathname === '/login' && user) {
     const url = request.nextUrl.clone();
-    url.pathname = '/';
+    url.pathname = '/editor';
     return NextResponse.redirect(url);
   }
 
@@ -58,6 +64,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Skip static assets and API routes from middleware
+    '/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
