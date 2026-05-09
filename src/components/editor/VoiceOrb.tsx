@@ -115,7 +115,7 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
           onClick={onStop}
         >
           {/* Lottie Flow animation — speed controlled by voice volume */}
-          <div className="w-[190px] h-[190px] pointer-events-none select-none">
+          <div className="w-[85px] h-[85px] pointer-events-none select-none my-1">
             {/* @ts-ignore custom element */}
             <lottie-player
               ref={lottieRef}
@@ -129,17 +129,17 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
           </div>
 
           {/* Caption */}
-          <div className="flex flex-col items-center gap-1.5 px-4 text-center">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col items-center gap-1 px-4 text-center mt-auto mb-2">
+            <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
-              <p className="text-[12px] font-medium text-textMuted italic line-clamp-2 leading-snug">
+              <p className="text-[11px] font-medium text-textMuted italic line-clamp-1 leading-snug">
                 {transcript
-                  ? `"${transcript.slice(0, 55)}${transcript.length > 55 ? '…' : ''}"`
+                  ? `"${transcript.slice(0, 50)}${transcript.length > 50 ? '…' : ''}"`
                   : 'Listening… speak now'}
               </p>
             </div>
-            <span className="text-[10px] text-black/20 font-medium uppercase tracking-[0.15em]">
-              Tap anywhere to stop
+            <span className="text-[9px] text-black/20 font-medium uppercase tracking-[0.15em]">
+              Tap to stop
             </span>
           </div>
         </motion.div>
