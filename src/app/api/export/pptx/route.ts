@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import PptxGenJS from 'pptxgenjs';
 import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { PresentationData, SlideElement } from '@/types';
 
@@ -121,6 +122,9 @@ export async function POST(req: Request) {
 
     // ── Check user plan for watermark ─────────────────────────────────────────
     let isPaidUser = false;
+    let exportCredits = 0;
+    let userId = null;
+
     try {
       const cookieStore = cookies();
       const supabase = createServerClient(
@@ -130,15 +134,37 @@ export async function POST(req: Request) {
       );
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        userId = user.id;
+        exportCredits = user.user_metadata?.watermark_free_exports || 0;
+
         const { data: profile } = await supabase
           .from('profiles')
           .select('plan')
           .eq('id', user.id)
           .single();
         const plan = profile?.plan?.toLowerCase() || 'free';
-        isPaidUser = plan === 'pro' || plan === 'creator_pro';
+        isPaidUser = plan === 'pro' || plan === 'creator_pro' || plan === 'student_pro';
       }
     } catch (_) { /* If auth fails, default to watermark */ }
+
+    // Use a credit if they are not a paid user but have credits
+    const useCredit = !isPaidUser && exportCredits > 0;
+    if (useCredit && userId) {
+      isPaidUser = true; // Pretend they are paid so watermark is skipped
+      
+      // Deduct 1 credit using Supabase Admin
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+        
+        await supabaseAdmin.auth.admin.updateUserById(userId, {
+          user_metadata: { watermark_free_exports: exportCredits - 1 }
+        });
+      } catch (err) {
+        console.error('[PPTX] Failed to deduct export credit:', err);
+      }
+    }
 
     const palette  = colorPalette || ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'];
     const bgColor  = hex(palette[0]);

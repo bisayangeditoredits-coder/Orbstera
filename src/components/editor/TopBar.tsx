@@ -260,6 +260,7 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
   const [exportStep,  setExportStep]  = useState(-1);   // -1 = not exporting
   const [exportDone,  setExportDone]  = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [showWatermarkModal, setShowWatermarkModal] = useState(false);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -269,7 +270,7 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
       if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); store.undo(); }
       if (mod && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); store.redo(); }
       if (mod && e.key === 'p') { e.preventDefault(); setEditorState({ isPresenting: true }); }
-      if (mod && e.key === 'e') { e.preventDefault(); handleExport(); }
+      if (mod && e.key === 'e') { e.preventDefault(); handleExportCheck(); }
       if (mod && e.key === 'd') { e.preventDefault(); handlePanelToggle('design'); }
     };
     window.addEventListener('keydown', onKey);
@@ -277,8 +278,38 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [presentation]);
 
-  const handleExport = useCallback(async () => {
+  const handleExportCheck = async () => {
     if (!presentation || exportStep >= 0) return;
+    
+    try {
+      const { createClient } = await import('@/lib/supabase');
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      let isPaidUser = false;
+      let credits = 0;
+      
+      if (user) {
+        credits = user.user_metadata?.watermark_free_exports || 0;
+        const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single();
+        const plan = profile?.plan?.toLowerCase() || 'free';
+        isPaidUser = plan === 'pro' || plan === 'creator_pro' || plan === 'student_pro';
+      }
+
+      if (!isPaidUser && credits <= 0) {
+        setShowWatermarkModal(true);
+        return;
+      }
+      
+      // If paid or has credits, export immediately
+      startExport();
+    } catch (err) {
+      startExport(); // fallback to export (watermarked by server)
+    }
+  };
+
+  const startExport = async () => {
+    setShowWatermarkModal(false);
     setExportStep(0);
     setExportDone(false);
     setExportError(null);
@@ -289,7 +320,7 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
       setExportStep(1);
 
       // Step 1: building (actual API call)
-      await exportToPptx(presentation);
+      await exportToPptx(presentation!);
       setExportStep(2);
 
       // Step 2: downloading
@@ -298,7 +329,22 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
     } catch (err) {
       setExportError(err instanceof Error ? err.message : 'Export failed. Please try again.');
     }
-  }, [presentation, exportStep]);
+  };
+
+  const handleCheckout = async () => {
+    try {
+      const res = await fetch('/api/dodo/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planId: 'one_time_export' }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else throw new Error(data.error);
+    } catch (err) {
+      alert('Failed to initiate checkout. Please try again later.');
+    }
+  };
 
   const closeModal = () => {
     setExportStep(-1);
@@ -315,6 +361,52 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
 
   return (
     <>
+      {/* ── Watermark Upsell Modal ── */}
+      <AnimatePresence>
+        {showWatermarkModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[400] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 20, opacity: 0 }}
+              className="bg-white rounded-3xl shadow-2xl border border-black/[0.06] p-8 w-full max-w-sm mx-4 flex flex-col items-center gap-6"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center">
+                <Sparkles size={28} className="text-amber-500" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-xl font-bold text-black">Remove Watermark</h3>
+                <p className="text-sm text-gray-500 mt-2">
+                  Export your presentation without the Orbstera watermark.
+                </p>
+              </div>
+              
+              <div className="w-full space-y-3">
+                <button
+                  onClick={handleCheckout}
+                  className="w-full h-12 rounded-xl bg-primary text-white font-bold text-[15px] hover:bg-primary/90 transition-all active:scale-[0.97] flex items-center justify-center gap-2"
+                >
+                  Pay $1.49 once
+                </button>
+                <button
+                  onClick={startExport}
+                  className="w-full h-12 rounded-xl bg-black/[0.03] text-gray-600 font-semibold text-[14px] hover:bg-black/[0.06] transition-all active:scale-[0.97]"
+                >
+                  Export with watermark (Free)
+                </button>
+              </div>
+              
+              <button onClick={() => setShowWatermarkModal(false)} className="absolute top-4 right-4 p-2 text-gray-400 hover:text-black">
+                <X size={20} />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Export Modal ── */}
       <AnimatePresence>
         {exportStep >= 0 && (
