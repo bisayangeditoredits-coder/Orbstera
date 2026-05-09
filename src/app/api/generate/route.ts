@@ -148,7 +148,7 @@ Topic: ${prompt}
 
 Final Instruction: Return ONLY the JSON object. Do not explain. Do not talk. Only the architected data.`;
 
-    async function callOpenRouter(targetModel: string): Promise<Response | null> {
+    async function callOpenRouter(targetModel: string): Promise<{ res: Response | null, error?: string }> {
       console.log(`[Generate] Trying: ${targetModel}`);
       try {
         const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -172,36 +172,41 @@ Final Instruction: Return ONLY the JSON object. Do not explain. Do not talk. Onl
         });
 
         if (!res.ok) {
-          const errText = await res.text().catch(() => '(no body)');
-          console.error(`[Generate] ${targetModel} → HTTP ${res.status}: ${errText}`);
+          let errText = await res.text().catch(() => '(no body)');
+          try {
+             const jsonErr = JSON.parse(errText);
+             if (jsonErr.error && jsonErr.error.message) {
+                 errText = jsonErr.error.message;
+             }
+          } catch(e) {}
           
-          // If it's a 402 (Payment Required) or 400 with balance error, return null to trigger fallback
-          if (res.status === 402 || errText.includes('balance')) {
-            console.warn(`[Generate] ${targetModel} failed due to balance/credits. Falling back.`);
-          }
-          return null;
+          console.error(`[Generate] ${targetModel} → HTTP ${res.status}: ${errText}`);
+          return { res: null, error: errText };
         }
 
         console.log(`[Generate] ${targetModel} → OK, streaming...`);
-        return res;
-      } catch (e) {
+        return { res };
+      } catch (e: any) {
         console.error(`[Generate] ${targetModel} → fetch error:`, e);
-        return null;
+        return { res: null, error: e.message || 'Network error' };
       }
     }
 
     // ─── STRICT EXECUTION ───────────────────────────────────────────────────
     // We only try the exact model requested. If overloaded, try the equivalent fallback.
-    let response = await callOpenRouter(primaryModel);
+    let { res: response, error: firstError } = await callOpenRouter(primaryModel);
+    let finalError = firstError;
     
     if (!response && fallbackModel) {
       console.warn(`[Generate] Primary ${primaryModel} failed. Falling back to equivalent: ${fallbackModel}`);
-      response = await callOpenRouter(fallbackModel);
+      const fallbackResult = await callOpenRouter(fallbackModel);
+      response = fallbackResult.res;
+      if (!response) finalError = fallbackResult.error;
     }
 
     if (!response) {
-      console.error('[Generate] All models failed. Likely out of OpenRouter tokens.');
-      return NextResponse.json({ error: 'You have run out of OpenRouter tokens/credits, or all models are currently overloaded. Please check your developer API balance.' }, { status: 503 });
+      console.error('[Generate] All models failed. Sending real error to UI.');
+      return NextResponse.json({ error: finalError || 'All AI models are currently overloaded. Please try again later.' }, { status: 503 });
     }
 
     // ── INCREMENT USAGE COUNT ──────────────────────────────────────────────
