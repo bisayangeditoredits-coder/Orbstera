@@ -6,11 +6,12 @@ import { SlideElement } from '@/types';
 import {
   MousePointer2, Type, Image as ImageIcon, Square, Circle,
   Triangle, BarChart2, Undo2, Redo2, Grid3X3, Star, Minus,
-  ArrowRight, PenLine, Upload,
+  ArrowRight, PenLine, Upload, Sparkles,
 } from 'lucide-react';
 
 const TOOLBAR_TOOLS = [
   { id: 'select',   icon: MousePointer2, label: 'Select (V)',    separator: false },
+  { id: 'gen-fill', icon: Sparkles,      label: 'Generative Fill', separator: true },
   { id: 'text',     icon: Type,          label: 'Text (T)',      separator: false },
   { id: 'image',    icon: ImageIcon,     label: 'Image (I)',     separator: true  },
   { id: 'rect',     icon: Square,        label: 'Rectangle (R)', separator: false },
@@ -76,7 +77,20 @@ export function Toolbar() {
   const handleToolClick = (toolId: string) => {
     if (!slide) return;
 
-    if (toolId === 'select') { selectElement(null); return; }
+    if (toolId === 'select') { 
+      selectElement(null); 
+      setEditorState({ activeTool: 'select' });
+      return; 
+    }
+    
+    if (toolId === 'gen-fill') {
+      selectElement(null);
+      setEditorState({ activeTool: 'gen-fill' });
+      return;
+    }
+
+    // Reset tool to select after clicking other insertion tools
+    setEditorState({ activeTool: 'select' });
 
     const sIdx    = currentSlideIndex;
     const createId = (p: string) => `${p}-${sIdx}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
@@ -208,7 +222,11 @@ export function Toolbar() {
             <button
               onClick={() => handleToolClick(tool.id)}
               title={tool.label}
-              className="w-10 h-10 flex items-center justify-center rounded-[16px] text-black/40 hover:text-primary hover:bg-primary/[0.06] transition-all active:scale-[0.85] relative group"
+              className={`w-10 h-10 flex items-center justify-center rounded-[16px] transition-all active:scale-[0.85] relative group ${
+                editor.activeTool === tool.id 
+                  ? 'text-primary bg-primary/[0.08]' 
+                  : 'text-black/40 hover:text-primary hover:bg-primary/[0.06]'
+              }`}
             >
               <tool.icon size={17} strokeWidth={1.5} />
               <span className="absolute -top-11 left-1/2 -translate-x-1/2 bg-black/90 text-white text-[9px] font-bold px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-50 tracking-widest shadow-xl">

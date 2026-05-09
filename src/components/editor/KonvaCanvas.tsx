@@ -409,6 +409,8 @@ function SlideBackground({ colors, bgImageUrl }: { colors: string[], bgImageUrl?
 // ─── Main Konva Canvas ────────────────────────────────────────────────────────
 export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
   const stageRef = useRef<Konva.Stage>(null);
+  const [drawingRect, setDrawingRect] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
+  
   const {
     presentation,
     currentSlideIndex,
@@ -416,6 +418,7 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
     selectElement,
     updateElement,
     removeElement,
+    setEditorState,
   } = usePresentationStore();
 
   const slide = presentation?.slides[currentSlideIndex];
@@ -435,8 +438,55 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
   }, [editor.selectedElementId, slide, selectElement, removeElement]);
 
   const handleStageClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (editor.activeTool !== 'select') return;
     if (e.target === e.target.getStage()) selectElement(null);
-  }, [selectElement]);
+  }, [selectElement, editor.activeTool]);
+
+  const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (editor.activeTool === 'gen-fill') {
+      const pos = e.target.getStage()?.getPointerPosition();
+      if (pos) {
+        setDrawingRect({ x: pos.x, y: pos.y, w: 0, h: 0 });
+      }
+    }
+  }, [editor.activeTool]);
+
+  const handleMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (editor.activeTool === 'gen-fill' && drawingRect) {
+      const pos = e.target.getStage()?.getPointerPosition();
+      if (pos) {
+        setDrawingRect(prev => prev ? { ...prev, w: pos.x - prev.x, h: pos.y - prev.y } : null);
+      }
+    }
+  }, [editor.activeTool, drawingRect]);
+
+  const handleMouseUp = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (editor.activeTool === 'gen-fill' && drawingRect) {
+      if (Math.abs(drawingRect.w) > 20 && Math.abs(drawingRect.h) > 20) {
+        const x = drawingRect.w < 0 ? drawingRect.x + drawingRect.w : drawingRect.x;
+        const y = drawingRect.h < 0 ? drawingRect.y + drawingRect.h : drawingRect.y;
+        const w = Math.abs(drawingRect.w);
+        const h = Math.abs(drawingRect.h);
+
+        const newId = `el-genfill-${Date.now()}`;
+        const newEl: SlideElement = {
+          id: newId,
+          type: 'image',
+          src: '', // Empty src triggers the AI loading placeholder
+          x, y, width: w, height: h,
+          opacity: 1, visible: true, locked: false,
+          zIndex: (slide?.elements?.length || 0) + 1,
+        };
+
+        if (slide) {
+          usePresentationStore.getState().addElement(slide.id, newEl);
+          usePresentationStore.getState().selectElement(newId);
+        }
+      }
+      setDrawingRect(null);
+      setEditorState({ activeTool: 'select' });
+    }
+  }, [editor.activeTool, drawingRect, slide, setEditorState]);
 
   if (!slide || !presentation) {
     return (
@@ -474,6 +524,9 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
           scaleX={scale}
           scaleY={scale}
           onClick={handleStageClick}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
         >
           <Layer>
             <SlideBackground
@@ -490,6 +543,18 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
                 stageRef={stageRef}
               />
             ))}
+            {drawingRect && (
+              <Rect
+                x={drawingRect.w < 0 ? drawingRect.x + drawingRect.w : drawingRect.x}
+                y={drawingRect.h < 0 ? drawingRect.y + drawingRect.h : drawingRect.y}
+                width={Math.abs(drawingRect.w)}
+                height={Math.abs(drawingRect.h)}
+                fill="rgba(123, 97, 255, 0.1)"
+                stroke="#7B61FF"
+                strokeWidth={2}
+                dash={[5, 5]}
+              />
+            )}
           </Layer>
         </Stage>
       </div>

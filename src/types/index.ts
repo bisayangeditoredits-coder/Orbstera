@@ -146,6 +146,7 @@ export interface HistoryEntry {
 }
 
 export interface EditorState {
+  activeTool: 'select' | 'gen-fill';
   selectedElementId: string | null;
   isDragging: boolean;
   isResizing: boolean;

@@ -346,6 +346,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   },
 
   editor: {
+    activeTool: 'select',
     selectedElementId: null,
     isDragging: false,
     isResizing: false,
