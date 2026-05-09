@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ArrowRight, Lock, Mail, ShieldCheck, Check } from 'lucide-react';
 
@@ -15,10 +15,24 @@ export default function LoginPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [agreed, setAgreed] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Construct final redirect URL with preserved params
+    const baseRedirect = searchParams.get('redirect') || '/';
+    const prompt = searchParams.get('prompt');
+    const modeParam = searchParams.get('mode');
+    
+    let finalRedirect = baseRedirect;
+    if (prompt || modeParam) {
+      const url = new URL(baseRedirect, window.location.origin);
+      if (prompt) url.searchParams.set('prompt', prompt);
+      if (modeParam) url.searchParams.set('mode', modeParam);
+      finalRedirect = url.pathname + url.search;
+    }
     if (!agreed && mode === 'signup') {
       setError("Please agree to the Terms of use.");
       return;
@@ -43,7 +57,7 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      router.push('/');
+      router.push(finalRedirect);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -53,11 +67,25 @@ export default function LoginPage() {
 
   const handleOAuth = async (provider: 'google') => {
     setGoogleLoading(true);
+    
+    // Construct final redirect URL for OAuth callback
+    const baseRedirect = searchParams.get('redirect') || '/';
+    const prompt = searchParams.get('prompt');
+    const modeParam = searchParams.get('mode');
+    
+    let nextPath = baseRedirect;
+    if (prompt || modeParam) {
+      const url = new URL(baseRedirect, window.location.origin);
+      if (prompt) url.searchParams.set('prompt', prompt);
+      if (modeParam) url.searchParams.set('mode', modeParam);
+      nextPath = url.pathname + url.search;
+    }
+
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
         },
       });
       if (error) throw error;

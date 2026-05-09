@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { SurveyModal } from './SurveyModal';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { PresentationData } from '@/types';
 import { VoiceOrb } from '@/components/editor/VoiceOrb';
@@ -44,6 +45,10 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [userPlan, setUserPlan] = useState<string>('free');
+  const [showSurvey, setShowSurvey] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [profileData, setProfileData] = useState<any>(null);
+  const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isPaid = userPlan === 'pro' || userPlan === 'creator_pro';
   const isCreatorPro = userPlan === 'creator_pro';
@@ -96,24 +101,26 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const isLoading = editor.isGenerating;
   const searchParams = useSearchParams();
 
-  // Fetch user plan on mount to drive UI gating
+  // Fetch user plan and survey status on mount
   useEffect(() => {
-    const fetchPlan = async () => {
+    const fetchUser = async () => {
       try {
         const { createClient } = await import('@/lib/supabase');
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
         if (user) {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('plan')
+            .select('plan, survey_completed')
             .eq('id', user.id)
             .single();
+          setProfileData(profile);
           if (profile?.plan) setUserPlan(profile.plan.toLowerCase());
         }
       } catch (_) {}
     };
-    fetchPlan();
+    fetchUser();
   }, []);
 
   // Auto-trigger from URL params — runs exactly ONCE on mount
@@ -145,6 +152,21 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   }, []); // empty deps = mount only, no re-trigger on re-render
 
   const handleGenerateClick = () => {
+    // ── AUTH GATE ──
+    if (!user) {
+      // Encode prompt to pass it through login
+      const encodedPrompt = encodeURIComponent(prompt);
+      router.push(`/login?redirect=/editor&prompt=${encodedPrompt}&mode=create`);
+      return;
+    }
+
+    // ── SURVEY GATE ──
+    // If logged in but survey not done (or profile missing), show survey
+    if (user && (!profileData || !profileData.survey_completed)) {
+      setShowSurvey(true);
+      return;
+    }
+
     if (presentation && presentation.slides.length > 0) {
       setShowConfirm(true);
     } else {
@@ -327,6 +349,15 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   return (
     <>
       <AnimatePresence>
+        {showSurvey && (
+          <SurveyModal 
+            onComplete={() => {
+              setShowSurvey(false);
+              setProfileData({ ...profileData, survey_completed: true });
+              executeGenerate('replace');
+            }} 
+          />
+        )}
         {showUpgradeModal && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
