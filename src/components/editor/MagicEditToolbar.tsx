@@ -18,8 +18,15 @@ export function MagicEditToolbar() {
 
   const selectedElementId = editor.selectedElementId;
   const slide             = presentation?.slides[currentSlideIndex];
-  const selectedElement   = slide?.elements?.find((el) => el.id === selectedElementId);
-  const isVisible         = !!selectedElement && selectedElement.id !== dismissed;
+  
+  // Find background element if it exists
+  const bgElement         = slide?.elements?.find(el => el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0);
+  
+  // If an element is selected, use it. Otherwise, target the background element (or create a virtual one).
+  const targetElement     = selectedElementId ? slide?.elements?.find((el) => el.id === selectedElementId) : bgElement;
+  
+  // The toolbar is visible if an element is selected, OR if no element is selected (acts as slide background editor)
+  const isVisible         = !!slide && (selectedElementId !== dismissed);
 
   // Fetch the user's plan once on mount
   useEffect(() => {
@@ -43,20 +50,44 @@ export function MagicEditToolbar() {
   }, []);
 
   const handleMagicEdit = async () => {
-    if (!prompt.trim() || !selectedElement || !slide || isLoading || !isPro) return;
+    if (!prompt.trim() || !slide || isLoading || !isPro) return;
+    
+    // If we have a target element, use it. If not, we are generating a NEW background element.
+    let elementToEdit = targetElement;
+    if (!elementToEdit && !selectedElementId) {
+      // Create a virtual background element to send to the API
+      elementToEdit = {
+        id: `el-bg-${Date.now()}`,
+        type: 'image',
+        src: `PROMPT: ${prompt}`,
+        x: 0, y: 0,
+        width: 1280, height: 720,
+        zIndex: 0,
+        visible: true,
+        opacity: 0.18
+      };
+      // Instantly add it to the canvas with an empty src so it shows the "Generating..." state
+      const { addElement } = usePresentationStore.getState();
+      addElement(slide.id, { ...elementToEdit, src: '' });
+    } else if (elementToEdit && elementToEdit.type === 'image') {
+      // Real-time update: clear src instantly so KonvaCanvas shows "DREAMING IMAGE..."
+      updateElement(slide.id, elementToEdit.id, { src: '' });
+    }
+
     setIsLoading(true);
     try {
       const res = await fetch('/api/magic-edit', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ prompt: prompt.trim(), element: selectedElement }),
+        body:    JSON.stringify({ prompt: prompt.trim(), element: elementToEdit }),
       });
       if (!res.ok) throw new Error('Magic Edit failed');
       const updated = await res.json();
-      updateElement(slide.id, selectedElement.id, updated);
+      updateElement(slide.id, elementToEdit!.id, updated);
       setPrompt('');
     } catch (err) {
       console.error(err);
+      // Revert if failed (optional, but for now we just log)
     } finally {
       setIsLoading(false);
     }
@@ -101,8 +132,9 @@ export function MagicEditToolbar() {
           <div className={`animated-border shadow-2xl shadow-primary/10 w-[500px] ${!isPro ? 'opacity-80' : ''}`}>
             <div className="flex items-center gap-2 bg-white/98 backdrop-blur-xl px-2 py-2 w-full">
               <div className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl bg-primary/8 border border-primary/15">
-                {selectedElement.type === 'text'  ? <Type     size={16} className="text-primary" />
-               : selectedElement.type === 'image' ? <Sparkles size={16} className="text-primary" />
+                {!selectedElementId               ? <Sparkles size={16} className="text-primary" />
+               : targetElement?.type === 'text'  ? <Type     size={16} className="text-primary" />
+               : targetElement?.type === 'image' ? <Sparkles size={16} className="text-primary" />
                :                                    <Wand2    size={16} className="text-primary" />}
               </div>
 
@@ -112,7 +144,7 @@ export function MagicEditToolbar() {
                 onChange={(e) => isPro && setPrompt(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && isPro) { e.preventDefault(); handleMagicEdit(); } }}
                 disabled={isLoading || !isPro}
-                placeholder={isPro ? (isListening ? '🎤 Listening...' : `Edit with AI... e.g. "make it more exciting"`) : `🔒 Pro feature — upgrade to edit with AI`}
+                placeholder={isPro ? (isListening ? '🎤 Listening...' : (!selectedElementId ? `Generate AI Background... e.g. "cyberpunk city"` : `Edit with AI... e.g. "make it more exciting"`)) : `🔒 Pro feature — upgrade to edit with AI`}
                 className={`flex-1 bg-transparent border-none outline-none text-[13px] font-medium px-1 h-9 ${
                   isPro
                     ? 'text-textMain placeholder:text-textMuted/50'
@@ -156,7 +188,7 @@ export function MagicEditToolbar() {
               )}
 
               <button
-                onClick={() => setDismissed(selectedElement.id)}
+                onClick={() => setDismissed(selectedElementId || 'bg')}
                 className="w-8 h-8 flex items-center justify-center rounded-lg text-textMuted hover:text-textMain hover:bg-hoverSurface transition-all shrink-0"
               >
                 <X size={15} />
@@ -166,9 +198,15 @@ export function MagicEditToolbar() {
 
           <p className="text-[10px] text-black/25 font-medium">
             {isPro ? (
-              <>AI editing <span className="text-primary/50 font-bold">{selectedElement.type}</span>
-                {selectedElement.type === 'text' && selectedElement.content && (
-                  <> — "{selectedElement.content.slice(0, 40)}{selectedElement.content.length > 40 ? '…' : ''}"</>
+              <>
+                {!selectedElementId ? (
+                  <>AI generating <span className="text-primary/50 font-bold">Slide Background</span></>
+                ) : (
+                  <>AI editing <span className="text-primary/50 font-bold">{targetElement?.type}</span>
+                    {targetElement?.type === 'text' && targetElement?.content && (
+                      <> — "{targetElement.content.slice(0, 40)}{targetElement.content.length > 40 ? '…' : ''}"</>
+                    )}
+                  </>
                 )}
               </>
             ) : (
