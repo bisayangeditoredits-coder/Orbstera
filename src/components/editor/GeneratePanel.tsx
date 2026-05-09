@@ -48,6 +48,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const [showSurvey, setShowSurvey] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [profileData, setProfileData] = useState<any>(null);
+  const searchParams = useSearchParams();
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isPaid = userPlan === 'student_pro' || userPlan === 'pro' || userPlan === 'creator_pro';
