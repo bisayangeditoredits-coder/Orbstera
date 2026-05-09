@@ -469,7 +469,11 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={isListening ? '🎤 Listening... speak your vision' : 'Describe your presentation topic...'}
-                    className="w-full flex-1 bg-transparent text-[18px] text-black placeholder:text-textMuted/40 resize-none focus:outline-none font-medium leading-relaxed"
+                    className={`w-full flex-1 bg-transparent text-black placeholder:text-textMuted/40 resize-none focus:outline-none font-medium transition-all duration-300 ${
+                      prompt.length > 200 ? 'text-[11px] leading-tight' :
+                      prompt.length > 80  ? 'text-[14px] leading-snug' :
+                      'text-[18px] leading-relaxed'
+                    }`}
                   />
 
                   {/* Bottom toolbar */}
