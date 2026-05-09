@@ -172,11 +172,15 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
     }
 
     // ── SURVEY GATE ──
-    // If logged in but survey not done, show survey. 
-    // Don't show if still loading profile to prevent flashing survey for existing users.
-    if (user && !isProfileLoading && (!profileData || !profileData.survey_completed)) {
-      setShowSurvey(true);
-      return;
+    // Hard bypass if completed in this session (LocalStorage) OR already in profileData
+    const hasCompletedInSession = typeof window !== 'undefined' && localStorage.getItem(`survey_done_${user?.id}`) === 'true';
+    
+    if (user && !isProfileLoading) {
+      const isDoneInDB = profileData?.survey_completed;
+      if (!isDoneInDB && !hasCompletedInSession) {
+        setShowSurvey(true);
+        return;
+      }
     }
 
     if (presentation && presentation.slides.length > 0) {
@@ -365,7 +369,11 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           <SurveyModal 
             onComplete={() => {
               setShowSurvey(false);
-              // Optimistically update local state so it doesn't show again in this session
+              // 1. Session bypass (Instant)
+              if (user?.id) {
+                localStorage.setItem(`survey_done_${user.id}`, 'true');
+              }
+              // 2. State update
               setProfileData(prev => ({ ...prev, survey_completed: true }));
               executeGenerate('replace');
             }} 
