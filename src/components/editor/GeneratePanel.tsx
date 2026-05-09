@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { PresentationData } from '@/types';
+import { VoiceOrb } from '@/components/editor/VoiceOrb';
 import {
   Sparkles, X, ChevronDown, Loader2, Wand2,
   Zap, Gauge, Crown, Globe, ArrowRight,
@@ -51,10 +52,11 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
   // ── Voice Protocol ──────────────────────────────────────────
   const [isListening, setIsListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
   const recognitionRef = useRef<any>(null);
 
   const toggleVoice = () => {
-    if (!isPaid) return; // Pro only
+    if (!isPaid) return;
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
@@ -71,13 +73,15 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         transcript += e.results[i][0].transcript;
       }
+      setVoiceTranscript(transcript);
       setPrompt(transcript);
     };
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => { setIsListening(false); setVoiceTranscript(''); };
+    recognition.onerror = () => { setIsListening(false); setVoiceTranscript(''); };
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
+    setVoiceTranscript('');
   };
 
   const [activeTab, setActiveTab] = useState<'create' | 'enhance'>('create');
@@ -433,11 +437,13 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                 </span>
               </div>
               <div className="animated-border shadow-[0_32px_64px_-16px_rgba(59,130,246,0.2)]">
-                <div className="bg-white p-6 flex flex-col min-h-[220px] transition-all rounded-[22px] relative">
-                  {/* Listening pulse overlay */}
-                  {isListening && (
-                    <div className="absolute inset-0 rounded-[22px] border-2 border-red-400/50 animate-pulse pointer-events-none" />
-                  )}
+                <div className="bg-white p-6 flex flex-col min-h-[220px] transition-all rounded-[22px] relative overflow-hidden">
+                  {/* ✨ Voice Orb overlay — replaces textarea while listening */}
+                  <VoiceOrb
+                    isListening={isListening}
+                    transcript={voiceTranscript}
+                    onStop={toggleVoice}
+                  />
                   <textarea
                     ref={textareaRef}
                     value={prompt}
