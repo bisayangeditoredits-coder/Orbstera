@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { Sparkles, Loader2, X, Type, Wand2, Crown, Lock } from 'lucide-react';
+import { Sparkles, Loader2, X, Type, Wand2, Crown, Lock, Mic, MicOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 
 export function MagicEditToolbar() {
@@ -13,6 +13,8 @@ export function MagicEditToolbar() {
   const [dismissed, setDismissed] = useState<string | null>(null);
   const [isPro, setIsPro]         = useState(false);
   const [planChecked, setPlanChecked] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   const selectedElementId = editor.selectedElementId;
   const slide             = presentation?.slides[currentSlideIndex];
@@ -60,6 +62,28 @@ export function MagicEditToolbar() {
     }
   };
 
+  const toggleVoice = () => {
+    if (!isPro) return;
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    const recognition = new SR();
+    recognition.lang = 'en-US';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onresult = (e: any) => {
+      setPrompt(e.results[0]?.[0]?.transcript || '');
+    };
+    recognition.onend = () => setIsListening(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  };
+
   if (!isVisible || !planChecked) return null;
 
   return (
@@ -88,13 +112,29 @@ export function MagicEditToolbar() {
                 onChange={(e) => isPro && setPrompt(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && isPro) { e.preventDefault(); handleMagicEdit(); } }}
                 disabled={isLoading || !isPro}
-                placeholder={isPro ? `Edit with AI... e.g. "make it more exciting"` : `🔒 Pro feature — upgrade to edit with AI`}
+                placeholder={isPro ? (isListening ? '🎤 Listening...' : `Edit with AI... e.g. "make it more exciting"`) : `🔒 Pro feature — upgrade to edit with AI`}
                 className={`flex-1 bg-transparent border-none outline-none text-[13px] font-medium px-1 h-9 ${
                   isPro
                     ? 'text-textMain placeholder:text-textMuted/50'
                     : 'text-textMuted/60 placeholder:text-textMuted/50 cursor-not-allowed'
                 }`}
               />
+
+              {/* Voice mic button */}
+              <button
+                onClick={toggleVoice}
+                title={!isPro ? 'Pro only' : isListening ? 'Stop' : 'Voice input'}
+                className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all relative ${
+                  !isPro
+                    ? 'text-gray-300 cursor-not-allowed'
+                    : isListening
+                    ? 'bg-red-50 text-red-500 animate-pulse'
+                    : 'text-textMuted hover:text-primary hover:bg-primary/5'
+                }`}
+              >
+                {isListening ? <MicOff size={15} /> : <Mic size={15} />}
+                {!isPro && <Crown size={7} className="absolute -top-0.5 -right-0.5 text-amber-400" />}
+              </button>
 
               {isPro ? (
                 <button

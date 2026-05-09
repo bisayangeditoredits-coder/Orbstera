@@ -8,7 +8,7 @@ import { PresentationData } from '@/types';
 import {
   Sparkles, X, ChevronDown, Loader2, Wand2,
   Zap, Gauge, Crown, Globe, ArrowRight,
-  Save, Trash2, Download, AlertCircle, Plus
+  Save, Trash2, Download, AlertCircle, Plus, Mic, MicOff
 } from 'lucide-react';
 
 interface GeneratePanelProps {
@@ -48,6 +48,37 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const isCreatorPro = userPlan === 'creator_pro';
   // Plan-based max slides (mirrors server MAX_SLIDES)
   const maxSlidesForPlan = isCreatorPro ? 30 : isPaid ? 25 : 5;
+
+  // ── Voice Protocol ──────────────────────────────────────────
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const toggleVoice = () => {
+    if (!isPaid) return; // Pro only
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) { setError('Voice not supported in this browser.'); return; }
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onresult = (e: any) => {
+      let transcript = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        transcript += e.results[i][0].transcript;
+      }
+      setPrompt(transcript);
+    };
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  };
 
   const [activeTab, setActiveTab] = useState<'create' | 'enhance'>('create');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -394,31 +425,58 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           <>
             {/* Prompt Area */}
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-textMuted uppercase tracking-[0.2em] block">Your Vision</label>
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-black text-textMuted uppercase tracking-[0.2em] block">Your Vision</label>
+                {/* Voice Protocol badge */}
+                <span className="text-[9px] font-bold text-primary/60 uppercase tracking-wider flex items-center gap-1">
+                  <Mic size={9} /> Voice Protocol {!isPaid && <Crown size={8} className="text-amber-400" />}
+                </span>
+              </div>
               <div className="animated-border shadow-[0_32px_64px_-16px_rgba(59,130,246,0.2)]">
                 <div className="bg-white p-6 flex flex-col min-h-[220px] transition-all rounded-[22px] relative">
+                  {/* Listening pulse overlay */}
+                  {isListening && (
+                    <div className="absolute inset-0 rounded-[22px] border-2 border-red-400/50 animate-pulse pointer-events-none" />
+                  )}
                   <textarea
                     ref={textareaRef}
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Describe your presentation topic..."
+                    placeholder={isListening ? '🎤 Listening... speak your vision' : 'Describe your presentation topic...'}
                     className="w-full flex-1 bg-transparent text-[18px] text-black placeholder:text-textMuted/40 resize-none focus:outline-none font-medium leading-relaxed"
                   />
-                  
-                  {/* Functional Attachment Tool & Reference Indicator */}
+
+                  {/* Bottom toolbar */}
                   <div className="mt-4 flex items-center justify-between pt-4 border-t border-black/[0.03]">
                     <div className="flex items-center gap-3">
-                      <button 
+                      {/* Attach button */}
+                      <button
                         onClick={() => fileInputRef.current?.click()}
                         className="w-10 h-10 rounded-xl bg-[#F8F9FA] border border-black/[0.04] flex items-center justify-center text-black/40 hover:text-primary hover:bg-primary/[0.04] hover:border-primary/20 transition-all shadow-sm group"
                         title="Attach Reference Document"
                       >
                         <Plus size={18} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform" />
                       </button>
-                      
+
+                      {/* Voice Protocol Mic */}
+                      <button
+                        onClick={toggleVoice}
+                        title={!isPaid ? 'Voice Protocol — Pro members only' : isListening ? 'Stop listening' : 'Start voice input'}
+                        className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all shadow-sm relative ${
+                          !isPaid
+                            ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
+                            : isListening
+                            ? 'bg-red-50 border-red-200 text-red-500 animate-pulse'
+                            : 'bg-[#F8F9FA] border-black/[0.04] text-black/40 hover:text-primary hover:bg-primary/[0.04] hover:border-primary/20'
+                        }`}
+                      >
+                        {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+                        {!isPaid && <Crown size={8} className="absolute -top-1 -right-1 text-amber-400" />}
+                      </button>
+
                       {selectedFile && (
-                        <motion.div 
+                        <motion.div
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
                           className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100 shadow-sm group"
@@ -427,16 +485,13 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                           <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-tight truncate max-w-[120px]">
                             {selectedFile.name}
                           </span>
-                          <button 
-                            onClick={() => setSelectedFile(null)}
-                            className="p-1 hover:bg-emerald-200/50 rounded-md transition-colors"
-                          >
+                          <button onClick={() => setSelectedFile(null)} className="p-1 hover:bg-emerald-200/50 rounded-md transition-colors">
                             <X size={10} className="text-emerald-700" />
                           </button>
                         </motion.div>
                       )}
                     </div>
-                    
+
                     <div className="text-[10px] font-bold text-black/10 uppercase tracking-[0.2em]">
                       Neural Prompt v4
                     </div>
