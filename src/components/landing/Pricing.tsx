@@ -110,7 +110,27 @@ export function Pricing() {
 
   return (
     <section id="pricing" className="w-full py-32 px-6 bg-[#F8FAFC] text-slate-900 relative overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-[600px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+      {/* Background Gradient Animation */}
+      <div 
+        className="absolute top-0 left-0 right-0 h-full z-0 pointer-events-none overflow-hidden"
+        style={{ 
+          maskImage: 'linear-gradient(to bottom, black 80%, transparent 100%)', 
+          WebkitMaskImage: 'linear-gradient(to bottom, black 80%, transparent 100%)' 
+        }}
+      >
+        <div className="absolute inset-0 w-full h-full opacity-60 mix-blend-multiply">
+           {/* @ts-ignore */}
+           <lottie-player
+             src="/Background gradient.json"
+             background="transparent"
+             speed="0.5"
+             style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.1)' }}
+             loop
+             autoplay
+             preserveAspectRatio="xMidYMid slice"
+           />
+        </div>
+      </div>
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="text-center mb-20">
           <h2 className="text-5xl md:text-6xl font-black mb-6 text-slate-900">Fair Pricing, Real Power.</h2>
