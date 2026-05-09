@@ -48,7 +48,7 @@ export async function POST(req: Request) {
       environment: isTest ? 'test_mode' : 'live_mode',
     });
 
-    const session = await dodo.checkoutSessions.create({
+    const basePayload = {
       customer: {
         email: customerEmail,
         name: customerName,
@@ -63,8 +63,19 @@ export async function POST(req: Request) {
         userId: userId,
         planId: planId,
       },
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/editor?payment=success`,
-    });
+    };
+
+    // Generate secure signature for the return URL
+    const crypto = await import('crypto');
+    const secret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET || 'dev';
+    const sig = crypto.createHmac('sha256', secret).update(`${userId}:${planId}`).digest('hex');
+
+    const sessionPayload: any = {
+      ...basePayload,
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/dodo/sync?userId=${userId}&planId=${planId}&sig=${sig}`,
+    };
+
+    const session = await dodo.checkoutSessions.create(sessionPayload);
 
     return NextResponse.json({ url: session.checkout_url });
   } catch (error: any) {
