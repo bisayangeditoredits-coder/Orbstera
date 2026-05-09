@@ -71,21 +71,60 @@ export async function openRouterStream(
   return res;
 }
 
+/**
+ * Extract first top-level `{ ... }` using brace depth (handles nested slides array).
+ * Ignores braces inside JSON strings.
+ */
+export function extractBalancedJsonObject(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+
+    if (inString) {
+      if (escape) {
+        escape = false;
+      } else if (c === '\\') {
+        escape = true;
+      } else if (c === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (c === '"') {
+      inString = true;
+      continue;
+    }
+    if (c === '{') depth++;
+    if (c === '}') {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+
+  return null;
+}
+
 /** Extract first JSON object from model output (handles stray prose / thinking tags). */
 export function extractJsonObject(raw: string): Record<string, unknown> | null {
   const stripped = raw
-    .replace(/\x3credacted_thinking\x3e[\s\S]*?\x3c\/think\x3e/gi, '')
+    .replace(/\x3credacted_thinking\x3e[\s\S]*?\x3c\/redacted_thinking\x3e/gi, '')
     .replace(/\x3cthink\x3e[\s\S]*?\x3c\/think\x3e/gi, '')
     .replace(/\x3credacted_reasoning\x3e[\s\S]*?\x3c\/redacted_reasoning\x3e/gi, '')
     .replace(/\x3cthought\x3e[\s\S]*?\x3c\/thought\x3e/gi, '')
     .replace(/```json\s*/gi, '')
     .replace(/```\s*/g, '');
 
-  const start = stripped.indexOf('{');
-  const end = stripped.lastIndexOf('}');
-  if (start === -1 || end < start) return null;
+  const balanced = extractBalancedJsonObject(stripped);
+  if (!balanced) return null;
   try {
-    return JSON.parse(stripped.slice(start, end + 1)) as Record<string, unknown>;
+    return JSON.parse(balanced) as Record<string, unknown>;
   } catch {
     return null;
   }

@@ -7,6 +7,7 @@ import { SurveyModal } from './SurveyModal';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { PresentationData } from '@/types';
 import { normalizePresentationPayload } from '@/lib/ai/orchestration';
+import { extractJsonObject } from '@/lib/ai/openrouter';
 import { VoiceOrb } from '@/components/editor/VoiceOrb';
 import {
   Sparkles, X, ChevronDown, Loader2, Wand2,
@@ -266,6 +267,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         const decoder = new TextDecoder();
         let accumulatedText = '';
         let processedSlideCount = 0;
+        /** Incomplete SSE line when chunks split mid-line */
+        let sseCarry = '';
 
         const streamSlide = usePresentationStore.getState().streamSlide;
         const storeSetPresentation = usePresentationStore.getState().setPresentation;
@@ -274,8 +277,9 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
+          sseCarry += decoder.decode(value, { stream: true });
+          const lines = sseCarry.split('\n');
+          sseCarry = lines.pop() ?? '';
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {
@@ -332,54 +336,84 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           }
         }
 
-        // Final attempt to parse full JSON — in append mode merge slides instead of replacing
-        try {
-          // Strip out <think>...</think> tags completely so it doesn't break JSON.parse
-          const textWithoutTags = accumulatedText.replace(/<(?:think|thought)>[\s\S]*?<\/(?:think|thought)>/gi, '');
-          
-          // Find the first { and last } to ignore conversational text from free models
-          const firstBrace = textWithoutTags.indexOf('{');
-          const lastBrace = textWithoutTags.lastIndexOf('}');
-          
-          if (firstBrace !== -1 && lastBrace !== -1 && lastBrace >= firstBrace) {
-            const cleanJson = textWithoutTags.substring(firstBrace, lastBrace + 1);
-            const parsedRaw = JSON.parse(cleanJson) as Record<string, unknown>;
-            let finalData = normalizePresentationPayload(parsedRaw);
-
-            if (mode === 'premium') {
-              setEditorState({ orchestrationPhase: 'elite_polish' });
-              try {
-                const pr = await fetch('/api/generate/polish', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ presentation: finalData }),
-                });
-                if (pr.ok) {
-                  const polished = await pr.json();
-                  finalData = normalizePresentationPayload(polished as Record<string, unknown>);
-                }
-              } catch (polishErr) {
-                console.warn('Elite polish skipped:', polishErr);
+        // Flush last SSE line if stream ended without a trailing newline
+        if (sseCarry.startsWith('data: ')) {
+          const line = sseCarry;
+          const data = line.slice(6);
+          if (data !== '[DONE]') {
+            try {
+              const json = JSON.parse(data);
+              if (!json.orb) {
+                const content = json.choices?.[0]?.delta?.content || '';
+                accumulatedText += content;
               }
+            } catch {
+              /* ignore truncated tail */
             }
+          }
+        }
 
-            if (finalData.slides) {
-              if (appendMode === 'append') {
-                // Merge: keep existing slides and push new ones on top
-                const existingSlides = usePresentationStore.getState().presentation?.slides || [];
-                storeSetPresentation({ ...finalData, slides: [...existingSlides, ...finalData.slides] });
-              } else {
-                storeSetPresentation(finalData);
+        // Final attempt to parse full JSON — balanced-brace extraction (nested slides safe)
+        try {
+          let parsedRaw = extractJsonObject(accumulatedText);
+
+          if (!parsedRaw) {
+            const streamed = usePresentationStore.getState().presentation;
+            const streamedSlides = streamed?.slides ?? [];
+            if (streamedSlides.length > 0) {
+              const inferredTitle =
+                streamed.title && streamed.title !== 'Generating...'
+                  ? streamed.title
+                  : streamedSlides[0]?.title || 'Presentation';
+              parsedRaw = {
+                title: inferredTitle,
+                theme: streamed.theme || 'modern-dark',
+                colorPalette: streamed.colorPalette || ['#05050A', '#F8FAFC', '#38BDF8', '#94A3B8'],
+                fontPairing: streamed.fontPairing || { heading: 'Space Grotesk', body: 'Inter' },
+                animationStyle: streamed.animationStyle || 'cinematic-reveal',
+                slides: streamedSlides,
+              } as unknown as Record<string, unknown>;
+            }
+          }
+
+          if (!parsedRaw) {
+            throw new Error('NO_JSON');
+          }
+
+          let finalData = normalizePresentationPayload(parsedRaw);
+
+          if (mode === 'premium') {
+            setEditorState({ orchestrationPhase: 'elite_polish' });
+            try {
+              const pr = await fetch('/api/generate/polish', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ presentation: finalData }),
+              });
+              if (pr.ok) {
+                const polished = await pr.json();
+                finalData = normalizePresentationPayload(polished as Record<string, unknown>);
               }
+            } catch (polishErr) {
+              console.warn('Elite polish skipped:', polishErr);
+            }
+          }
+
+          if (finalData.slides?.length) {
+            if (appendMode === 'append') {
+              const existingSlides = usePresentationStore.getState().presentation?.slides || [];
+              storeSetPresentation({ ...finalData, slides: [...existingSlides, ...finalData.slides] });
             } else {
-               throw new Error('JSON parsed but no slides array found.');
+              storeSetPresentation(finalData);
             }
           } else {
-            throw new Error('No valid JSON object found in response.');
+            throw new Error('JSON parsed but no slides array found.');
           }
         } catch (e) {
-          console.error('Final JSON parse failed:', e, accumulatedText);
-          throw new Error('The AI generated an invalid format. Please try again.');
+          console.error('Final JSON parse failed:', e, accumulatedText?.slice?.(-4000));
+          throw new Error(
+            'Could not parse the AI response into a deck. Try again, shorten the prompt, or switch intelligence mode.'
+          );
         }
 
         setActivePanel('layers');
