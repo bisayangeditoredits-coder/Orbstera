@@ -70,20 +70,36 @@ export function PageTransition({ children }: { children: React.RefNode }) {
                     damping: 20,
                     delay: 0.2
                   }}
-                  className="relative w-64 h-64 mb-4"
+                  className="relative w-64 h-64 mb-4 flex items-center justify-center"
                 >
                   {/* Outer Orbitals/Glow for the robot */}
                   <div className="absolute inset-0 bg-primary/5 rounded-full blur-3xl animate-pulse" />
                   
-                  {/* @ts-ignore */}
-                  <lottie-player
-                    src="/robo (2).json"
-                    background="transparent"
-                    speed="1"
-                    style={{ width: '100%', height: '100%' }}
-                    loop
-                    autoplay
-                  />
+                  {/* Swirling Dots Background Animation (Behind Robot) */}
+                  <div className="absolute inset-[-50%] z-0 flex items-center justify-center">
+                    {/* @ts-ignore */}
+                    <lottie-player
+                      src="/Dots Swirling 01.json"
+                      background="transparent"
+                      speed="1.2"
+                      style={{ width: '100%', height: '100%', opacity: 0.8, transform: 'scale(1.3)' }}
+                      loop
+                      autoplay
+                    />
+                  </div>
+                  
+                  {/* Main Robot Mascot */}
+                  <div className="relative z-10 w-full h-full">
+                    {/* @ts-ignore */}
+                    <lottie-player
+                      src="/robo (2).json"
+                      background="transparent"
+                      speed="1"
+                      style={{ width: '100%', height: '100%' }}
+                      loop
+                      autoplay
+                    />
+                  </div>
                 </motion.div>
 
                 {/* Staggered Text Reveal */}

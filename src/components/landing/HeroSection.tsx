@@ -359,35 +359,27 @@ export function HeroSection() {
         accept=".pdf,.doc,.docx,.ppt,.pptx,.txt"
       />
 
-      {/* Cinematic Animated Background - Enhanced Visibility */}
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        {/* Floating Cloud Blobs */}
-        <motion.div
-          animate={{
-            x: [0, 80, 0],
-            y: [0, 50, 0],
-            scale: [1, 1.2, 1],
-          }}
-          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[-5%] left-[-10%] w-[60%] h-[60%] rounded-full bg-white blur-[100px] opacity-70"
-        />
-        <motion.div
-          animate={{
-            x: [0, -100, 0],
-            y: [0, 80, 0],
-            scale: [1, 1.3, 1],
-          }}
-          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[5%] right-[-15%] w-[55%] h-[55%] rounded-full bg-blue-200/40 blur-[100px] opacity-80"
-        />
-        <motion.div
-          animate={{
-            y: [0, -150, 0],
-            opacity: [0.2, 0.5, 0.2],
-          }}
-          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute bottom-[-15%] left-[10%] w-[70%] h-[70%] rounded-full bg-indigo-100/40 blur-[120px]"
-        />
+      {/* Cinematic Animated Background - Restricted to screen size with smooth fade out */}
+      <div 
+        className="absolute top-0 left-0 right-0 h-[110vh] z-0 pointer-events-none overflow-hidden"
+        style={{ 
+          maskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)', 
+          WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)' 
+        }}
+      >
+        {/* Lightweight Lottie Gradient Background */}
+        <div className="absolute inset-0 w-full h-full opacity-80 mix-blend-multiply">
+           {/* @ts-ignore */}
+           <lottie-player
+             src="/Background gradient.json"
+             background="transparent"
+             speed="0.5"
+             style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.1)' }}
+             loop
+             autoplay
+             preserveAspectRatio="xMidYMid slice"
+           />
+        </div>
 
         {/* Ambient Sparkle Particles (More Visible) */}
         {[...Array(30)].map((_, i) => (
@@ -438,7 +430,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.1 }}
-          className="text-4xl md:text-7xl font-bold tracking-tight leading-[1.1] mb-4 text-[#1A1A1A] text-balance max-w-4xl mx-auto"
+          className="text-5xl md:text-[80px] font-bold tracking-tight leading-[1.1] mb-4 text-[#1A1A1A] text-balance max-w-4xl mx-auto"
         >
           The Future of <span className="text-primary">AI</span> <br />
           <span className="italic font-light">Presentations</span> is Here.
@@ -449,7 +441,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.2 }}
-          className="text-lg md:text-xl text-textSecondary max-w-2xl mb-8 text-balance leading-snug font-medium opacity-90 mx-auto"
+          className="text-xl md:text-[22px] text-textSecondary max-w-2xl mb-8 text-balance leading-snug font-medium opacity-90 mx-auto"
         >
           Generate professional slides from simple prompts in seconds.
         </motion.p>

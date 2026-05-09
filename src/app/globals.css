@@ -78,7 +78,7 @@ body {
       transparent 35%,
       transparent 100%
     );
-    animation: rotate-border 3s linear infinite;
+    animation: rotate-border 6s linear infinite;
     transform: translate(-50%, -50%);
     opacity: 1;
     z-index: 0;
@@ -98,10 +98,6 @@ body {
   @keyframes rotate-border {
     from { transform: translate(-50%, -50%) rotate(0deg); }
     to { transform: translate(-50%, -50%) rotate(360deg); }
-  }
-
-  .animated-border:focus-within::before {
-    animation-duration: 2s;
   }
 
   .animated-border > * {
