@@ -137,6 +137,7 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
   });
 
   return {
+    id: (input.id as string) || undefined,
     title,
     theme: (input.theme as string) || 'industrial-minimal',
     colorPalette: Array.isArray(input.colorPalette)
@@ -156,5 +157,10 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
     presentationType: input.presentationType as string | undefined,
     styleMode: input.styleMode as string | undefined,
     intentSummary: input.intentSummary as string | undefined,
+    saveVersion: typeof (input as { saveVersion?: unknown }).saveVersion === 'number'
+      ? ((input as { saveVersion?: number }).saveVersion as number)
+      : undefined,
+    source: (input as { source?: PresentationData['source'] }).source,
+    importMeta: (input as { importMeta?: PresentationData['importMeta'] }).importMeta,
   };
 }

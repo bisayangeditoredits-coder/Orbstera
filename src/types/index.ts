@@ -166,6 +166,12 @@ export interface FontPairing {
   body: string;
 }
 
+export interface PresentationImportMeta {
+  fileName: string;
+  format: 'pptx' | 'ppt';
+  warnings?: string[];
+}
+
 export interface PresentationData {
   id?: string;
   title: string;
@@ -185,6 +191,15 @@ export interface PresentationData {
   /** UI / export style preset */
   styleMode?: string;
   intentSummary?: string;
+  /** Server-owned revision counter for optimistic concurrency on cloud saves */
+  saveVersion?: number;
+  /** Last successful cloud persist (ISO) */
+  lastCloudSavedAt?: string;
+  /** Origin of deck */
+  source?: 'ai' | 'import' | 'manual';
+  importMeta?: PresentationImportMeta;
+  /** Set by API when persisting to R2 */
+  userId?: string;
 }
 
 // ─── Editor State Types ───────────────────────────────────────────────────────
@@ -210,6 +225,9 @@ export interface EditorState {
   /** Multi-model orchestration UI */
   orchestrationPhase: string;
   activeModelLabel: string;
+  /** Cloud autosave / sync indicator */
+  cloudSyncStatus: 'idle' | 'saving' | 'saved' | 'error' | 'conflict' | 'retrying';
+  cloudSyncMessage?: string;
 }
 
 // ─── UI Types ─────────────────────────────────────────────────────────────────

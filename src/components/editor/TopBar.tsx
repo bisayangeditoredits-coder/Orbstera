@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { exportToPptx } from '@/lib/export';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -11,6 +12,7 @@ import {
   CheckCircle, Pencil, X, Undo2, Redo2,
   FileDown, PackageCheck, Sparkles,
   Clock, AlignLeft, LayoutTemplate, Palette,
+  Upload, AlertCircle, RefreshCw,
 } from 'lucide-react';
 
 // ── Export Progress Modal ─────────────────────────────────────────────────────
@@ -253,14 +255,95 @@ const PANEL_BUTTONS = [
 interface TopBarProps { onOpenGenerate?: () => void; }
 
 export function TopBar({ onOpenGenerate }: TopBarProps) {
+  const router = useRouter();
   const store       = usePresentationStore();
   const presentation = store.presentation;
-  const { activePanel, setActivePanel, isPanelOpen, setPanelOpen, setEditorState } = store;
+  const { activePanel, setActivePanel, isPanelOpen, setPanelOpen, setEditorState, setPresentation } = store;
+  const cloudSync = store.editor.cloudSyncStatus;
+  const cloudMsg  = store.editor.cloudSyncMessage;
 
   const [exportStep,  setExportStep]  = useState(-1);   // -1 = not exporting
   const [exportDone,  setExportDone]  = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [showWatermarkModal, setShowWatermarkModal] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportFile = async (file: File | null) => {
+    if (!file) return;
+    setImportError(null);
+    setImportBusy(true);
+    try {
+      const fd = new FormData();
+      fd.set('file', file);
+      const res = await fetch('/api/import/presentation', { method: 'POST', body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Import failed (${res.status})`);
+      if (!data.presentation?.slides?.length) throw new Error('Import returned no slides.');
+      setPresentation(data.presentation);
+      const pid = data.presentation.id;
+      if (pid) router.replace(`/editor?id=${encodeURIComponent(pid)}`);
+    } catch (e: unknown) {
+      setImportError(e instanceof Error ? e.message : 'Import failed');
+    } finally {
+      setImportBusy(false);
+      if (importInputRef.current) importInputRef.current.value = '';
+    }
+  };
+
+  const reloadFromCloud = async () => {
+    const id = presentation?.id;
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/presentations?id=${encodeURIComponent(id)}`);
+      const data = await res.json();
+      if (data?.id) {
+        setPresentation(data);
+        setEditorState({ cloudSyncStatus: 'idle', cloudSyncMessage: undefined });
+      }
+    } catch {
+      setEditorState({ cloudSyncStatus: 'error', cloudSyncMessage: 'Reload failed' });
+    }
+  };
+
+  const retrySaveNow = async () => {
+    const body = usePresentationStore.getState().presentation;
+    if (!body?.id) return;
+    setEditorState({ cloudSyncStatus: 'saving', cloudSyncMessage: undefined });
+    try {
+      const res = await fetch('/api/presentations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409) {
+        setEditorState({
+          cloudSyncStatus: 'conflict',
+          cloudSyncMessage: 'This deck was saved elsewhere. Reload to get the latest version.',
+        });
+        return;
+      }
+      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Save failed');
+      if (data.success && typeof data.saveVersion === 'number') {
+        usePresentationStore.getState().updatePresentation({
+          saveVersion: data.saveVersion,
+          lastCloudSavedAt: data.updatedAt || new Date().toISOString(),
+        });
+      }
+      setEditorState({ cloudSyncStatus: 'saved' });
+      window.setTimeout(() => {
+        const st = usePresentationStore.getState().editor.cloudSyncStatus;
+        if (st === 'saved') setEditorState({ cloudSyncStatus: 'idle' });
+      }, 1800);
+    } catch (e: unknown) {
+      setEditorState({
+        cloudSyncStatus: 'error',
+        cloudSyncMessage: e instanceof Error ? e.message : 'Save failed',
+      });
+    }
+  };
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -421,6 +504,51 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
 
       {/* ── Export Modal ── */}
       <AnimatePresence>
+        {importBusy && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[350] flex items-center justify-center bg-black/35 backdrop-blur-sm"
+          >
+            <div className="bg-white rounded-2xl border border-black/[0.08] px-8 py-6 flex flex-col items-center gap-4 shadow-xl max-w-sm mx-4">
+              <Loader2 className="animate-spin text-primary" size={28} />
+              <p className="text-sm font-bold text-black text-center">Importing presentation…</p>
+              <p className="text-[11px] text-black/45 text-center">Parsing slides, text, and images. Large files may take a moment.</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {importError && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[350] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          >
+            <div className="bg-white rounded-2xl border border-red-100 px-6 py-5 shadow-xl max-w-sm mx-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
+                <div>
+                  <p className="text-sm font-bold text-black">Import failed</p>
+                  <p className="text-xs text-red-600/90 mt-1">{importError}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setImportError(null)}
+                className="mt-4 w-full h-10 rounded-xl bg-black/[0.06] text-sm font-bold text-black/70 hover:bg-black/[0.1]"
+              >
+                Close
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {exportStep >= 0 && (
           <ExportModal
             step={exportStep}
@@ -447,11 +575,64 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
 
           <EditableTitle />
 
-          {/* Auto-save badge */}
+          {/* Cloud sync status */}
           {presentation && (
-            <div className="shrink-0 flex items-center gap-1 text-emerald-500 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-100">
-              <CheckCircle size={10} />
-              <span className="hidden sm:inline">Saved</span>
+            <div className="shrink-0 flex items-center gap-1 flex-wrap max-w-[200px]">
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                className="hidden"
+                onChange={(e) => handleImportFile(e.target.files?.[0] || null)}
+              />
+              <button
+                type="button"
+                disabled={importBusy}
+                onClick={() => importInputRef.current?.click()}
+                className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border border-black/[0.08] bg-white text-black/60 hover:text-black hover:border-black/15 transition-all disabled:opacity-40"
+                title="Import .pptx"
+              >
+                <Upload size={11} />
+                <span className="hidden sm:inline">Import</span>
+              </button>
+              {cloudSync === 'saving' && (
+                <div className="flex items-center gap-1 text-amber-600 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 border border-amber-100">
+                  <Loader2 size={10} className="animate-spin" />
+                  <span className="hidden sm:inline">Saving…</span>
+                </div>
+              )}
+              {cloudSync === 'saved' && (
+                <div className="flex items-center gap-1 text-emerald-600 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-100">
+                  <CheckCircle size={10} />
+                  <span className="hidden sm:inline">Saved</span>
+                </div>
+              )}
+              {cloudSync === 'idle' && !importBusy && (
+                <div className="hidden md:flex items-center gap-1 text-black/35 text-[10px] font-medium px-1.5 py-0.5">
+                  <span>Cloud</span>
+                </div>
+              )}
+              {cloudSync === 'error' && (
+                <div className="flex items-center gap-1 text-red-600 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-50 border border-red-100 max-w-[140px]">
+                  <AlertCircle size={10} className="shrink-0" />
+                  <span className="truncate" title={cloudMsg}>{cloudMsg || 'Sync error'}</span>
+                  <button type="button" onClick={retrySaveNow} className="shrink-0 p-0.5 rounded hover:bg-red-100" title="Retry save">
+                    <RefreshCw size={10} />
+                  </button>
+                </div>
+              )}
+              {cloudSync === 'conflict' && (
+                <div className="flex items-center gap-1 text-violet-700 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-50 border border-violet-100 max-w-[160px]">
+                  <span className="truncate">Conflict</span>
+                  <button type="button" onClick={reloadFromCloud} className="shrink-0 underline">Reload</button>
+                </div>
+              )}
+              {cloudSync === 'retrying' && (
+                <div className="flex items-center gap-1 text-amber-700 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 border border-amber-100">
+                  <Loader2 size={10} className="animate-spin" />
+                  <span>Retry…</span>
+                </div>
+              )}
             </div>
           )}
 

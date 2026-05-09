@@ -15,6 +15,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { usePresentationCloudSync } from '@/hooks/usePresentationCloudSync';
 
 export default function EditorClient() {
   const { 
@@ -22,6 +23,8 @@ export default function EditorClient() {
     undo, redo, onboarding, startOnboarding 
   } = usePresentationStore();
   const searchParams = useSearchParams();
+
+  usePresentationCloudSync();
 
   // Handle auto-generation or loading from URL
   useEffect(() => {

@@ -86,6 +86,13 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
 
     // ── Convert static AI slide content into canvas-accurate elements ──────
     const slides = data.slides.map((slide, sIdx) => {
+      if (data.source === 'import' && (slide.elements?.length || 0) > 0) {
+        return finalizeSlideMotion(
+          { ...slide, title: '', subtitle: '', bullets: [] },
+          motionCtx,
+        );
+      }
+
       const nestedB = slide.content?.bullets;
       const rawMerge = [...(slide.bullets || []), ...(nestedB || [])];
       const mergedB = rawMerge.filter((b, i, a) => b && a.indexOf(b) === i);
@@ -378,6 +385,8 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     pan: { x: 0, y: 0 },
     orchestrationPhase: '',
     activeModelLabel: '',
+    cloudSyncStatus: 'idle',
+    cloudSyncMessage: undefined,
   },
 
   setEditorState: (updates) =>
