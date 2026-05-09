@@ -137,7 +137,7 @@ export async function POST(req: Request) {
       fallbackModel = 'google/gemini-pro-1.5';       // Fast fallback
     } else {
       // Standard: strictly use free models so it works even with 0 balance
-      primaryModel = 'google/gemini-2.0-pro-exp-02-05:free';
+      primaryModel = 'google/gemini-2.0-flash-lite-preview-02-05:free';
       fallbackModel = 'meta-llama/llama-3.3-70b-instruct:free'; // Standard fallback
     }
 
@@ -162,7 +162,6 @@ Final Instruction: Return ONLY the JSON object. Do not explain. Do not talk. Onl
           body: JSON.stringify({
             model: targetModel,
             stream: true,
-            user: user.id, // <--- Tracks usage by user in OpenRouter Dashboard!
             messages: [
               { role: 'system', content: SYSTEM_PROMPT },
               { role: 'user', content: userMessage },

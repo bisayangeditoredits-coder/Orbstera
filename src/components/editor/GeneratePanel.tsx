@@ -182,7 +182,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             setEditorState({ isGenerating: false });
             return;
           }
-          throw new Error(errData.message || 'Generation failed');
+          throw new Error(errData.error || errData.message || 'Generation failed');
         }
         if (!res.body) throw new Error('No response body');
 
