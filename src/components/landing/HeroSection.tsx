@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 
 export function HeroSection() {
   const [prompt, setPrompt] = useState("");
+  const [isEnhancing, setIsEnhancing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [activeMode, setActiveMode] = useState<'create' | 'enhance' | 'voice'>('create');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -29,6 +30,61 @@ export function HeroSection() {
   const shouldBeListeningRef = useRef(false);
   // Accumulates finalized text across session restarts (onend → restart wipes event.results)
   const accumulatedTextRef = useRef('');
+  const typeAudioCtxRef = useRef<AudioContext | null>(null);
+
+  const playTypingSound = () => {
+    try {
+      if (!typeAudioCtxRef.current) {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        typeAudioCtxRef.current = new AudioCtx();
+      }
+      const ctx = typeAudioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+
+      const time = ctx.currentTime;
+      
+      // 1. Futuristic Glass UI "Sparkle/Tink" (High Frequency)
+      const oscHigh = ctx.createOscillator();
+      const gainHigh = ctx.createGain();
+      oscHigh.type = 'sine'; // Pure glassy tone
+      
+      // High frequency for a premium, clean UI feel (randomized for natural variation)
+      const highFreq = 1200 + Math.random() * 300; 
+      oscHigh.frequency.setValueAtTime(highFreq, time);
+      oscHigh.frequency.exponentialRampToValueAtTime(highFreq * 0.6, time + 0.02);
+
+      gainHigh.gain.setValueAtTime(0, time);
+      gainHigh.gain.linearRampToValueAtTime(0.06, time + 0.002); // Very quiet and subtle
+      gainHigh.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
+
+      oscHigh.connect(gainHigh);
+      gainHigh.connect(ctx.destination);
+      oscHigh.start(time);
+      oscHigh.stop(time + 0.03);
+
+      // 2. Soft Tactile Body (Low Frequency "Pop")
+      const oscLow = ctx.createOscillator();
+      const gainLow = ctx.createGain();
+      oscLow.type = 'triangle'; // Gives a slightly warm, muted body
+      
+      // Pitch drops smoothly to give tactile feedback without harshness
+      const lowFreq = 200 + Math.random() * 40;
+      oscLow.frequency.setValueAtTime(lowFreq, time);
+      oscLow.frequency.exponentialRampToValueAtTime(50, time + 0.04);
+
+      gainLow.gain.setValueAtTime(0, time);
+      gainLow.gain.linearRampToValueAtTime(0.12, time + 0.003); // Soft attack
+      gainLow.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+
+      oscLow.connect(gainLow);
+      gainLow.connect(ctx.destination);
+      oscLow.start(time);
+      oscLow.stop(time + 0.05);
+
+    } catch (e) {
+      // Silently fail if audio is blocked or unsupported
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
@@ -239,6 +295,26 @@ export function HeroSection() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) setSelectedFile(file);
+  };
+
+  const handleEnhancePrompt = async () => {
+    if (!prompt.trim() || isEnhancing) return;
+    setIsEnhancing(true);
+    try {
+      const res = await fetch('/api/enhance-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      });
+      const data = await res.json();
+      if (data.enhancedPrompt) {
+        setPrompt(data.enhancedPrompt);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsEnhancing(false);
+    }
   };
 
   const handleGenerate = () => {
@@ -488,12 +564,30 @@ export function HeroSection() {
                     <textarea
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') {
+                          playTypingSound();
+                        }
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleGenerate();
+                        }
+                      }}
                       placeholder="Describe your presentation topic..."
-                      className="w-full flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-lg md:text-xl text-textMain placeholder:text-textMuted resize-none font-medium pr-10"
+                      className="w-full flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-lg md:text-xl text-textMain placeholder:text-textMuted resize-none font-medium pr-10 pb-10"
                     />
                     <button onClick={toggleListening} className={`absolute right-0 top-0 p-2 rounded-lg transition-all ${isListening ? 'text-primary bg-primary/10' : 'text-textMuted hover:bg-panel'}`}>
                       {isListening ? <Mic size={20} className="animate-pulse" /> : <MicOff size={20} className="opacity-40" />}
                     </button>
+                    {prompt.trim() && (
+                      <button 
+                        onClick={handleEnhancePrompt} 
+                        disabled={isEnhancing}
+                        className="absolute bottom-2 right-2 flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-full text-[11px] font-bold transition-all disabled:opacity-50"
+                      >
+                        {isEnhancing ? <span className="animate-pulse">Enhancing...</span> : <><Sparkles size={12} /> Enhance Prompt</>}
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center">
