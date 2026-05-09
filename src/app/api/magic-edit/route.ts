@@ -96,22 +96,8 @@ Return the modified JSON.`;
       
       const seed = Math.floor(Math.random() * 1_000_000);
       const encoded = encodeURIComponent(promptText);
-      const imageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&seed=${seed}&nologo=true&enhance=true`;
-
-      try {
-        const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(30_000) });
-        if (imgRes.ok) {
-          const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
-          const buffer = await imgRes.arrayBuffer();
-          const base64 = Buffer.from(buffer).toString('base64');
-          updatedElement.src = `data:${contentType};base64,${base64}`;
-        } else {
-          updatedElement.src = imageUrl; // fallback
-        }
-      } catch (e) {
-        console.error('[MagicEdit] Image proxy failed:', e);
-        updatedElement.src = imageUrl; // fallback
-      }
+      // Immediately return the generative URL so the browser can load it in real-time
+      updatedElement.src = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&seed=${seed}&nologo=true&enhance=true`;
     }
 
     return NextResponse.json(updatedElement);
