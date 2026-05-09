@@ -10,112 +10,135 @@ interface VoiceOrbProps {
 }
 
 export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animFrameRef = useRef<number>(0);
-  const timeRef = useRef(0);
+  const lottieRef  = useRef<any>(null);
+  const animRef    = useRef<number>(0);
+  const streamRef  = useRef<MediaStream | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const ctxRef     = useRef<AudioContext | null>(null);
 
+  // Ensure lottie-player script is injected once
+  useEffect(() => {
+    const id = 'lottie-player-script';
+    if (!document.getElementById(id)) {
+      const s = document.createElement('script');
+      s.id = id;
+      s.src = 'https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js';
+      s.async = true;
+      document.body.appendChild(s);
+    }
+  }, []);
+
+  // Start / stop audio analysis when isListening changes
   useEffect(() => {
     if (!isListening) {
-      cancelAnimationFrame(animFrameRef.current);
+      cancelAnimationFrame(animRef.current);
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+      ctxRef.current?.close();
+      ctxRef.current = null;
+      analyserRef.current = null;
+      // Reset animation speed to calm idle
+      try { lottieRef.current?.setSpeed?.(0.6); } catch (_) {}
       return;
     }
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d')!;
-    const W = canvas.width = 320;
-    const H = canvas.height = 320;
-    const cx = W / 2;
-    const cy = H / 2;
+    async function startAnalyser() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        streamRef.current = stream;
 
-    function drawOrb(t: number) {
-      ctx.clearRect(0, 0, W, H);
+        const ctx = new AudioContext();
+        ctxRef.current = ctx;
 
-      // Layers of flowing ellipses
-      const layers = [
-        { rx: 90, ry: 56, rot: t * 0.9,  color: 'rgba(139,92,246,0.18)',  phase: 0 },
-        { rx: 80, ry: 60, rot: -t * 0.7, color: 'rgba(99,102,241,0.18)',  phase: 0.5 },
-        { rx: 100,ry: 48, rot: t * 1.1,  color: 'rgba(168,85,247,0.14)',  phase: 1.0 },
-        { rx: 70, ry: 68, rot: -t * 1.3, color: 'rgba(59,130,246,0.16)',  phase: 1.5 },
-        { rx: 95, ry: 52, rot: t * 0.6,  color: 'rgba(147,197,253,0.13)', phase: 2.0 },
-        { rx: 60, ry: 75, rot: -t * 0.5, color: 'rgba(196,181,253,0.15)', phase: 2.5 },
-        { rx: 85, ry: 58, rot: t * 1.4,  color: 'rgba(79,70,229,0.12)',   phase: 3.0 },
-      ];
+        const source = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 512;
+        analyser.smoothingTimeConstant = 0.75;
+        source.connect(analyser);
+        analyserRef.current = analyser;
 
-      layers.forEach(({ rx, ry, rot, color, phase }) => {
-        const breathe = 1 + 0.06 * Math.sin(t * 1.8 + phase);
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(rot);
-        ctx.beginPath();
-        ctx.ellipse(0, 0, rx * breathe, ry * breathe, 0, 0, Math.PI * 2);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        ctx.restore();
-      });
+        const data = new Uint8Array(analyser.frequencyBinCount);
 
-      // Inner glow
-      const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 55);
-      grd.addColorStop(0,   'rgba(167,139,250,0.35)');
-      grd.addColorStop(0.5, 'rgba(99,102,241,0.12)');
-      grd.addColorStop(1,   'rgba(99,102,241,0)');
-      ctx.beginPath();
-      ctx.arc(cx, cy, 55, 0, Math.PI * 2);
-      ctx.fillStyle = grd;
-      ctx.fill();
+        function tick() {
+          if (!analyserRef.current) return;
+          analyserRef.current.getByteFrequencyData(data);
 
-      // Outer ring pulse
-      const pulse = 1 + 0.04 * Math.sin(t * 2.2);
-      const outerGrd = ctx.createRadialGradient(cx, cy, 95 * pulse, cx, cy, 115 * pulse);
-      outerGrd.addColorStop(0, 'rgba(139,92,246,0.07)');
-      outerGrd.addColorStop(1, 'rgba(139,92,246,0)');
-      ctx.beginPath();
-      ctx.arc(cx, cy, 115 * pulse, 0, Math.PI * 2);
-      ctx.fillStyle = outerGrd;
-      ctx.fill();
+          // Average of the lower-frequency bins (voice range)
+          const voiceBins = data.slice(0, 60);
+          const avg = voiceBins.reduce((s, v) => s + v, 0) / voiceBins.length;
+
+          // Map avg (0-100) → speed (0.4 → 3.5)
+          const speed = 0.4 + (avg / 100) * 3.1;
+          const clamped = Math.max(0.4, Math.min(3.5, speed));
+
+          try {
+            if (lottieRef.current) {
+              // lottie-player exposes setSpeed() on the element
+              if (typeof lottieRef.current.setSpeed === 'function') {
+                lottieRef.current.setSpeed(clamped);
+              } else {
+                lottieRef.current.speed = clamped;
+              }
+            }
+          } catch (_) {}
+
+          animRef.current = requestAnimationFrame(tick);
+        }
+
+        tick();
+      } catch (err) {
+        console.warn('VoiceOrb: microphone access denied for audio visualiser', err);
+        // Still show the animation but at a fixed speed
+        try { lottieRef.current?.setSpeed?.(1.5); } catch (_) {}
+      }
     }
 
-    function animate() {
-      timeRef.current += 0.012;
-      drawOrb(timeRef.current);
-      animFrameRef.current = requestAnimationFrame(animate);
-    }
+    startAnalyser();
 
-    animate();
-    return () => cancelAnimationFrame(animFrameRef.current);
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      ctxRef.current?.close().catch(() => {});
+    };
   }, [isListening]);
 
   return (
     <AnimatePresence>
       {isListening && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.92 }}
+          key="voice-orb"
+          initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.92 }}
-          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="absolute inset-0 z-20 rounded-[22px] bg-white flex flex-col items-center justify-center gap-4 cursor-pointer"
+          exit={{ opacity: 0, scale: 0.9 }}
+          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          className="absolute inset-0 z-20 rounded-[22px] bg-white/98 backdrop-blur-sm flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden"
           onClick={onStop}
         >
-          {/* Orb canvas */}
-          <div className="relative flex items-center justify-center">
-            <canvas
-              ref={canvasRef}
-              width={320}
-              height={320}
-              className="w-[180px] h-[180px]"
+          {/* Lottie Flow animation — speed controlled by voice volume */}
+          <div className="w-[190px] h-[190px] pointer-events-none select-none">
+            {/* @ts-ignore custom element */}
+            <lottie-player
+              ref={lottieRef}
+              src="/ai animation Flow 1.json"
+              background="transparent"
+              speed="0.6"
+              style={{ width: '100%', height: '100%' }}
+              loop
+              autoplay
             />
           </div>
 
-          {/* Status text */}
-          <div className="flex flex-col items-center gap-1.5 -mt-3">
+          {/* Caption */}
+          <div className="flex flex-col items-center gap-1.5 px-4 text-center">
             <div className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              <span className="text-[12px] font-medium text-textMuted italic">
-                {transcript ? `"${transcript.slice(0, 50)}${transcript.length > 50 ? '…' : ''}"` : 'Listening… speak now'}
-              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
+              <p className="text-[12px] font-medium text-textMuted italic line-clamp-2 leading-snug">
+                {transcript
+                  ? `"${transcript.slice(0, 55)}${transcript.length > 55 ? '…' : ''}"`
+                  : 'Listening… speak now'}
+              </p>
             </div>
-            <span className="text-[10px] text-black/20 font-medium uppercase tracking-widest">
+            <span className="text-[10px] text-black/20 font-medium uppercase tracking-[0.15em]">
               Tap anywhere to stop
             </span>
           </div>
