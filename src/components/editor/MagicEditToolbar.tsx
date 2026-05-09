@@ -120,7 +120,7 @@ export function MagicEditToolbar() {
   return (
     <AnimatePresence>
       <motion.div
-        key={targetElement?.id || 'bg'}
+        key={selectedElement.id}
         initial={{ opacity: 0, y: 16, scale: 0.97 }}
         animate={{ opacity: 1, y: 0,  scale: 1    }}
         exit={{    opacity: 0, y: 16, scale: 0.97 }}
