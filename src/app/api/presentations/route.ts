@@ -79,6 +79,14 @@ export async function POST(req: Request) {
 
   try {
     const presentation = await req.json();
+    
+    // ─── VALIDATION ───
+    // Prevent "Generating..." placeholders or empty decks from polluting the dashboard index.
+    // This handles cases where the user quits before generation finishes.
+    if (presentation.title === 'Generating...' || !presentation.slides || presentation.slides.length === 0) {
+      return NextResponse.json({ message: 'Placeholder skipped' });
+    }
+
     if (!presentation.id)        presentation.id        = uuidv4();
     if (!presentation.createdAt) presentation.createdAt = new Date().toISOString();
     presentation.updatedAt = new Date().toISOString();

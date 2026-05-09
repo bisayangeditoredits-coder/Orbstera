@@ -172,11 +172,14 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     get().pushHistory();
 
     // Auto-save initial generation to Cloudflare R2
-    fetch('/api/presentations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newPresentation),
-    }).catch(e => console.error('[Store] Failed to auto-save to Cloudflare R2:', e));
+    // We explicitly block "Generating..." and empty decks to prevent empty placeholder projects on the dashboard if user quits.
+    if (newPresentation.title !== 'Generating...' && newPresentation.slides.length > 0) {
+      fetch('/api/presentations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPresentation),
+      }).catch(e => console.error('[Store] Failed to auto-save to Cloudflare R2:', e));
+    }
 
     // Fire ALL image generation tasks in parallel — much faster than sequential
     if (imageTasks.length > 0) {
