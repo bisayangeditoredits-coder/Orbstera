@@ -42,14 +42,14 @@ export function HeroSection() {
       if (ctx.state === 'suspended') ctx.resume();
 
       const time = ctx.currentTime;
-      
+
       // 1. Futuristic Glass UI "Sparkle/Tink" (High Frequency)
       const oscHigh = ctx.createOscillator();
       const gainHigh = ctx.createGain();
       oscHigh.type = 'sine'; // Pure glassy tone
-      
+
       // High frequency for a premium, clean UI feel (randomized for natural variation)
-      const highFreq = 1200 + Math.random() * 300; 
+      const highFreq = 1200 + Math.random() * 300;
       oscHigh.frequency.setValueAtTime(highFreq, time);
       oscHigh.frequency.exponentialRampToValueAtTime(highFreq * 0.6, time + 0.02);
 
@@ -66,7 +66,7 @@ export function HeroSection() {
       const oscLow = ctx.createOscillator();
       const gainLow = ctx.createGain();
       oscLow.type = 'triangle'; // Gives a slightly warm, muted body
-      
+
       // Pitch drops smoothly to give tactile feedback without harshness
       const lowFreq = 200 + Math.random() * 40;
       oscLow.frequency.setValueAtTime(lowFreq, time);
@@ -180,7 +180,7 @@ export function HeroSection() {
       streamRef.current = stream;
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       audioContextRef.current = new AudioCtx();
-      
+
       // CRITICAL: Resume context for Chrome/Edge
       if (audioContextRef.current.state === 'suspended') {
         await audioContextRef.current.resume();
@@ -207,7 +207,7 @@ export function HeroSection() {
         for (let i = 0; i < bufferLength; i++) {
           if (dataArray[i] > max) max = dataArray[i];
         }
-        
+
         // Exponential smoothing for the volume ref
         volumeRef.current = volumeRef.current * 0.6 + max * 0.4;
 
@@ -226,17 +226,17 @@ export function HeroSection() {
       // ── Orb scale update loop (Faster update) ──────────
       const updateScale = () => {
         const v = volumeRef.current; // 0-255
-        
+
         // Map 0-255 to a healthy scale and glow
         const normalizedVol = v / 255;
-        setOrbScale(1 + normalizedVol * 0.8); 
+        setOrbScale(1 + normalizedVol * 0.8);
         setOrbGlow(30 + normalizedVol * 150);
 
         // Dynamically update Lottie speed
         const lottie = document.getElementById('voice-orb-lottie') as any;
         if (lottie) {
           // Force speed update via property
-          lottie.speed = 1 + normalizedVol * 2.5; 
+          lottie.speed = 1 + normalizedVol * 2.5;
         }
 
         rafScaleRef.current = window.setTimeout(updateScale, 16); // ~60fps updates for smooth motion
@@ -360,25 +360,25 @@ export function HeroSection() {
       />
 
       {/* Cinematic Animated Background - Restricted to screen size with smooth fade out */}
-      <div 
+      <div
         className="absolute top-0 left-0 right-0 h-[110vh] z-0 pointer-events-none overflow-hidden"
-        style={{ 
-          maskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)', 
-          WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)' 
+        style={{
+          maskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)'
         }}
       >
         {/* Lightweight Lottie Gradient Background */}
         <div className="absolute inset-0 w-full h-full opacity-80 mix-blend-multiply">
-           {/* @ts-ignore */}
-           <lottie-player
-             src="/Background gradient.json"
-             background="transparent"
-             speed="0.5"
-             style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.1)' }}
-             loop
-             autoplay
-             preserveAspectRatio="xMidYMid slice"
-           />
+          {/* @ts-ignore */}
+          <lottie-player
+            src="/Background gradient.json"
+            background="transparent"
+            speed="0.5"
+            style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.1)' }}
+            loop
+            autoplay
+            preserveAspectRatio="xMidYMid slice"
+          />
         </div>
 
         {/* Ambient Sparkle Particles (More Visible) */}
@@ -505,32 +505,32 @@ export function HeroSection() {
                           style={{ width: 140, height: 140, left: '50%', top: '50%', marginLeft: -70, marginTop: -70 }}
                         />
                       ))}
-                      
+
                       <motion.div
-                        animate={{ 
+                        animate={{
                           scale: isListening ? orbScale : 1,
-                          filter: isListening ? `drop-shadow(0 0 ${orbGlow/2}px rgba(71,59,240,0.4))` : 'none'
+                          filter: isListening ? `drop-shadow(0 0 ${orbGlow / 2}px rgba(71,59,240,0.4))` : 'none'
                         }}
                         className="relative w-40 h-40 flex items-center justify-center"
                       >
-                         {/* @ts-ignore */}
-                         <lottie-player
-                           id="voice-orb-lottie"
-                           src="/ai animation Flow 1.json"
-                           background="transparent"
-                           speed="1"
-                           style={{ width: '100%', height: '100%' }}
-                           loop
-                           autoplay
-                         />
-                         
-                         {!isListening && (
-                           <div className="absolute inset-0 flex items-center justify-center">
-                             <div className="w-12 h-12 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-white/20">
-                               <Mic size={24} className="text-primary" />
-                             </div>
-                           </div>
-                         )}
+                        {/* @ts-ignore */}
+                        <lottie-player
+                          id="voice-orb-lottie"
+                          src="/ai animation Flow 1.json"
+                          background="transparent"
+                          speed="1"
+                          style={{ width: '100%', height: '100%' }}
+                          loop
+                          autoplay
+                        />
+
+                        {!isListening && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-12 h-12 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-white/20">
+                              <Mic size={24} className="text-primary" />
+                            </div>
+                          </div>
+                        )}
                       </motion.div>
                     </div>
 
@@ -573,8 +573,8 @@ export function HeroSection() {
                       {isListening ? <Mic size={20} className="animate-pulse" /> : <MicOff size={20} className="opacity-40" />}
                     </button>
                     {prompt.trim() && (
-                      <button 
-                        onClick={handleEnhancePrompt} 
+                      <button
+                        onClick={handleEnhancePrompt}
                         disabled={isEnhancing}
                         className="absolute bottom-2 right-2 flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-full text-[11px] font-bold transition-all disabled:opacity-50"
                       >
@@ -707,113 +707,19 @@ export function HeroSection() {
               </div>
             </div>
 
-            <div className="flex-1 flex overflow-hidden">
-              {/* 2. Slide Sidebar (Realistic) */}
-              <div className="w-[200px] hidden md:flex flex-col border-r border-borderSubtle bg-white z-20">
-                <div className="p-4 flex items-center justify-between border-b border-panel">
-                  <span className="text-[11px] font-bold text-textMuted uppercase tracking-wider">Slides 12</span>
-                  <div className="w-5 h-5 rounded bg-panel flex items-center justify-center text-xs text-textMain font-bold">+</div>
-                </div>
-                <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-                  {[1, 2, 3, 4].map(i => (
-                    <div key={i} className="flex gap-3 items-start">
-                      <span className="text-[10px] font-bold text-textMuted mt-1">{i}</span>
-                      <div className={`flex-1 aspect-video rounded-lg border-2 shadow-sm overflow-hidden ${i === 1 ? 'border-primary ring-2 ring-primary/10' : 'border-borderSubtle opacity-60'}`}>
-                        <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: i === 1 ? `url('/ai_presentation_slide_preview_1778145932652.png')` : 'none', backgroundColor: i !== 1 ? '#F1F1F1' : 'transparent' }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 3. Main Workspace Area */}
-              <div className="flex-1 relative bg-panel flex flex-col">
-                {/* Floating Canvas Toolbar */}
-                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30 bg-white/90 backdrop-blur-md border border-borderSubtle rounded-xl shadow-xl p-1.5 flex items-center gap-2">
-                  {['↖', 'T', '🖼', '⬜', '○', '△', '📊'].map((icon, idx) => (
-                    <div key={idx} className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${idx === 0 ? 'bg-panel text-primary' : 'text-textMuted hover:bg-panel'}`}>
-                      {icon}
-                    </div>
-                  ))}
-                  <div className="w-[1px] h-4 bg-borderSubtle mx-1" />
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm text-textMuted hover:bg-panel">↩</div>
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm text-textMuted hover:bg-panel">↪</div>
-                </div>
-
-                {/* The Canvas */}
-                <div className="flex-1 relative p-12 flex items-center justify-center overflow-hidden">
-                  <div className="absolute inset-0 dot-grid opacity-30" />
-
-                  <div className="relative w-full aspect-video rounded-xl shadow-[0_40px_100px_-20px_rgba(0,0,0,0.2)] border border-white/20 overflow-hidden transform group-hover:scale-[1.01] transition-transform duration-700 bg-white flex items-center justify-center">
-                    {/* Lottie VR Animation Enlarged */}
-                    <div className="absolute inset-0 z-0 flex items-center justify-center">
-                       {/* @ts-ignore */}
-                       <lottie-player
-                         src="/A Man with VR headset touches a holographic screen.json"
-                         background="transparent"
-                         speed="0.8"
-                         style={{ width: '130%', height: '130%', transform: 'scale(1.1)' }}
-                         loop
-                         autoplay
-                       />
-                    </div>
-
-                    {/* Animated AI Badge (Relocated to Top-Left) */}
-                    <div className="absolute top-6 left-6 bg-white/95 backdrop-blur-md px-4 py-2 rounded-full border border-primary/20 shadow-xl flex items-center gap-2 z-20">
-                      <div className="w-2 h-2 bg-primary rounded-full animate-ping" />
-                      <span className="text-[10px] font-bold text-primary uppercase tracking-widest">AI Generated Content</span>
-                    </div>
-
-                    {/* Overlay Label for Demo (Repositioned) */}
-                    <div className="absolute bottom-8 left-0 right-0 z-10 text-center">
-                       <h3 className="text-3xl font-space-grotesk font-bold text-black mb-1 drop-shadow-sm">Cinematic Intelligence</h3>
-                       <p className="text-black/40 text-[10px] uppercase tracking-[0.4em] font-black">Active Generation Protocol</p>
-                    </div>
-                  </div>
-
-                  {/* Zoom Controls Overlay */}
-                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm border border-borderSubtle px-4 py-2 rounded-full shadow-lg flex items-center gap-4 text-[11px] font-bold text-textMain z-30">
-                    <span className="opacity-50">−</span>
-                    <span>70%</span>
-                    <span className="opacity-50">+</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 4. AI Assistant Panel (Right) */}
-              <div className="w-[280px] hidden lg:flex flex-col border-l border-borderSubtle bg-white z-20">
-                <div className="p-4 border-b border-panel flex items-center justify-between">
-                  <span className="text-xs font-bold text-textMain">AI Assistant</span>
-                  <Sparkles size={14} className="text-primary" />
-                </div>
-                <div className="p-4 space-y-6">
-                  <div className="space-y-2">
-                    <div className="text-[10px] font-bold text-textMuted uppercase">Your Prompt</div>
-                    <div className="w-full h-24 bg-panel rounded-xl p-3 text-[11px] text-textMuted leading-relaxed">
-                      Describe your presentation topic in a few words...
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="text-[10px] font-bold text-textMuted uppercase">Tone</div>
-                    <div className="flex flex-wrap gap-2">
-                      {['Professional', 'Creative', 'Minimal'].map((t, i) => (i === 0 ? (
-                        <div key={t} className="px-3 py-1.5 rounded-full text-[10px] font-bold bg-primary text-white border border-primary">
-                          {t}
-                        </div>
-                      ) : (
-                        <div key={t} className="px-3 py-1.5 rounded-full text-[10px] font-bold bg-white text-textMain border border-borderSubtle">
-                          {t}
-                        </div>
-                      )))}
-                    </div>
-                  </div>
-                  <div className="pt-4">
-                    <div className="w-full h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary text-[11px] font-bold">
-                      Generate Presentation
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div 
+              className="flex-1 w-full bg-black relative overflow-hidden group"
+              style={{ transform: 'translateZ(0)', willChange: 'transform' }}
+            >
+              <iframe 
+                src="https://player.vimeo.com/video/1190814974?autoplay=1&muted=1&loop=1&badge=0&autopause=0&player_id=0&app_id=58479" 
+                frameBorder="0" 
+                allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share" 
+                className="absolute top-0 left-0 w-full h-full" 
+                title="Orbstera Promotional Video"
+              />
+              {/* Invisible overlay to prevent scroll wheel trapping while leaving controls clickable */}
+              <div className="absolute top-0 left-0 w-full h-[85%] z-10 cursor-default" />
             </div>
           </div>
         </motion.div>
