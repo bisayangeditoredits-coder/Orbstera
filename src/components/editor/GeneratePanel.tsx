@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { SurveyModal } from './SurveyModal';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { PresentationData } from '@/types';
+import { normalizePresentationPayload } from '@/lib/ai/orchestration';
 import { VoiceOrb } from '@/components/editor/VoiceOrb';
 import {
   Sparkles, X, ChevronDown, Loader2, Wand2,
@@ -35,12 +36,28 @@ const TONES = [
 
 const SLIDE_COUNTS = [2, 5, 10, 15, 20, 25, 30, 35, 40];
 
+const PRESENTATION_STYLES: { value: string; label: string }[] = [
+  { value: 'auto', label: 'Auto (AI picks)' },
+  { value: 'apple_keynote', label: 'Apple Keynote' },
+  { value: 'startup_pitch', label: 'Startup Pitch' },
+  { value: 'minimal_dark', label: 'Minimal Dark' },
+  { value: 'corporate', label: 'Corporate' },
+  { value: 'futuristic', label: 'Futuristic' },
+  { value: 'luxury', label: 'Luxury' },
+  { value: 'glassmorphism', label: 'Glass' },
+  { value: 'bento', label: 'Bento' },
+  { value: 'editorial', label: 'Editorial' },
+  { value: 'creative', label: 'Creative' },
+  { value: 'cinematic', label: 'Cinematic' },
+];
+
 export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState<'standard' | 'fast' | 'premium'>('standard');
   const [tone, setTone] = useState('professional');
   const [slideCount, setSlideCount] = useState(5);
   const [language, setLanguage] = useState('English');
+  const [presentationStyle, setPresentationStyle] = useState('auto');
   const [error, setError] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -206,7 +223,14 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
       // For 'replace' mode, wipe the existing presentation immediately
       if (appendMode === 'replace') {
-        setPresentation({ title: 'Generating...', theme: 'modern-dark', colorPalette: ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'], fontPairing: { heading: 'Space Grotesk', body: 'Inter' }, slides: [] });
+        setPresentation({
+          title: 'Generating...',
+          theme: 'modern-dark',
+          colorPalette: ['#05050A', '#FFFFFF', '#3B82F6', '#94A3B8'],
+          fontPairing: { heading: 'Space Grotesk', body: 'Inter' },
+          animationStyle: 'cinematic-reveal',
+          slides: [],
+        });
       }
 
       setEditorState({ isGenerating: true });
@@ -217,7 +241,14 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         const res = await fetch('/api/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: trimmed, mode, slideCount, tone, language }),
+          body: JSON.stringify({
+            prompt: trimmed,
+            mode,
+            slideCount,
+            tone,
+            language,
+            styleMode: presentationStyle,
+          }),
         });
 
         if (!res.ok) {
@@ -252,10 +283,30 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               if (data === '[DONE]') break;
               try {
                 const json = JSON.parse(data);
+
+                if (json.orb) {
+                  const orb = json.orb as Record<string, unknown>;
+                  const models = orb.models as Record<string, string> | undefined;
+                  setEditorState({
+                    orchestrationPhase: String(orb.phase || ''),
+                    activeModelLabel:
+                      (typeof orb.model === 'string' ? orb.model : null) ||
+                      models?.composer ||
+                      '',
+                    reasoning:
+                      typeof orb.message === 'string'
+                        ? orb.message
+                        : typeof orb.intent === 'string'
+                          ? orb.intent
+                          : '',
+                  });
+                  continue;
+                }
+
                 const content = json.choices?.[0]?.delta?.content || '';
                 accumulatedText += content;
 
-                // ── Extract Reasoning (e.g. from DeepSeek R1 <think> tags) ──
+                // ── Extract Reasoning (e.g. from DeepSeek R1 thinking tags) ──
                 const thoughtMatch = accumulatedText.match(/<(?:think|thought)>([\s\S]*?)(?:<\/(?:think|thought)>|$)/i);
                 if (thoughtMatch && thoughtMatch[1]) {
                   setEditorState({ reasoning: thoughtMatch[1].trim() });
@@ -292,8 +343,26 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           
           if (firstBrace !== -1 && lastBrace !== -1 && lastBrace >= firstBrace) {
             const cleanJson = textWithoutTags.substring(firstBrace, lastBrace + 1);
-            const finalData = JSON.parse(cleanJson);
-            
+            const parsedRaw = JSON.parse(cleanJson) as Record<string, unknown>;
+            let finalData = normalizePresentationPayload(parsedRaw);
+
+            if (mode === 'premium') {
+              setEditorState({ orchestrationPhase: 'elite_polish' });
+              try {
+                const pr = await fetch('/api/generate/polish', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ presentation: finalData }),
+                });
+                if (pr.ok) {
+                  const polished = await pr.json();
+                  finalData = normalizePresentationPayload(polished as Record<string, unknown>);
+                }
+              } catch (polishErr) {
+                console.warn('Elite polish skipped:', polishErr);
+              }
+            }
+
             if (finalData.slides) {
               if (appendMode === 'append') {
                 // Merge: keep existing slides and push new ones on top
@@ -317,7 +386,11 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
       } finally {
-        setEditorState({ isGenerating: false });
+        setEditorState({
+          isGenerating: false,
+          orchestrationPhase: '',
+          activeModelLabel: '',
+        });
       }
     } else {
       // Enhance Mode
@@ -381,7 +454,10 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                 localStorage.setItem(`survey_done_${user.id}`, 'true');
               }
               // 2. State update
-              setProfileData(prev => ({ ...prev, survey_completed: true }));
+              setProfileData((prev: Record<string, unknown> | null) => ({
+                ...prev,
+                survey_completed: true,
+              }));
               executeGenerate('replace');
             }} 
           />
@@ -596,6 +672,29 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                     }`}
                   >
                     {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Presentation style modes */}
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-textMuted uppercase tracking-[0.2em] block">
+                Presentation Style
+              </label>
+              <div className="flex flex-wrap gap-1.5 max-h-[140px] overflow-y-auto custom-scrollbar pr-1">
+                {PRESENTATION_STYLES.map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => setPresentationStyle(s.value)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${
+                      presentationStyle === s.value
+                        ? 'bg-black text-white border-black'
+                        : 'bg-white border-borderSubtle text-textSecondary hover:border-black/15'
+                    }`}
+                  >
+                    {s.label}
                   </button>
                 ))}
               </div>

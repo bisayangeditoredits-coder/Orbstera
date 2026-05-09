@@ -104,12 +104,20 @@ export interface SlideElement {
 }
 
 // ─── Slide Types ──────────────────────────────────────────────────────────────
+export interface SlideContentBlock {
+  bullets?: string[];
+}
+
 export interface Slide {
   id: string;
   type: SlideLayoutType;
   title: string;
   subtitle?: string;
   bullets?: string[];
+  /** AI layout hint — drives canvas placement in layout engine */
+  layout?: string;
+  visualStyle?: string;
+  content?: SlideContentBlock;
   imagePrompt?: string;
   imageUrl?: string;
   chart?: ChartData | null;
@@ -137,6 +145,11 @@ export interface PresentationData {
   slides: Slide[];
   createdAt?: string;
   updatedAt?: string;
+  /** AI-detected deck archetype */
+  presentationType?: string;
+  /** UI / export style preset */
+  styleMode?: string;
+  intentSummary?: string;
 }
 
 // ─── Editor State Types ───────────────────────────────────────────────────────
@@ -157,6 +170,11 @@ export interface EditorState {
   isPresenting: boolean;
   isGenerating: boolean;
   previewElementId: string | null;
+  reasoning: string;
+  pan: { x: number; y: number };
+  /** Multi-model orchestration UI */
+  orchestrationPhase: string;
+  activeModelLabel: string;
 }
 
 // ─── UI Types ─────────────────────────────────────────────────────────────────

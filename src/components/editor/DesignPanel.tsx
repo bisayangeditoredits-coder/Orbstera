@@ -7,8 +7,17 @@ import { Palette, Type, Sparkles, Check, RefreshCw } from 'lucide-react';
 import { ColorPicker } from './ColorPicker';
 
 // ── Preset themes ─────────────────────────────────────────────────────────────
+const STYLE_MODES: { id: string; label: string }[] = [
+  { id: 'apple_keynote', label: 'Apple Keynote' },
+  { id: 'startup_pitch', label: 'Startup Pitch' },
+  { id: 'minimal_dark', label: 'Minimal Dark' },
+  { id: 'glassmorphism', label: 'Glass' },
+  { id: 'cinematic', label: 'Cinematic' },
+  { id: 'editorial', label: 'Editorial' },
+];
+
 const THEMES = [
-  { name: 'Midnight',  palette: ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'], preview: ['#05050A', '#7B61FF'] },
+  { name: 'Midnight',  palette: ['#05050A', '#FFFFFF', '#38BDF8', '#94A3B8'], preview: ['#05050A', '#38BDF8'] },
   { name: 'Ocean',     palette: ['#0A1628', '#FFFFFF', '#3B82F6', '#93C5FD'], preview: ['#0A1628', '#3B82F6'] },
   { name: 'Ember',     palette: ['#0F0A00', '#FFFFFF', '#F97316', '#FED7AA'], preview: ['#0F0A00', '#F97316'] },
   { name: 'Forest',    palette: ['#071A0F', '#FFFFFF', '#22C55E', '#BBF7D0'], preview: ['#071A0F', '#22C55E'] },
@@ -46,7 +55,7 @@ export function DesignPanel() {
     );
   }
 
-  const palette     = presentation.colorPalette || ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'];
+  const palette     = presentation.colorPalette || ['#05050A', '#FFFFFF', '#38BDF8', '#94A3B8'];
   const fontPairing = presentation.fontPairing   || { heading: 'Space Grotesk', body: 'Inter' };
 
   const updateColor = (index: number, color: string) => {
@@ -97,6 +106,23 @@ export function DesignPanel() {
         {/* ── Theme presets ────────────────────────────────────────── */}
         {activeTab === 'theme' && (
           <div className="space-y-2 pt-2">
+            <p className="text-[10px] font-bold text-black/30 uppercase tracking-widest mb-2">Style mode</p>
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {STYLE_MODES.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => updatePresentation({ styleMode: s.id })}
+                  className={`px-2.5 py-1 rounded-lg text-[9px] font-bold border transition-all ${
+                    presentation.styleMode === s.id
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-black/[0.06] text-black/50 hover:border-black/15'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
             <p className="text-[10px] font-bold text-black/30 uppercase tracking-widest mb-3">Preset Themes</p>
             <div className="grid grid-cols-2 gap-2">
               {THEMES.map((theme) => {

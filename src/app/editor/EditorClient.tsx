@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { CanvasArea } from '@/components/editor/CanvasArea';
 import { Sidebar } from '@/components/editor/Sidebar';
 import { Toolbar } from '@/components/editor/Toolbar';
@@ -111,6 +111,35 @@ function NotesPanel() {
   const { presentation, currentSlideIndex } = usePresentationStore();
   const slide = presentation?.slides[currentSlideIndex];
   const { updateSlide } = usePresentationStore();
+  const [coachTips, setCoachTips] = useState<string | null>(null);
+  const [coachLoading, setCoachLoading] = useState(false);
+
+  useEffect(() => {
+    setCoachTips(null);
+  }, [currentSlideIndex, slide?.id]);
+
+  const runCoach = async () => {
+    if (!slide || !presentation) return;
+    setCoachLoading(true);
+    setCoachTips(null);
+    try {
+      const res = await fetch('/api/coach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slideTitle: slide.title || slide.elements?.find((e) => e.type === 'text')?.content,
+          speakerNotes: slide.speakerNotes,
+          presentationTitle: presentation.title,
+        }),
+      });
+      const data = await res.json();
+      setCoachTips(typeof data.tips === 'string' ? data.tips : null);
+    } catch {
+      setCoachTips('Coach unavailable. Try again.');
+    } finally {
+      setCoachLoading(false);
+    }
+  };
 
   if (!slide) {
     return (
@@ -122,9 +151,19 @@ function NotesPanel() {
 
   return (
     <div className="flex flex-col h-full p-4">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-2">
         <h3 className="text-[14px] font-semibold text-textMain">Speaker Notes</h3>
-        <span className="text-[10px] uppercase tracking-wide text-textMuted">Slide {currentSlideIndex + 1}</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={runCoach}
+            disabled={coachLoading}
+            className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/15 disabled:opacity-50"
+          >
+            {coachLoading ? '…' : 'AI coach'}
+          </button>
+          <span className="text-[10px] uppercase tracking-wide text-textMuted">Slide {currentSlideIndex + 1}</span>
+        </div>
       </div>
       <p className="text-[13px] text-primary font-medium mb-3 truncate">{slide.title}</p>
       <textarea
@@ -133,8 +172,14 @@ function NotesPanel() {
         placeholder="Add speaker notes for this slide... These are only visible to the presenter."
         className="flex-1 bg-background border border-borderSubtle rounded-lg px-3 py-3 text-[13px] text-textMain placeholder:text-textMuted/60 resize-none focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all leading-relaxed"
       />
+      {coachTips && (
+        <div className="mt-4 p-3 rounded-xl bg-primary/[0.06] border border-primary/15">
+          <p className="text-[10px] uppercase tracking-[0.12em] font-bold text-primary mb-2">Coach</p>
+          <p className="text-[12px] text-textSecondary leading-relaxed whitespace-pre-wrap">{coachTips}</p>
+        </div>
+      )}
       <div className="mt-4 space-y-2">
-        <p className="text-[10px] uppercase tracking-[0.08em] font-medium text-textMuted">AI-Generated Notes</p>
+        <p className="text-[10px] uppercase tracking-[0.08em] font-medium text-textMuted">AI-generated notes</p>
         {slide.speakerNotes ? (
           <p className="text-[13px] text-textSecondary leading-relaxed">{slide.speakerNotes}</p>
         ) : (

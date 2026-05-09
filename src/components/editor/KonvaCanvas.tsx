@@ -161,7 +161,7 @@ function ElementNode({
               <Text
                 x={0} y={el.height / 2 - 12} width={el.width}
                 text="✦"
-                fill="#7B61FF"
+                fill="#3B82F6"
                 fontSize={24}
                 align="center"
                 fontFamily="Inter"
@@ -203,7 +203,7 @@ function ElementNode({
               y={el.height - el.height * 0.7 * h}
               width={barWidth}
               height={el.height * 0.7 * h}
-              fill="#7B61FF"
+              fill="#3B82F6"
               cornerRadius={4}
             />
           ))}
@@ -212,18 +212,16 @@ function ElementNode({
     }
 
     if (el.type === 'shape') {
-      const fill        = el.shapeStyle?.fill || '#7B61FF';
+      const fill        = el.shapeStyle?.fill || '#3B82F6';
       const stroke      = el.shapeStyle?.stroke || 'transparent';
       const strokeWidth = el.shapeStyle?.strokeWidth || 0;
-      const shapeProps  = {
-        ref: shapeRef as React.RefObject<Konva.Shape>,
-        ...commonProps,
+      const rectRest = {
         fill,
         stroke,
         strokeWidth,
-        shadowColor:    el.shapeStyle?.shadowColor,
-        shadowBlur:     el.shapeStyle?.shadowBlur,
-        cornerRadius:   el.shapeStyle?.cornerRadius || 0,
+        shadowColor:  el.shapeStyle?.shadowColor,
+        shadowBlur:   el.shapeStyle?.shadowBlur,
+        cornerRadius: el.shapeStyle?.cornerRadius || 0,
       };
 
       if (el.shapeType === 'circle') {
@@ -291,7 +289,13 @@ function ElementNode({
           />
         );
       }
-      return <Rect ref={shapeRef as React.RefObject<Konva.Rect>} {...shapeProps} />;
+      return (
+        <Rect
+          ref={shapeRef as React.RefObject<Konva.Rect>}
+          {...commonProps}
+          {...rectRest}
+        />
+      );
     }
 
     return (
@@ -299,7 +303,7 @@ function ElementNode({
         ref={shapeRef as React.RefObject<Konva.Rect>}
         {...commonProps}
         fill="#1a1a2e"
-        stroke="#7B61FF"
+        stroke="#475569"
         strokeWidth={1}
         dash={[6, 3]}
       />
@@ -322,12 +326,12 @@ function ElementNode({
             'middle-left', 'middle-right',
             'bottom-left', 'bottom-center', 'bottom-right',
           ]}
-          anchorFill="#7B61FF"
+          anchorFill="#0EA5E9"
           anchorStroke="#fff"
           anchorStrokeWidth={1.5}
           anchorSize={7}
           anchorCornerRadius={1.5}
-          borderStroke="#7B61FF"
+          borderStroke="#38BDF8"
           borderStrokeWidth={1.2}
           padding={8}
           keepRatio={true}
@@ -341,7 +345,7 @@ function ElementNode({
 function SlideBackground({ colors, bgImageUrl }: { colors: string[], bgImageUrl?: string }) {
   const { editor } = usePresentationStore();
   const bg     = colors[0] || '#05050A';
-  const accent = colors[2] || '#7B61FF';
+  const accent = colors[2] || '#38BDF8';
   const [bgImg] = useImage(bgImageUrl || '', 'anonymous');
 
   // Calculate crop for background image to prevent warping
@@ -507,7 +511,7 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
       <div
-        className="shadow-[0_40px_100px_-20px_rgba(0,0,0,0.3)] border border-white/10"
+        className="shadow-[0_50px_120px_-35px_rgba(15,23,42,0.35)] border border-white/[0.12]"
         style={{
           width:           CANVAS_WIDTH  * scale,
           height:          CANVAS_HEIGHT * scale,
@@ -530,7 +534,7 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
         >
           <Layer>
             <SlideBackground
-              colors={presentation.colorPalette || ['#05050A', '#7B61FF']}
+              colors={presentation.colorPalette || ['#05050A', '#38BDF8']}
               bgImageUrl={bgEl?.src}
             />
             {elements.map((el) => (
@@ -549,8 +553,8 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
                 y={drawingRect.h < 0 ? drawingRect.y + drawingRect.h : drawingRect.y}
                 width={Math.abs(drawingRect.w)}
                 height={Math.abs(drawingRect.h)}
-                fill="rgba(123, 97, 255, 0.1)"
-                stroke="#7B61FF"
+                fill="rgba(59, 130, 246, 0.08)"
+                stroke="#38BDF8"
                 strokeWidth={2}
                 dash={[5, 5]}
               />

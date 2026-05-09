@@ -62,7 +62,13 @@ function GenerationLoader() {
     >
       {/* 1. Ambient Workspace Background with Neural Streams */}
       <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 dot-grid opacity-[0.1]" />
+        <div
+          className="absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59,130,246,0.25), transparent), radial-gradient(ellipse 60% 40% at 100% 50%, rgba(14,165,233,0.12), transparent)',
+          }}
+        />
         
         {/* Floating Shapes / Particles */}
         {[...Array(12)].map((_, i) => (
@@ -220,7 +226,7 @@ function GenerationLoader() {
            <div className="grid grid-cols-3 gap-8 pt-6 border-t border-black/[0.03]">
               {[
                 { label: 'Progress', value: `${Math.round(((currentStepIndex + 1) / steps.length) * 100)}%` },
-                { label: 'Model', value: 'SONNET-3.5' },
+                { label: 'Model', value: editor.activeModelLabel ? editor.activeModelLabel.split('/').pop() || 'Orchestra' : 'Orchestra' },
                 { label: 'Status', value: 'ACTIVE', color: 'text-emerald-500' },
               ].map((stat, i) => (
                 <div key={i} className="flex flex-col gap-1">
@@ -371,31 +377,25 @@ export function CanvasArea() {
         {isGenerating && <GenerationLoader />}
       </AnimatePresence>
 
-      {/* Architectural Studio Background */}
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-[#F8F9FA]">
-        {/* Beautiful Architectural Grid Background */}
-        <div 
-          className={`absolute inset-0 pointer-events-none transition-all duration-1000 ${showGrid ? 'opacity-100' : 'opacity-[0.65]'}`}
+      {/* Cinematic studio backdrop — optional subtle grid (no purple dots) */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-[#F4F6FA]">
+        <div
+          className="absolute inset-0"
           style={{
-            backgroundImage: `
-              radial-gradient(circle at 50% 50%, transparent 30%, #F8F9FA 90%),
-              linear-gradient(rgba(123, 97, 255, 0.06) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(123, 97, 255, 0.06) 1px, transparent 1px)
-            `,
-            backgroundSize: '100% 100%, 48px 48px, 48px 48px',
-            backgroundPosition: 'center, center, center'
+            backgroundImage:
+              'radial-gradient(ellipse 120% 80% at 50% -10%, rgba(59,130,246,0.14), transparent 55%), radial-gradient(ellipse 90% 60% at 100% 0%, rgba(14,165,233,0.08), transparent 50%), radial-gradient(ellipse 70% 50% at 0% 100%, rgba(15,23,42,0.04), transparent 45%)',
           }}
         />
-
-        {/* Emphasized Intersecting Dots */}
-        <div 
-          className={`absolute inset-0 pointer-events-none transition-all duration-1000 ${showGrid ? 'opacity-100 scale-100' : 'opacity-[0.35]'}`}
-          style={{
-            backgroundImage: `radial-gradient(circle at center, rgba(123, 97, 255, 0.3) 2px, transparent 2px)`,
-            backgroundSize: '48px 48px',
-            backgroundPosition: '-2px -2px' // Align dots to intersections of the grid lines
-          }}
-        />
+        {showGrid && (
+          <div
+            className="absolute inset-0 opacity-[0.22]"
+            style={{
+              backgroundImage:
+                'linear-gradient(rgba(15,23,42,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.06) 1px, transparent 1px)',
+              backgroundSize: '56px 56px',
+            }}
+          />
+        )}
 
         {/* Technical VR Visionary Background (Watermark) */}
         <div className="absolute inset-0 flex items-center justify-center opacity-[0.04] grayscale pointer-events-none mix-blend-multiply">
@@ -417,7 +417,7 @@ export function CanvasArea() {
             y: [0, 30, 0],
           }}
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] rounded-full bg-primary/[0.03] blur-[100px]"
+          className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] rounded-full bg-sky-400/[0.06] blur-[100px]"
         />
       </div>
 
@@ -434,7 +434,8 @@ export function CanvasArea() {
           className="rounded-2xl"
           style={{
             transformOrigin: 'center center',
-            boxShadow: '0 40px 100px -20px rgba(0,0,0,0.06)',
+            boxShadow:
+              '0 50px 120px -30px rgba(15,23,42,0.12), 0 25px 50px -25px rgba(59,130,246,0.08)',
           }}
         >
           <KonvaCanvas

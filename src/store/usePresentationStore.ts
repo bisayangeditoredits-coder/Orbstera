@@ -78,6 +78,9 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
 
     // ── Convert static AI slide content into canvas-accurate elements ──────
     const slides = data.slides.map((slide, sIdx) => {
+      const nestedB = slide.content?.bullets;
+      const rawMerge = [...(slide.bullets || []), ...(nestedB || [])];
+      const mergedB = rawMerge.filter((b, i, a) => b && a.indexOf(b) === i);
       const isHero  = slide.type === 'hero';
       const isSplit = slide.type === 'split' || slide.type === 'media';
       const isQuote = slide.type === 'quote';
@@ -119,8 +122,8 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
             animation: { entrance: 'fadeSlideLeft', duration: 600, delay: 0 },
           });
         }
-        if (slide.bullets && slide.bullets.length > 0) {
-          slide.bullets.slice(0, 5).forEach((bullet, i) => {
+        if (mergedB.length > 0) {
+          mergedB.slice(0, 5).forEach((bullet, i) => {
             elements.push({
               id: uid(`el-bullet-${i}`), type: 'text', x: 60, y: 260 + (i * 72), width: 580, height: 66, content: `• ${bullet}`, zIndex: currentZ++, visible: true,
               textStyle: { fontFamily: bodyFont, fontSize: 22, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'left', lineHeight: 1.4 },
@@ -154,8 +157,8 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
           });
         }
         elements.push({ id: uid('el-divider'), type: 'shape', shapeType: 'rect', x: 60, y: 165, width: 80, height: 4, zIndex: currentZ++, visible: true, shapeStyle: { fill: palette[2] || '#7B61FF', stroke: 'transparent', strokeWidth: 0 }, animation: { entrance: 'reveal', duration: 400, delay: 200 } });
-        if (slide.bullets && slide.bullets.length > 0) {
-          slide.bullets.slice(0, 6).forEach((bullet, i) => {
+        if (mergedB.length > 0) {
+          mergedB.slice(0, 6).forEach((bullet, i) => {
             elements.push({ id: uid(`el-bullet-${i}`), type: 'text', x: 60, y: 195 + (i * 72), width: CANVAS_W - 120, height: 66, content: `• ${bullet}`, zIndex: currentZ++, visible: true,
               textStyle: { fontFamily: bodyFont, fontSize: 24, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'left', lineHeight: 1.4 },
               animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 250 + (i * 80) },
@@ -354,7 +357,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     isDragging: false,
     isResizing: false,
     zoom: 0.7,
-    showGrid: true,
+    showGrid: false,
     snapToGrid: true,
     gridSize: 20,
     isPresenting: false,
@@ -362,6 +365,8 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     previewElementId: null,
     reasoning: '',
     pan: { x: 0, y: 0 },
+    orchestrationPhase: '',
+    activeModelLabel: '',
   },
 
   setEditorState: (updates) =>
@@ -410,7 +415,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   streamSlide: (slideData) => {
     const state = get();
     if (!state.presentation) {
-      set({ presentation: { title: "Generating...", theme: "modern-dark", colorPalette: ["#05050A", "#FFFFFF", "#7B61FF", "#C0C0D0"], fontPairing: { heading: "Space Grotesk", body: "Inter" }, slides: [] } });
+      set({ presentation: { title: "Generating...", theme: "modern-dark", colorPalette: ["#05050A", "#FFFFFF", "#3B82F6", "#94A3B8"], fontPairing: { heading: "Space Grotesk", body: "Inter" }, animationStyle: "cinematic-reveal", slides: [] } });
     }
 
     const currentPres = get().presentation!;
@@ -423,6 +428,14 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     const elements: SlideElement[] = [];
     let currentZ = 1;
 
+    const mergedBullets = [
+      ...(slideData.bullets || []),
+      ...(slideData.content?.bullets || []),
+    ];
+    const slideForLayout = mergedBullets.length
+      ? { ...slideData, bullets: mergedBullets }
+      : slideData;
+
     const isHero  = slideData.type === 'hero';
     const isSplit = slideData.type === 'split' || slideData.type === 'media';
     const isQuote = slideData.type === 'quote';
@@ -432,7 +445,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       if (slideData.subtitle) elements.push({ id: uid('el-sub'), type: 'text', x: 200, y: 460, width: CANVAS_W-400, height: 80, content: slideData.subtitle, zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 26, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'center', lineHeight: 1.5 }, animation: { entrance: 'fadeSlideUp', duration: 800, delay: 200 } });
     } else if (isSplit) {
       if (slideData.title) elements.push({ id: uid('el-title'), type: 'text', x: 60, y: 80, width: 580, height: 160, content: slideData.title, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 52, fontWeight: 'bold', color: palette[1], textAlign: 'left', lineHeight: 1.2 }, animation: { entrance: 'fadeSlideLeft', duration: 600 } });
-      if (slideData.bullets) slideData.bullets.slice(0, 5).forEach((b, i) => elements.push({ id: uid(`el-bullet-${i}`), type: 'text', x: 60, y: 260 + (i * 72), width: 580, height: 66, content: `• ${b}`, zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 22, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'left', lineHeight: 1.4 }, animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 300 + (i * 100) } }));
+      if (slideForLayout.bullets) slideForLayout.bullets!.slice(0, 5).forEach((b, i) => elements.push({ id: uid(`el-bullet-${i}`), type: 'text', x: 60, y: 260 + (i * 72), width: 580, height: 66, content: `• ${b}`, zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 22, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'left', lineHeight: 1.4 }, animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 300 + (i * 100) } }));
       const imgId = uid('el-image');
       elements.push({ id: imgId, type: 'image', src: '', x: 700, y: 60, width: 520, height: 600, zIndex: currentZ++, visible: true, animation: { entrance: 'zoomIn', duration: 800, delay: 400 } });
       if (slideData.imagePrompt) {
@@ -448,10 +461,10 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       elements.push({ id: uid('el-quote'), type: 'text', x: 120, y: 220, width: CANVAS_W-240, height: 200, content: `"${slideData.title}"`, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 48, fontWeight: 'normal', fontStyle: 'italic', color: palette[1], textAlign: 'center', lineHeight: 1.3 }, animation: { entrance: 'fadeIn', duration: 800 } });
     } else {
       if (slideData.title) elements.push({ id: uid('el-title'), type: 'text', x: 80, y: 60, width: CANVAS_W-160, height: 100, content: slideData.title, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 42, fontWeight: 'bold', color: palette[1], textAlign: 'center', lineHeight: 1.2 }, animation: { entrance: 'fadeSlideUp', duration: 600 } });
-      if (slideData.bullets) slideData.bullets.forEach((b, i) => elements.push({ id: uid(`el-b-${i}`), type: 'text', x: 120, y: 180 + (i * 60), width: CANVAS_W-240, height: 50, content: `• ${b}`, zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 20, fontWeight: 'normal', color: palette[1], textAlign: 'left', lineHeight: 1.4 }, animation: { entrance: 'fadeSlideUp', duration: 500, delay: 200 + (i * 50) } }));
+      if (slideForLayout.bullets) slideForLayout.bullets!.forEach((b, i) => elements.push({ id: uid(`el-b-${i}`), type: 'text', x: 120, y: 180 + (i * 60), width: CANVAS_W-240, height: 50, content: `• ${b}`, zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 20, fontWeight: 'normal', color: palette[1], textAlign: 'left', lineHeight: 1.4 }, animation: { entrance: 'fadeSlideUp', duration: 500, delay: 200 + (i * 50) } }));
     }
 
-    const newSlide: Slide = { ...slideData, elements };
+    const newSlide: Slide = { ...slideData, bullets: mergedBullets.length ? mergedBullets : slideData.bullets, elements };
     set((state) => ({ presentation: { ...state.presentation!, slides: [...state.presentation!.slides, newSlide] }, currentSlideIndex: sIdx }));
   },
 
