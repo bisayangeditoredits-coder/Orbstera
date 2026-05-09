@@ -130,14 +130,14 @@ export async function POST(req: Request) {
 
     if (secureMode === 'premium') {
       primaryModel = 'deepseek/deepseek-r1';
-      fallbackModel = 'anthropic/claude-3.5-sonnet'; // Elite fallback
+      fallbackModel = 'anthropic/claude-3.7-sonnet'; // Elite fallback
     } else if (secureMode === 'fast') {
-      primaryModel = 'anthropic/claude-3.5-sonnet';
-      fallbackModel = 'google/gemini-pro-1.5';       // Fast fallback
+      primaryModel = 'anthropic/claude-3.7-sonnet';
+      fallbackModel = 'anthropic/claude-3.5-sonnet'; // Fast fallback
     } else {
-      // Standard: strictly use free models so it works even with 0 balance
-      primaryModel = 'google/gemini-2.0-flash-lite:free';
-      fallbackModel = 'meta-llama/llama-3.3-70b-instruct:free'; // Stable fallback
+      // Standard: Using Claude 3.5 Sonnet to WOW free users
+      primaryModel = 'anthropic/claude-3.5-sonnet';
+      fallbackModel = 'google/gemini-2.0-flash-001'; // WOW-level fallback
     }
 
     console.log(`[Generate] User: ${user.id} | Plan: ${plan} | Mode: ${secureMode} | Primary: ${primaryModel} | Slides: ${finalSlideCount} | Used: ${usedGenerations}/${monthlyLimit}`);

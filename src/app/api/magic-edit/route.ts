@@ -32,9 +32,9 @@ User Request: "${prompt}"
 Return the modified JSON.`;
 
     const models = [
+      'anthropic/claude-3.5-sonnet',
       'google/gemini-2.0-flash-001',
-      'anthropic/claude-3.5-sonnet:beta',
-      'google/gemini-pro-1.5',
+      'anthropic/claude-3-7-sonnet',
       'deepseek/deepseek-chat'
     ];
 

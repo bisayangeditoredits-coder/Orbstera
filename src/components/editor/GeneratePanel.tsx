@@ -433,7 +433,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             </div>
             <div>
               <h2 className="text-[15px] font-bold text-black tracking-tight">AI Generation</h2>
-              <p className="text-[10px] font-medium text-textMuted uppercase tracking-widest">Powered by Orbstera Gen 4</p>
+              <p className="text-[10px] font-medium text-textMuted uppercase tracking-widest">Powered by Orbstera Quantum Engine (v4.7)</p>
             </div>
           </div>
           {onClose && (

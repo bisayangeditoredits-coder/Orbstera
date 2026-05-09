@@ -15,13 +15,13 @@ const tiers = [
     features: [
       { text: '3 AI-generated presentations per month', included: true },
       { text: 'Maximum 5 slides per presentation', included: true },
-      { text: 'Standard AI model (Llama 3.3)', included: true },
+      { text: 'Elite AI model (Claude 3.5 Sonnet)', included: true },
       { text: 'PPTX export with watermark', included: true },
       { text: 'Basic slide templates', included: true },
       { text: 'Voice Protocol (Hands-free generation)', included: true },
       { text: 'AI Magic Edit (inline editing)', included: false },
       { text: 'Fast & Elite AI intelligence modes', included: false },
-      { text: 'Claude 3.5 Sonnet / DeepSeek R1', included: false },
+      { text: 'DeepSeek R1 / Claude 3.7 Sonnet', included: false },
     ],
     buttonText: 'Get Started Free',
     href: '/login',
@@ -38,7 +38,7 @@ const tiers = [
     features: [
       { text: '30 AI presentations per month', included: true },
       { text: 'Up to 25 slides per presentation', included: true },
-      { text: 'Elite AI model (Claude 3.5 Sonnet)', included: true },
+      { text: 'Next-Gen AI (Claude 3.7 Sonnet)', included: true },
       { text: 'PPTX export — no watermark', included: true },
       { text: 'All premium templates & themes', included: true },
       { text: 'AI Magic Edit (inline text editing)', included: true },
@@ -60,7 +60,7 @@ const tiers = [
     features: [
       { text: '100 AI presentations per month', included: true },
       { text: 'Up to 40 slides per presentation', included: true },
-      { text: 'Elite AI: Claude 3.5 + DeepSeek R1', included: true },
+      { text: 'Elite AI: DeepSeek R1 (Thinking Model)', included: true },
       { text: 'PPTX export — no watermark, custom branding', included: true },
       { text: 'All templates + cinematic AI images', included: true },
       { text: 'AI Magic Edit (inline text editing)', included: true },
