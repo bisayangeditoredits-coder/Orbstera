@@ -412,34 +412,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-6 pb-20 space-y-8">
-        {/* Intelligence Mode */}
-        <div className="space-y-2">
-           <label className="text-[9px] font-black text-textMuted uppercase tracking-[0.2em] block">Intelligence</label>
-           <div className="grid grid-cols-3 gap-1.5">
-            {[
-              { value: 'standard', label: 'Std', icon: <Zap size={12} /> },
-              { value: 'fast', label: 'Fast', icon: <Gauge size={12} /> },
-              { value: 'premium', label: 'Elite', icon: <Crown size={12} /> },
-            ].map((m) => {
-              const isActive = mode === m.value;
-              return (
-                <button
-                  key={m.value}
-                  onClick={() => setMode(m.value as any)}
-                  className={`flex flex-col items-center gap-1 py-2 rounded-xl text-[9px] font-bold transition-all border ${
-                    isActive
-                      ? 'bg-primary/5 text-primary border-primary/20 shadow-sm'
-                      : 'bg-white text-textSecondary border-borderSubtle hover:border-primary/10'
-                  }`}
-                >
-                  {m.icon}
-                  <span className="uppercase tracking-widest">{m.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {activeTab === 'create' ? (
           <>
             {/* Prompt Area */}
@@ -452,7 +424,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                 </span>
               </div>
               <div className="animated-border shadow-[0_32px_64px_-16px_rgba(59,130,246,0.2)]">
-                <div className="bg-white p-6 flex flex-col min-h-[220px] transition-all rounded-[22px] relative overflow-hidden">
+                <div className="bg-white p-5 flex flex-col min-h-[130px] transition-all rounded-[22px] relative overflow-hidden">
                   {/* ✨ Voice Orb overlay — replaces textarea while listening */}
                   <VoiceOrb
                     isListening={isListening}
@@ -577,11 +549,11 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             {/* Intelligence Mode — gated by plan */}
             <div className="space-y-3">
               <label className="text-[10px] font-black text-textMuted uppercase tracking-[0.2em] block">Intelligence</label>
-              <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {([
-                  { value: 'standard', label: 'Standard', model: 'DeepSeek Chat', desc: 'Fast & reliable', free: true },
-                  { value: 'fast', label: 'Fast', model: 'Claude 3.5 Sonnet', desc: 'Smart & balanced', free: false },
-                  { value: 'premium', label: 'Elite', model: 'DeepSeek R1', desc: 'Reasoning powerhouse', free: false },
+                  { value: 'standard', label: 'Standard', model: 'Llama 3.3', desc: 'Fast & free', free: true },
+                  { value: 'fast', label: 'Fast', model: 'Claude 3.5', desc: 'Smart & balanced', free: false },
+                  { value: 'premium', label: 'Elite', model: 'DeepSeek R1', desc: 'Reasoning', free: false },
                 ] as const).map((m) => {
                   const isLocked = !isPaid && !m.free;
                   const isActive = mode === m.value;
@@ -590,24 +562,23 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                       key={m.value}
                       onClick={() => !isLocked && setMode(m.value)}
                       title={isLocked ? 'Upgrade to Pro to unlock' : undefined}
-                      className={`w-full px-4 py-3 rounded-xl text-left border transition-all flex items-center justify-between ${
+                      className={`w-full p-3 rounded-[16px] text-left border transition-all flex flex-col justify-between min-h-[85px] ${
                         isLocked
                           ? 'bg-gray-50 border-gray-100 cursor-not-allowed opacity-60'
                           : isActive
-                          ? 'bg-primary/5 border-primary text-primary'
+                          ? 'bg-primary/5 border-primary text-primary shadow-sm'
                           : 'bg-white border-borderSubtle hover:border-primary/20'
                       }`}
                     >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[13px] font-black ${isActive && !isLocked ? 'text-primary' : 'text-textMain'}`}>{m.label}</span>
-                          {isLocked && <Crown size={11} className="text-amber-400" />}
-                          {isActive && !isLocked && <span className="text-[9px] font-bold uppercase tracking-wider text-primary/60">Active</span>}
+                      <div className="flex flex-col w-full">
+                        <div className="flex items-center justify-between w-full">
+                          <span className={`text-[12px] font-black tracking-tight ${isActive && !isLocked ? 'text-primary' : 'text-textMain'}`}>{m.label}</span>
+                          {isLocked && <Crown size={10} className="text-amber-400" />}
                         </div>
-                        <p className="text-[10px] text-textMuted mt-0.5">{m.desc}</p>
+                        <p className="text-[9px] text-textMuted mt-0.5 leading-tight">{m.desc}</p>
                       </div>
-                      <div className="text-right shrink-0 ml-4">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      <div className="mt-2 w-full">
+                        <span className={`text-[9.5px] font-bold px-2 py-1 rounded-md block text-center truncate w-full ${
                           isLocked ? 'bg-gray-100 text-gray-400' : isActive ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-gray-500'
                         }`}>{m.model}</span>
                       </div>
