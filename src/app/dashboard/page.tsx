@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { createClient } from '@/lib/supabase';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
 interface DeckMeta {
   id: string;
@@ -22,7 +24,8 @@ interface DeckMeta {
   subtitle?: string;
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
+  const searchParams = useSearchParams();
   const [presentations, setPresentations] = useState<DeckMeta[]>([]);
   const [isLoading, setIsLoading]         = useState(true);
   const [view, setView]                   = useState<'grid' | 'list'>('grid');
@@ -331,6 +334,21 @@ export default function DashboardPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <p className="text-textMuted text-sm">Loading Dashboard...</p>
+        </div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }
 
