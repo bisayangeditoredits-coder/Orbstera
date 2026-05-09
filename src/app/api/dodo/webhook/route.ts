@@ -1,27 +1,38 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase Admin for backend updates
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // Need service role key for bypass
-);
+// Ensure the route is treated as dynamic
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const body = await req.text();
     const signature = req.headers.get('x-dodo-signature');
 
-    // In a real app, you MUST verify the signature here using Dodo's SDK or a crypto check
-    // if (!verifySignature(JSON.stringify(body), signature, process.env.DODO_PAYMENTS_WEBHOOK_SECRET)) {
-    //   return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-    // }
+    if (!signature) {
+      return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
+    }
 
-    const event = body;
-    console.log('[Dodo Webhook] Received event:', event.type);
+    // Initialize Supabase inside the handler to avoid build-time errors
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (event.type === 'subscription.created' || event.type === 'order.succeeded') {
-      const metadata = event.data?.metadata || {};
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('[Webhook] Missing Supabase configuration');
+      return NextResponse.json({ error: 'Internal configuration error' }, { status: 500 });
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Parse webhook payload
+    const payload = JSON.parse(body);
+    const eventType = payload.type;
+    const data = payload.data;
+
+    console.log(`[Dodo Webhook] Received event: ${eventType}`);
+
+    if (eventType === 'subscription.active' || eventType === 'subscription.renewed' || eventType === 'payment.succeeded') {
+      const metadata = data.metadata || {};
       const userId = metadata.userId;
       const planId = metadata.planId;
 
@@ -32,17 +43,20 @@ export async function POST(req: Request) {
           .from('profiles')
           .update({ 
             plan: planId,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString() 
           })
           .eq('id', userId);
 
-        if (error) throw error;
+        if (error) {
+          console.error('[Dodo Webhook] Supabase Update Error:', error);
+          return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
+        }
       }
     }
 
     return NextResponse.json({ received: true });
   } catch (error: any) {
-    console.error('[Dodo Webhook] Error:', error.message);
-    return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 });
+    console.error('[Dodo Webhook] Error:', error.message || error);
+    return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 });
   }
 }
