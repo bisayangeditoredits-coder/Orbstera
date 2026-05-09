@@ -99,7 +99,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
   const { presentation, setPresentation, setActivePanel, setEditorState, editor } = usePresentationStore();
   const isLoading = editor.isGenerating;
-  const searchParams = useSearchParams();
 
   const [isProfileLoading, setIsProfileLoading] = useState(true);
 
