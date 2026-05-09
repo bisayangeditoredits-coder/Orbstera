@@ -115,22 +115,33 @@ export async function POST(req: Request) {
       }, { status: 403 });
     }
 
-    // ─── MODEL ROUTING (users get EXACTLY what they paid for) ─
-    let primaryModel: string;
-    if (isCreatorPro) {
-      // Creator Pro: Most powerful reasoning models
-      primaryModel = mode === 'premium'
-        ? 'deepseek/deepseek-r1'           // DeepSeek R1 for premium mode
-        : 'anthropic/claude-3.5-sonnet';   // Claude 3.5 Sonnet as default
-    } else if (isStudentPro) {
-      // Student Pro: Claude 3.5 Sonnet — excellent quality
-      primaryModel = 'anthropic/claude-3.5-sonnet';
-    } else {
-      // Free: DeepSeek Chat — fast, decent, lowest cost
-      primaryModel = 'deepseek/deepseek-chat';
+    // ─── MODEL ROUTING (strictly matching the UI) ────────────────
+    // Standard -> DeepSeek Chat
+    // Fast     -> Claude 3.5 Sonnet
+    // Elite    -> DeepSeek R1
+    
+    // Security check: if free user tries to use paid models, force standard
+    let secureMode = mode;
+    if (!isPaid && (mode === 'fast' || mode === 'premium')) {
+      secureMode = 'standard';
     }
 
-    console.log(`[Generate] Plan: ${plan} | Model: ${primaryModel} | Slides: ${finalSlideCount} | Used: ${usedGenerations}/${monthlyLimit}`);
+    let primaryModel: string;
+    let fallbackModel: string | null = null;
+
+    if (secureMode === 'premium') {
+      primaryModel = 'deepseek/deepseek-r1';
+      fallbackModel = 'anthropic/claude-3.7-sonnet'; // Elite fallback
+    } else if (secureMode === 'fast') {
+      primaryModel = 'anthropic/claude-3.5-sonnet';
+      fallbackModel = 'google/gemini-pro-1.5';       // Fast fallback
+    } else {
+      // Standard: strictly use free models so it works even with 0 balance
+      primaryModel = 'google/gemini-2.0-pro-exp-02-05:free';
+      fallbackModel = 'meta-llama/llama-3.3-70b-instruct:free'; // Standard fallback
+    }
+
+    console.log(`[Generate] User: ${user.id} | Plan: ${plan} | Mode: ${secureMode} | Primary: ${primaryModel} | Slides: ${finalSlideCount} | Used: ${usedGenerations}/${monthlyLimit}`);
 
     const userMessage = `Construct a world-class ${tone} presentation in ${language} with exactly ${finalSlideCount} slides.
 Topic: ${prompt}
@@ -151,6 +162,7 @@ Final Instruction: Return ONLY the JSON object. Do not explain. Do not talk. Onl
           body: JSON.stringify({
             model: targetModel,
             stream: true,
+            user: user.id, // <--- Tracks usage by user in OpenRouter Dashboard!
             messages: [
               { role: 'system', content: SYSTEM_PROMPT },
               { role: 'user', content: userMessage },
@@ -179,25 +191,18 @@ Final Instruction: Return ONLY the JSON object. Do not explain. Do not talk. Onl
       }
     }
 
-    // Fallback chain — prioritized for availability and quality
+    // ─── STRICT EXECUTION ───────────────────────────────────────────────────
+    // We only try the exact model requested. If overloaded, try the equivalent fallback.
     let response = await callOpenRouter(primaryModel);
     
-    // If primary failed (maybe due to rate limits on free models), try other free fallbacks
-    if (!response) response = await callOpenRouter('google/gemini-2.0-pro-exp-02-05:free');
-    if (!response) response = await callOpenRouter('google/gemini-2.0-flash-exp:free');
-    if (!response) response = await callOpenRouter('meta-llama/llama-3.3-70b-instruct:free');
-    if (!response) response = await callOpenRouter('deepseek/deepseek-r1:free');
-    
-    // Only then try paid models if they have credits
-    if (!response) response = await callOpenRouter('anthropic/claude-3-7-sonnet');
-    if (!response) response = await callOpenRouter('google/gemini-2.0-pro-exp-02-05');
-    if (!response) response = await callOpenRouter('google/gemini-pro-1.5');
-    if (!response) response = await callOpenRouter('deepseek/deepseek-r1');
-    if (!response) response = await callOpenRouter('meta-llama/llama-3.3-70b-instruct');
+    if (!response && fallbackModel) {
+      console.warn(`[Generate] Primary ${primaryModel} failed. Falling back to equivalent: ${fallbackModel}`);
+      response = await callOpenRouter(fallbackModel);
+    }
 
     if (!response) {
-      console.error('[Generate] All models failed.');
-      return NextResponse.json({ error: 'AI models are currently overloaded or your account has no credits for paid models. Please try again later.' }, { status: 503 });
+      console.error('[Generate] All models failed. Likely out of OpenRouter tokens.');
+      return NextResponse.json({ error: 'You have run out of OpenRouter tokens/credits, or all models are currently overloaded. Please check your developer API balance.' }, { status: 503 });
     }
 
     // ── INCREMENT USAGE COUNT ──────────────────────────────────────────────
