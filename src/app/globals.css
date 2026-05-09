@@ -82,6 +82,7 @@ body {
     transform: translate(-50%, -50%);
     opacity: 1;
     z-index: 0;
+    will-change: transform;
   }
 
   /* Secondary Glow Layer - Subtle for partial beam */
@@ -93,6 +94,7 @@ body {
     filter: blur(12px);
     opacity: 0.35;
     z-index: -1;
+    will-change: transform;
   }
 
   @keyframes rotate-border {

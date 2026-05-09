@@ -401,7 +401,8 @@ export function HeroSection() {
               ease: "easeInOut",
               delay: Math.random() * 5,
             }}
-            className="absolute w-1.5 h-1.5 bg-primary/40 rounded-full blur-[0.5px] shadow-[0_0_10px_rgba(71,59,240,0.3)]"
+            className="absolute w-1.5 h-1.5 rounded-full"
+            style={{ background: 'radial-gradient(circle, rgba(71,59,240,0.8) 0%, transparent 80%)' }}
           />
         ))}
       </div>

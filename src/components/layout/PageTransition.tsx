@@ -46,12 +46,12 @@ export function PageTransition({ children }: { children: React.RefNode }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[9998] bg-white/95 backdrop-blur-[32px] flex flex-col items-center justify-center overflow-hidden"
+              className="fixed inset-0 z-[9998] bg-white/98 flex flex-col items-center justify-center overflow-hidden"
             >
-              {/* Background Ambient Glows */}
-              <div className="absolute inset-0 z-0">
-                 <div className="absolute top-[20%] left-[15%] w-[400px] h-[400px] bg-primary/10 rounded-full blur-[120px]" />
-                 <div className="absolute bottom-[20%] right-[15%] w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[120px]" />
+              {/* Background Ambient Glows (Optimized with radial gradients instead of CSS blurs) */}
+              <div className="absolute inset-0 z-0 opacity-40">
+                 <div className="absolute top-[20%] left-[15%] w-[600px] h-[600px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(71,59,240,0.1) 0%, transparent 70%)' }} />
+                 <div className="absolute bottom-[20%] right-[15%] w-[600px] h-[600px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.1) 0%, transparent 70%)' }} />
               </div>
 
               <motion.div
@@ -72,8 +72,8 @@ export function PageTransition({ children }: { children: React.RefNode }) {
                   }}
                   className="relative w-64 h-64 mb-4 flex items-center justify-center"
                 >
-                  {/* Outer Orbitals/Glow for the robot */}
-                  <div className="absolute inset-0 bg-primary/5 rounded-full blur-3xl animate-pulse" />
+                  {/* Outer Orbitals/Glow for the robot (Optimized without blur) */}
+                  <div className="absolute inset-[-20%] rounded-full animate-pulse" style={{ background: 'radial-gradient(circle, rgba(71,59,240,0.1) 0%, transparent 60%)' }} />
                   
                   {/* Swirling Dots Background Animation (Behind Robot) */}
                   <div className="absolute inset-[-50%] z-0 flex items-center justify-center">
@@ -141,13 +141,13 @@ export function PageTransition({ children }: { children: React.RefNode }) {
         )}
       </AnimatePresence>
 
-      {/* Global Loading Overlay (Subtle Blur) */}
+      {/* Global Loading Overlay */}
       <AnimatePresence mode="wait">
         <motion.div
           key={pathname}
-          initial={{ opacity: 0, y: 10, filter: 'blur(10px)' }}
-          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          exit={{ opacity: 0, y: -10, filter: 'blur(10px)' }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           className="flex-1 flex flex-col"
         >
