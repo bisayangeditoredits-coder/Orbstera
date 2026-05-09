@@ -15,7 +15,10 @@ export default function SettingsPage() {
   const supabase = createClient();
   const router = useRouter();
 
-  const isPro = profile?.plan?.toLowerCase() === 'creator_pro' || profile?.plan?.toLowerCase() === 'student_pro' || profile?.plan?.toLowerCase() === 'pro';
+  const [activeTab, setActiveTab] = useState<'profile' | 'billing'>('profile');
+
+  const isPro = profile?.plan === 'creator_pro' || profile?.plan === 'student_pro' || profile?.plan === 'pro';
+  const planName = profile?.plan === 'creator_pro' ? 'Creator Pro' : profile?.plan === 'student_pro' ? 'Student Pro' : profile?.plan === 'pro' ? 'Pro' : 'Free';
 
   useEffect(() => {
     const getUser = async () => {
@@ -24,17 +27,12 @@ export default function SettingsPage() {
         router.push('/login');
       } else {
         setUser(user);
-        
-        // Fetch real-time profile from public.profiles table
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
-          
-        if (profileData) {
-          setProfile(profileData);
-        }
+        if (profileData) setProfile(profileData);
       }
       setLoading(false);
     };
@@ -46,22 +44,18 @@ export default function SettingsPage() {
     router.push('/');
   };
 
-  const handleUpgrade = async () => {
-    setUpgrading(true);
+  const handleUpgrade = async (planId: string) => {
+    setUpgrading(planId);
     try {
       const res = await fetch('/api/dodo/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId: 'creator_pro' }),
+        body: JSON.stringify({ planId }),
       });
       const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert(data.error || 'Upgrade failed');
-      }
+      if (data.url) window.location.href = data.url;
+      else throw new Error(data.error);
     } catch (err) {
-      console.error('Upgrade error:', err);
       alert('Failed to initiate upgrade');
     } finally {
       setUpgrading(false);
@@ -71,155 +65,234 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <p className="text-textMuted text-sm font-medium tracking-wide">Loading settings...</p>
+        </div>
       </div>
     );
   }
 
   const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
+  const fullName = user?.user_metadata?.full_name || 'Creator';
+  
+  const used = profile?.generations_used || 0;
+  const max = profile?.plan === 'creator_pro' ? 100 : profile?.plan === 'student_pro' ? 30 : 3;
+  const remaining = Math.max(0, max - used);
+  const percentUsed = Math.min(100, Math.round((used / max) * 100));
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-textMain selection:bg-primary/30">
       <Navbar />
       
-      <main className="max-w-4xl mx-auto pt-32 px-6 pb-20">
-        <div className="mb-10">
-          <h1 className="text-3xl font-space-grotesk font-bold text-textMain">Account Settings</h1>
-          <p className="text-textMuted mt-2">Manage your creator profile and billing preferences.</p>
+      <main className="max-w-5xl mx-auto pt-32 px-6 pb-24">
+        {/* Header */}
+        <div className="mb-12">
+          <h1 className="text-4xl font-space-grotesk font-black tracking-tight bg-gradient-to-br from-white to-white/60 bg-clip-text text-transparent">
+            Account Settings
+          </h1>
+          <p className="text-textMuted mt-3 text-[15px] max-w-xl leading-relaxed">
+            Manage your personal information, subscription plan, and billing details.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-10">
-          {/* Navigation Sidebar */}
-          <div className="space-y-2">
-            <button className="flex items-center gap-3 w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-primary font-medium transition-colors">
-              <User size={18} /> Profile
+        <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-12">
+          {/* Sidebar Navigation */}
+          <nav className="space-y-1">
+            <button 
+              onClick={() => setActiveTab('profile')}
+              className={`flex items-center gap-3 w-full px-5 py-3.5 rounded-xl text-[14px] font-semibold transition-all duration-300 ${
+                activeTab === 'profile' 
+                  ? 'bg-primary/10 text-primary border border-primary/20 shadow-[0_0_20px_rgba(59,130,246,0.1)]' 
+                  : 'text-textMuted hover:text-textMain hover:bg-white/5 border border-transparent'
+              }`}
+            >
+              <User size={18} className={activeTab === 'profile' ? 'text-primary' : ''} /> 
+              Profile Details
             </button>
-            <button className="flex items-center gap-3 w-full px-4 py-3 hover:bg-white/5 text-textMuted hover:text-textMain rounded-xl transition-colors">
-              <CreditCard size={18} /> Billing & Plan
+            <button 
+              onClick={() => setActiveTab('billing')}
+              className={`flex items-center gap-3 w-full px-5 py-3.5 rounded-xl text-[14px] font-semibold transition-all duration-300 ${
+                activeTab === 'billing' 
+                  ? 'bg-primary/10 text-primary border border-primary/20 shadow-[0_0_20px_rgba(59,130,246,0.1)]' 
+                  : 'text-textMuted hover:text-textMain hover:bg-white/5 border border-transparent'
+              }`}
+            >
+              <CreditCard size={18} className={activeTab === 'billing' ? 'text-primary' : ''} /> 
+              Billing & Usage
             </button>
-            <button className="flex items-center gap-3 w-full px-4 py-3 hover:bg-white/5 text-textMuted hover:text-textMain rounded-xl transition-colors">
-              <Shield size={18} /> Security
-            </button>
-          </div>
+          </nav>
 
-          {/* Settings Content */}
-          <div className="space-y-8">
-            {/* Profile Card */}
-            <section className="glass-panel border border-white/10 rounded-2xl p-8 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-purple-500" />
-              <h2 className="text-lg font-bold text-textMain mb-6">Profile Details</h2>
-              
-              <div className="flex items-center gap-6 mb-8">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-purple-600 p-1">
-                  <div className="w-full h-full rounded-full bg-surface flex items-center justify-center overflow-hidden">
-                    {avatarUrl ? (
-                      <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    ) : (
-                      <span className="text-2xl font-bold text-textMain uppercase">{user?.email?.[0]}</span>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-textMain">{user?.user_metadata?.full_name || 'Creator'}</h3>
-                  <div className="flex items-center gap-2 text-textMuted mt-1">
-                    <Mail size={14} />
-                    <span className="text-sm">{user?.email}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-textMuted uppercase tracking-wider mb-2">Account ID</label>
-                  <input 
-                    type="text" 
-                    value={user?.id} 
-                    disabled 
-                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-textMuted text-sm outline-none cursor-not-allowed" 
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* Plan Card */}
-            <section className="glass-panel border border-white/10 rounded-2xl p-8 shadow-xl">
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <h2 className="text-lg font-bold text-textMain">Subscription Plan</h2>
-                  <p className="text-sm text-textMuted mt-1">You are currently on the {isPro ? 'Pro' : 'Free'} plan.</p>
-                </div>
-                <div className="px-3 py-1 bg-white/10 border border-white/20 rounded-full flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full animate-pulse ${isPro ? 'bg-amber-500' : 'bg-green-500'}`} />
-                  <span className={`text-xs font-bold uppercase tracking-wider ${isPro ? 'text-amber-500' : 'text-white'}`}>
-                    {isPro ? 'Pro' : 'Free'}
-                  </span>
-                </div>
-              </div>
-
-              {(() => {
-                const used = profile?.generations_used || 0;
-                const max = isPro ? 100 : 3;
-                const remaining = Math.max(0, max - used);
-                const percentUsed = Math.min(100, Math.round((used / max) * 100));
-
-                return (
-                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h4 className="font-bold text-primary mb-1">Generations Left</h4>
-                        <p className="text-xs text-textMuted">You have {remaining} AI generations remaining this month.</p>
+          {/* Content Area */}
+          <div className="relative min-h-[500px]">
+            {activeTab === 'profile' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+                className="space-y-8"
+              >
+                <div className="bg-surface border border-borderSubtle rounded-2xl p-8 shadow-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary/50 to-purple-500/50 opacity-50 group-hover:opacity-100 transition-opacity" />
+                  
+                  <div className="flex items-center gap-6 mb-10">
+                    <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-primary to-purple-600 p-[3px] shadow-lg">
+                      <div className="w-full h-full rounded-full bg-surface flex items-center justify-center overflow-hidden">
+                        {avatarUrl ? (
+                          <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <span className="text-3xl font-bold text-textMain uppercase">{user?.email?.[0]}</span>
+                        )}
                       </div>
-                      <div className="text-3xl font-black text-primary">{remaining}</div>
                     </div>
-                    
-                    {/* Progress Bar */}
-                    <div className="w-full h-2 bg-black/20 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-1000 ${percentUsed > 80 ? 'bg-red-500' : 'bg-primary'}`} 
-                        style={{ width: `${percentUsed}%` }}
+                    <div>
+                      <h3 className="text-2xl font-bold text-textMain tracking-tight">{fullName}</h3>
+                      <div className="flex items-center gap-2 text-textMuted mt-1.5">
+                        <Mail size={15} />
+                        <span className="text-[15px]">{user?.email}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-[11px] font-bold text-textMuted uppercase tracking-widest mb-2.5">Account ID</label>
+                      <input 
+                        type="text" 
+                        value={user?.id} 
+                        readOnly 
+                        className="w-full bg-black/40 border border-white/5 rounded-xl px-5 py-3.5 text-textMuted text-[14px] font-mono outline-none cursor-default selection:bg-primary/30" 
                       />
                     </div>
-                    <p className="text-[10px] text-textMuted mt-2 text-right uppercase tracking-wider font-bold">
-                      {used} / {max} Used
-                    </p>
                   </div>
-                );
-              })()}
-
-              {isPro ? (
-                <div className="w-full py-3 bg-white/5 border border-amber-500/30 text-amber-500 font-bold rounded-xl flex items-center justify-center gap-2 cursor-default">
-                  <Crown size={18} />
-                  You are a Pro Member
                 </div>
-              ) : (
-                <button 
-                  onClick={handleUpgrade}
-                  disabled={upgrading}
-                  className="w-full py-3 bg-white text-black font-bold rounded-xl hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  <Crown size={18} className="text-amber-500" />
-                  {upgrading ? 'Processing...' : 'Upgrade to Pro ($19.00)'}
-                </button>
-              )}
-            </section>
 
-            {/* Danger Zone */}
-            <section className="border border-red-500/20 rounded-2xl p-8 bg-red-500/5">
-              <h2 className="text-lg font-bold text-red-500 mb-2">Danger Zone</h2>
-              <p className="text-sm text-red-400/80 mb-6">Irreversible actions for your account.</p>
-              
-              <div className="flex items-center justify-between">
-                <button 
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg font-semibold transition-colors"
-                >
-                  <LogOut size={16} /> Sign Out
-                </button>
-                <button className="text-sm font-semibold text-textMuted hover:text-red-500 transition-colors">
-                  Delete Account
-                </button>
-              </div>
-            </section>
+                {/* Sign Out Section */}
+                <div className="bg-red-500/5 border border-red-500/10 rounded-2xl p-8 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-[15px] font-bold text-textMain">Sign Out</h3>
+                    <p className="text-[13px] text-textMuted mt-1">Log out of your Orbstera account on this device.</p>
+                  </div>
+                  <button 
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-red-500/10 text-textMain hover:text-red-500 border border-white/10 hover:border-red-500/20 rounded-xl font-bold text-[14px] transition-all active:scale-95"
+                  >
+                    <LogOut size={16} /> Sign Out
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'billing' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+                className="space-y-8"
+              >
+                {/* Current Plan Details */}
+                <div className="bg-surface border border-borderSubtle rounded-2xl p-8 shadow-2xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3" />
+                  
+                  <div className="flex items-start justify-between mb-8 relative z-10">
+                    <div>
+                      <h2 className="text-[11px] font-bold text-textMuted uppercase tracking-widest mb-2">Current Plan</h2>
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-3xl font-black text-textMain tracking-tight">{planName}</h3>
+                        {isPro && (
+                          <div className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center gap-1.5">
+                            <Crown size={12} className="text-amber-500" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500">Active</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-black/20 border border-white/5 rounded-xl p-6 relative z-10">
+                    <div className="flex items-center justify-between mb-5">
+                      <div>
+                        <h4 className="font-bold text-textMain text-[15px]">Monthly Generations</h4>
+                        <p className="text-[13px] text-textMuted mt-0.5">Your AI generation credits reset every month.</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-black text-white">{remaining}</span>
+                        <span className="text-textMuted text-[13px] font-medium ml-1.5">left</span>
+                      </div>
+                    </div>
+                    
+                    <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-1000 relative overflow-hidden ${percentUsed > 90 ? 'bg-red-500' : 'bg-primary'}`} 
+                        style={{ width: `${percentUsed}%` }}
+                      >
+                        <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]" style={{ transform: 'skewX(-20deg) translateX(-150%)' }} />
+                      </div>
+                    </div>
+                    <div className="flex justify-between mt-3 text-[12px] font-medium">
+                      <span className="text-textMuted">{used} used</span>
+                      <span className="text-textMuted">{max} total</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Upgrade Options */}
+                {!isPro && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-surface border border-borderSubtle hover:border-primary/50 rounded-2xl p-6 transition-all group">
+                      <h3 className="text-lg font-bold text-white mb-1">Student Pro</h3>
+                      <p className="text-textMuted text-[13px] mb-6">Perfect for quick, watermarked-free exports.</p>
+                      <div className="flex items-baseline gap-1 mb-6">
+                        <span className="text-3xl font-black text-white">$5</span>
+                        <span className="text-textMuted text-sm">/mo</span>
+                      </div>
+                      <button 
+                        onClick={() => handleUpgrade('student_pro')}
+                        disabled={!!upgrading}
+                        className="w-full py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/10 transition-all text-[14px]"
+                      >
+                        {upgrading === 'student_pro' ? 'Loading...' : 'Upgrade to Student'}
+                      </button>
+                    </div>
+
+                    <div className="bg-gradient-to-b from-primary/10 to-surface border border-primary/30 hover:border-primary rounded-2xl p-6 transition-all relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 px-3 py-1 bg-primary text-white text-[10px] font-bold uppercase tracking-wider rounded-bl-lg">
+                        Best Value
+                      </div>
+                      <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                        Creator Pro <Crown size={16} className="text-amber-400" />
+                      </h3>
+                      <p className="text-primary/80 text-[13px] mb-6">DeepSeek R1 intelligence & 100 generations.</p>
+                      <div className="flex items-baseline gap-1 mb-6">
+                        <span className="text-3xl font-black text-white">$19</span>
+                        <span className="text-textMuted text-sm">/mo</span>
+                      </div>
+                      <button 
+                        onClick={() => handleUpgrade('creator_pro')}
+                        disabled={!!upgrading}
+                        className="w-full py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all text-[14px] active:scale-95"
+                      >
+                        {upgrading === 'creator_pro' ? 'Loading...' : 'Upgrade to Creator Pro'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {profile?.plan === 'student_pro' && (
+                  <div className="bg-gradient-to-b from-primary/10 to-surface border border-primary/30 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+                    <div>
+                      <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                        Upgrade to Creator Pro <Crown size={16} className="text-amber-400" />
+                      </h3>
+                      <p className="text-primary/80 text-[13px]">Unlock DeepSeek R1 and 100 monthly generations for $19/mo.</p>
+                    </div>
+                    <button 
+                      onClick={() => handleUpgrade('creator_pro')}
+                      disabled={!!upgrading}
+                      className="shrink-0 px-6 py-3 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all text-[14px] active:scale-95"
+                    >
+                      {upgrading === 'creator_pro' ? 'Loading...' : 'Upgrade Now'}
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            )}
           </div>
         </div>
       </main>
