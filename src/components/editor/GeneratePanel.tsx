@@ -349,7 +349,12 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                   <Crown size={18} /> Upgrade to Pro
                 </a>
                 <button onClick={() => setShowUpgradeModal(false)} className="w-full py-3.5 bg-white/5 text-white/50 hover:bg-white/10 font-bold rounded-xl transition-colors">
-                  Maybe Lat        )}
+                  Maybe Later
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       <div id="tour-generate" className="flex flex-col h-full bg-white text-black overflow-hidden relative">
