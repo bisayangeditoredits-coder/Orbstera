@@ -115,14 +115,14 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
           onClick={onStop}
         >
           {/* Lottie Flow animation — speed controlled by voice volume */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[160px] h-[160px] pointer-events-none select-none flex items-center justify-center">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] pointer-events-none select-none flex items-center justify-center">
             {/* @ts-ignore custom element */}
             <lottie-player
               ref={lottieRef}
               src="/ai animation Flow 1.json"
               background="transparent"
               speed="0.6"
-              style={{ width: '100%', height: '100%', transform: 'scale(1.2)' }}
+              style={{ width: '100%', height: '100%', transform: 'scale(1.5)' }}
               loop
               autoplay
             />
