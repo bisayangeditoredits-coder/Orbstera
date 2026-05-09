@@ -412,6 +412,38 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-6 pb-20 space-y-8">
+        {/* Intelligence Mode (Compact) */}
+        <div className="space-y-2">
+           <label className="text-[9px] font-black text-textMuted uppercase tracking-[0.2em] block">Intelligence</label>
+           <div className="grid grid-cols-3 gap-1.5">
+            {[
+              { value: 'standard', label: 'Std', icon: <Zap size={12} />, free: true },
+              { value: 'fast', label: 'Fast', icon: <Gauge size={12} />, free: false },
+              { value: 'premium', label: 'Elite', icon: <Crown size={12} />, free: false },
+            ].map((m) => {
+              const isLocked = !isPaid && !m.free;
+              const isActive = mode === m.value;
+              return (
+                <button
+                  key={m.value}
+                  onClick={() => !isLocked && setMode(m.value as any)}
+                  title={isLocked ? 'Upgrade to Pro to unlock' : undefined}
+                  className={`flex flex-col items-center gap-1 py-2 rounded-xl text-[9px] font-bold transition-all border relative ${
+                    isLocked
+                      ? 'bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed opacity-60'
+                      : isActive
+                      ? 'bg-primary/5 text-primary border-primary/20 shadow-sm'
+                      : 'bg-white text-textSecondary border-borderSubtle hover:border-primary/10'
+                  }`}
+                >
+                  {m.icon}
+                  <span className="uppercase tracking-widest">{m.label}</span>
+                  {isLocked && <Crown size={8} className="absolute top-1.5 right-1.5 text-amber-400" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         {activeTab === 'create' ? (
           <>
             {/* Prompt Area */}
@@ -546,47 +578,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               </div>
             </div>
 
-            {/* Intelligence Mode — gated by plan */}
-            <div className="space-y-3">
-              <label className="text-[10px] font-black text-textMuted uppercase tracking-[0.2em] block">Intelligence</label>
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  { value: 'standard', label: 'Standard', model: 'Llama 3.3', desc: 'Fast & free', free: true },
-                  { value: 'fast', label: 'Fast', model: 'Claude 3.5', desc: 'Smart & balanced', free: false },
-                  { value: 'premium', label: 'Elite', model: 'DeepSeek R1', desc: 'Reasoning', free: false },
-                ] as const).map((m) => {
-                  const isLocked = !isPaid && !m.free;
-                  const isActive = mode === m.value;
-                  return (
-                    <button
-                      key={m.value}
-                      onClick={() => !isLocked && setMode(m.value)}
-                      title={isLocked ? 'Upgrade to Pro to unlock' : undefined}
-                      className={`w-full p-3 rounded-[16px] text-left border transition-all flex flex-col justify-between min-h-[85px] ${
-                        isLocked
-                          ? 'bg-gray-50 border-gray-100 cursor-not-allowed opacity-60'
-                          : isActive
-                          ? 'bg-primary/5 border-primary text-primary shadow-sm'
-                          : 'bg-white border-borderSubtle hover:border-primary/20'
-                      }`}
-                    >
-                      <div className="flex flex-col w-full">
-                        <div className="flex items-center justify-between w-full">
-                          <span className={`text-[12px] font-black tracking-tight ${isActive && !isLocked ? 'text-primary' : 'text-textMain'}`}>{m.label}</span>
-                          {isLocked && <Crown size={10} className="text-amber-400" />}
-                        </div>
-                        <p className="text-[9px] text-textMuted mt-0.5 leading-tight">{m.desc}</p>
-                      </div>
-                      <div className="mt-2 w-full">
-                        <span className={`text-[9.5px] font-bold px-2 py-1 rounded-md block text-center truncate w-full ${
-                          isLocked ? 'bg-gray-100 text-gray-400' : isActive ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-gray-500'
-                        }`}>{m.model}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
           </>
         ) : (
           <div className="space-y-6">
