@@ -349,92 +349,280 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                   <Crown size={18} /> Upgrade to Pro
                 </a>
                 <button onClick={() => setShowUpgradeModal(false)} className="w-full py-3.5 bg-white/5 text-white/50 hover:bg-white/10 font-bold rounded-xl transition-colors">
-                  Maybe Later
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
+                  Maybe Lat        )}
       </AnimatePresence>
 
-      <div id="tour-generate" className="flex flex-col h-full bg-white text-black overflow-hidden relative border-l border-black/[0.04]">
-        {/* Header */}
-        <div className="shrink-0 flex items-center justify-between px-6 py-6 bg-white z-20">
-          <h2 className="text-[14px] font-bold text-black tracking-tight">AI Assistant</h2>
-          <Sparkles size={16} className="text-primary" />
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 pb-20 flex flex-col gap-8 mt-2">
-          
-          {/* Prompt Area */}
-          <div className="flex flex-col items-center gap-3">
-            <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest text-center">
-              Your Prompt
-            </label>
-            <div className="w-full bg-[#F8F9FA] rounded-2xl p-5 min-h-[140px] flex flex-col relative transition-all border border-transparent focus-within:border-primary/20 focus-within:bg-white focus-within:shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-              <textarea
-                ref={textareaRef}
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Describe your presentation topic in a few words..."
-                className="w-full flex-1 bg-transparent text-[13px] text-black placeholder:text-black/30 resize-none focus:outline-none font-medium leading-relaxed text-center"
-              />
+      <div id="tour-generate" className="flex flex-col h-full bg-white text-black overflow-hidden relative">
+        {/* Global Hidden Input for Technical Attachments */}
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          onChange={handleFileChange} 
+          accept=".pptx,.pdf,.docx,.txt" 
+          className="hidden" 
+        />      {/* Header */}
+      <div className="shrink-0 flex flex-col border-b border-borderSubtle bg-white/50 backdrop-blur-xl sticky top-0 z-20">
+        <div className="flex items-center justify-between px-6 py-5">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Wand2 size={18} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="text-[15px] font-bold text-black tracking-tight">AI Generation</h2>
+              <p className="text-[10px] font-medium text-textMuted uppercase tracking-widest">Powered by Orvixes Gen 4</p>
             </div>
           </div>
-
-          {/* Tone Selection */}
-          <div className="flex flex-col items-center gap-3">
-            <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest text-center">
-              Tone
-            </label>
-            <div className="flex items-center justify-center gap-2">
-              {[
-                { value: 'professional', label: 'Professional' },
-                { value: 'creative', label: 'Creative' },
-                { value: 'minimal', label: 'Minimal' }
-              ].map((t) => (
-                <button
-                  key={t.value}
-                  onClick={() => setTone(t.value)}
-                  className={`px-5 py-2 rounded-full text-[12px] font-bold transition-all border ${
-                    tone === t.value
-                      ? 'bg-[#3B82F6] text-white border-[#3B82F6] shadow-md shadow-blue-500/20'
-                      : 'bg-white border-black/10 text-black/60 hover:border-black/20 hover:text-black'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {error && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-2xl bg-red-50 border border-red-100 text-[12px] text-red-600 font-medium text-center">
-              {error}
-            </motion.div>
+          {onClose && (
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-hoverSurface text-textMuted transition-all">
+              <X size={18} />
+            </button>
           )}
-
-          {/* Generate Button */}
-          <div className="mt-2 flex justify-center">
-            <button
-              onClick={handleGenerateClick}
-              disabled={!prompt.trim() || isLoading}
-              className="w-full max-w-[280px] h-12 rounded-full bg-[#EEF2FF] hover:bg-[#E0E7FF] text-[#4F46E5] font-bold text-[13px] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        </div>
+        
+        {/* Modern Tabs */}
+        <div className="px-6 pb-4">
+          <div className="p-1 bg-panel rounded-2xl flex gap-1 border border-borderSubtle shadow-inner">
+            <button 
+              onClick={() => setActiveTab('create')}
+              className={`flex-1 text-[12px] font-bold py-2.5 rounded-xl transition-all ${
+                activeTab === 'create' 
+                  ? 'bg-white text-primary shadow-premium border border-borderSubtle' 
+                  : 'text-textSecondary hover:text-black hover:bg-white/40'
+              }`}
             >
-              {isLoading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                'Generate Presentation'
-              )}
+              Create New
+            </button>
+            <button 
+              onClick={() => setActiveTab('enhance')}
+              className={`flex-1 text-[12px] font-bold py-2.5 rounded-xl transition-all ${
+                activeTab === 'enhance' 
+                  ? 'bg-white text-primary shadow-premium border border-borderSubtle' 
+                  : 'text-textSecondary hover:text-black hover:bg-white/40'
+              }`}
+            >
+              Enhancer
             </button>
           </div>
-
         </div>
+      </div>
 
+      <div className="flex-1 overflow-y-auto px-6 py-6 pb-20 space-y-8">
+        {/* Intelligence Mode (Compact) */}
+        <div className="space-y-2">
+           <label className="text-[9px] font-black text-textMuted uppercase tracking-[0.2em] block">Intelligence</label>
+           <div className="grid grid-cols-3 gap-1.5">
+            {[
+              { value: 'standard', label: 'Std', icon: <Zap size={12} />, free: true },
+              { value: 'fast', label: 'Fast', icon: <Gauge size={12} />, free: false },
+              { value: 'premium', label: 'Elite', icon: <Crown size={12} />, free: false },
+            ].map((m) => {
+              const isLocked = !isPaid && !m.free;
+              const isActive = mode === m.value;
+              return (
+                <button
+                  key={m.value}
+                  onClick={() => !isLocked && setMode(m.value as any)}
+                  title={isLocked ? 'Upgrade to Pro to unlock' : undefined}
+                  className={`flex flex-col items-center gap-1 py-2 rounded-xl text-[9px] font-bold transition-all border relative ${
+                    isLocked
+                      ? 'bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed opacity-60'
+                      : isActive
+                      ? 'bg-primary/5 text-primary border-primary/20 shadow-sm'
+                      : 'bg-white text-textSecondary border-borderSubtle hover:border-primary/10'
+                  }`}
+                >
+                  {m.icon}
+                  <span className="uppercase tracking-widest">{m.label}</span>
+                  {isLocked && <Crown size={8} className="absolute top-1.5 right-1.5 text-amber-400" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {activeTab === 'create' ? (
+          <>
+            {/* Prompt Area */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-black text-textMuted uppercase tracking-[0.2em] block">Your Vision</label>
+                {/* Voice Protocol badge */}
+                <span className="text-[9px] font-bold text-primary/60 uppercase tracking-wider flex items-center gap-1">
+                  <Mic size={9} /> Voice Protocol {!isPaid && <Crown size={8} className="text-amber-400" />}
+                </span>
+              </div>
+              <div className="animated-border shadow-[0_32px_64px_-16px_rgba(59,130,246,0.2)]">
+                <div className="bg-white p-5 flex flex-col min-h-[130px] transition-all rounded-[22px] relative overflow-hidden">
+                  {/* ✨ Voice Orb overlay — replaces textarea while listening */}
+                  <VoiceOrb
+                    isListening={isListening}
+                    transcript={voiceTranscript}
+                    onStop={toggleVoice}
+                  />
+                  <textarea
+                    ref={textareaRef}
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={isListening ? '🎤 Listening... speak your vision' : 'Describe your presentation topic...'}
+                    className="w-full flex-1 bg-transparent text-[18px] text-black placeholder:text-textMuted/40 resize-none focus:outline-none font-medium leading-relaxed"
+                  />
+
+                  {/* Bottom toolbar */}
+                  <div className="mt-4 flex items-center justify-between pt-4 border-t border-black/[0.03]">
+                    <div className="flex items-center gap-3">
+                      {/* Attach button */}
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-10 h-10 rounded-xl bg-[#F8F9FA] border border-black/[0.04] flex items-center justify-center text-black/40 hover:text-primary hover:bg-primary/[0.04] hover:border-primary/20 transition-all shadow-sm group"
+                        title="Attach Reference Document"
+                      >
+                        <Plus size={18} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform" />
+                      </button>
+
+                      {/* Voice Protocol Mic */}
+                      <button
+                        onClick={toggleVoice}
+                        title={!isPaid ? 'Voice Protocol — Pro members only' : isListening ? 'Stop listening' : 'Start voice input'}
+                        className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all shadow-sm relative ${
+                          !isPaid
+                            ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
+                            : isListening
+                            ? 'bg-red-50 border-red-200 text-red-500 animate-pulse'
+                            : 'bg-[#F8F9FA] border-black/[0.04] text-black/40 hover:text-primary hover:bg-primary/[0.04] hover:border-primary/20'
+                        }`}
+                      >
+                        {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+                        {!isPaid && <Crown size={8} className="absolute -top-1 -right-1 text-amber-400" />}
+                      </button>
+
+                      {selectedFile && (
+                        <motion.div
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100 shadow-sm group"
+                        >
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-tight truncate max-w-[120px]">
+                            {selectedFile.name}
+                          </span>
+                          <button onClick={() => setSelectedFile(null)} className="p-1 hover:bg-emerald-200/50 rounded-md transition-colors">
+                            <X size={10} className="text-emerald-700" />
+                          </button>
+                        </motion.div>
+                      )}
+                    </div>
+
+                    <div className="text-[10px] font-bold text-black/10 uppercase tracking-[0.2em]">
+                      Neural Prompt v4
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Tone Selection */}
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-textMuted uppercase tracking-[0.2em] block">Narrative Tone</label>
+              <div className="flex flex-wrap gap-2">
+                {TONES.map((t) => (
+                  <button
+                    key={t.value}
+                    onClick={() => setTone(t.value)}
+                    className={`px-4 py-2 rounded-full text-[12px] font-bold transition-all border ${
+                      tone === t.value
+                        ? 'bg-black text-white border-black shadow-premium'
+                        : 'bg-white border-borderSubtle text-textSecondary hover:border-black/20'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Slide Count — gated by plan */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-black text-textMuted uppercase tracking-[0.2em]">Density (Slides)</label>
+                {!isPaid
+                  ? <span className="text-[9px] font-bold text-amber-500 uppercase tracking-wider flex items-center gap-1"><Crown size={10} /> Free: max 5</span>
+                  : <span className="text-[9px] font-bold text-emerald-500 uppercase tracking-wider">Max {maxSlidesForPlan} slides</span>
+                }
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {SLIDE_COUNTS.filter(n => n <= maxSlidesForPlan || !isPaid).map((n) => {
+                  const isLocked = n > maxSlidesForPlan;
+                  return (
+                    <button
+                      key={n}
+                      onClick={() => !isLocked && setSlideCount(n)}
+                      title={isLocked ? `Upgrade to unlock ${n} slides` : `Generate ${n} slides`}
+                      className={`flex-1 min-w-[40px] h-11 rounded-xl text-[12px] font-black transition-all flex items-center justify-center border relative ${
+                        isLocked
+                          ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
+                          : slideCount === n
+                          ? 'bg-primary text-white border-primary shadow-premium'
+                          : 'bg-white border-borderSubtle text-textSecondary hover:border-primary/20'
+                      }`}
+                    >
+                      {n}
+                      {isLocked && <Crown size={8} className="absolute top-1 right-1 text-amber-400" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+          </>
+        ) : (
+          <div className="space-y-6">
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              className="group relative border-2 border-dashed border-borderSubtle rounded-[32px] p-12 flex flex-col items-center justify-center gap-5 cursor-pointer hover:border-primary/40 hover:bg-primary/[0.02] transition-all bg-white"
+            >
+              <div className="w-16 h-16 rounded-[22px] bg-panel flex items-center justify-center group-hover:scale-110 transition-transform shadow-premium">
+                <Globe size={32} className="text-primary" />
+              </div>
+              <div className="text-center">
+                <p className="text-[15px] font-bold text-black">{selectedFile ? selectedFile.name : 'Upload Presentation'}</p>
+                <p className="text-[12px] text-textMuted mt-1">Drop PPTX to enhance with AI design</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-2xl bg-red-50 border border-red-100 text-[12px] text-red-600 font-medium">
+            {error}
+          </motion.div>
+        )}
+      </div>
+
+      {/* Original Button Loading State (Overlay removed) */}
+
+      {/* Consistent Luxury CTA */}
+      <div className="shrink-0 p-8 border-t border-black/[0.03] bg-white relative z-50">
+        <button
+          onClick={handleGenerateClick}
+          disabled={(activeTab === 'create' ? !prompt.trim() : !selectedFile) || isLoading}
+          className="group relative w-full h-14 rounded-full bg-primary hover:bg-primary/90 text-white shadow-[0_12px_24px_-8px_rgba(59,130,246,0.5)] disabled:opacity-30 disabled:shadow-none transition-all duration-300 active:scale-[0.96] overflow-hidden"
+        >
+          <div className="relative flex items-center justify-center gap-3">
+            {isLoading ? (
+              <>
+                <Loader2 size={20} className="animate-spin text-white/80" />
+                <span className="text-[15px] font-bold tracking-tight">Orchestrating...</span>
+              </>
+            ) : (
+              <>
+                <span className="text-[15px] font-bold tracking-tight">Generate Presentation</span>
+                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+              </>
+            )}
+          </div>
+          
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
+        </button>
       </div>
 
       {/* Save/Discard/Append Confirmation Modal */}
@@ -459,11 +647,12 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               <div className="space-y-2">
                 <h3 className="text-[20px] font-bold text-black tracking-tight">What would you like to do?</h3>
                 <p className="text-[13px] text-textSecondary leading-relaxed px-2">
-                  You already have <strong>{presentation?.slides.length ?? 0} slide{(presentation?.slides.length ?? 0) !== 1 ? 's' : ''}</strong>. Generate 5 more and add them, or replace everything with a fresh deck.
+                  You already have <strong>{presentation?.slides.length ?? 0} slide{(presentation?.slides.length ?? 0) !== 1 ? 's' : ''}</strong>. Generate {slideCount} more and add them, or replace everything with a fresh deck.
                 </p>
               </div>
 
               <div className="w-full flex flex-col gap-2">
+                {/* ADD TO EXISTING */}
                 <button
                   onClick={() => {
                     setShowConfirm(false);
@@ -472,8 +661,9 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                   className="flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-primary text-white text-[13px] font-bold shadow-premium hover:bg-primary/90 transition-colors"
                 >
                   <Plus size={16} />
-                  Add 5 Slides to Existing
+                  Add {slideCount} Slide{slideCount !== 1 ? 's' : ''} to Existing
                 </button>
+                {/* REPLACE ALL */}
                 <button
                   onClick={() => {
                     setShowConfirm(false);
@@ -495,6 +685,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
     </>
   );
 }
