@@ -2,7 +2,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Pricing } from '@/components/landing/Pricing';
 
 export const metadata = {
-  title: 'Pricing — Orvixes AI',
+  title: 'Pricing — Orbstera',
   description: 'Fair, student-friendly pricing for AI-powered presentations. Start free, upgrade when you need more power.',
 };
 

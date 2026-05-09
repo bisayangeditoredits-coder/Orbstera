@@ -7,10 +7,10 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
 
 export const metadata: Metadata = {
-  title: "Orvixes AI — Futuristic Presentation Generation",
+  title: "Orbstera — Futuristic Presentation Generation",
   description: "Generate professional, fully designed presentations from a single text prompt using AI. Cinematic decks in seconds.",
   openGraph: {
-    title: "Orvixes AI",
+    title: "Orbstera",
     description: "AI-powered presentation creation for creative professionals.",
     type: "website",
   },

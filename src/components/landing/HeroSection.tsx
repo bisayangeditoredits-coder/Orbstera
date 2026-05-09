@@ -599,7 +599,7 @@ export function HeroSection() {
                   <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
                     <Sparkles size={14} className="text-white" />
                   </div>
-                  <span className="text-sm font-bold text-textMain">Orvixes AI</span>
+                  <span className="text-sm font-bold text-textMain">Orbstera</span>
                   <span className="text-xs text-textMuted font-medium ml-2 border-l border-borderSubtle pl-2">The Future of AI...</span>
                 </div>
               </div>

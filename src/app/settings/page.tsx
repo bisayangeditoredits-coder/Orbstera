@@ -6,17 +6,16 @@ import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/layout/Navbar';
 import { User, Mail, CreditCard, Shield, LogOut, Crown } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { PayPalCheckoutButton } from '@/components/checkout/PayPalCheckoutButton';
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [showPayPal, setShowPayPal] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
   const supabase = createClient();
   const router = useRouter();
 
-  const isPro = profile?.plan?.toLowerCase() === 'pro';
+  const isPro = profile?.plan?.toLowerCase() === 'creator_pro' || profile?.plan?.toLowerCase() === 'pro';
 
   useEffect(() => {
     const getUser = async () => {
@@ -45,6 +44,28 @@ export default function SettingsPage() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/');
+  };
+
+  const handleUpgrade = async () => {
+    setUpgrading(true);
+    try {
+      const res = await fetch('/api/dodo/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planId: 'creator_pro' }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || 'Upgrade failed');
+      }
+    } catch (err) {
+      console.error('Upgrade error:', err);
+      alert('Failed to initiate upgrade');
+    } finally {
+      setUpgrading(false);
+    }
   };
 
   if (loading) {
@@ -137,7 +158,7 @@ export default function SettingsPage() {
 
               {(() => {
                 const used = profile?.generations_used || 0;
-                const max = isPro ? 50 : 3;
+                const max = isPro ? 100 : 3;
                 const remaining = Math.max(0, max - used);
                 const percentUsed = Math.min(100, Math.round((used / max) * 100));
 
@@ -171,21 +192,14 @@ export default function SettingsPage() {
                   You are a Pro Member
                 </div>
               ) : (
-                showPayPal ? (
-                  <div className="mt-4 p-4 bg-white/5 border border-white/10 rounded-xl relative">
-                    <button onClick={() => setShowPayPal(false)} className="absolute top-2 right-2 text-textMuted hover:text-white text-xs">Cancel</button>
-                    <p className="text-sm font-bold text-center mb-4">Complete your upgrade ($19.00)</p>
-                    <PayPalCheckoutButton planId="Pro" price="19.00" />
-                  </div>
-                ) : (
-                  <button 
-                    onClick={() => setShowPayPal(true)}
-                    className="w-full py-3 bg-white text-black font-bold rounded-xl hover:scale-[1.02] transition-transform flex items-center justify-center gap-2"
-                  >
-                    <Crown size={18} className="text-amber-500" />
-                    Upgrade to Pro ($19.00)
-                  </button>
-                )
+                <button 
+                  onClick={handleUpgrade}
+                  disabled={upgrading}
+                  className="w-full py-3 bg-white text-black font-bold rounded-xl hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Crown size={18} className="text-amber-500" />
+                  {upgrading ? 'Processing...' : 'Upgrade to Pro ($19.00)'}
+                </button>
               )}
             </section>
 

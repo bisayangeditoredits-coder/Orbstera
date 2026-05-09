@@ -211,7 +211,7 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
 
         {/* Bottom branding */}
         <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-center gap-2">
-          <img src="/logo.png.png" alt="Orvixes" className="h-4 w-auto grayscale opacity-50" />
+          <img src="/logo.png.png" alt="Orbstera" className="h-4 w-auto grayscale opacity-50" />
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Architectural Intelligence v4.2</span>
         </div>
       </motion.div>

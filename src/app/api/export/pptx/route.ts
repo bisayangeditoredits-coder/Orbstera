@@ -326,7 +326,7 @@ export async function POST(req: Request) {
     if (!isPaidUser) {
       const allSlides = (pptx as any).slides as any[];
       allSlides.forEach((wSlide: any) => {
-        wSlide.addText('Made with Orvixes AI  •  Upgrade to Pro', {
+        wSlide.addText('Made with Orbstera AI  •  Upgrade to Pro', {
           x: 0.5, y: 2.8, w: 9, h: 1.8,
           fontSize: 30,
           bold: true,

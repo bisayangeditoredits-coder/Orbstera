@@ -31,7 +31,7 @@ const options = {
     'Authorization': `Bearer ${apiKey}`,
     'Content-Type': 'application/json',
     'HTTP-Referer': 'http://localhost:3000',
-    'X-Title': 'Orvixes PPT Maker',
+    'X-Title': 'Orbstera',
   }
 };
 

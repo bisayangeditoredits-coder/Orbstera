@@ -95,7 +95,7 @@ export function PageTransition({ children }: { children: React.RefNode }) {
                       transition={{ delay: 0.4, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                       className="block text-[28px] font-black text-black tracking-[0.3em] uppercase"
                     >
-                      Orvixes AI
+                      Orbstera
                     </motion.span>
                   </motion.div>
                   

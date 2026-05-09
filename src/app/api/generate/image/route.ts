@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       headers: {
         'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
         'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-        'X-Title': 'Orvixes AI',
+        'X-Title': 'Orbstera',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

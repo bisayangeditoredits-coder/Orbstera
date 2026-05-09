@@ -181,7 +181,7 @@ export async function POST(req: Request) {
         headers: {
           'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
           'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-          'X-Title': 'PPTMaker AI Enhancer',
+          'X-Title': 'Orbstera AI Enhancer',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -256,7 +256,7 @@ export async function POST(req: Request) {
     // Better error messages for the user
     let errorMessage = 'Internal server error';
     if (error.name === 'NoSuchBucket') {
-      errorMessage = 'Bucket "orvixes-storage" not found. Please create it in your Cloudflare R2 dashboard.';
+      errorMessage = 'Bucket "orbstera-storage" not found. Please create it in your Cloudflare R2 dashboard.';
     } else if (error.name === 'AccessDenied') {
       errorMessage = 'Access denied to Cloudflare R2. Please check your API token permissions.';
     } else if (error.code === 'ECONNREFUSED' || error.name === 'EndpointConnectionError') {

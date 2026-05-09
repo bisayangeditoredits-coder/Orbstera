@@ -53,7 +53,7 @@ export function Navbar() {
         <Link href="/" className="flex items-center group">
           <div className="relative">
             <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <img src="/logo.png.png" alt="Orvixes Logo" className="h-9 w-auto object-contain relative z-10 transition-transform group-hover:scale-110 duration-300" />
+            <img src="/logo.png.png" alt="Orbstera Logo" className="h-9 w-auto object-contain relative z-10 transition-transform group-hover:scale-110 duration-300" />
           </div>
         </Link>
         

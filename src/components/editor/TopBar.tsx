@@ -338,7 +338,7 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
           </Link>
           <div className="w-px h-[16px] bg-borderSubtle shrink-0" />
           <Link href="/" className="shrink-0 flex items-center gap-2">
-            <img src="/logo.png.png" alt="Orvixes" className="h-5 w-auto object-contain" />
+            <img src="/logo.png.png" alt="Orbstera" className="h-5 w-auto object-contain" />
           </Link>
 
           <EditableTitle />

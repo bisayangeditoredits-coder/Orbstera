@@ -7,8 +7,8 @@ export function Footer() {
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-12">
         <div className="space-y-6">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/logo.png.png" alt="Orvixes Logo" className="h-8 w-auto object-contain" />
-            <span className="font-space-grotesk font-bold text-2xl tracking-tight text-primary">Orvixes</span>
+            <img src="/logo.png.png" alt="Orbstera Logo" className="h-8 w-auto object-contain" />
+            <span className="font-space-grotesk font-bold text-2xl tracking-tight text-primary">Orbstera</span>
           </Link>
           <p className="text-textSecondary text-[15px] max-w-xs leading-relaxed">
             The futuristic presentation generation platform for creative professionals.
@@ -35,7 +35,7 @@ export function Footer() {
         </div>
       </div>
       <div className="max-w-7xl mx-auto mt-16 pt-10 border-t border-borderSubtle flex flex-col md:flex-row justify-between items-center gap-6 text-[13px] font-medium text-textSecondary">
-        <p>© 2026 Orvixes AI. All rights reserved.</p>
+        <p>© 2026 Orbstera AI. All rights reserved.</p>
         <div className="flex gap-8">
           <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
           <Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>

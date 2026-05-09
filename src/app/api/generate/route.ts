@@ -138,7 +138,7 @@ export async function POST(req: Request) {
     } else {
       // Standard: strictly use free models so it works even with 0 balance
       primaryModel = 'meta-llama/llama-3.3-70b-instruct:free';
-      fallbackModel = 'google/gemini-2.0-flash-lite-preview-02-05:free'; // Standard fallback
+      fallbackModel = 'google/gemini-2.0-flash-lite-preview-02-05'; // Fallback without :free if possible, or try another
     }
 
     console.log(`[Generate] User: ${user.id} | Plan: ${plan} | Mode: ${secureMode} | Primary: ${primaryModel} | Slides: ${finalSlideCount} | Used: ${usedGenerations}/${monthlyLimit}`);
@@ -157,7 +157,7 @@ Final Instruction: Return ONLY the JSON object. Do not explain. Do not talk. Onl
             'Authorization': `Bearer ${OPENROUTER_API_KEY.trim()}`,
             'Content-Type': 'application/json',
             'HTTP-Referer': APP_URL,
-            'X-Title': 'Orvixes PPT Maker',
+            'X-Title': 'Orbstera',
           },
           body: JSON.stringify({
             model: targetModel,
