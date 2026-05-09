@@ -223,9 +223,23 @@ function PropertyEditor({ element, slideId }: { element: SlideElement; slideId: 
                 <option value="fadeIn">Fade In</option>
                 <option value="fadeSlideUp">Slide Up</option>
                 <option value="fadeSlideLeft">Slide Left</option>
+                <option value="slideRight">Slide Right</option>
                 <option value="zoomIn">Zoom In</option>
                 <option value="reveal">Wipe Reveal</option>
+                <option value="blurIn">Blur In</option>
+                <option value="glassBlur">Glass Blur</option>
                 <option value="elasticScale">Elastic Scale</option>
+                <option value="flipIn">Flip In</option>
+                <option value="parallaxDrift">Parallax Drift</option>
+                <option value="verticalRise">Vertical Rise</option>
+                <option value="horizontalReveal">Horizontal Reveal</option>
+                <option value="depthRise">Depth Rise</option>
+                <option value="floatGentle">Float</option>
+                <option value="scaleSoft">Scale Soft</option>
+                <option value="morphBlend">Morph Blend</option>
+                <option value="cinematicImageZoom">Cinematic Image</option>
+                <option value="typewriterWords">Word Stagger</option>
+                <option value="staggerLines">Line Stagger</option>
                 <option value="glitch">Glitch</option>
                 <option value="bounceIn">Bounce In</option>
               </select>

@@ -1,4 +1,5 @@
 import type { PresentationData, Slide, SlideLayoutType } from '@/types';
+import { coerceSlideTransition } from '@/lib/presentationMotion';
 import { pickOutlineModel, type IntelligenceTier } from './models';
 import { openRouterComplete, extractJsonObject } from './openrouter';
 import { PREFLIGHT_SYSTEM, buildComposerSystemPrompt } from './prompts';
@@ -123,6 +124,7 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
       imageUrl: obj.imageUrl as string | undefined,
       chart: (obj.chart as Slide['chart']) ?? null,
       animation: obj.animation as Slide['animation'],
+      slideTransition: coerceSlideTransition(obj.slideTransition),
       elements: obj.elements as Slide['elements'],
       backgroundStyle: obj.backgroundStyle as string | undefined,
       backgroundColor: obj.backgroundColor as string | undefined,
@@ -145,6 +147,11 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
       body: (input.fontPairing as { body?: string })?.body || 'Inter',
     },
     animationStyle: (input.animationStyle as string) || 'cinematic-reveal',
+    defaultSlideTransition: coerceSlideTransition(input.defaultSlideTransition),
+    cinematicPresenterEffects:
+      typeof input.cinematicPresenterEffects === 'boolean'
+        ? input.cinematicPresenterEffects
+        : undefined,
     slides,
     presentationType: input.presentationType as string | undefined,
     styleMode: input.styleMode as string | undefined,

@@ -1,86 +1,33 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import {
+  motion,
+  AnimatePresence,
+  useReducedMotion,
+} from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { SlideElement, Slide, AnimationEntrance } from '@/types';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
-
-// ── Animation variants — duration & delay are element-driven ──────────────────
-function getVariants(entrance: AnimationEntrance | undefined, durationMs: number, delayMs: number) {
-  const dur = Math.max(0.1, durationMs / 1000);
-  const del = delayMs / 1000;
-
-  switch (entrance) {
-    case 'fadeSlideUp':
-      return {
-        hidden:  { opacity: 0, y: 60 },
-        visible: { opacity: 1, y: 0,
-          transition: { delay: del, duration: dur, ease: [0.16, 1, 0.3, 1] } },
-      };
-    case 'fadeSlideLeft':
-      return {
-        hidden:  { opacity: 0, x: 70 },
-        visible: { opacity: 1, x: 0,
-          transition: { delay: del, duration: dur, ease: [0.16, 1, 0.3, 1] } },
-      };
-    case 'zoomIn':
-      return {
-        hidden:  { opacity: 0, scale: 0.6 },
-        visible: { opacity: 1, scale: 1,
-          transition: { delay: del, duration: dur, ease: [0.16, 1, 0.3, 1] } },
-      };
-    case 'elasticScale':
-      return {
-        hidden:  { opacity: 0, scale: 0.1 },
-        visible: { opacity: 1, scale: 1,
-          transition: { delay: del, type: 'spring', damping: 8, stiffness: 70 } },
-      };
-    case 'flipIn':
-      return {
-        hidden:  { opacity: 0, rotateX: -90, perspective: 1200 },
-        visible: { opacity: 1, rotateX: 0,
-          transition: { delay: del, duration: dur, ease: 'easeOut' } },
-      };
-    case 'reveal':
-      return {
-        hidden:  { opacity: 0, clipPath: 'inset(100% 0% 0% 0%)' },
-        visible: { opacity: 1, clipPath: 'inset(0% 0% 0% 0%)',
-          transition: { delay: del, duration: dur, ease: [0.16, 1, 0.3, 1] } },
-      };
-    case 'blurIn':
-      return {
-        hidden:  { opacity: 0, filter: 'blur(28px)', scale: 1.06 },
-        visible: { opacity: 1, filter: 'blur(0px)', scale: 1,
-          transition: { delay: del, duration: dur, ease: 'easeOut' } },
-      };
-    case 'glitch':
-      return {
-        hidden:  { opacity: 0, x: -14, skewX: 18 },
-        visible: {
-          opacity: 1, x: [0, -4, 4, -1, 0], skewX: [0, 6, -6, 2, 0],
-          transition: { delay: del, duration: dur,
-            times: [0, 0.25, 0.5, 0.75, 1] },
-        },
-      };
-    case 'bounceIn':
-      return {
-        hidden:  { opacity: 0, scale: 0.3, y: -30 },
-        visible: { opacity: 1, scale: 1, y: 0,
-          transition: { delay: del, type: 'spring', damping: 7, stiffness: 120 } },
-      };
-    case 'none':
-      return {
-        hidden:  { opacity: 1 },
-        visible: { opacity: 1 },
-      };
-    default: // fadeIn
-      return {
-        hidden:  { opacity: 0 },
-        visible: { opacity: 1, transition: { delay: del, duration: dur } },
-      };
-  }
-}
+import type { SlideElement, Slide, AnimationEntrance, ChartData } from '@/types';
+import {
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Maximize2,
+  Minimize2,
+  Play,
+  Pause,
+  Presentation,
+  Users,
+  Sparkles,
+  Zap,
+  ZapOff,
+} from 'lucide-react';
+import {
+  getElementEntranceVariants,
+  getSlideTransitionVariants,
+  inferSlideTransition,
+  type MotionContext,
+} from '@/lib/presentationMotion';
 
 // ── Shape renderer — matches Konva canvas shapes ──────────────────────────────
 function ShapeEl({ el, accent }: { el: SlideElement; accent: string }) {
@@ -91,7 +38,6 @@ function ShapeEl({ el, accent }: { el: SlideElement; accent: string }) {
     ? `${ss.strokeWidth}px solid ${ss.stroke}`
     : 'none';
 
-  // RECT
   if (!el.shapeType || el.shapeType === 'rect') {
     return (
       <div style={{
@@ -104,7 +50,6 @@ function ShapeEl({ el, accent }: { el: SlideElement; accent: string }) {
     );
   }
 
-  // CIRCLE — use border-radius 50%
   if (el.shapeType === 'circle') {
     return (
       <div style={{
@@ -116,7 +61,6 @@ function ShapeEl({ el, accent }: { el: SlideElement; accent: string }) {
     );
   }
 
-  // TRIANGLE — CSS clip-path
   if (el.shapeType === 'triangle') {
     return (
       <div style={{
@@ -127,7 +71,6 @@ function ShapeEl({ el, accent }: { el: SlideElement; accent: string }) {
     );
   }
 
-  // STAR — SVG
   if (el.shapeType === 'star') {
     return (
       <svg viewBox="0 0 100 100" width="100%" height="100%" style={{ display: 'block', overflow: 'visible' }}>
@@ -141,7 +84,6 @@ function ShapeEl({ el, accent }: { el: SlideElement; accent: string }) {
     );
   }
 
-  // LINE — SVG horizontal line
   if (el.shapeType === 'line') {
     return (
       <svg viewBox={`0 0 ${el.width} ${el.height}`} width="100%" height="100%" style={{ overflow: 'visible' }}>
@@ -156,7 +98,6 @@ function ShapeEl({ el, accent }: { el: SlideElement; accent: string }) {
     );
   }
 
-  // ARROW — SVG arrow
   if (el.shapeType === 'arrow') {
     const hw = Math.min(20, el.height * 0.7);
     return (
@@ -178,30 +119,145 @@ function ShapeEl({ el, accent }: { el: SlideElement; accent: string }) {
     );
   }
 
-  // Fallback: rect
   return <div style={{ width: '100%', height: '100%', backgroundColor: fill }} />;
 }
 
+function splitWords(text: string) {
+  return text.split(/(\s+)/).filter((w) => w.length > 0);
+}
+
+function AnimatedTextContent({
+  content,
+  entrance,
+  baseStyle,
+}: {
+  content: string;
+  entrance: AnimationEntrance | undefined;
+  baseStyle: React.CSSProperties;
+}) {
+  if (entrance === 'typewriterWords') {
+    const words = splitWords(content || '');
+    return (
+      <div style={{ ...baseStyle, overflow: 'hidden' }}>
+        {words.map((w, wi) => (
+          <motion.span
+            key={`${wi}-${w.slice(0, 8)}`}
+            initial={{ opacity: 0, y: 6, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            transition={{
+              delay: wi * 0.04,
+              duration: 0.35,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+            style={{ display: 'inline', willChange: 'opacity, transform' }}
+          >
+            {w}
+          </motion.span>
+        ))}
+      </div>
+    );
+  }
+
+  const lines = (content || '').split('\n');
+  if (entrance === 'staggerLines' && lines.length > 1) {
+    return (
+      <div style={{ ...baseStyle, overflow: 'hidden' }}>
+        {lines.map((line, li) => (
+          <motion.div
+            key={li}
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: li * 0.08, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            style={{ willChange: 'opacity, transform' }}
+          >
+            {line || '\u00a0'}
+          </motion.div>
+        ))}
+      </div>
+    );
+  }
+
+  return <div style={baseStyle}>{content}</div>;
+}
+
+function PresentChartEl({ el, accent }: { el: SlideElement; accent: string }) {
+  const cd: ChartData | undefined = el.chartData;
+  const values = cd?.datasets?.[0]?.data?.length
+    ? cd.datasets[0].data
+    : [0.55, 0.78, 0.42, 0.88, 0.62];
+  const labels = cd?.labels?.length ? cd.labels : values.map((_, i) => String(i + 1));
+  const max = Math.max(...values, 1);
+  const n = values.length;
+
+  return (
+    <div
+      className="flex flex-col justify-end h-full w-full rounded-xl overflow-hidden"
+      style={{
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        padding: 12,
+      }}
+    >
+      <div className="flex items-end flex-1 gap-2 w-full min-h-0">
+        {values.map((v, i) => {
+          const h = (v / max) * (el.height * 0.62);
+          return (
+            <div key={i} className="flex-1 flex flex-col items-center justify-end min-w-0">
+              <motion.div
+                initial={{ scaleY: 0 }}
+                animate={{ scaleY: 1 }}
+                transition={{
+                  delay: 0.15 + i * 0.07,
+                  duration: 0.55,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+                style={{
+                  width: '100%',
+                  height: Math.max(4, h),
+                  borderRadius: 6,
+                  background: `linear-gradient(180deg, ${accent} 0%, ${accent}99 100%)`,
+                  transformOrigin: 'bottom',
+                  willChange: 'transform',
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex gap-2 mt-2 text-[9px] font-bold uppercase tracking-wider text-white/35 truncate w-full">
+        {labels.slice(0, n).map((lb, i) => (
+          <span key={i} className="flex-1 text-center truncate min-w-0">{lb}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Single rendered slide (background + elements) ─────────────────────────────
-function PresentSlide({ slide, palette }: { slide: Slide; palette: string[] }) {
+function PresentSlideView({
+  slide,
+  palette,
+  animationsOn,
+}: {
+  slide: Slide;
+  palette: string[];
+  animationsOn: boolean;
+}) {
   const bg     = palette[0] || '#05050A';
   const accent = palette[2] || '#7B61FF';
 
-  // Separate background image from regular elements
   const bgEl = slide.elements?.find(
-    (el) => el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0 && el.src,
+    (el) => el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0 && el.width >= 1000,
   );
   const elements = (slide.elements || [])
-    .filter((el) => el.visible !== false && !(el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0))
+    .filter((el) => el.visible !== false && !(el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0 && el.width >= 1000))
     .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
 
   return (
     <div className="absolute inset-0 w-full h-full overflow-hidden">
 
-      {/* ── BG Layer 1: solid color ─────────────────────────────────── */}
       <div className="absolute inset-0" style={{ background: bg }} />
 
-      {/* ── BG Layer 2: accent diagonal gradient (matches canvas) ───── */}
       <div
         className="absolute inset-0"
         style={{
@@ -209,28 +265,88 @@ function PresentSlide({ slide, palette }: { slide: Slide; palette: string[] }) {
         }}
       />
 
-      {/* ── BG Layer 3: hero image at 18% (matches canvas) ─────────── */}
       {bgEl?.src && (
-        <img
-          src={bgEl.src}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ opacity: 0.18 }}
-        />
+        <motion.div
+          className="absolute inset-0 overflow-hidden"
+          initial={false}
+          animate={animationsOn ? { scale: [1, 1.035, 1] } : { scale: 1 }}
+          transition={{ duration: 28, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ willChange: animationsOn ? 'transform' : undefined }}
+        >
+          <img
+            src={bgEl.src}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ opacity: bgEl.opacity ?? 0.18 }}
+          />
+        </motion.div>
       )}
 
-      {/* ── Elements ─────────────────────────────────────────────────── */}
       {elements.map((el, i) => {
-        const entrance  = el.animation?.entrance;
+        const entrance   = el.animation?.entrance;
         const durationMs = el.animation?.duration ?? 600;
         const delayMs    = el.animation?.delay    ?? (i * 80);
-        const variants   = getVariants(entrance, durationMs, delayMs);
+        const variants   = animationsOn
+          ? getElementEntranceVariants(entrance, durationMs, delayMs)
+          : { hidden: { opacity: 1 }, visible: { opacity: 1 } };
+
+        const textBase: React.CSSProperties = {
+          width:          '100%',
+          height:         '100%',
+          fontFamily:     el.textStyle?.fontFamily || 'Inter, sans-serif',
+          fontSize:       `${el.textStyle?.fontSize || 24}px`,
+          fontWeight:     el.textStyle?.fontWeight || 'normal',
+          fontStyle:      el.textStyle?.fontStyle  || 'normal',
+          textDecoration: el.textStyle?.textDecoration || 'none',
+          color:          el.textStyle?.color || '#FFFFFF',
+          textAlign:      (el.textStyle?.textAlign as React.CSSProperties['textAlign']) || 'left',
+          lineHeight:     el.textStyle?.lineHeight || 1.4,
+          letterSpacing:  el.textStyle?.letterSpacing ? `${el.textStyle.letterSpacing}px` : undefined,
+          whiteSpace:     'pre-wrap',
+          wordBreak:      'break-word',
+          overflow:       'hidden',
+        };
+
+        const inner =
+          el.type === 'text' ? (
+            entrance === 'typewriterWords' || entrance === 'staggerLines' ? (
+              <AnimatedTextContent content={el.content || ''} entrance={entrance} baseStyle={textBase} />
+            ) : (
+              <div style={textBase}>{el.content}</div>
+            )
+          ) : el.type === 'image' && el.src ? (
+            <motion.img
+              src={el.src}
+              alt=""
+              style={{
+                width:     '100%',
+                height:    '100%',
+                objectFit: 'cover',
+                display:   'block',
+                opacity:   el.opacity ?? 1,
+              }}
+              initial={animationsOn && entrance === 'cinematicImageZoom' ? { scale: 1.08 } : false}
+              animate={animationsOn && entrance === 'cinematicImageZoom' ? { scale: [1.08, 1] } : {}}
+              transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+            />
+          ) : el.type === 'shape' ? (
+            <ShapeEl el={el} accent={accent} />
+          ) : el.type === 'chart' ? (
+            <PresentChartEl el={el} accent={accent} />
+          ) : el.type === 'icon' ? (
+            <div
+              className="w-full h-full flex items-center justify-center text-white/90"
+              style={{ fontSize: Math.min(el.width, el.height) * 0.55 }}
+            >
+              {el.content || '◆'}
+            </div>
+          ) : null;
 
         return (
           <motion.div
             key={el.id}
             variants={variants}
-            initial="hidden"
+            initial={animationsOn ? 'hidden' : 'visible'}
             animate="visible"
             style={{
               position:  'absolute',
@@ -242,54 +358,68 @@ function PresentSlide({ slide, palette }: { slide: Slide; palette: string[] }) {
               opacity:   entrance === 'none' ? 1 : (el.opacity ?? 1),
               transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
               overflow:  'visible',
+              willChange: animationsOn ? 'opacity, transform, filter' : undefined,
             }}
           >
-            {/* TEXT */}
-            {el.type === 'text' && (
-              <div
-                style={{
-                  width:          '100%',
-                  height:         '100%',
-                  fontFamily:     el.textStyle?.fontFamily || 'Inter, sans-serif',
-                  fontSize:       `${el.textStyle?.fontSize || 24}px`,
-                  fontWeight:     el.textStyle?.fontWeight || 'normal',
-                  fontStyle:      el.textStyle?.fontStyle  || 'normal',
-                  textDecoration: el.textStyle?.textDecoration || 'none',
-                  color:          el.textStyle?.color || '#FFFFFF',
-                  textAlign:      (el.textStyle?.textAlign as any) || 'left',
-                  lineHeight:     el.textStyle?.lineHeight || 1.4,
-                  letterSpacing:  el.textStyle?.letterSpacing ? `${el.textStyle.letterSpacing}px` : undefined,
-                  whiteSpace:     'pre-wrap',
-                  wordBreak:      'break-word',
-                  overflow:       'hidden',
-                }}
-              >
-                {el.content}
-              </div>
-            )}
-
-            {/* IMAGE */}
-            {el.type === 'image' && el.src && (
-              <img
-                src={el.src}
-                alt=""
-                style={{
-                  width:     '100%',
-                  height:    '100%',
-                  objectFit: 'cover',
-                  display:   'block',
-                  opacity:   el.opacity ?? 1,
-                }}
-              />
-            )}
-
-            {/* SHAPE — delegates to ShapeEl for accurate rendering */}
-            {el.type === 'shape' && (
-              <ShapeEl el={el} accent={accent} />
-            )}
+            {inner}
           </motion.div>
         );
       })}
+    </div>
+  );
+}
+
+function CinematicBackdrop({
+  palette,
+  enabled,
+}: {
+  palette: string[];
+  enabled: boolean;
+}) {
+  const accent = palette[2] || '#7B61FF';
+  if (!enabled) return null;
+
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 28 }, (_, i) => ({
+        id: i,
+        x: `${(i * 37) % 100}%`,
+        y: `${(i * 23) % 100}%`,
+        s: 1 + (i % 4) * 0.4,
+        d: 18 + (i % 9) * 4,
+      })),
+    [],
+  );
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <motion.div
+        className="absolute inset-0 opacity-40"
+        animate={{
+          background: [
+            `radial-gradient(circle at 20% 30%, ${accent}22 0%, transparent 45%)`,
+            `radial-gradient(circle at 80% 40%, ${accent}28 0%, transparent 50%)`,
+            `radial-gradient(circle at 50% 70%, ${accent}18 0%, transparent 48%)`,
+            `radial-gradient(circle at 20% 30%, ${accent}22 0%, transparent 45%)`,
+          ],
+        }}
+        transition={{ duration: 28, repeat: Infinity, ease: 'linear' }}
+      />
+      {particles.map((p) => (
+        <motion.div
+          key={p.id}
+          className="absolute rounded-full bg-white/[0.04]"
+          style={{
+            width: p.s,
+            height: p.s,
+            left: p.x,
+            top: p.y,
+            willChange: 'transform, opacity',
+          }}
+          animate={{ y: [0, -18, 0], opacity: [0.15, 0.45, 0.15] }}
+          transition={{ duration: p.d, repeat: Infinity, ease: 'easeInOut', delay: p.id * 0.12 }}
+        />
+      ))}
     </div>
   );
 }
@@ -301,16 +431,56 @@ export function PresentMode() {
   const [direction,    setDirection]    = useState(1);
   const [scale,        setScale]        = useState(1);
   const [showControls, setShowControls] = useState(true);
+  const [booting, setBooting]           = useState(false);
+  const [fullscreen, setFullscreen]     = useState(false);
+  const [autoplay, setAutoplay]         = useState(false);
+  const [speakerView, setSpeakerView]   = useState(true);
+  const [audienceMode, setAudienceMode] = useState(false);
+  const [effectsOn, setEffectsOn]       = useState(true);
+  const [animationsOn, setAnimationsOn] = useState(true);
+
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shellRef  = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
 
   const slides       = presentation?.slides || [];
   const slide        = slides[currentIndex];
   const isPresenting = editor.isPresenting;
   const palette      = presentation?.colorPalette || ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'];
 
+  const motionCtx: MotionContext = useMemo(
+    () => ({
+      animationStyle: presentation?.animationStyle,
+      presentationType: presentation?.presentationType,
+      styleMode: presentation?.styleMode,
+      defaultSlideTransition: presentation?.defaultSlideTransition,
+    }),
+    [presentation?.animationStyle, presentation?.presentationType, presentation?.styleMode, presentation?.defaultSlideTransition],
+  );
+
+  const activeTransition = useMemo(() => {
+    if (reduceMotion) return 'fade' as const;
+    if (!slide) return 'fade';
+    return inferSlideTransition(slide, motionCtx);
+  }, [slide, motionCtx, reduceMotion]);
+
+  const slideVariants = useMemo(
+    () => getSlideTransitionVariants(activeTransition),
+    [activeTransition],
+  );
+
+  const cinematicEffects =
+    (presentation?.cinematicPresenterEffects !== false) && effectsOn && !reduceMotion;
+
+  const notes = (slide?.speakerNotes || '').trim();
+
   const close = useCallback(() => {
     setEditorState({ isPresenting: false });
     setCurrentIndex(0);
+    setAutoplay(false);
+    if (document.fullscreenElement && shellRef.current?.contains(document.fullscreenElement)) {
+      void document.exitFullscreen();
+    }
   }, [setEditorState]);
 
   const goNext = useCallback(() => {
@@ -330,36 +500,55 @@ export function PresentMode() {
   const resetHideTimer = useCallback(() => {
     setShowControls(true);
     if (hideTimer.current) clearTimeout(hideTimer.current);
-    hideTimer.current = setTimeout(() => setShowControls(false), 3000);
+    hideTimer.current = setTimeout(() => setShowControls(false), 3200);
   }, []);
 
-  // Responsive scale — fills screen while keeping 16:9
+  const toggleFs = useCallback(async () => {
+    const el = shellRef.current;
+    if (!el) return;
+    try {
+      if (!document.fullscreenElement) await el.requestFullscreen();
+      else await document.exitFullscreen();
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
     if (!isPresenting) return;
     const calc = () => {
+      const pad = fullscreen ? 8 : 32;
       const sw = Math.min(
-        (window.innerWidth  - 32) / 1280,
-        (window.innerHeight - 32) / 720,
+        (window.innerWidth  - pad) / 1280,
+        (window.innerHeight - pad) / 720,
       );
-      setScale(Math.min(sw, 1.5));
+      setScale(Math.min(sw, fullscreen ? 2.2 : 1.5));
     };
     calc();
     window.addEventListener('resize', calc);
     return () => window.removeEventListener('resize', calc);
-  }, [isPresenting]);
+  }, [isPresenting, fullscreen]);
 
-  // Keyboard navigation
   useEffect(() => {
     if (!isPresenting) return;
     const onKey = (e: KeyboardEvent) => {
       resetHideTimer();
-      if (e.key === 'Escape')                               close();
-      else if (['ArrowRight', ' ', 'Enter'].includes(e.key)) goNext();
-      else if (['ArrowLeft',  'Backspace'].includes(e.key))  goPrev();
+      if (e.key === 'Escape') {
+        if (document.fullscreenElement) void document.exitFullscreen();
+        else close();
+      } else if (['ArrowRight', ' ', 'PageDown'].includes(e.key)) goNext();
+      else if (['ArrowLeft', 'Backspace', 'PageUp'].includes(e.key)) goPrev();
+      else if (e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        toggleFs();
+      } else if (e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        setAutoplay((v) => !v);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isPresenting, close, goNext, goPrev, resetHideTimer]);
+  }, [isPresenting, close, goNext, goPrev, resetHideTimer, toggleFs]);
 
   useEffect(() => {
     if (!isPresenting) return;
@@ -369,131 +558,313 @@ export function PresentMode() {
   }, [isPresenting, resetHideTimer]);
 
   useEffect(() => {
-    if (isPresenting) setCurrentIndex(0);
+    if (!isPresenting) return;
+    setCurrentIndex(0);
+    setBooting(true);
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => setBooting(false));
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      if (inner) cancelAnimationFrame(inner);
+    };
   }, [isPresenting]);
+
+  useEffect(() => {
+    const onFs = () => setFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
+
+  useEffect(() => {
+    if (!autoplay || !isPresenting || slides.length === 0) return;
+    const id = window.setInterval(() => {
+      setCurrentIndex((c) => {
+        if (c >= slides.length - 1) {
+          setAutoplay(false);
+          return c;
+        }
+        setDirection(1);
+        return c + 1;
+      });
+    }, 9000);
+    return () => clearInterval(id);
+  }, [autoplay, isPresenting, slides.length]);
+
+  useEffect(() => {
+    if (presentation?.cinematicPresenterEffects === false) setEffectsOn(false);
+    else setEffectsOn(true);
+  }, [presentation?.cinematicPresenterEffects]);
 
   if (!isPresenting || !presentation || !slide) return null;
 
-  const dotCount = Math.min(slides.length, 24);
+  const dotCount = Math.min(slides.length, 32);
+  const progress = slides.length > 1 ? currentIndex / (slides.length - 1) : 1;
 
   return (
     <AnimatePresence>
       <motion.div
+        ref={shellRef}
         key="present-overlay"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden"
-        style={{ background: '#010104' }}
+        className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-[#010104]"
+        onClick={() => resetHideTimer()}
       >
-        {/* Ambient glow matching palette accent */}
+        <CinematicBackdrop palette={palette} enabled={cinematicEffects} />
+
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: `radial-gradient(circle at 50% 50%, ${palette[2]}18 0%, transparent 65%)`,
+            background: `radial-gradient(circle at 50% 45%, ${palette[2]}14 0%, transparent 62%)`,
           }}
         />
 
-        {/* ── Slide frame ──────────────────────────────────────────── */}
+        <AnimatePresence>
+          {booting && (
+            <motion.div
+              key="boot"
+              className="absolute inset-0 z-[220] flex flex-col items-center justify-center bg-[#020208]/95 backdrop-blur-xl pointer-events-none"
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.45 }}
+            >
+              <motion.div
+                className="w-12 h-12 rounded-full border-2 border-white/10 border-t-white/70"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 0.9, repeat: Infinity, ease: 'linear' }}
+              />
+              <p className="mt-6 text-[10px] font-black tracking-[0.45em] uppercase text-white/35">
+                Present
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Progress */}
+        <div className="absolute top-0 left-0 right-0 h-[3px] z-[210] bg-black/40">
+          <motion.div
+            className="h-full rounded-b-full"
+            style={{
+              background: `linear-gradient(90deg, ${palette[2]}aa, ${palette[1]}66)`,
+              boxShadow: `0 0 24px ${palette[2]}55`,
+            }}
+            initial={false}
+            animate={{ width: `${progress * 100}%` }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          />
+        </div>
+
         <motion.div
           animate={{ scale }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
           style={{
             width:           1280,
             height:          720,
             transformOrigin: 'center center',
             position:        'relative',
-            boxShadow:       `0 80px 160px -20px rgba(0,0,0,0.95), 0 0 120px -30px ${palette[2]}25`,
-            borderRadius:    6,
+            boxShadow:       `0 80px 160px -20px rgba(0,0,0,0.95), 0 0 120px -30px ${palette[2]}22`,
+            borderRadius:    8,
             overflow:        'hidden',
             flexShrink:      0,
-            border:          '1px solid rgba(255,255,255,0.07)',
+            border:          '1px solid rgba(255,255,255,0.08)',
+            willChange:      'transform',
           }}
         >
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
               key={slide.id}
               custom={direction}
-              variants={{
-                enter:  (d: number) => ({ opacity: 0, x: d * 120, filter: 'blur(12px)', scale: 1.02 }),
-                center: { opacity: 1, x: 0, filter: 'blur(0px)', scale: 1,
-                  transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
-                exit:   (d: number) => ({ opacity: 0, x: d * -120, filter: 'blur(12px)', scale: 0.98,
-                  transition: { duration: 0.35 } }),
-              }}
+              variants={slideVariants}
               initial="enter"
               animate="center"
               exit="exit"
               className="absolute inset-0"
+              style={{ willChange: 'opacity, transform, filter' }}
             >
-              <PresentSlide slide={slide} palette={palette} />
+              <PresentSlideView
+                slide={slide}
+                palette={palette}
+                animationsOn={animationsOn && !reduceMotion}
+              />
             </motion.div>
           </AnimatePresence>
         </motion.div>
 
-        {/* ── Controls (auto-hide) ─────────────────────────────────── */}
+        {/* Speaker notes */}
+        <AnimatePresence>
+          {speakerView && !audienceMode && notes && showControls && (
+            <motion.aside
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+              transition={{ duration: 0.35 }}
+              className="absolute bottom-[108px] left-1/2 -translate-x-1/2 z-[205] w-[min(92vw,560px)] max-h-[22vh] overflow-y-auto rounded-2xl border border-white/10 bg-black/55 backdrop-blur-2xl px-5 py-4 text-left pointer-events-auto shadow-2xl"
+            >
+              <p className="text-[8px] font-black tracking-[0.35em] uppercase text-white/30 mb-2">Speaker</p>
+              <p className="text-[13px] leading-relaxed text-white/85 whitespace-pre-wrap">{notes}</p>
+            </motion.aside>
+          )}
+        </AnimatePresence>
+
+        {/* Thumbnail filmstrip */}
+        {showControls && slides.length > 1 && (
+          <div className="absolute bottom-[102px] left-1/2 -translate-x-1/2 z-[204] flex gap-2 max-w-[min(94vw,920px)] overflow-x-auto pb-1 px-2 pointer-events-auto scrollbar-none opacity-90">
+            {slides.slice(0, dotCount).map((s, i) => (
+              <motion.button
+                key={s.id}
+                type="button"
+                onClick={() => {
+                  setDirection(i > currentIndex ? 1 : -1);
+                  setCurrentIndex(i);
+                }}
+                whileHover={{ y: -2, scale: 1.03 }}
+                className={`relative shrink-0 w-[72px] aspect-video rounded-lg overflow-hidden border transition-colors ${
+                  i === currentIndex ? 'border-white/40 ring-2 ring-white/20' : 'border-white/10 opacity-70 hover:opacity-100'
+                }`}
+                style={{
+                  background: `linear-gradient(135deg, ${palette[0]} 0%, ${palette[2]}33 100%)`,
+                }}
+              >
+                <span className="absolute bottom-1 right-1 text-[8px] font-black text-white/50 tabular-nums">
+                  {i + 1}
+                </span>
+              </motion.button>
+            ))}
+          </div>
+        )}
+
         <AnimatePresence>
           {showControls && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.28 }}
               className="absolute inset-0 pointer-events-none"
             >
-              {/* Close */}
               <button
+                type="button"
                 onClick={close}
-                className="absolute top-7 right-7 z-50 w-11 h-11 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white/50 hover:text-white border border-white/10 backdrop-blur-2xl transition-all pointer-events-auto group"
+                className="absolute top-6 right-6 z-50 w-11 h-11 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white/50 hover:text-white border border-white/10 backdrop-blur-2xl transition-all pointer-events-auto group"
               >
                 <X size={20} className="group-hover:rotate-90 transition-transform duration-500" />
               </button>
 
-              {/* Left / Right click zones */}
+              <div className="absolute top-6 left-6 z-50 flex flex-wrap gap-2 pointer-events-auto max-w-[min(92vw,520px)]">
+                <button
+                  type="button"
+                  onClick={toggleFs}
+                  className="h-9 px-3 rounded-full bg-black/45 border border-white/10 text-white/70 hover:text-white text-[10px] font-bold uppercase tracking-widest backdrop-blur-xl flex items-center gap-2"
+                >
+                  {fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                  Full
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAutoplay((v) => !v)}
+                  className={`h-9 px-3 rounded-full border text-[10px] font-bold uppercase tracking-widest backdrop-blur-xl flex items-center gap-2 ${
+                    autoplay ? 'bg-emerald-500/25 border-emerald-400/40 text-emerald-100' : 'bg-black/45 border-white/10 text-white/70 hover:text-white'
+                  }`}
+                >
+                  {autoplay ? <Pause size={14} /> : <Play size={14} />}
+                  Auto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAudienceMode((v) => !v)}
+                  className={`h-9 px-3 rounded-full border text-[10px] font-bold uppercase tracking-widest backdrop-blur-xl flex items-center gap-2 ${
+                    audienceMode ? 'bg-violet-500/25 border-violet-300/35 text-violet-100' : 'bg-black/45 border-white/10 text-white/70 hover:text-white'
+                  }`}
+                >
+                  {audienceMode ? <Users size={14} /> : <Presentation size={14} />}
+                  {audienceMode ? 'Audience' : 'Presenter'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSpeakerView((v) => !v)}
+                  disabled={audienceMode}
+                  className="h-9 px-3 rounded-full bg-black/45 border border-white/10 text-white/70 hover:text-white text-[10px] font-bold uppercase tracking-widest backdrop-blur-xl disabled:opacity-25 flex items-center gap-2"
+                >
+                  <Sparkles size={14} />
+                  Notes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEffectsOn((v) => !v)}
+                  className={`h-9 px-3 rounded-full border text-[10px] font-bold uppercase tracking-widest backdrop-blur-xl flex items-center gap-2 ${
+                    effectsOn ? 'bg-black/45 border-white/10 text-white/80' : 'bg-black/45 border-white/10 text-white/35'
+                  }`}
+                >
+                  {effectsOn ? <Zap size={14} /> : <ZapOff size={14} />}
+                  FX
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAnimationsOn((v) => !v)}
+                  className={`h-9 px-3 rounded-full border text-[10px] font-bold uppercase tracking-widest backdrop-blur-xl ${
+                    animationsOn ? 'bg-black/45 border-white/10 text-amber-100/90' : 'bg-black/45 border-white/10 text-white/35'
+                  }`}
+                >
+                  Motion
+                </button>
+              </div>
+
               <button
-                onClick={goPrev} disabled={currentIndex === 0}
+                type="button"
+                onClick={goPrev}
+                disabled={currentIndex === 0}
                 className="absolute left-0 top-0 h-full w-1/5 pointer-events-auto opacity-0 cursor-w-resize disabled:cursor-default z-30"
               />
               <button
-                onClick={goNext} disabled={currentIndex === slides.length - 1}
+                type="button"
+                onClick={goNext}
+                disabled={currentIndex === slides.length - 1}
                 className="absolute right-0 top-0 h-full w-1/5 pointer-events-auto opacity-0 cursor-e-resize disabled:cursor-default z-30"
               />
 
-              {/* Navigation pill */}
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pointer-events-auto">
-                <div className="text-white/20 text-[9px] font-black tracking-[0.5em] uppercase">
-                  {currentIndex + 1} &mdash; {slides.length}
+              <div className="absolute bottom-7 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-auto">
+                <div className="text-white/25 text-[9px] font-black tracking-[0.45em] uppercase">
+                  {currentIndex + 1} — {slides.length}
                 </div>
 
-                <div className="flex items-center gap-5 bg-black/50 backdrop-blur-[32px] px-7 py-3.5 rounded-full border border-white/10 shadow-[0_24px_48px_-8px_rgba(0,0,0,0.6)]">
+                <div className="flex items-center gap-4 bg-black/50 backdrop-blur-[28px] px-6 py-3 rounded-full border border-white/10 shadow-[0_24px_48px_-8px_rgba(0,0,0,0.55)]">
                   <button
-                    onClick={goPrev} disabled={currentIndex === 0}
-                    className="text-white/40 hover:text-white disabled:opacity-10 transition-all active:scale-75"
+                    type="button"
+                    onClick={goPrev}
+                    disabled={currentIndex === 0}
+                    className="text-white/45 hover:text-white disabled:opacity-10 transition-all active:scale-90"
                   >
                     <ChevronLeft size={22} />
                   </button>
 
-                  {/* Dot indicators */}
                   <div className="flex items-center gap-1.5">
                     {slides.slice(0, dotCount).map((_, i) => (
                       <button
                         key={i}
-                        onClick={() => { setDirection(i > currentIndex ? 1 : -1); setCurrentIndex(i); }}
-                        className="transition-all duration-500"
+                        type="button"
+                        onClick={() => {
+                          setDirection(i > currentIndex ? 1 : -1);
+                          setCurrentIndex(i);
+                        }}
+                        className="transition-all duration-500 rounded-sm"
                         style={{
-                          width:        i === currentIndex ? 28 : 6,
+                          width:        i === currentIndex ? 26 : 5,
                           height:       4,
-                          borderRadius: 2,
-                          background:   i === currentIndex ? (palette[2] || '#7B61FF') : 'rgba(255,255,255,0.18)',
-                          boxShadow:    i === currentIndex ? `0 0 12px ${palette[2]}80` : 'none',
+                          background:   i === currentIndex ? (palette[2] || '#7B61FF') : 'rgba(255,255,255,0.16)',
+                          boxShadow:    i === currentIndex ? `0 0 12px ${palette[2]}66` : 'none',
                         }}
                       />
                     ))}
                   </div>
 
                   <button
-                    onClick={goNext} disabled={currentIndex === slides.length - 1}
-                    className="text-white/40 hover:text-white disabled:opacity-10 transition-all active:scale-75"
+                    type="button"
+                    onClick={goNext}
+                    disabled={currentIndex === slides.length - 1}
+                    className="text-white/45 hover:text-white disabled:opacity-10 transition-all active:scale-90"
                   >
                     <ChevronRight size={22} />
                   </button>

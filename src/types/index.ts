@@ -13,6 +13,24 @@ export type SlideLayoutType =
   | 'stats'
   | 'comparison';
 
+// ─── Slide transition (present mode & export hints) ──────────────────────────
+export type SlideTransition =
+  | 'fade'
+  | 'smoothSlide'
+  | 'zoom'
+  | 'blurReveal'
+  | 'parallaxFlow'
+  | 'morph'
+  | 'crossDissolve'
+  | 'glassSwipe'
+  | 'depth'
+  | 'dynamicScale'
+  | 'verticalFlow'
+  | 'horizontalCinematic'
+  | 'layerReveal'
+  | 'floating'
+  | 'keynote';
+
 // ─── Animation Types ──────────────────────────────────────────────────────────
 export type AnimationEntrance =
   | 'fadeSlideUp'
@@ -26,7 +44,18 @@ export type AnimationEntrance =
   | 'elasticScale'
   | 'flipIn'
   | 'blurIn'
-  | 'none';
+  | 'none'
+  | 'parallaxDrift'
+  | 'verticalRise'
+  | 'horizontalReveal'
+  | 'depthRise'
+  | 'glassBlur'
+  | 'floatGentle'
+  | 'scaleSoft'
+  | 'morphBlend'
+  | 'cinematicImageZoom'
+  | 'typewriterWords'
+  | 'staggerLines';
 
 export interface AnimationConfig {
   entrance: AnimationEntrance;
@@ -122,6 +151,8 @@ export interface Slide {
   imageUrl?: string;
   chart?: ChartData | null;
   animation?: AnimationConfig;
+  /** Per-slide transition in presentation mode (overrides deck default). */
+  slideTransition?: SlideTransition;
   elements?: SlideElement[];
   backgroundStyle?: string;
   backgroundColor?: string;
@@ -142,6 +173,10 @@ export interface PresentationData {
   colorPalette: string[];
   fontPairing: FontPairing;
   animationStyle: string;
+  /** Default slide-to-slide transition when a slide has no `slideTransition`. */
+  defaultSlideTransition?: SlideTransition;
+  /** Gradients, particles, and ambient motion in presenter (not exported to PPTX). */
+  cinematicPresenterEffects?: boolean;
   slides: Slide[];
   createdAt?: string;
   updatedAt?: string;

@@ -52,10 +52,18 @@ function ElementNode({
     // Set "from" state
     if (entrance === 'fadeSlideUp')       node.setAttrs({ x: targetX, y: targetY + 60, opacity: 0 });
     else if (entrance === 'fadeSlideLeft')node.setAttrs({ x: targetX - 60, y: targetY, opacity: 0 });
+    else if (entrance === 'slideRight')   node.setAttrs({ x: targetX + 60, y: targetY, opacity: 0 });
     else if (entrance === 'zoomIn')       node.setAttrs({ x: targetX, y: targetY, scaleX: 0.4, scaleY: 0.4, opacity: 0 });
     else if (entrance === 'elasticScale') node.setAttrs({ x: targetX, y: targetY, scaleX: 0,   scaleY: 0,   opacity: 0 });
     else if (entrance === 'reveal')       node.setAttrs({ x: targetX, y: targetY, scaleY: 0, opacity: 0 });
     else if (entrance === 'glitch')       node.setAttrs({ x: targetX - 20, y: targetY, opacity: 0.4 });
+    else if (entrance === 'flipIn')       node.setAttrs({ x: targetX, y: targetY, scaleY: 0.2, opacity: 0 });
+    else if (['blurIn', 'glassBlur', 'typewriterWords', 'staggerLines'].includes(entrance))
+      node.setAttrs({ x: targetX, y: targetY, opacity: 0 });
+    else if (['parallaxDrift', 'horizontalReveal', 'depthRise', 'floatGentle', 'verticalRise'].includes(entrance))
+      node.setAttrs({ x: targetX - 40, y: targetY + 20, opacity: 0, scaleX: 0.92, scaleY: 0.92 });
+    else if (['scaleSoft', 'morphBlend', 'cinematicImageZoom'].includes(entrance))
+      node.setAttrs({ x: targetX, y: targetY, scaleX: 0.85, scaleY: 0.85, opacity: 0 });
     else                                  node.setAttrs({ x: targetX, y: targetY, opacity: 0 }); // fadeIn / bounceIn
 
     // Tween "to" final state

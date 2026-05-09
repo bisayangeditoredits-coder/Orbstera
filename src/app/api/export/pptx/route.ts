@@ -3,7 +3,7 @@ import PptxGenJS from 'pptxgenjs';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
-import { PresentationData, SlideElement } from '@/types';
+import { PresentationData, Slide, SlideElement, SlideTransition } from '@/types';
 
 // ── Canvas → PPTX coordinate system ──────────────────────────────────────────
 // Canvas: 1280 × 720 px  →  PPTX: 10 × 5.625 inches  (same 16:9 ratio)
@@ -39,8 +39,8 @@ function mapFont(family?: string): string {
   return 'Calibri';
 }
 
-/** Map slide transition */
-function slideTransition(animStyle?: string, slideType?: string) {
+/** Legacy heuristic when no explicit `SlideTransition` is set */
+function legacySlideTransition(animStyle?: string, slideType?: string) {
   const fade: any = { type: 'fade',  speed: 'med' };
   const push: any = { type: 'push',  dir:   'l',  speed: 'med' };
   const zoom: any = { type: 'zoom',  speed: 'med' };
@@ -56,6 +56,37 @@ function slideTransition(animStyle?: string, slideType?: string) {
     case 'timeline': return push;
     default:         return fade;
   }
+}
+
+/** Map Orbstera slide transitions → pptxgenjs transition objects */
+function resolveSlideTransitionExport(
+  slide: Slide,
+  animStyle?: string,
+  defaultSlideTransition?: SlideTransition,
+) {
+  const fade: any = { type: 'fade', speed: 'med' };
+  const pushL: any = { type: 'push', dir: 'l', speed: 'med' };
+  const pushU: any = { type: 'push', dir: 'u', speed: 'med' };
+  const zoom: any = { type: 'zoom', speed: 'med' };
+
+  const t = slide.slideTransition || defaultSlideTransition;
+  if (t) {
+    if (t === 'fade' || t === 'crossDissolve' || t === 'blurReveal') return fade;
+    if (t === 'floating') return fade;
+    if (t === 'verticalFlow') return pushU;
+    if (t === 'zoom' || t === 'dynamicScale' || t === 'depth' || t === 'morph') return zoom;
+    if (
+      t === 'smoothSlide' ||
+      t === 'horizontalCinematic' ||
+      t === 'glassSwipe' ||
+      t === 'parallaxFlow' ||
+      t === 'layerReveal' ||
+      t === 'keynote'
+    ) {
+      return pushL;
+    }
+  }
+  return legacySlideTransition(animStyle, slide.type);
 }
 
 // ── Fetch a remote image and return it as a base64 data URI ──────────────────
@@ -80,14 +111,26 @@ function buildAnimXml(shapeId: number, entrance: string, delayMs: number, orderI
   const presetMap: Record<string, { preset: number; subtype?: string; dir?: string }> = {
     fadeSlideUp:    { preset: 2,  subtype: 'fromBottom' },   // Fly In from bottom
     fadeSlideLeft:  { preset: 2,  subtype: 'fromLeft'   },   // Fly In from left
+    slideRight:     { preset: 2,  subtype: 'fromRight'  },
     fadeIn:         { preset: 10 },                           // Fade
     zoomIn:         { preset: 18, subtype: 'in'          },   // Zoom
     elasticScale:   { preset: 18, subtype: 'in'          },   // Zoom
     reveal:         { preset: 37 },                           // Wipe
     blurIn:         { preset: 10 },                           // Fade
+    glassBlur:      { preset: 10 },
     glitch:         { preset: 2,  subtype: 'fromLeft'    },   // Fly In
     flipIn:         { preset: 8  },                           // Flip
     bounceIn:       { preset: 38 },                           // Bounce (closest)
+    parallaxDrift:  { preset: 2,  subtype: 'fromLeft' },
+    verticalRise:   { preset: 2,  subtype: 'fromBottom' },
+    horizontalReveal: { preset: 2, subtype: 'fromLeft' },
+    depthRise:      { preset: 18, subtype: 'in' },
+    floatGentle:    { preset: 10 },
+    scaleSoft:      { preset: 18, subtype: 'in' },
+    morphBlend:     { preset: 10 },
+    cinematicImageZoom: { preset: 18, subtype: 'in' },
+    typewriterWords: { preset: 10 },
+    staggerLines:   { preset: 2,  subtype: 'fromBottom' },
   };
 
   const info    = presetMap[entrance] || { preset: 10 };
@@ -118,7 +161,7 @@ function subEnum(sub?: string): number {
 export async function POST(req: Request) {
   try {
     const body: PresentationData & { slideImages?: string[] } = await req.json();
-    const { slides, colorPalette, fontPairing, animationStyle, title } = body;
+    const { slides, colorPalette, fontPairing, animationStyle, title, defaultSlideTransition } = body;
 
     // ── Check user plan for watermark ─────────────────────────────────────────
     let isPaidUser = false;
@@ -337,7 +380,7 @@ export async function POST(req: Request) {
       }
 
       // ── 5. Slide transition ────────────────────────────────────────────────
-      const trans = slideTransition(animationStyle, slide.type);
+      const trans = resolveSlideTransitionExport(slide, animationStyle, defaultSlideTransition);
       (pptSlide as any).transition = trans;
 
       // ── 6. Speaker notes ───────────────────────────────────────────────────
@@ -496,14 +539,26 @@ function getPresetId(entrance: string): number {
   const map: Record<string, number> = {
     fadeSlideUp:   2,
     fadeSlideLeft: 2,
+    slideRight:     2,
     fadeIn:        10,
     zoomIn:        18,
     elasticScale:  18,
     reveal:        37,
     blurIn:        10,
+    glassBlur:     10,
     glitch:        2,
     flipIn:        8,
     bounceIn:      38,
+    parallaxDrift: 2,
+    verticalRise:  2,
+    horizontalReveal: 2,
+    depthRise:     18,
+    floatGentle:   10,
+    scaleSoft:     18,
+    morphBlend:    10,
+    cinematicImageZoom: 18,
+    typewriterWords: 10,
+    staggerLines:  2,
   };
   return map[entrance] || 10;
 }

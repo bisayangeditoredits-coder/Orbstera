@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
+import { SLIDE_TRANSITION_OPTIONS } from '@/lib/presentationMotion';
+import type { SlideTransition } from '@/types';
 import { Palette, Type, Sparkles, Check, RefreshCw } from 'lucide-react';
 import { ColorPicker } from './ColorPicker';
 
@@ -43,7 +45,7 @@ const PALETTE_LABELS = ['Background', 'Text', 'Accent', 'Secondary'];
 
 // ── Main Design Panel ─────────────────────────────────────────────────────────
 export function DesignPanel() {
-  const { presentation, updatePresentation } = usePresentationStore();
+  const { presentation, updatePresentation, currentSlideIndex, updateSlide } = usePresentationStore();
   const [activeTab, setActiveTab] = useState<'theme' | 'colors' | 'fonts'>('theme');
 
   if (!presentation) {
@@ -57,6 +59,7 @@ export function DesignPanel() {
 
   const palette     = presentation.colorPalette || ['#05050A', '#FFFFFF', '#38BDF8', '#94A3B8'];
   const fontPairing = presentation.fontPairing   || { heading: 'Space Grotesk', body: 'Inter' };
+  const currentSlide = presentation.slides[currentSlideIndex];
 
   const updateColor = (index: number, color: string) => {
     const next = [...palette];
@@ -123,7 +126,67 @@ export function DesignPanel() {
                 </button>
               ))}
             </div>
-            <p className="text-[10px] font-bold text-black/30 uppercase tracking-widest mb-3">Preset Themes</p>
+
+            <div className="pt-4 mt-2 border-t border-black/[0.06] space-y-3">
+              <p className="text-[10px] font-bold text-black/30 uppercase tracking-widest">Motion</p>
+              <div>
+                <label className="text-[8px] font-black text-black/25 uppercase tracking-widest block mb-1">
+                  Deck default transition
+                </label>
+                <select
+                  value={presentation.defaultSlideTransition ?? ''}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    updatePresentation({
+                      defaultSlideTransition: v ? (v as SlideTransition) : undefined,
+                    });
+                  }}
+                  className="w-full bg-black/[0.02] border border-black/[0.08] rounded-lg px-2 py-2 text-[11px] font-semibold text-black/80 focus:outline-none focus:border-primary/40"
+                >
+                  <option value="">Auto (per slide)</option>
+                  {SLIDE_TRANSITION_OPTIONS.map((o) => (
+                    <option key={o.id} value={o.id}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              {currentSlide && (
+                <div>
+                  <label className="text-[8px] font-black text-black/25 uppercase tracking-widest block mb-1">
+                    This slide
+                  </label>
+                  <select
+                    value={currentSlide.slideTransition ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      updateSlide(currentSlide.id, {
+                        slideTransition: v ? (v as SlideTransition) : undefined,
+                      });
+                    }}
+                    className="w-full bg-black/[0.02] border border-black/[0.08] rounded-lg px-2 py-2 text-[11px] font-semibold text-black/80 focus:outline-none focus:border-primary/40"
+                  >
+                    <option value="">Use deck default</option>
+                    {SLIDE_TRANSITION_OPTIONS.map((o) => (
+                      <option key={o.id} value={o.id}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <label className="flex items-center gap-2.5 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  className="rounded border-black/20 accent-primary"
+                  checked={presentation.cinematicPresenterEffects !== false}
+                  onChange={(e) =>
+                    updatePresentation({ cinematicPresenterEffects: e.target.checked })
+                  }
+                />
+                <span className="text-[11px] font-semibold text-black/70 group-hover:text-black/90">
+                  Cinematic atmosphere in Present mode
+                </span>
+              </label>
+            </div>
+
+            <p className="text-[10px] font-bold text-black/30 uppercase tracking-widest mb-3 mt-4">Preset Themes</p>
             <div className="grid grid-cols-2 gap-2">
               {THEMES.map((theme) => {
                 const active = palette[0] === theme.palette[0] && palette[2] === theme.palette[2];

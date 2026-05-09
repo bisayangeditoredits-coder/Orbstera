@@ -13,6 +13,8 @@ Root object MUST match:
   "colorPalette": ["#Background","#PrimaryText","#Accent","#SecondaryText"],
   "fontPairing": {"heading":"Font Name","body":"Font Name"},
   "animationStyle": "cinematic-reveal | minimal-fade | kinetic",
+  "defaultSlideTransition": "optional: fade | smoothSlide | zoom | blurReveal | parallaxFlow | morph | crossDissolve | glassSwipe | depth | dynamicScale | verticalFlow | horizontalCinematic | layerReveal | floating | keynote",
+  "cinematicPresenterEffects": true,
   "slides": [ ... ]
 }
 
@@ -29,7 +31,8 @@ Each slide:
   "imagePrompt": "Detailed cinematic prompt for image models — mood-aligned",
   "visualDirection": "composition notes",
   "backgroundStyle": "mesh-gradient | frosted-glass | radial-glow | pure-dark",
-  "animation": {"entrance":"fadeSlideUp|fadeSlideLeft|zoomIn|reveal|blurIn","duration":800},
+  "slideTransition": "optional per-slide; same vocabulary as defaultSlideTransition",
+  "animation": {"entrance":"fadeSlideUp|fadeSlideLeft|slideRight|zoomIn|reveal|blurIn|parallaxDrift|verticalRise|glassBlur|depthRise|typewriterWords|staggerLines|cinematicImageZoom","duration":800},
   "speakerNotes": "Delivery notes",
   "chart": null
 }

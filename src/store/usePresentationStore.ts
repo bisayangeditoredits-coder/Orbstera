@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { PresentationData, Slide, SlideElement, EditorState, HistoryEntry } from '@/types';
+import { finalizeSlideMotion } from '@/lib/presentationMotion';
 
 const MAX_HISTORY = 50;
 
@@ -75,6 +76,13 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     const bodyFont    = data.fontPairing?.body    || 'Inter';
 
     const imageTasks: { slideId: string; elementId: string; prompt: string; w: number; h: number }[] = [];
+
+    const motionCtx = {
+      animationStyle: data.animationStyle,
+      presentationType: data.presentationType,
+      styleMode: data.styleMode,
+      defaultSlideTransition: data.defaultSlideTransition,
+    };
 
     // ── Convert static AI slide content into canvas-accurate elements ──────
     const slides = data.slides.map((slide, sIdx) => {
@@ -166,7 +174,10 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
           });
         }
       }
-      return { ...slide, elements, title: '', subtitle: '', bullets: [] };
+      return finalizeSlideMotion(
+        { ...slide, elements, title: '', subtitle: '', bullets: [] },
+        motionCtx,
+      );
     });
 
     // Set the presentation first
@@ -464,8 +475,21 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       if (slideForLayout.bullets) slideForLayout.bullets!.forEach((b, i) => elements.push({ id: uid(`el-b-${i}`), type: 'text', x: 120, y: 180 + (i * 60), width: CANVAS_W-240, height: 50, content: `• ${b}`, zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 20, fontWeight: 'normal', color: palette[1], textAlign: 'left', lineHeight: 1.4 }, animation: { entrance: 'fadeSlideUp', duration: 500, delay: 200 + (i * 50) } }));
     }
 
-    const newSlide: Slide = { ...slideData, bullets: mergedBullets.length ? mergedBullets : slideData.bullets, elements };
-    set((state) => ({ presentation: { ...state.presentation!, slides: [...state.presentation!.slides, newSlide] }, currentSlideIndex: sIdx }));
+    const rawSlide: Slide = {
+      ...slideData,
+      bullets: mergedBullets.length ? mergedBullets : slideData.bullets,
+      elements,
+    };
+    const newSlide = finalizeSlideMotion(rawSlide, {
+      animationStyle: currentPres.animationStyle,
+      presentationType: currentPres.presentationType,
+      styleMode: currentPres.styleMode,
+      defaultSlideTransition: currentPres.defaultSlideTransition,
+    });
+    set((state) => ({
+      presentation: { ...state.presentation!, slides: [...state.presentation!.slides, newSlide] },
+      currentSlideIndex: sIdx,
+    }));
   },
 
   // ─── Onboarding ────────────────────────────────────────────────────────────
