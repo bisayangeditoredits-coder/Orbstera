@@ -70,7 +70,7 @@ export function createEditorSpeechRecognition(opts: EditorSpeechOptions): any | 
     if (event.error === 'not-allowed') {
       opts.shouldBeListeningRef.current = false;
       opts.onListeningEnd();
-      opts.onErrorMessage?.('Microphone blocked. Allow access in browser settings.');
+      opts.onErrorMessage?.('Microphone blocked or hardware in use.');
     } else if (event.error === 'language-not-supported') {
       if (opts.speechLangRef.current !== 'en-US') {
         opts.speechLangRef.current = 'en-US';

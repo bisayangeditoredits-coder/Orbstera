@@ -148,7 +148,7 @@ export function MagicEditToolbar() {
     }
   };
 
-  const toggleVoice = () => {
+  const toggleVoice = async () => {
     if (isListening) {
       shouldBeListeningRef.current = false;
       try {
@@ -173,9 +173,14 @@ export function MagicEditToolbar() {
       return;
     }
 
+    
     shouldBeListeningRef.current = true;
     speechLangRef.current = resolveEditorSpeechLang();
     try {
+      // Release hardware lock trick
+      const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      tempStream.getTracks().forEach(t => t.stop());
+
       rec.lang = speechLangRef.current;
       rec.start();
       setIsListening(true);
