@@ -52,7 +52,135 @@ export function HeroSection() {
   const shouldBeListeningRef = useRef(false);
   // Accumulates finalized text across session restarts (onend → restart wipes event.results)
   const accumulatedTextRef = useRef('');
+  /** Mirrors latest interim segment for synchronous flush (e.g. navigate away while speaking). */
+  const interimLiveRef = useRef('');
   const typeAudioCtxRef = useRef<AudioContext | null>(null);
+
+  const flushInterimIntoAccumulator = () => {
+    const t = interimLiveRef.current.trim();
+    interimLiveRef.current = '';
+    setInterimTranscript('');
+    if (!t) return;
+    const acc = accumulatedTextRef.current;
+    const spacer = acc && !acc.endsWith(' ') ? ' ' : '';
+    accumulatedTextRef.current = `${acc}${spacer}${t} `;
+    setPrompt(accumulatedTextRef.current.replace(/\s+/g, ' ').trimEnd());
+  };
+
+  const stopVoiceSession = () => {
+    shouldBeListeningRef.current = false;
+    flushInterimIntoAccumulator();
+    try {
+      recognitionRef.current?.stop();
+    } catch {
+      /* invalid state */
+    }
+    stopAudioAnalysis();
+    setIsListening(false);
+  };
+
+  const ensureSpeechRecognition = (): any | null => {
+    if (typeof window === 'undefined') return null;
+    if (recognitionRef.current) return recognitionRef.current;
+
+    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) return null;
+
+    const rec = new SpeechRecognitionAPI();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = resolvedSpeechLang;
+    try {
+      rec.maxAlternatives = 3;
+    } catch {
+      /* optional */
+    }
+
+    rec.onresult = (event: any) => {
+      let newFinal = '';
+      let interimText = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const result = event.results[i];
+        let best = result?.[0];
+        if (result?.length && result.length > 1) {
+          for (let j = 1; j < result.length; j++) {
+            const cand = result[j];
+            if (cand && typeof cand.confidence === 'number' && typeof best?.confidence === 'number') {
+              if (cand.confidence > best.confidence) best = cand;
+            }
+          }
+        }
+        const text = String(best?.transcript || '').trim();
+        if (!text) continue;
+        if (result.isFinal) newFinal += `${text} `;
+        else interimText += `${text} `;
+      }
+
+      if (newFinal) {
+        accumulatedTextRef.current += newFinal;
+      }
+
+      const finals = accumulatedTextRef.current.replace(/\s+/g, ' ').trimEnd();
+      const interimNorm = interimText.replace(/\s+/g, ' ').trim();
+      interimLiveRef.current = interimNorm;
+      const combined = [finals, interimNorm].filter(Boolean).join(' ');
+      setPrompt(combined);
+      setInterimTranscript(interimNorm);
+    };
+
+    rec.onerror = (event: any) => {
+      console.error('Speech recognition error', event.error);
+      if (event.error === 'not-allowed') {
+        setSpeechError('Microphone access blocked. Enable it in browser settings.');
+        shouldBeListeningRef.current = false;
+        setIsListening(false);
+        stopAudioAnalysis();
+        setTimeout(() => setSpeechError(null), 5000);
+      } else if (event.error === 'network') {
+        setSpeechError('Network error. Check your connection.');
+        setTimeout(() => setSpeechError(null), 4000);
+      } else if (event.error === 'no-speech') {
+        /* common — session continues */
+      } else if (event.error === 'aborted') {
+        /* own .stop() */
+      } else {
+        console.warn('SpeechRecognition non-fatal error:', event.error);
+      }
+    };
+
+    rec.onend = () => {
+      if (shouldBeListeningRef.current) {
+        const delayMs = 220;
+        setTimeout(() => {
+          if (!shouldBeListeningRef.current || !recognitionRef.current) return;
+          try {
+            recognitionRef.current.lang = resolvedSpeechLang;
+            recognitionRef.current.start();
+          } catch {
+            /* already running */
+          }
+        }, delayMs);
+      } else {
+        setIsListening(false);
+      }
+    };
+
+    recognitionRef.current = rec;
+    return rec;
+  };
+
+  useEffect(() => {
+    return () => {
+      shouldBeListeningRef.current = false;
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        /* noop */
+      }
+      recognitionRef.current = null;
+    };
+  }, []);
 
   const heroParticles = useMemo(
     () =>
@@ -196,97 +324,6 @@ export function HeroSection() {
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = resolvedSpeechLang;
-      // Some engines support multiple alternatives — helps accuracy when available.
-      try { recognitionRef.current.maxAlternatives = 5; } catch { }
-
-      recognitionRef.current.onresult = (event: any) => {
-        // Scan ONLY NEW results since the last event (from event.resultIndex)
-        let newFinal = '';
-        let interimText = '';
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const result = event.results[i];
-          // Pick the best alternative (highest confidence) when available.
-          let best = result?.[0];
-          if (result?.length && result.length > 1) {
-            for (let j = 1; j < result.length; j++) {
-              const cand = result[j];
-              if (cand && typeof cand.confidence === 'number' && typeof best?.confidence === 'number') {
-                if (cand.confidence > best.confidence) best = cand;
-              }
-            }
-          }
-          const text = String(best?.transcript || '').trim();
-          if (!text) continue;
-          if (result.isFinal) newFinal += text + ' ';
-          else interimText += text + ' ';
-        }
-
-        // Append any new finals to the persistent accumulator
-        if (newFinal) {
-          accumulatedTextRef.current += newFinal;
-        }
-
-        // Live transcript: finals + space + interim so the line matches what users hear while speaking.
-        const finals = accumulatedTextRef.current.replace(/\s+/g, ' ').trimEnd();
-        const interimNorm = interimText.replace(/\s+/g, ' ').trim();
-        const combined = [finals, interimNorm].filter(Boolean).join(' ');
-        setPrompt(combined);
-        setInterimTranscript(interimNorm);
-      };
-
-      recognitionRef.current.onerror = (event: any) => {
-        console.error('Speech recognition error', event.error);
-        if (event.error === 'not-allowed') {
-          // Fatal — user blocked mic
-          setSpeechError('Microphone access blocked. Enable it in browser settings.');
-          shouldBeListeningRef.current = false;
-          setIsListening(false);
-          stopAudioAnalysis();
-          setTimeout(() => setSpeechError(null), 5000);
-        } else if (event.error === 'network') {
-          setSpeechError('Network error. Check your connection.');
-          setTimeout(() => setSpeechError(null), 4000);
-          // Attempt restart
-        } else if (event.error === 'no-speech') {
-          // Very common — browser stops after short silence. Just restart silently.
-          // Don't show error, don't kill the session.
-        } else if (event.error === 'aborted') {
-          // Triggered during our own .stop() call — ignore
-        } else {
-          console.warn('SpeechRecognition non-fatal error:', event.error);
-        }
-      };
-
-      // KEY FIX: onend fires after EVERY utterance, even mid-session.
-      // Auto-restart if the user hasn't clicked stop.
-      recognitionRef.current.onend = () => {
-        if (shouldBeListeningRef.current) {
-          // Brief delay so the browser can reset its state before restarting
-          setTimeout(() => {
-            if (shouldBeListeningRef.current && recognitionRef.current) {
-              try {
-                recognitionRef.current.start();
-              } catch (e) {
-                // Already started or another error — ignore
-              }
-            }
-          }, 100);
-        } else {
-          setIsListening(false);
-        }
-      };
-    }
-
-  }, [resolvedSpeechLang]);
-
-  useEffect(() => {
     isListeningRef.current = isListening;
   }, [isListening]);
 
@@ -417,43 +454,37 @@ export function HeroSection() {
   };
 
   const toggleListening = () => {
-    if (!recognitionRef.current) {
+    const rec = ensureSpeechRecognition();
+    if (!rec) {
       setSpeechError("Your browser doesn't support voice input. Try Chrome or Edge.");
       setTimeout(() => setSpeechError(null), 5000);
       return;
     }
 
     if (isListening) {
-      // User clicked STOP — set intent flag first so onend doesn't restart
-      shouldBeListeningRef.current = false;
-      recognitionRef.current?.stop();
-      stopAudioAnalysis();
-      setIsListening(false);
-      // Keep partial (interim) words — commit them so nothing is lost mid-sentence.
-      setInterimTranscript((partial) => {
-        const t = partial.trim();
-        if (t) {
-          accumulatedTextRef.current = `${accumulatedTextRef.current}${accumulatedTextRef.current && !accumulatedTextRef.current.endsWith(' ') ? ' ' : ''}${t} `;
-          const merged = accumulatedTextRef.current.replace(/\s+/g, ' ').trimEnd();
-          setPrompt(merged);
-        }
-        return '';
-      });
+      stopVoiceSession();
     } else {
-      // Fresh session — reset accumulator so old text doesn't bleed in
       accumulatedTextRef.current = '';
+      interimLiveRef.current = '';
+      setPrompt('');
+      setInterimTranscript('');
       setSpeechError(null);
       shouldBeListeningRef.current = true;
       try {
-        // Ensure selected language is applied right before start.
-        try { recognitionRef.current.lang = resolvedSpeechLang; } catch { }
-        recognitionRef.current?.start();
-        startAudioAnalysis();
+        try {
+          rec.lang = resolvedSpeechLang;
+        } catch {
+          /* noop */
+        }
+        rec.start();
+        void startAudioAnalysis();
         setIsListening(true);
       } catch (err) {
         console.error(err);
         shouldBeListeningRef.current = false;
         setIsListening(false);
+        setSpeechError('Could not start microphone. Try again.');
+        setTimeout(() => setSpeechError(null), 4000);
       }
     }
   };
@@ -500,10 +531,9 @@ export function HeroSection() {
 
     // Force stop listening to ensure all resources are released
     if (isListening) {
-      shouldBeListeningRef.current = false;
-      recognitionRef.current?.stop();
-      stopAudioAnalysis();
-      setIsListening(false);
+      stopVoiceSession();
+    } else {
+      flushInterimIntoAccumulator();
     }
 
     const params = new URLSearchParams();
@@ -657,25 +687,35 @@ export function HeroSection() {
           {/* Mode Toggles */}
           <div className="flex items-center gap-2 mb-3 sm:mb-4 w-full min-w-0 overflow-x-auto pb-2 scrollbar-none -mx-1 px-1 snap-x snap-mandatory">
             <button
-              onClick={() => { setActiveMode('create'); setIsListening(false); recognitionRef.current?.stop(); }}
+              type="button"
+              onClick={() => {
+                stopVoiceSession();
+                setActiveMode('create');
+              }}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'create' ? 'bg-primary text-white shadow-lg' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
             >
               <Wand2 size={14} />
               <span>Create New</span>
             </button>
             <button
-              onClick={() => { setActiveMode('enhance'); setIsListening(false); recognitionRef.current?.stop(); }}
+              type="button"
+              onClick={() => {
+                stopVoiceSession();
+                setActiveMode('enhance');
+              }}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'enhance' ? 'bg-primary text-white shadow-lg' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
             >
               <Upload size={14} />
               <span>Enhance PPT</span>
             </button>
             <button
+              type="button"
               onClick={() => {
+                stopVoiceSession();
                 setActiveMode('voice');
-                // Reset everything for a clean voice session
-                setPrompt("");
-                setInterimTranscript("");
+                setPrompt('');
+                setInterimTranscript('');
+                interimLiveRef.current = '';
                 accumulatedTextRef.current = '';
               }}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'voice' ? 'bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)]' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
@@ -694,8 +734,14 @@ export function HeroSection() {
               <div className="flex-1 flex flex-col min-h-0">
                 {activeMode === 'voice' ? (
                   <div className="flex flex-col items-center gap-3 sm:gap-4 pt-1 sm:pt-2">
-                    {/* Intelligence Orb (Lottie AI Flow) */}
-                    <div className="relative cursor-pointer" onClick={toggleListening}>
+                    {/* Intelligence Orb (Lottie AI Flow) — native button so taps always reach the handler */}
+                    <button
+                      type="button"
+                      aria-pressed={isListening}
+                      aria-label={isListening ? 'Stop listening' : 'Start voice input'}
+                      className="relative cursor-pointer inline-flex border-0 bg-transparent p-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                      onClick={toggleListening}
+                    >
                       {isListening && [0, 1].map((i) => (
                         <motion.div
                           key={i}
@@ -736,10 +782,8 @@ export function HeroSection() {
                           </div>
                         )}
 
-                        {/* Bulletproof click catcher overlay */}
-                        <div className="absolute inset-0 z-20" />
                       </div>
-                    </div>
+                    </button>
 
                     {/* Transcript Box — prompt already includes live interim while listening */}
                     <div className="w-full min-h-[2.5rem] max-h-[3.25rem] sm:max-h-[3.75rem] overflow-y-auto px-4 py-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center">
@@ -755,6 +799,12 @@ export function HeroSection() {
                         </p>
                       )}
                     </div>
+
+                    {speechError ? (
+                      <p className="text-[11px] text-red-600 font-medium text-center px-3 leading-snug max-w-md" role="alert">
+                        {speechError}
+                      </p>
+                    ) : null}
                   </div>
                 ) : activeMode === 'create' ? (
                   <div className="relative flex-1 flex flex-col">
