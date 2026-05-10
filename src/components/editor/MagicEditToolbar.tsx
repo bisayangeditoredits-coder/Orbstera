@@ -116,8 +116,6 @@ export function MagicEditToolbar() {
     }
   };
 
-  };
-
   if (!isVisible || !planChecked || genFillOpen) return null;
 
   return (
