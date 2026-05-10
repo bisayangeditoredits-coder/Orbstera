@@ -12,11 +12,16 @@ export function HeroSection() {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [activeMode, setActiveMode] = useState<'create' | 'enhance' | 'voice'>('create');
-  const [speechLang, setSpeechLang] = useState<'en-US' | 'fil-PH'>(() => {
-    if (typeof navigator === 'undefined') return 'en-US';
+  const getAutoSpeechLang = () => {
+    if (typeof navigator === 'undefined') return 'en-US' as const;
     const nl = (navigator.language || '').toLowerCase();
-    return nl.startsWith('fil') || nl.startsWith('tl') ? 'fil-PH' : 'en-US';
-  });
+    // PH devices commonly report en-PH; Tagalog may show fil/tl.
+    if (nl.startsWith('fil') || nl.startsWith('tl')) return 'fil-PH' as const;
+    if (nl.startsWith('en-ph')) return 'en-PH' as const;
+    return 'en-US' as const;
+  };
+
+  const [speechLang, setSpeechLang] = useState<'auto' | 'en-PH' | 'en-US' | 'fil-PH'>('auto');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const [isListening, setIsListening] = useState(false);
@@ -178,6 +183,8 @@ export function HeroSection() {
     }
   };
 
+  const resolvedSpeechLang = speechLang === 'auto' ? getAutoSpeechLang() : speechLang;
+
   useEffect(() => {
     if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
@@ -185,7 +192,7 @@ export function HeroSection() {
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       // Default language is device-driven; user can switch in Voice Protocol.
-      recognitionRef.current.lang = speechLang;
+      recognitionRef.current.lang = resolvedSpeechLang;
       // Some engines support multiple alternatives — helps accuracy when available.
       try { recognitionRef.current.maxAlternatives = 5; } catch {}
 
@@ -266,18 +273,18 @@ export function HeroSection() {
       };
     }
 
-  }, [speechLang]);
+  }, [resolvedSpeechLang]);
 
   // If language changes mid-session, restart recognition cleanly.
   useEffect(() => {
     const rec = recognitionRef.current;
     if (!rec) return;
-    try { rec.lang = speechLang; } catch {}
+    try { rec.lang = resolvedSpeechLang; } catch {}
     if (isListeningRef.current && shouldBeListeningRef.current) {
       try { rec.stop(); } catch {}
       // onend will auto-restart due to shouldBeListeningRef
     }
-  }, [speechLang]);
+  }, [resolvedSpeechLang]);
 
   useEffect(() => {
     isListeningRef.current = isListening;
@@ -429,6 +436,8 @@ export function HeroSection() {
       setSpeechError(null);
       shouldBeListeningRef.current = true;
       try {
+        // Ensure selected language is applied right before start.
+        try { recognitionRef.current.lang = resolvedSpeechLang; } catch {}
         recognitionRef.current?.start();
         startAudioAnalysis();
         setIsListening(true);
@@ -796,7 +805,32 @@ export function HeroSection() {
                     </div>
 
                     {/* Language selector (accuracy control) */}
-                    <div className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 select-none">
+                    <div className="flex flex-col items-center justify-center gap-2 select-none">
+                      <div className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                        <button
+                          type="button"
+                          onClick={() => setSpeechLang('auto')}
+                          className={`px-3 py-1 rounded-full border transition-colors ${
+                            speechLang === 'auto'
+                              ? 'bg-primary text-white border-primary/40'
+                              : 'bg-white/60 border-slate-200 text-slate-500 hover:bg-white'
+                          }`}
+                          title="Auto-detect from device language"
+                        >
+                          Auto
+                        </button>
+                      <button
+                        type="button"
+                        onClick={() => setSpeechLang('en-PH')}
+                        className={`px-3 py-1 rounded-full border transition-colors ${
+                          speechLang === 'en-PH'
+                            ? 'bg-primary text-white border-primary/40'
+                            : 'bg-white/60 border-slate-200 text-slate-500 hover:bg-white'
+                        }`}
+                        title="English (Philippines)"
+                      >
+                        EN‑PH
+                      </button>
                       <button
                         type="button"
                         onClick={() => setSpeechLang('en-US')}
@@ -807,7 +841,7 @@ export function HeroSection() {
                         }`}
                         title="English (US)"
                       >
-                        EN
+                        EN‑US
                       </button>
                       <button
                         type="button"
@@ -821,6 +855,10 @@ export function HeroSection() {
                       >
                         FIL
                       </button>
+                    </div>
+                      <p className="text-[10px] text-slate-400 font-medium">
+                        Accuracy tip: choose the language you’re speaking (EN‑PH for PH English).
+                      </p>
                     </div>
                   </div>
                 ) : activeMode === 'create' ? (
