@@ -12,6 +12,11 @@ export function HeroSection() {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [activeMode, setActiveMode] = useState<'create' | 'enhance' | 'voice'>('create');
+  const [speechLang, setSpeechLang] = useState<'en-US' | 'fil-PH'>(() => {
+    if (typeof navigator === 'undefined') return 'en-US';
+    const nl = (navigator.language || '').toLowerCase();
+    return nl.startsWith('fil') || nl.startsWith('tl') ? 'fil-PH' : 'en-US';
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const [isListening, setIsListening] = useState(false);
@@ -179,7 +184,10 @@ export function HeroSection() {
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'fil-PH'; // Set to Tagalog for better local accuracy
+      // Default language is device-driven; user can switch in Voice Protocol.
+      recognitionRef.current.lang = speechLang;
+      // Some engines support multiple alternatives — helps accuracy when available.
+      try { recognitionRef.current.maxAlternatives = 5; } catch {}
 
       recognitionRef.current.onresult = (event: any) => {
         // Scan ONLY NEW results since the last event (from event.resultIndex)
@@ -187,11 +195,21 @@ export function HeroSection() {
         let interimText = '';
 
         for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            newFinal += event.results[i][0].transcript + ' ';
-          } else {
-            interimText += event.results[i][0].transcript;
+          const result = event.results[i];
+          // Pick the best alternative (highest confidence) when available.
+          let best = result?.[0];
+          if (result?.length && result.length > 1) {
+            for (let j = 1; j < result.length; j++) {
+              const cand = result[j];
+              if (cand && typeof cand.confidence === 'number' && typeof best?.confidence === 'number') {
+                if (cand.confidence > best.confidence) best = cand;
+              }
+            }
           }
+          const text = String(best?.transcript || '').trim();
+          if (!text) continue;
+          if (result.isFinal) newFinal += text + ' ';
+          else interimText += text + ' ';
         }
 
         // Append any new finals to the persistent accumulator
@@ -200,9 +218,9 @@ export function HeroSection() {
         }
 
         // Always update display: accumulated finals + current interim
-        const fullText = accumulatedTextRef.current.trimEnd();
+        const fullText = accumulatedTextRef.current.replace(/\s+/g, ' ').trimEnd();
         setPrompt(fullText);
-        setInterimTranscript(interimText);
+        setInterimTranscript(interimText.replace(/\s+/g, ' ').trim());
       };
 
       recognitionRef.current.onerror = (event: any) => {
@@ -248,7 +266,18 @@ export function HeroSection() {
       };
     }
 
-  }, []);
+  }, [speechLang]);
+
+  // If language changes mid-session, restart recognition cleanly.
+  useEffect(() => {
+    const rec = recognitionRef.current;
+    if (!rec) return;
+    try { rec.lang = speechLang; } catch {}
+    if (isListeningRef.current && shouldBeListeningRef.current) {
+      try { rec.stop(); } catch {}
+      // onend will auto-restart due to shouldBeListeningRef
+    }
+  }, [speechLang]);
 
   useEffect(() => {
     isListeningRef.current = isListening;
@@ -696,14 +725,14 @@ export function HeroSection() {
           </div>
 
           <div className="animated-border shadow-[0_40px_100px_-20px_rgba(71,59,240,0.25)] group">
-            <div className={`relative bg-white rounded-[1.45rem] flex flex-col p-4 sm:p-6 transition-all overflow-hidden ${activeMode === 'voice' ? 'min-h-[280px] sm:min-h-[360px]' : 'min-h-[200px] h-auto sm:h-[220px]'}`}>
+            <div className={`relative bg-white rounded-[1.45rem] flex flex-col p-4 sm:p-6 transition-all overflow-hidden ${activeMode === 'voice' ? 'min-h-[240px] sm:min-h-[300px] lg:min-h-[320px]' : 'min-h-[200px] h-auto sm:h-[220px]'}`}>
               {/* subtle premium sheen */}
               <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-primary/10 to-transparent" />
 
               {/* ── MODE CONTENT ── */}
               <div className="flex-1 flex flex-col min-h-0">
                 {activeMode === 'voice' ? (
-                  <div className="flex flex-col items-center gap-5 pt-2">
+                  <div className="flex flex-col items-center gap-3 sm:gap-4 pt-1 sm:pt-2">
                     {/* Intelligence Orb (Lottie AI Flow) */}
                     <div className="relative cursor-pointer" onClick={toggleListening}>
                       {isListening && [0, 1].map((i) => (
@@ -713,13 +742,13 @@ export function HeroSection() {
                           animate={{ scale: 2.2 + i * 0.4, opacity: 0 }}
                           transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.5, ease: "easeOut" }}
                           className="absolute rounded-full border border-primary/30 will-change-transform"
-                          style={{ width: 140, height: 140, left: '50%', top: '50%', marginLeft: -70, marginTop: -70 }}
+                          style={{ width: 132, height: 132, left: '50%', top: '50%', marginLeft: -66, marginTop: -66 }}
                         />
                       ))}
 
                       <div
                         ref={orbVisualRef}
-                        className="relative w-40 h-40 flex items-center justify-center will-change-transform"
+                        className="relative w-32 h-32 sm:w-36 sm:h-36 lg:w-40 lg:h-40 flex items-center justify-center will-change-transform"
                         style={{
                           transform: 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1) translateZ(0)',
                           filter: 'drop-shadow(0 0 14px rgba(71,59,240,0.12))',
@@ -749,9 +778,9 @@ export function HeroSection() {
                     </div>
 
                     {/* Transcript Box */}
-                    <div className="w-full min-h-[3rem] max-h-[4.5rem] overflow-y-auto px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center">
+                    <div className="w-full min-h-[2.5rem] max-h-[3.25rem] sm:max-h-[3.75rem] overflow-y-auto px-4 py-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center">
                       {(prompt || interimTranscript) ? (
-                        <p className="text-sm font-medium text-slate-700 leading-relaxed break-words w-full text-center">
+                        <p className="text-[13px] sm:text-sm font-medium text-slate-700 leading-relaxed break-words w-full text-center">
                           <span className="text-slate-800">{prompt}</span>
                           {interimTranscript && (
                             <span className="text-primary/60 italic"> {interimTranscript}</span>
@@ -764,6 +793,34 @@ export function HeroSection() {
                           ) : 'Tap the orb to start speaking'}
                         </p>
                       )}
+                    </div>
+
+                    {/* Language selector (accuracy control) */}
+                    <div className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 select-none">
+                      <button
+                        type="button"
+                        onClick={() => setSpeechLang('en-US')}
+                        className={`px-3 py-1 rounded-full border transition-colors ${
+                          speechLang === 'en-US'
+                            ? 'bg-primary text-white border-primary/40'
+                            : 'bg-white/60 border-slate-200 text-slate-500 hover:bg-white'
+                        }`}
+                        title="English (US)"
+                      >
+                        EN
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSpeechLang('fil-PH')}
+                        className={`px-3 py-1 rounded-full border transition-colors ${
+                          speechLang === 'fil-PH'
+                            ? 'bg-primary text-white border-primary/40'
+                            : 'bg-white/60 border-slate-200 text-slate-500 hover:bg-white'
+                        }`}
+                        title="Filipino (Philippines)"
+                      >
+                        FIL
+                      </button>
                     </div>
                   </div>
                 ) : activeMode === 'create' ? (
@@ -823,11 +880,11 @@ export function HeroSection() {
 
               {/* ── SHARED ACTION CENTER (Centered only for Voice) ── */}
               {activeMode === 'voice' && (
-                <div className="flex justify-center mt-6">
+                <div className="flex justify-center mt-3 sm:mt-5">
                   <button
                     onClick={handleGenerate}
                     disabled={!prompt.trim() && !interimTranscript.trim()}
-                    className="group relative h-12 px-10 bg-primary text-white rounded-full text-[13px] font-bold shadow-xl hover:bg-primaryHover hover:scale-[1.02] transition-all active:scale-95 flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none"
+                    className="group relative h-11 sm:h-12 px-8 sm:px-10 bg-primary text-white rounded-full text-[12px] sm:text-[13px] font-bold shadow-xl hover:bg-primaryHover hover:scale-[1.02] transition-all active:scale-95 flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none"
                   >
                     <motion.div
                       animate={{ x: ['-100%', '100%'] }}
