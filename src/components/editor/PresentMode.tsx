@@ -286,9 +286,28 @@ function PresentSlideView({
         const entrance   = el.animation?.entrance;
         const durationMs = el.animation?.duration ?? 600;
         const delayMs    = el.animation?.delay    ?? (i * 80);
-        const variants   = animationsOn
+        const baseOpacity = el.opacity ?? 1;
+        const rawVariants = animationsOn
           ? getElementEntranceVariants(entrance, durationMs, delayMs)
-          : { hidden: { opacity: 1 }, visible: { opacity: 1 } };
+          : { hidden: { opacity: baseOpacity }, visible: { opacity: baseOpacity } };
+
+        // IMPORTANT: don't set `style.opacity` when animating — it can override the variant opacity
+        // and make entrance effects appear to "not work" in PresentMode.
+        const variants = (() => {
+          // clone to avoid mutating shared objects from helpers
+          const v: any = {
+            hidden: { ...(rawVariants as any).hidden },
+            visible: { ...(rawVariants as any).visible },
+          };
+          if (entrance === 'none' || !animationsOn) {
+            v.hidden.opacity = baseOpacity;
+            v.visible.opacity = baseOpacity;
+            return v;
+          }
+          // Ensure the final opacity matches the element opacity (slider).
+          v.visible.opacity = baseOpacity;
+          return v;
+        })();
 
         const textBase: React.CSSProperties = {
           width:          '100%',
@@ -323,7 +342,6 @@ function PresentSlideView({
                 height:    '100%',
                 objectFit: 'cover',
                 display:   'block',
-                opacity:   el.opacity ?? 1,
               }}
               initial={animationsOn && entrance === 'cinematicImageZoom' ? { scale: 1.08 } : false}
               animate={animationsOn && entrance === 'cinematicImageZoom' ? { scale: [1.08, 1] } : {}}
@@ -355,7 +373,6 @@ function PresentSlideView({
               width:     el.width,
               height:    el.height,
               zIndex:    el.zIndex || 1,
-              opacity:   entrance === 'none' ? 1 : (el.opacity ?? 1),
               transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
               overflow:  'visible',
               willChange: animationsOn ? 'opacity, transform, filter' : undefined,
