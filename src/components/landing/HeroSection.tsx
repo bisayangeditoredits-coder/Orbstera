@@ -64,11 +64,7 @@ export function HeroSection() {
     []
   );
 
-  const premiumSignals = [
-    { icon: ShieldCheck, label: 'Enterprise-grade privacy' },
-    { icon: Zap, label: 'Sub-60s first draft' },
-    { icon: Clock3, label: 'Realtime editing workflow' },
-  ] as const;
+
 
   const seenIn = [
     'Product Hunt',
@@ -674,25 +670,6 @@ export function HeroSection() {
           Generate professional slides from simple prompts in seconds.
         </motion.p>
 
-        {/* Premium trust signal strip */}
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.28 }}
-          className="w-full max-w-3xl mb-5 sm:mb-7"
-        >
-          <div className="grid grid-cols-1 xs:grid-cols-3 gap-2 sm:gap-2.5">
-            {premiumSignals.map(({ icon: Icon, label }) => (
-              <div
-                key={label}
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-white/70 bg-white/60 backdrop-blur-md px-2.5 py-2 shadow-[0_8px_30px_-16px_rgba(59,130,246,0.35)]"
-              >
-                <Icon size={13} className="text-primary shrink-0" />
-                <span className="text-[10px] sm:text-[11px] font-semibold text-textSecondary leading-none whitespace-nowrap">{label}</span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
 
         {/* AI Input Box (Fixed Overlaps) */}
         <motion.div
