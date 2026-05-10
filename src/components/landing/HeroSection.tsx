@@ -40,8 +40,7 @@ export function HeroSection() {
   const smoothedVolumeRef = useRef(0);
   const motionEnergyRef = useRef(0);
   const phaseRef = useRef(0);
-  const leftFloatInnerRef = useRef<HTMLDivElement>(null);
-  const rightFloatInnerRef = useRef<HTMLDivElement>(null);
+
   // Tracks USER INTENT to listen (vs browser's internal stop/start lifecycle)
   const shouldBeListeningRef = useRef(false);
   // Accumulates finalized text across session restarts (onend → restart wipes event.results)
@@ -94,18 +93,7 @@ export function HeroSection() {
       const dx = (lastX - cx) / cx; // -1..1
       const dy = (lastY - cy) / cy; // -1..1
 
-      const l = leftFloatInnerRef.current;
-      const r = rightFloatInnerRef.current;
-      if (l) {
-        const tx = dx * 10;
-        const ty = dy * 8;
-        l.style.transform = `translate3d(${tx.toFixed(2)}px, ${ty.toFixed(2)}px, 0)`;
-      }
-      if (r) {
-        const tx = dx * -9;
-        const ty = dy * 7;
-        r.style.transform = `translate3d(${tx.toFixed(2)}px, ${ty.toFixed(2)}px, 0)`;
-      }
+
     };
 
     const onMove = (e: MouseEvent) => {
@@ -118,10 +106,7 @@ export function HeroSection() {
     return () => {
       window.removeEventListener('mousemove', onMove);
       if (raf != null) window.cancelAnimationFrame(raf);
-      const l = leftFloatInnerRef.current;
-      const r = rightFloatInnerRef.current;
-      if (l) l.style.transform = 'translate3d(0,0,0)';
-      if (r) r.style.transform = 'translate3d(0,0,0)';
+
     };
   }, []);
 
@@ -561,43 +546,6 @@ export function HeroSection() {
         ))}
       </div>
 
-      {/* Floating credibility cards (desktop only) */}
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, delay: 0.35 }}
-        className="hidden lg:flex absolute left-8 xl:left-14 top-[11rem] z-10"
-      >
-        <div ref={leftFloatInnerRef} className="will-change-transform transition-transform duration-200 ease-out">
-          <div className="rounded-2xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-[0_20px_45px_-18px_rgba(59,130,246,0.32)] px-4 py-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-textMuted mb-1">Average Outcome</p>
-            <p className="text-[22px] font-black tracking-tight text-[#1A1A1A]">+43%</p>
-            <p className="text-[11px] text-textSecondary font-semibold">faster deck completion</p>
-          </div>
-        </div>
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, delay: 0.45 }}
-        className="hidden lg:flex absolute right-8 xl:right-14 top-[12.5rem] z-10"
-      >
-        <div ref={rightFloatInnerRef} className="will-change-transform transition-transform duration-200 ease-out">
-          <div className="rounded-2xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-[0_20px_45px_-18px_rgba(15,23,42,0.22)] px-4 py-3 min-w-[190px]">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-textMuted">Product Signal</p>
-              <div className="flex items-center gap-0.5 text-amber-500">
-                <Star size={11} fill="currentColor" />
-                <Star size={11} fill="currentColor" />
-                <Star size={11} fill="currentColor" />
-                <Star size={11} fill="currentColor" />
-                <Star size={11} fill="currentColor" />
-              </div>
-            </div>
-            <p className="mt-1.5 text-[12px] font-semibold text-textSecondary">Loved by founders, agencies, and teams.</p>
-          </div>
-        </div>
-      </motion.div>
 
       <div className="relative z-10 flex flex-col items-center text-center max-w-7xl w-full min-w-0 px-3 sm:px-6">
         {/* Premium Evolution Badge */}
