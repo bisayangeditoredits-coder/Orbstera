@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { SlideElement } from '@/types';
+import { generateClaidImageUrl } from '@/lib/claid-image';
 import { generatePollinationsImageUrl } from '@/lib/pollinations-image';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
@@ -143,24 +144,29 @@ Return the modified element JSON only.`;
         Number(updatedElement.width) || Number(element.width) || 1024,
         Number(updatedElement.height) || Number(element.height) || 1024,
       );
-      if (!process.env.POLLINATIONS_API_KEY?.trim()) {
+      const hasClaid = Boolean(process.env.CLAID_API_KEY?.trim());
+      const hasPollinations = Boolean(process.env.POLLINATIONS_API_KEY?.trim());
+
+      if (!hasClaid && !hasPollinations) {
         return NextResponse.json(
           {
             error:
-              'Image generation is not configured. Set POLLINATIONS_API_KEY (Pollinations) for Magic Edit images.',
+              'Image generation is not configured. Set CLAID_API_KEY or POLLINATIONS_API_KEY for Magic Edit images.',
           },
           { status: 503 }
         );
       }
       try {
-        updatedElement.src = await generatePollinationsImageUrl({
-          prompt: promptText,
-          width,
-          height,
-          polish: true,
-        });
+        updatedElement.src = hasClaid
+          ? await generateClaidImageUrl({ prompt: promptText, polish: true })
+          : await generatePollinationsImageUrl({
+              prompt: promptText,
+              width,
+              height,
+              polish: true,
+            });
       } catch (e) {
-        console.error('[MagicEdit] Pollinations image:', e);
+        console.error('[MagicEdit] Image generation:', e);
         return NextResponse.json(
           { error: e instanceof Error ? e.message : 'Failed to generate image for Magic Edit' },
           { status: 502 }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { generateClaidImageUrl } from '@/lib/claid-image';
 import { generatePollinationsImageUrl } from '@/lib/pollinations-image';
 
 const POLISH_SUFFIX =
@@ -13,11 +14,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    if (!process.env.POLLINATIONS_API_KEY?.trim()) {
+    const hasClaid = Boolean(process.env.CLAID_API_KEY?.trim());
+    const hasPollinations = Boolean(process.env.POLLINATIONS_API_KEY?.trim());
+
+    if (!hasClaid && !hasPollinations) {
       return NextResponse.json(
         {
           error:
-            'Image generation is not configured. Set POLLINATIONS_API_KEY in your environment (see .env.example).',
+            'Image generation is not configured. Set CLAID_API_KEY (recommended) or POLLINATIONS_API_KEY in your environment (see .env.example).',
         },
         { status: 503 }
       );
@@ -36,12 +40,16 @@ export async function POST(req: Request) {
     console.log('Generating AI Image for prompt:', text.substring(0, 80));
 
     const seed = Math.floor(Math.random() * 1_000_000);
-    const url = await generatePollinationsImageUrl({
-      prompt: text,
-      width: w,
-      height: h,
-      polish: Boolean(polish),
-    });
+    const polishBool = Boolean(polish);
+
+    const url = hasClaid
+      ? await generateClaidImageUrl({ prompt: text, polish: polishBool })
+      : await generatePollinationsImageUrl({
+          prompt: text,
+          width: w,
+          height: h,
+          polish: polishBool,
+        });
 
     return NextResponse.json({ url, seed });
   } catch (error) {
