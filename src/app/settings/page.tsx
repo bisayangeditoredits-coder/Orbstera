@@ -120,7 +120,7 @@ export default function SettingsPage() {
     <div className="min-h-dvh bg-[#F7F7F5] text-neutral-900 antialiased">
       <Navbar />
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-20">
+      <main className="max-w-5xl mx-auto w-full min-w-0 px-4 sm:px-6 lg:px-8 pt-[max(5.5rem,env(safe-area-inset-top)+4.5rem)] sm:pt-28 pb-16 sm:pb-20 overflow-x-clip">
         {/* Page header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-10 lg:mb-12">
           <div>

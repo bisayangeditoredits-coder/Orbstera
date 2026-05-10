@@ -109,8 +109,8 @@ export function Pricing() {
   };
 
   return (
-    <section id="pricing" className="w-full py-32 px-6 bg-[#F8FAFC] text-slate-900 relative overflow-hidden">
-      {/* Background Gradient Animation */}
+    <section id="pricing" className="w-full py-16 sm:py-24 md:py-32 px-4 sm:px-6 bg-[#F8FAFC] text-slate-900 relative overflow-x-clip">
+      {/* Background: static on mobile, Lottie on md+ */}
       <div 
         className="absolute top-0 left-0 right-0 h-full z-0 pointer-events-none overflow-hidden"
         style={{ 
@@ -118,7 +118,8 @@ export function Pricing() {
           WebkitMaskImage: 'linear-gradient(to bottom, black 80%, transparent 100%)' 
         }}
       >
-        <div className="absolute inset-0 w-full h-full opacity-60 mix-blend-multiply">
+        <div className="absolute inset-0 md:hidden bg-gradient-to-br from-[#E8F4FF] via-[#F8FAFC] to-white" aria-hidden />
+        <div className="absolute inset-0 w-full h-full opacity-60 mix-blend-multiply hidden md:block">
            {/* @ts-ignore */}
            <lottie-player
              src="/Background gradient.json"
@@ -131,14 +132,14 @@ export function Pricing() {
            />
         </div>
       </div>
-      <div className="max-w-7xl mx-auto relative z-10">
-        <div className="text-center mb-20">
-          <h2 className="text-5xl md:text-6xl font-black mb-6 text-slate-900">Fair Pricing, Real Power.</h2>
-          <p className="text-slate-500 text-lg">Choose the plan that fits your vision.</p>
+      <div className="max-w-7xl mx-auto relative z-10 w-full min-w-0">
+        <div className="text-center mb-12 sm:mb-20 px-1">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-4 sm:mb-6 text-slate-900 text-balance">Fair Pricing, Real Power.</h2>
+          <p className="text-slate-500 text-base sm:text-lg">Choose the plan that fits your vision.</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-8">
           {tiers.map((tier, i) => (
-            <div key={i} className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm flex flex-col">
+            <div key={i} className="bg-white p-6 sm:p-8 rounded-[24px] sm:rounded-[32px] border border-slate-200 shadow-sm flex flex-col min-w-0">
               <h3 className="text-xl font-bold mb-4">{tier.name}</h3>
               <div className="text-4xl font-black mb-6">{tier.price}<span className="text-sm text-slate-400">{tier.period}</span></div>
               <ul className="space-y-4 mb-8 flex-1">

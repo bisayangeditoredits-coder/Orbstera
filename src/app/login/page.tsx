@@ -110,7 +110,7 @@ function LoginContent() {
   }, []);
 
   return (
-    <div className="min-h-screen w-full bg-[#F8FAFC] flex items-center justify-center p-6 md:p-12 font-sans overflow-hidden relative">
+    <div className="min-h-dvh w-full max-w-[100vw] bg-[#F8FAFC] flex items-center justify-center p-4 sm:p-6 md:p-12 font-sans overflow-x-clip overflow-y-auto relative py-8 sm:py-10">
       
       {/* ── Background Architectural Elements ────────────────────────── */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">

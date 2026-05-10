@@ -58,7 +58,7 @@ export function Navbar() {
   const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-white/70 border-b border-blue-100/50 pt-[env(safe-area-inset-top,0px)]">
+    <nav className="fixed top-0 left-0 right-0 z-[100] backdrop-blur-xl bg-white/70 border-b border-blue-100/50 pt-[env(safe-area-inset-top,0px)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-3 sm:py-4 flex items-center justify-between w-full min-w-0 gap-2">
         <Link href="/" className="flex items-center group shrink-0 min-w-0" onClick={() => setMobileNavOpen(false)}>
           <div className="relative">
@@ -133,7 +133,7 @@ export function Navbar() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    className="absolute right-0 top-full mt-3 w-56 bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] border border-gray-100/80 overflow-hidden flex flex-col p-1.5 z-50 origin-top-right ring-1 ring-black/5"
+                    className="absolute right-0 top-full mt-3 w-56 bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] border border-gray-100/80 overflow-hidden flex flex-col p-1.5 z-[120] origin-top-right ring-1 ring-black/5"
                   >
                     <div className="px-3 py-2.5 mb-1 bg-gray-50/50 rounded-xl">
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Signed in as</p>
@@ -193,7 +193,7 @@ export function Navbar() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-[2px] md:hidden"
+              className="fixed inset-0 z-[180] bg-black/50 backdrop-blur-sm md:hidden"
               aria-label="Close menu"
               onClick={() => setMobileNavOpen(false)}
             />
@@ -202,7 +202,7 @@ export function Navbar() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-              className="fixed top-0 right-0 bottom-0 z-[70] w-[min(100vw-3rem,320px)] max-w-[100vw] bg-white/98 backdrop-blur-xl border-l border-gray-100 shadow-2xl flex flex-col md:hidden pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] px-5"
+              className="fixed top-0 right-0 bottom-0 z-[190] w-[min(100%,20rem)] max-w-[100vw] bg-white shadow-2xl flex flex-col md:hidden pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] px-4 overflow-y-auto overscroll-contain isolate"
             >
               <div className="flex items-center justify-between mb-6">
                 <span className="text-[11px] font-black uppercase tracking-[0.2em] text-textSecondary">Navigate</span>

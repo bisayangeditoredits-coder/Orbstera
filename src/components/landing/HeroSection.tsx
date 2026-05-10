@@ -364,7 +364,7 @@ export function HeroSection() {
   };
 
   return (
-    <section className="relative w-full min-h-screen flex flex-col items-center pt-24 pb-12 overflow-hidden bg-gradient-to-b from-[#CDE4FF] via-white to-white">
+    <section className="relative w-full min-h-screen flex flex-col items-center pt-[max(6.25rem,calc(env(safe-area-inset-top)+5rem))] sm:pt-24 md:pt-28 pb-8 sm:pb-12 overflow-x-clip bg-gradient-to-b from-[#CDE4FF] via-white to-white">
       {/* Hidden File Input */}
       <input
         type="file"
@@ -382,8 +382,9 @@ export function HeroSection() {
           WebkitMaskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)'
         }}
       >
-        {/* Lightweight Lottie Gradient Background */}
-        <div className="absolute inset-0 w-full h-full opacity-80 mix-blend-multiply">
+        {/* Mobile: static gradient only (lighter). md+: Lottie. */}
+        <div className="absolute inset-0 md:hidden bg-gradient-to-br from-[#B8D9FF] via-[#E8F4FF] to-white" aria-hidden />
+        <div className="absolute inset-0 w-full h-full opacity-80 mix-blend-multiply hidden md:block">
           {/* @ts-ignore */}
           <lottie-player
             src="/Background gradient.json"
@@ -396,7 +397,7 @@ export function HeroSection() {
           />
         </div>
 
-        {/* Ambient Sparkle Particles (More Visible) */}
+        {/* Particles — desktop only (saves layout + paint on phones) */}
         {heroParticles.map((p) => (
           <motion.div
             key={p.id}
@@ -416,26 +417,28 @@ export function HeroSection() {
               ease: "easeInOut",
               delay: p.delay,
             }}
-            className="absolute w-1.5 h-1.5 rounded-full will-change-transform"
+            className="absolute w-1.5 h-1.5 rounded-full will-change-transform hidden md:block"
             style={{ background: 'radial-gradient(circle, rgba(71,59,240,0.8) 0%, transparent 80%)' }}
           />
         ))}
       </div>
 
-      <div className="relative z-10 flex flex-col items-center text-center max-w-7xl px-6 w-full">
+      <div className="relative z-10 flex flex-col items-center text-center max-w-7xl w-full min-w-0 px-3 sm:px-6">
         {/* Premium Evolution Badge */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="group relative flex items-center gap-2 px-4 py-2 rounded-full bg-white/40 backdrop-blur-md border border-white/60 shadow-xl mb-8 md:mb-12 cursor-pointer hover:bg-white/60 transition-all active:scale-95"
+          className="group relative flex flex-col xs:flex-row items-center justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-2 rounded-2xl sm:rounded-full bg-white/40 backdrop-blur-md border border-white/60 shadow-xl mb-6 sm:mb-8 md:mb-12 cursor-pointer hover:bg-white/60 transition-all active:scale-95 max-w-[min(100%,22rem)] sm:max-w-none mx-auto"
         >
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 shrink-0">
             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
             <span className="text-[10px] font-bold text-primary uppercase tracking-wider">v2.0 Live</span>
           </div>
-          <span className="text-[11px] font-bold text-textMain/80 uppercase tracking-[0.1em]">Cinematic Engine Unleashed</span>
-          <ArrowRight size={12} className="text-textMuted group-hover:translate-x-1 transition-transform" />
+          <span className="text-[10px] sm:text-[11px] font-bold text-textMain/80 uppercase tracking-[0.08em] leading-tight text-center">
+            Cinematic Engine Unleashed
+          </span>
+          <ArrowRight size={12} className="text-textMuted group-hover:translate-x-1 transition-transform hidden xs:block shrink-0" />
 
           {/* Subtle Glow Behind */}
           <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -446,9 +449,10 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.1 }}
-          className="text-5xl md:text-[80px] font-bold tracking-tight leading-[1.1] mb-4 text-[#1A1A1A] text-balance max-w-4xl mx-auto"
+          className="text-[1.65rem] xs:text-3xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-[80px] font-bold tracking-tight leading-[1.12] mb-3 sm:mb-4 text-[#1A1A1A] text-balance max-w-4xl mx-auto px-1 break-words"
         >
-          The Future of <span className="text-primary">AI</span> <br />
+          The Future of <span className="text-primary">AI</span>{' '}
+          <br className="hidden xs:block" />
           <span className="italic font-light">Presentations</span> is Here.
         </motion.h1>
 
@@ -457,7 +461,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.2 }}
-          className="text-xl md:text-[22px] text-textSecondary max-w-2xl mb-8 text-balance leading-snug font-medium opacity-90 mx-auto"
+          className="text-base sm:text-lg md:text-[22px] text-textSecondary max-w-2xl mb-6 sm:mb-8 text-balance leading-snug font-medium opacity-90 mx-auto px-1"
         >
           Generate professional slides from simple prompts in seconds.
         </motion.p>
@@ -467,20 +471,20 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="w-full max-w-4xl mb-10 mx-auto"
+          className="w-full max-w-4xl min-w-0 mb-8 sm:mb-10 mx-auto"
         >
           {/* Mode Toggles */}
-          <div className="flex items-center gap-2 mb-4 ml-4 overflow-x-auto pb-2 scrollbar-none">
+          <div className="flex items-center gap-2 mb-3 sm:mb-4 w-full min-w-0 overflow-x-auto pb-2 scrollbar-none -mx-1 px-1 snap-x snap-mandatory">
             <button
               onClick={() => { setActiveMode('create'); setIsListening(false); recognitionRef.current?.stop(); }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-widest transition-all shrink-0 ${activeMode === 'create' ? 'bg-primary text-white shadow-lg' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'create' ? 'bg-primary text-white shadow-lg' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
             >
               <Wand2 size={14} />
               <span>Create New</span>
             </button>
             <button
               onClick={() => { setActiveMode('enhance'); setIsListening(false); recognitionRef.current?.stop(); }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-widest transition-all shrink-0 ${activeMode === 'enhance' ? 'bg-primary text-white shadow-lg' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'enhance' ? 'bg-primary text-white shadow-lg' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
             >
               <Upload size={14} />
               <span>Enhance PPT</span>
@@ -494,7 +498,7 @@ export function HeroSection() {
                 accumulatedTextRef.current = '';
                 setTimeout(() => toggleListening(), 100);
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-widest transition-all shrink-0 ${activeMode === 'voice' ? 'bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)]' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'voice' ? 'bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)]' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
             >
               <Mic size={14} />
               <span>Voice Protocol</span>
@@ -502,7 +506,7 @@ export function HeroSection() {
           </div>
 
           <div className="animated-border shadow-[0_40px_100px_-20px_rgba(71,59,240,0.25)] group">
-            <div className={`relative bg-white rounded-[1.45rem] flex flex-col p-6 transition-all overflow-hidden ${activeMode === 'voice' ? 'min-h-[360px]' : 'h-[220px]'}`}>
+            <div className={`relative bg-white rounded-[1.45rem] flex flex-col p-4 sm:p-6 transition-all overflow-hidden ${activeMode === 'voice' ? 'min-h-[280px] sm:min-h-[360px]' : 'min-h-[200px] h-auto sm:h-[220px]'}`}>
 
               {/* ── MODE CONTENT ── */}
               <div className="flex-1 flex flex-col min-h-0">
@@ -580,7 +584,7 @@ export function HeroSection() {
                         }
                       }}
                       placeholder="Describe your presentation topic..."
-                      className="w-full flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-lg md:text-xl text-textMain placeholder:text-textMuted resize-none font-medium pr-10 pb-10"
+                      className="w-full flex-1 min-h-[7rem] sm:min-h-0 bg-transparent border-none focus:ring-0 focus:outline-none text-base sm:text-lg md:text-xl text-textMain placeholder:text-textMuted resize-none font-medium pr-11 sm:pr-10 pb-14 sm:pb-10"
                     />
                     <button onClick={toggleListening} className={`absolute right-0 top-0 p-2 rounded-lg transition-all ${isListening ? 'text-primary bg-primary/10' : 'text-textMuted hover:bg-panel'}`}>
                       {isListening ? <Mic size={20} className="animate-pulse" /> : <MicOff size={20} className="opacity-40" />}
@@ -640,50 +644,51 @@ export function HeroSection() {
                 </div>
               )}
 
-              {/* ── BOTTOM BAR (Social Proof + Right-side CTA for non-voice) ── */}
-              <div className="mt-6 pt-4 border-t border-panel flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-4">
-                  <button onClick={() => fileInputRef.current?.click()} className="w-10 h-10 rounded-full border border-borderSubtle flex items-center justify-center text-textMuted hover:bg-hoverSurface transition-colors shadow-sm bg-white text-2xl font-light">+</button>
-                  <div className="flex items-center gap-3">
-                    <div className="flex -space-x-3">
-                      {[1, 2, 3].map(i => (
-                        <div key={i} className="w-9 h-9 rounded-full border-2 border-white bg-panel overflow-hidden shadow-sm">
-                          <img src={`https://i.pravatar.cc/100?u=${i + 10}`} alt="Avatar" className="w-full h-full object-cover" />
-                        </div>
-                      ))}
-                    </div>
-                    <span className="text-[12px] text-textMuted font-bold">10k+ creators</span>
-                  </div>
-                </div>
-
+              {/* ── BOTTOM BAR — stack on narrow screens so CTA never clips ── */}
+              <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-panel flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0 w-full min-w-0">
                 {activeMode !== 'voice' && (
                   <button
+                    type="button"
                     onClick={handleGenerate}
                     disabled={activeMode === 'create' ? !prompt.trim() : !selectedFile}
-                    className="group relative h-11 px-8 bg-primary text-white rounded-full text-[12px] font-bold shadow-xl hover:bg-primaryHover hover:scale-[1.02] transition-all active:scale-95 flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none"
+                    className="group relative order-first sm:order-none w-full sm:w-auto min-h-11 px-5 sm:px-8 justify-center bg-primary text-white rounded-full text-[11px] sm:text-[12px] font-bold shadow-xl hover:bg-primaryHover hover:scale-[1.01] sm:hover:scale-[1.02] transition-all active:scale-[0.98] flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none shrink-0"
                   >
                     <motion.div
                       animate={{ x: ['-100%', '100%'] }}
                       transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                       className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]"
                     />
-                    <span className="relative z-10">
+                    <span className="relative z-10 truncate max-w-[16rem] sm:max-w-none">
                       {activeMode === 'enhance' ? 'Enhance PPT' : 'Generate Presentation'}
                     </span>
-                    <ArrowRight size={16} className="relative z-10 group-hover/btn:translate-x-1 transition-transform" />
+                    <ArrowRight size={16} className="relative z-10 shrink-0 group-hover:translate-x-1 transition-transform" />
                   </button>
                 )}
+
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full sm:w-auto justify-between sm:justify-start">
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="w-10 h-10 shrink-0 rounded-full border border-borderSubtle flex items-center justify-center text-textMuted hover:bg-hoverSurface transition-colors shadow-sm bg-white text-2xl font-light">+</button>
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div className="flex -space-x-3 shrink-0">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 border-white bg-panel overflow-hidden shadow-sm">
+                          <img src={`https://i.pravatar.cc/100?u=${i + 10}`} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                        </div>
+                      ))}
+                    </div>
+                    <span className="text-[11px] sm:text-[12px] text-textMuted font-bold truncate">10k+ creators</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </motion.div>
 
-        {/* App Preview Mockup (Full High-Fidelity Editor Reconstruction) */}
+        {/* App preview + Vimeo — hidden on small screens (weight + width) */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.5 }}
-          className="w-full max-w-[1400px] rounded-2xl border border-borderSubtle bg-white p-2 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.12)] group overflow-hidden"
+          className="hidden md:block w-full max-w-[1400px] rounded-2xl border border-borderSubtle bg-white p-2 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.12)] group overflow-hidden"
         >
           <div className="w-full rounded-xl bg-panel border border-borderSubtle overflow-hidden relative flex flex-col">
             {/* 1. Top Navigation Bar (High-Fidelity) */}

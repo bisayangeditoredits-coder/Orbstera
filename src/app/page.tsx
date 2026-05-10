@@ -15,7 +15,7 @@ const CTA = dynamic(() => import('@/components/landing/CTA').then((m) => ({ defa
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between overflow-hidden">
+    <main className="flex min-h-screen w-full max-w-[100vw] flex-col items-center justify-between overflow-x-clip">
       <Navbar />
       <HeroSection />
       <SocialProof />

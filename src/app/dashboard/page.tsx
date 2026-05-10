@@ -134,12 +134,12 @@ function DashboardContent() {
         )}
       </AnimatePresence>
 
-      <main className="max-w-7xl mx-auto pt-28 px-6 pb-16">
+      <main className="max-w-7xl mx-auto pt-24 sm:pt-28 px-4 sm:px-6 pb-12 sm:pb-16 w-full min-w-0">
 
         {/* ── Hero Header ────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 sm:gap-6 mb-8 sm:mb-12">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full ${
                 isPaid
                   ? 'bg-amber-100 text-amber-700'
@@ -151,7 +151,7 @@ function DashboardContent() {
                 {genLeft} generation{genLeft !== 1 ? 's' : ''} left this month
               </span>
             </div>
-            <h1 className="text-4xl font-black text-gray-900 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900 tracking-tight break-words">
               Welcome back, <span className="text-primary">{userName.split(' ')[0]}</span> 👋
             </h1>
             <p className="text-gray-500 mt-1 text-[15px]">
@@ -159,18 +159,18 @@ function DashboardContent() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 sm:gap-3 w-full sm:w-auto shrink-0">
             {!isPaid && (
               <Link
                 href="/pricing"
-                className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-2xl font-bold text-sm shadow-lg shadow-amber-200 hover:scale-105 transition-transform"
+                className="flex justify-center items-center gap-2 px-4 sm:px-5 py-3 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-2xl font-bold text-sm shadow-lg shadow-amber-200 hover:scale-[1.02] active:scale-[0.98] transition-transform touch-manipulation"
               >
                 <Crown size={16} /> Upgrade to Pro
               </Link>
             )}
             <Link
               href="/editor"
-              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold text-sm shadow-lg shadow-primary/25 hover:bg-primary/90 hover:scale-105 transition-all"
+              className="flex justify-center items-center gap-2 px-4 sm:px-6 py-3 bg-primary text-white rounded-2xl font-bold text-sm shadow-lg shadow-primary/25 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] transition-all touch-manipulation"
             >
               <Plus size={18} /> New Presentation
             </Link>
