@@ -644,15 +644,17 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
                 </div>
               )}
               {cloudSync === 'conflict' && (
-                <div className="flex basis-full min-w-0 w-full max-w-full items-center gap-1.5 text-neutral-700 text-[10px] font-medium px-2 py-1 rounded-full bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-                  <AlertCircle size={11} className="shrink-0 text-amber-600" strokeWidth={1.75} />
-                  <span className="min-w-0 flex-1 truncate text-neutral-600" title={cloudMsg || 'A newer copy exists in the cloud'}>
-                    Newer version in cloud
-                  </span>
+                <div className="flex flex-col gap-1.5 basis-full w-full min-w-0 rounded-xl bg-white border border-black/[0.08] px-2.5 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                  <div className="flex items-start gap-1.5 min-w-0 text-neutral-700 text-[10px] font-medium leading-snug">
+                    <AlertCircle size={11} className="shrink-0 text-amber-600 mt-0.5" strokeWidth={1.75} />
+                    <span title={cloudMsg || 'This deck was updated in the cloud (e.g. another tab). Reload to load that version.'}>
+                      Newer version in cloud — reload to avoid overwriting it.
+                    </span>
+                  </div>
                   <button
                     type="button"
                     onClick={reloadFromCloud}
-                    className="shrink-0 px-2 py-0.5 rounded-full bg-neutral-900 text-white text-[9px] font-semibold uppercase tracking-wide hover:bg-neutral-800"
+                    className="w-full shrink-0 py-1.5 rounded-lg bg-neutral-900 text-white text-[9px] font-semibold uppercase tracking-wide hover:bg-neutral-800"
                   >
                     Reload
                   </button>

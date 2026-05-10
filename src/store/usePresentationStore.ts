@@ -187,20 +187,25 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       );
     });
 
-    // Set the presentation first
-    const newPresentation = { ...data, slides };
+    const existingId = typeof data.id === 'string' ? data.id.trim() : '';
+    const prevIdRaw = get().presentation?.id;
+    const prevId = typeof prevIdRaw === 'string' ? prevIdRaw.trim() : '';
+    const isGenerationReset =
+      data.title === 'Generating...' && Array.isArray(data.slides) && data.slides.length === 0;
+    const fallbackRandom =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `deck-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    const deckId =
+      existingId || (isGenerationReset ? fallbackRandom : prevId || fallbackRandom);
+
+    const newPresentation = { ...data, id: deckId, slides };
     set({ presentation: newPresentation, currentSlideIndex: 0, history: [], historyIndex: -1 });
     get().pushHistory();
 
-    // Auto-save initial generation to Cloudflare R2
-    // We explicitly block "Generating..." and empty decks to prevent empty placeholder projects on the dashboard if user quits.
-    if (newPresentation.title !== 'Generating...' && newPresentation.slides.length > 0) {
-      fetch('/api/presentations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newPresentation),
-      }).catch(e => console.error('[Store] Failed to auto-save to Cloudflare R2:', e));
-    }
+    // Persistence: usePresentationCloudSync debounces POST and applies saveVersion from the response.
+    // Do not POST here — a previous fire-and-forget save advanced the server version without
+    // updating the client, which produced constant 409 conflicts on the next sync.
 
     // Fire ALL image generation tasks in parallel — much faster than sequential
     if (imageTasks.length > 0) {
