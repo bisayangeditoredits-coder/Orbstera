@@ -699,7 +699,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="w-full max-w-4xl min-w-0 mb-8 sm:mb-10 mx-auto"
+          className="w-full max-w-4xl min-w-0 mb-8 sm:mb-10 mx-auto -mt-2 sm:-mt-3"
         >
           {/* Mode Toggles */}
           <div className="flex items-center gap-2 mb-3 sm:mb-4 w-full min-w-0 overflow-x-auto pb-2 scrollbar-none -mx-1 px-1 snap-x snap-mandatory">

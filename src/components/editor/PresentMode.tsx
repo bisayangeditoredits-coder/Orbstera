@@ -373,7 +373,9 @@ function PresentSlideView({
               width:     el.width,
               height:    el.height,
               zIndex:    el.zIndex || 1,
-              transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+              // Don't set `transform` directly; it overrides Framer Motion transforms (x/y/scale/etc).
+              // Use `rotate` so motion can compose transforms and entrances actually animate.
+              rotate:    el.rotation || 0,
               overflow:  'visible',
               willChange: animationsOn ? 'opacity, transform, filter' : undefined,
             }}
