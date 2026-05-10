@@ -134,7 +134,7 @@ export function HeroSection() {
     rec.onerror = (event: any) => {
       console.error('Speech recognition error', event.error);
       if (event.error === 'not-allowed') {
-        setSpeechError('Microphone access blocked. Enable it in browser settings.');
+        setSpeechError('Microphone access blocked or in use by another app.');
         shouldBeListeningRef.current = false;
         setIsListening(false);
         stopAudioAnalysis();
@@ -511,10 +511,14 @@ export function HeroSection() {
           /* noop */
         }
         // Grant mic first — avoids fights between Web Speech and getUserMedia on many Chromium/Android builds
-        await startAudioAnalysis();
         shouldBeListeningRef.current = true;
         rec.start();
         setIsListening(true);
+        setTimeout(() => {
+          if (shouldBeListeningRef.current) {
+            startAudioAnalysis().catch(err => console.warn("Audio analysis skipped due to lock:", err));
+          }
+        }, 800);
       } catch (err) {
         console.error(err);
         shouldBeListeningRef.current = false;
