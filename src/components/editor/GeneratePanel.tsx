@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { SurveyModal } from './SurveyModal';
@@ -51,6 +51,48 @@ const PRESENTATION_STYLES: { value: string; label: string }[] = [
   { value: 'creative', label: 'Creative' },
   { value: 'cinematic', label: 'Cinematic' },
 ];
+
+function CollapsibleSection({
+  title,
+  summary,
+  expanded,
+  onToggle,
+  children,
+}: {
+  title: string;
+  summary: string;
+  expanded: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-black/[0.07] bg-white/80 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-neutral-50/90 transition-colors rounded-2xl"
+      >
+        <ChevronDown
+          size={15}
+          className={`shrink-0 mt-0.5 text-neutral-400 transition-transform duration-200 ${expanded ? 'rotate-180' : 'rotate-0'}`}
+          strokeWidth={1.75}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.14em]">{title}</div>
+          {!expanded && (
+            <div className="text-[11px] font-medium text-neutral-700 mt-0.5 truncate pr-1">{summary}</div>
+          )}
+        </div>
+      </button>
+      {expanded && (
+        <div className="px-3 pb-2.5">
+          <div className="border-t border-black/[0.05] pt-2.5">{children}</div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const [prompt, setPrompt] = useState('');
@@ -108,6 +150,10 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   };
 
   const [activeTab, setActiveTab] = useState<'create' | 'enhance'>('create');
+  const [expandIntel, setExpandIntel] = useState(true);
+  const [expandTone, setExpandTone] = useState(false);
+  const [expandStyle, setExpandStyle] = useState(false);
+  const [expandDensity, setExpandDensity] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [streamedSlides, setStreamedSlides] = useState<{id: string, title: string}[]>([]);
@@ -536,7 +582,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           className="hidden" 
         />
       <div className="shrink-0 flex flex-col border-b border-black/[0.06] bg-white/80 backdrop-blur-xl sticky top-0 z-20 min-w-0">
-        <div className="flex items-start justify-between gap-3 px-5 sm:px-6 pt-5 pb-3 min-w-0">
+        <div className="flex items-start justify-between gap-3 px-4 sm:px-5 pt-4 pb-2.5 min-w-0">
           <div className="flex items-start gap-3.5 min-w-0">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary/12 to-primary/5 border border-primary/10 flex items-center justify-center shadow-[0_1px_0_rgba(255,255,255,0.8)_inset] shrink-0">
               <Wand2 size={19} className="text-primary" strokeWidth={1.75} />
@@ -560,7 +606,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           )}
         </div>
         
-        <div className="px-5 sm:px-6 pb-4 min-w-0 overflow-x-auto scrollbar-none">
+        <div className="px-4 sm:px-5 pb-3 min-w-0 overflow-x-auto scrollbar-none">
           <div className="p-1 rounded-2xl flex gap-0.5 bg-neutral-100/90 border border-black/[0.05] shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] min-w-0">
             <button 
               type="button"
@@ -588,11 +634,16 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-6 pb-24 space-y-7">
-        {/* Intelligence */}
-        <div className="space-y-2.5">
-           <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.16em] block">Intelligence</label>
-           <div className="grid grid-cols-3 gap-2">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-5 py-3 pb-24 space-y-2.5 min-h-0">
+        <CollapsibleSection
+          title="Intelligence"
+          summary={
+            mode === 'standard' ? 'Standard' : mode === 'fast' ? 'Fast' : 'Elite'
+          }
+          expanded={expandIntel}
+          onToggle={() => setExpandIntel((v) => !v)}
+        >
+          <div className="grid grid-cols-3 gap-1.5">
             {[
               { value: 'standard', label: 'Standard', short: 'Std', icon: Zap, free: true },
               { value: 'fast', label: 'Fast', short: 'Fast', icon: Gauge, free: false },
@@ -607,32 +658,32 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                   key={m.value}
                   onClick={() => !isLocked && setMode(m.value as 'standard' | 'fast' | 'premium')}
                   title={isLocked ? 'Upgrade to Pro to unlock' : m.label}
-                  className={`relative flex flex-col items-stretch gap-1.5 px-2.5 py-2.5 rounded-2xl text-left transition-all border min-h-[4.25rem] ${
+                  className={`relative flex flex-row items-center gap-1.5 px-2 py-2 rounded-xl text-left transition-all border ${
                     isLocked
                       ? 'bg-neutral-100/50 border-black/[0.04] text-neutral-400 cursor-not-allowed'
                       : isActive
-                      ? 'bg-white border-primary/25 text-neutral-900 shadow-[0_4px_14px_-4px_rgba(59,130,246,0.35),0_0_0_1px_rgba(59,130,246,0.12)]'
-                      : 'bg-white border-black/[0.06] text-neutral-600 hover:border-black/10 hover:bg-neutral-50/80'
+                      ? 'bg-white border-primary/25 text-neutral-900 shadow-[0_2px_10px_-4px_rgba(59,130,246,0.35)]'
+                      : 'bg-white border-black/[0.06] text-neutral-600 hover:border-black/10'
                   }`}
                 >
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                  <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
                     isActive ? 'bg-primary/10 text-primary' : 'bg-neutral-100 text-neutral-500'
                   }`}>
-                    <Icon size={14} strokeWidth={1.75} />
+                    <Icon size={12} strokeWidth={1.75} />
                   </div>
-                  <span className="text-[10px] font-semibold uppercase tracking-wide leading-tight">{m.short}</span>
+                  <span className="text-[9px] font-semibold uppercase tracking-wide">{m.short}</span>
                   {isLocked && (
-                    <Crown size={10} className="absolute top-2 right-2 text-amber-500/90" strokeWidth={1.75} />
+                    <Crown size={9} className="absolute top-1 right-1 text-amber-500/90" strokeWidth={1.75} />
                   )}
                 </button>
               );
             })}
           </div>
-        </div>
+        </CollapsibleSection>
         {activeTab === 'create' ? (
           <>
             {/* Prompt Area */}
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.16em]">Your Vision</label>
                 <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-primary/80 uppercase tracking-[0.12em]">
@@ -642,7 +693,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                 </span>
               </div>
               <div className="animated-border shadow-[0_24px_48px_-20px_rgba(59,130,246,0.22)]">
-                <div className="bg-white p-5 flex flex-col min-h-[140px] transition-all rounded-[22px] relative overflow-hidden">
+                <div className="bg-white p-4 flex flex-col min-h-[112px] transition-all rounded-[22px] relative overflow-hidden">
                   {/* ✨ Voice Orb overlay — replaces textarea while listening */}
                   <VoiceOrb
                     isListening={isListening}
@@ -655,10 +706,10 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={isListening ? '🎤 Listening... speak your vision' : 'Describe your presentation topic...'}
-                    className="w-full flex-1 bg-transparent text-[17px] text-neutral-900 placeholder:text-neutral-300 resize-none focus:outline-none font-medium leading-relaxed"
+                    className="w-full flex-1 bg-transparent text-[16px] text-neutral-900 placeholder:text-neutral-300 resize-none focus:outline-none font-medium leading-relaxed min-h-[4.5rem]"
                   />
 
-                  <div className="mt-4 flex items-center justify-between pt-4 border-t border-black/[0.05]">
+                  <div className="mt-3 flex items-center justify-between pt-3 border-t border-black/[0.05]">
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -707,61 +758,65 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               </div>
             </div>
 
-            {/* Tone Selection */}
-            <div className="space-y-2.5">
-              <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.16em] block">Narrative Tone</label>
-              <div className="flex flex-wrap gap-2">
+            <CollapsibleSection
+              title="Narrative Tone"
+              summary={TONES.find((t) => t.value === tone)?.label ?? tone}
+              expanded={expandTone}
+              onToggle={() => setExpandTone((v) => !v)}
+            >
+              <div className="flex flex-wrap gap-1.5">
                 {TONES.map((t) => (
                   <button
                     type="button"
                     key={t.value}
                     onClick={() => setTone(t.value)}
-                    className={`px-4 py-2 rounded-full text-[12px] font-semibold transition-all border ${
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all border ${
                       tone === t.value
-                        ? 'bg-neutral-900 text-white border-neutral-900 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.2)]'
-                        : 'bg-white border-black/[0.08] text-neutral-600 hover:border-black/15 hover:bg-neutral-50'
+                        ? 'bg-neutral-900 text-white border-neutral-900'
+                        : 'bg-white border-black/[0.08] text-neutral-600 hover:border-black/15'
                     }`}
                   >
                     {t.label}
                   </button>
                 ))}
               </div>
-            </div>
+            </CollapsibleSection>
 
-            {/* Presentation style modes */}
-            <div className="space-y-2.5">
-              <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.16em] block">
-                Presentation Style
-              </label>
-              <div className="grid grid-cols-2 gap-2 max-h-[148px] overflow-y-auto custom-scrollbar pr-0.5 -mr-0.5">
+            <CollapsibleSection
+              title="Presentation Style"
+              summary={PRESENTATION_STYLES.find((s) => s.value === presentationStyle)?.label ?? presentationStyle}
+              expanded={expandStyle}
+              onToggle={() => setExpandStyle((v) => !v)}
+            >
+              <div className="grid grid-cols-2 gap-1.5 max-h-[min(40vh,200px)] overflow-y-auto custom-scrollbar pr-0.5">
                 {PRESENTATION_STYLES.map((s) => (
                   <button
                     key={s.value}
                     type="button"
                     onClick={() => setPresentationStyle(s.value)}
-                    className={`px-3 py-2 rounded-xl text-[11px] font-semibold text-left transition-all border leading-snug ${
+                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-left transition-all border leading-snug ${
                       presentationStyle === s.value
-                        ? 'bg-neutral-900 text-white border-neutral-900 shadow-sm'
-                        : 'bg-white border-black/[0.07] text-neutral-600 hover:border-black/12 hover:bg-neutral-50/80'
+                        ? 'bg-neutral-900 text-white border-neutral-900'
+                        : 'bg-white border-black/[0.07] text-neutral-600 hover:border-black/12'
                     }`}
                   >
                     {s.label}
                   </button>
                 ))}
               </div>
-            </div>
+            </CollapsibleSection>
 
-            {/* Slide Count — gated by plan */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.16em]">Density (Slides)</label>
-                {!isPaid
-                  ? <span className="text-[9px] font-semibold text-amber-600 uppercase tracking-wide flex items-center gap-1"><Crown size={10} strokeWidth={1.75} /> Free · max 5</span>
-                  : <span className="text-[9px] font-semibold text-emerald-600 uppercase tracking-wide">Up to {maxSlidesForPlan}</span>
-                }
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {SLIDE_COUNTS.filter(n => n <= maxSlidesForPlan || !isPaid).map((n) => {
+            <CollapsibleSection
+              title="Density (Slides)"
+              summary={
+                `${slideCount} slide${slideCount !== 1 ? 's' : ''}` +
+                (!isPaid ? ' · Free max 5' : ` · max ${maxSlidesForPlan}`)
+              }
+              expanded={expandDensity}
+              onToggle={() => setExpandDensity((v) => !v)}
+            >
+              <div className="flex flex-wrap gap-1.5">
+                {SLIDE_COUNTS.filter((n) => n <= maxSlidesForPlan || !isPaid).map((n) => {
                   const isLocked = n > maxSlidesForPlan;
                   return (
                     <button
@@ -769,21 +824,21 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                       key={n}
                       onClick={() => !isLocked && setSlideCount(n)}
                       title={isLocked ? `Upgrade to unlock ${n} slides` : `Generate ${n} slides`}
-                      className={`flex-1 min-w-[2.5rem] h-11 rounded-xl text-[12px] font-semibold transition-all flex items-center justify-center border relative ${
+                      className={`min-w-[2.25rem] flex-1 h-9 rounded-lg text-[11px] font-semibold transition-all flex items-center justify-center border relative ${
                         isLocked
                           ? 'bg-neutral-100 border-black/[0.04] text-neutral-300 cursor-not-allowed'
                           : slideCount === n
-                          ? 'bg-primary text-white border-primary shadow-[0_4px_12px_-4px_rgba(59,130,246,0.45)]'
+                          ? 'bg-primary text-white border-primary shadow-sm'
                           : 'bg-white border-black/[0.08] text-neutral-600 hover:border-primary/30'
                       }`}
                     >
                       {n}
-                      {isLocked && <Crown size={9} className="absolute top-1.5 right-1.5 text-amber-500" strokeWidth={1.75} />}
+                      {isLocked && <Crown size={8} className="absolute top-1 right-1 text-amber-500" strokeWidth={1.75} />}
                     </button>
                   );
                 })}
               </div>
-            </div>
+            </CollapsibleSection>
 
           </>
         ) : (
@@ -813,7 +868,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       {/* Original Button Loading State (Overlay removed) */}
 
       {/* Consistent Luxury CTA */}
-      <div className="shrink-0 px-5 sm:px-6 py-5 border-t border-black/[0.06] bg-white relative z-50">
+      <div className="shrink-0 px-4 sm:px-5 py-3.5 border-t border-black/[0.06] bg-white relative z-50">
         <button
           type="button"
           onClick={handleGenerateClick}
