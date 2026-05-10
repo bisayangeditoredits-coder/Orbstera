@@ -221,11 +221,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       hasAutoTriggered.current = true;  // lock before async work
       setPrompt(urlPrompt);
       if (urlFileName) setSelectedFile({ name: urlFileName } as File);
-
-      const timer = setTimeout(() => {
-        executeGenerate('replace', urlPrompt);
-      }, 600);
-      return () => clearTimeout(timer);
     } else if (urlFileName) {
       hasAutoTriggered.current = true;
       setSelectedFile({ name: urlFileName } as File);
