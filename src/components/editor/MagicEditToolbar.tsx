@@ -3,9 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { Sparkles, Loader2, X, Type, Wand2, Crown, Lock, Mic, MicOff } from 'lucide-react';
+import { Sparkles, Loader2, X, Type, Wand2, Crown, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
-import { createEditorSpeechRecognition, resolveEditorSpeechLang } from '@/lib/editor-speech';
 
 export function MagicEditToolbar() {
   const { presentation, currentSlideIndex, editor, updateElement, removeElement } = usePresentationStore();
@@ -16,37 +15,6 @@ export function MagicEditToolbar() {
   const [dismissed, setDismissed] = useState<string | null>(null);
   const [isPro, setIsPro]         = useState(false);
   const [planChecked, setPlanChecked] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
-  const shouldBeListeningRef = useRef(false);
-  const speechLangRef = useRef(resolveEditorSpeechLang());
-
-  const ensureVoiceRecognition = () => {
-    if (recognitionRef.current) return recognitionRef.current;
-    recognitionRef.current = createEditorSpeechRecognition({
-      shouldBeListeningRef,
-      speechLangRef,
-      onTranscript: (text) => setPrompt(text),
-      onListeningEnd: () => setIsListening(false),
-      onErrorMessage: (msg) => {
-        setErrorHint(msg);
-        setTimeout(() => setErrorHint(''), 5500);
-      },
-    });
-    return recognitionRef.current;
-  };
-
-  useEffect(() => {
-    return () => {
-      shouldBeListeningRef.current = false;
-      try {
-        recognitionRef.current?.stop();
-      } catch {
-        /* noop */
-      }
-      recognitionRef.current = null;
-    };
-  }, []);
 
   const selectedElementId = editor.selectedElementId;
   const slide             = presentation?.slides[currentSlideIndex];
@@ -148,43 +116,6 @@ export function MagicEditToolbar() {
     }
   };
 
-  const toggleVoice = () => {
-    if (isListening) {
-      shouldBeListeningRef.current = false;
-      try {
-        recognitionRef.current?.stop();
-      } catch {
-        /* noop */
-      }
-      setIsListening(false);
-      return;
-    }
-
-    if (typeof window !== 'undefined' && !window.isSecureContext) {
-      setErrorHint('Voice needs HTTPS or localhost.');
-      setTimeout(() => setErrorHint(''), 5000);
-      return;
-    }
-
-    const rec = ensureVoiceRecognition();
-    if (!rec) {
-      setErrorHint('Voice not supported. Try Chrome or Edge.');
-      setTimeout(() => setErrorHint(''), 5000);
-      return;
-    }
-
-    shouldBeListeningRef.current = true;
-    speechLangRef.current = resolveEditorSpeechLang();
-    try {
-      rec.lang = speechLangRef.current;
-      rec.start();
-      setIsListening(true);
-    } catch {
-      shouldBeListeningRef.current = false;
-      setIsListening(false);
-      setErrorHint('Could not start voice input.');
-      setTimeout(() => setErrorHint(''), 5000);
-    }
   };
 
   if (!isVisible || !planChecked || genFillOpen) return null;
@@ -213,30 +144,16 @@ export function MagicEditToolbar() {
               <input
                 type="text"
                 value={prompt}
-                onChange={(e) => (isPro || isListening) && setPrompt(e.target.value)}
+                onChange={(e) => isPro && setPrompt(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && isPro) { e.preventDefault(); handleMagicEdit(); } }}
-                disabled={isLoading || (!isPro && !isListening)}
-                placeholder={isListening ? '🎤 Listening...' : isPro ? (!selectedElementId ? `Generate AI Background... e.g. "cyberpunk city"` : `Edit with AI... e.g. "make it more exciting"`) : `🔒 Pro feature — upgrade to edit with AI`}
+                disabled={isLoading || !isPro}
+                placeholder={isPro ? (!selectedElementId ? `Generate AI Background... e.g. "cyberpunk city"` : `Edit with AI... e.g. "make it more exciting"`) : `🔒 Pro feature — upgrade to edit with AI`}
                 className={`flex-1 min-w-0 bg-transparent border-none outline-none text-[13px] font-medium px-1 h-9 ${
                   isPro
                     ? 'text-textMain placeholder:text-textMuted/50'
                     : 'text-textMuted/60 placeholder:text-textMuted/50 cursor-not-allowed'
                 }`}
               />
-
-              {/* Voice mic button */}
-              <button
-                type="button"
-                onClick={toggleVoice}
-                title={isListening ? 'Stop' : 'Voice input'}
-                className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all relative ${
-                  isListening
-                    ? 'bg-red-50 text-red-500 animate-pulse'
-                    : 'text-textMuted hover:text-primary hover:bg-primary/5'
-                }`}
-              >
-                {isListening ? <MicOff size={15} /> : <Mic size={15} />}
-              </button>
 
               {isPro ? (
                 <button

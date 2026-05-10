@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff, ShieldCheck, Zap, Clock3, Star } from 'lucide-react';
+import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, ShieldCheck, Zap, Clock3, Star } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
@@ -11,197 +11,10 @@ export function HeroSection() {
   const [prompt, setPrompt] = useState("");
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [activeMode, setActiveMode] = useState<'create' | 'enhance' | 'voice'>('create');
-  /** Pick best BCP-47 tag for Web Speech API from the user's preferred locales (no manual picker). */
-  const resolvedSpeechLang = useMemo(() => {
-    if (typeof navigator === 'undefined') return 'en-US';
-    const list = [...(navigator.languages || []), navigator.language].filter(Boolean);
-    for (const raw of list) {
-      const tag = String(raw).trim().replace(/_/g, '-');
-      const lower = tag.toLowerCase();
-      // Filipino / Tagalog
-      if (lower.startsWith('fil') || lower.startsWith('tl')) return 'fil-PH';
-      if (lower.startsWith('en-ph')) return 'en-PH';
-      // Preserve other regional Englishes (en-GB, en-AU, …) for accent/model matching
-      const enMatch = /^en-([a-z]{2})$/i.exec(lower);
-      if (enMatch) return `en-${enMatch[1].toUpperCase()}`;
-      if (lower === 'en' || lower.startsWith('en-')) break;
-    }
-    return 'en-US';
-  }, []);
-
-  /** Mutable lang — falls back to en-US if the engine rejects the locale */
-  const speechLangRef = useRef(resolvedSpeechLang);
-  speechLangRef.current = resolvedSpeechLang;
-
-  const voiceStartBusyRef = useRef(false);
+  const [activeMode, setActiveMode] = useState<'create' | 'enhance'>('create');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const [isListening, setIsListening] = useState(false);
-  const [speechError, setSpeechError] = useState<string | null>(null);
-  const [interimTranscript, setInterimTranscript] = useState("");
-  const recognitionRef = useRef<any>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const orbVisualRef = useRef<HTMLDivElement>(null);
-  const isListeningRef = useRef(false);
-  const volumeRef = useRef(0);
-  const rafScaleRef = useRef<number | null>(null);
-  const smoothedVolumeRef = useRef(0);
-  const motionEnergyRef = useRef(0);
-  const phaseRef = useRef(0);
-
-  // Tracks USER INTENT to listen (vs browser's internal stop/start lifecycle)
-  const shouldBeListeningRef = useRef(false);
-  // Accumulates finalized text across session restarts (onend → restart wipes event.results)
-  const accumulatedTextRef = useRef('');
-  /** Mirrors latest interim segment for synchronous flush (e.g. navigate away while speaking). */
-  const interimLiveRef = useRef('');
   const typeAudioCtxRef = useRef<AudioContext | null>(null);
-
-  const flushInterimIntoAccumulator = () => {
-    const t = interimLiveRef.current.trim();
-    interimLiveRef.current = '';
-    setInterimTranscript('');
-    if (!t) return;
-    const acc = accumulatedTextRef.current;
-    const spacer = acc && !acc.endsWith(' ') ? ' ' : '';
-    accumulatedTextRef.current = `${acc}${spacer}${t} `;
-    setPrompt(accumulatedTextRef.current.replace(/\s+/g, ' ').trimEnd());
-  };
-
-  const stopVoiceSession = () => {
-    shouldBeListeningRef.current = false;
-    flushInterimIntoAccumulator();
-    try {
-      recognitionRef.current?.stop();
-    } catch {
-      /* invalid state */
-    }
-    stopAudioAnalysis();
-    setIsListening(false);
-  };
-
-  const ensureSpeechRecognition = (): any | null => {
-    if (typeof window === 'undefined') return null;
-    if (recognitionRef.current) return recognitionRef.current;
-
-    // Prefer webkit* — matches Chromium / Safari stacks reliably
-    const SpeechRecognitionAPI = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-    if (!SpeechRecognitionAPI) return null;
-
-    const rec = new SpeechRecognitionAPI();
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.lang = speechLangRef.current;
-
-    rec.onresult = (event: any) => {
-      let newFinal = '';
-      let interimText = '';
-
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        const result = event.results[i];
-        let best = result?.[0];
-        if (result?.length && result.length > 1) {
-          for (let j = 1; j < result.length; j++) {
-            const cand = result[j];
-            if (cand && typeof cand.confidence === 'number' && typeof best?.confidence === 'number') {
-              if (cand.confidence > best.confidence) best = cand;
-            }
-          }
-        }
-        const text = String(best?.transcript || '').trim();
-        if (!text) continue;
-        if (result.isFinal) newFinal += `${text} `;
-        else interimText += `${text} `;
-      }
-
-      if (newFinal) {
-        accumulatedTextRef.current += newFinal;
-      }
-
-      const finals = accumulatedTextRef.current.replace(/\s+/g, ' ').trimEnd();
-      const interimNorm = interimText.replace(/\s+/g, ' ').trim();
-      interimLiveRef.current = interimNorm;
-      const combined = [finals, interimNorm].filter(Boolean).join(' ');
-      setPrompt(combined);
-      setInterimTranscript(interimNorm);
-    };
-
-    rec.onerror = (event: any) => {
-      console.error('Speech recognition error', event.error);
-      if (event.error === 'not-allowed') {
-        setSpeechError('Microphone access blocked. Enable it in browser settings.');
-        shouldBeListeningRef.current = false;
-        setIsListening(false);
-        stopAudioAnalysis();
-        setTimeout(() => setSpeechError(null), 5000);
-      } else if (event.error === 'language-not-supported') {
-        if (speechLangRef.current !== 'en-US') {
-          speechLangRef.current = 'en-US';
-          if (recognitionRef.current) {
-            try {
-              recognitionRef.current.lang = 'en-US';
-            } catch {
-              /* noop */
-            }
-          }
-          setSpeechError('Switched to English (US) for recognition.');
-          setTimeout(() => setSpeechError(null), 3500);
-        }
-      } else if (event.error === 'network') {
-        setSpeechError('Network error. Check your connection.');
-        setTimeout(() => setSpeechError(null), 4000);
-      } else if (event.error === 'no-speech') {
-        /* common — session continues */
-      } else if (event.error === 'aborted') {
-        /* own .stop() */
-      } else if (event.error === 'service-not-allowed') {
-        setSpeechError('Voice recognition unavailable here. Use HTTPS or Chrome / Edge.');
-        shouldBeListeningRef.current = false;
-        setIsListening(false);
-        stopAudioAnalysis();
-        setTimeout(() => setSpeechError(null), 6000);
-      } else {
-        console.warn('SpeechRecognition non-fatal error:', event.error);
-      }
-    };
-
-    rec.onend = () => {
-      if (shouldBeListeningRef.current) {
-        const delayMs = 220;
-        setTimeout(() => {
-          if (!shouldBeListeningRef.current || !recognitionRef.current) return;
-          try {
-            recognitionRef.current.lang = speechLangRef.current;
-            recognitionRef.current.start();
-          } catch {
-            /* already running */
-          }
-        }, delayMs);
-      } else {
-        setIsListening(false);
-      }
-    };
-
-    recognitionRef.current = rec;
-    return rec;
-  };
-
-  useEffect(() => {
-    return () => {
-      shouldBeListeningRef.current = false;
-      try {
-        recognitionRef.current?.stop();
-      } catch {
-        /* noop */
-      }
-      recognitionRef.current = null;
-    };
-  }, []);
 
   const heroParticles = useMemo(
     () =>
@@ -344,189 +157,7 @@ export function HeroSection() {
     }
   };
 
-  useEffect(() => {
-    isListeningRef.current = isListening;
-  }, [isListening]);
 
-  const startAudioAnalysis = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      audioContextRef.current = new AudioCtx();
-
-      // CRITICAL: Resume context for Chrome/Edge
-      if (audioContextRef.current.state === 'suspended') {
-        await audioContextRef.current.resume();
-      }
-
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 512;
-      analyserRef.current.smoothingTimeConstant = 0.82;
-      const source = audioContextRef.current.createMediaStreamSource(stream);
-      source.connect(analyserRef.current);
-
-      const bufferLength = analyserRef.current.frequencyBinCount;
-      const freqArray = new Uint8Array(bufferLength);
-      const timeArray = new Uint8Array(analyserRef.current.fftSize);
-
-      // ── Audio envelope loop (smooth + stable) ────────────
-      const drawFrame = () => {
-        animationFrameRef.current = requestAnimationFrame(drawFrame);
-        if (!analyserRef.current) return;
-
-        analyserRef.current.getByteTimeDomainData(timeArray);
-        analyserRef.current.getByteFrequencyData(freqArray);
-
-        // Blend RMS energy (stable) + spectral peak (responsive)
-        let sumSquares = 0;
-        for (let i = 0; i < timeArray.length; i++) {
-          const sample = (timeArray[i] - 128) / 128;
-          sumSquares += sample * sample;
-        }
-        const rms = Math.sqrt(sumSquares / timeArray.length);
-
-        let maxBand = 0;
-        for (let i = 2; i < bufferLength; i++) {
-          if (freqArray[i] > maxBand) maxBand = freqArray[i];
-        }
-        const peak = maxBand / 255;
-
-        const target = Math.min(1, rms * 1.45 + peak * 0.85);
-        const prev = smoothedVolumeRef.current;
-        const attack = 0.42;
-        const release = 0.14;
-        const next = target > prev
-          ? prev + (target - prev) * attack
-          : prev + (target - prev) * release;
-
-        smoothedVolumeRef.current = next;
-        motionEnergyRef.current = motionEnergyRef.current * 0.88 + Math.abs(next - prev) * 1.8;
-        volumeRef.current = next;
-
-        // Draw on canvas (if visible)
-        if (canvasRef.current) {
-          const canvas = canvasRef.current;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            // ... (keeping canvas logic just in case, but orb is primary now)
-          }
-        }
-      };
-      drawFrame();
-
-      // ── Orb visuals via refs (avoids 60 React re-renders/sec) ──────────
-      const updateScale = () => {
-        const level = volumeRef.current;
-        const energy = Math.min(1, motionEnergyRef.current);
-        const el = orbVisualRef.current;
-        phaseRef.current += 0.09 + energy * 0.08;
-        const wave = Math.sin(phaseRef.current);
-        const microPulse = wave * 0.018 * (0.3 + level);
-
-        if (el && isListeningRef.current) {
-          const scale = 1 + level * 0.42 + energy * 0.1 + microPulse;
-          const tiltX = Math.sin(phaseRef.current * 0.72) * (2 + level * 3);
-          const tiltY = Math.cos(phaseRef.current * 0.84) * (2 + level * 3.2);
-          const glow = 26 + level * 95 + energy * 42;
-          const glowOuter = 60 + level * 120;
-          el.style.transform = `perspective(900px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) scale(${scale.toFixed(4)}) translateZ(0)`;
-          el.style.filter = `drop-shadow(0 0 ${Math.round(glow)}px rgba(71,59,240,0.36)) drop-shadow(0 0 ${Math.round(glowOuter)}px rgba(56,189,248,0.18)) saturate(${(1 + level * 0.32).toFixed(2)}) contrast(${(1 + level * 0.08).toFixed(2)})`;
-        } else if (el) {
-          // Smoothly settle instead of snapping when listening toggles off.
-          el.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1) translateZ(0)';
-          el.style.filter = 'drop-shadow(0 0 14px rgba(71,59,240,0.12))';
-        }
-
-        const lottie = document.getElementById('voice-orb-lottie') as { speed?: number } | null;
-        if (lottie) {
-          lottie.speed = 0.9 + level * 1.8 + energy * 0.8;
-        }
-
-        rafScaleRef.current = requestAnimationFrame(updateScale);
-      };
-      updateScale();
-
-    } catch (err) {
-      console.error('Error accessing microphone for analysis', err);
-    }
-  };
-
-  const stopAudioAnalysis = () => {
-    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-    if (rafScaleRef.current) cancelAnimationFrame(rafScaleRef.current);
-    animationFrameRef.current = null;
-    rafScaleRef.current = null;
-    if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
-    if (audioContextRef.current) audioContextRef.current.close();
-    volumeRef.current = 0;
-    smoothedVolumeRef.current = 0;
-    motionEnergyRef.current = 0;
-    phaseRef.current = 0;
-    const el = orbVisualRef.current;
-    if (el) {
-      el.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1) translateZ(0)';
-      el.style.filter = 'drop-shadow(0 0 14px rgba(71,59,240,0.12))';
-    }
-    // Clear canvas
-    const canvas = canvasRef.current;
-    if (canvas) canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
-  };
-
-  const toggleListening = () => {
-    void (async () => {
-      const rec = ensureSpeechRecognition();
-      if (!rec) {
-        setSpeechError("Your browser doesn't support voice input. Try Chrome or Edge.");
-        setTimeout(() => setSpeechError(null), 5000);
-        return;
-      }
-
-      if (typeof window !== 'undefined' && !window.isSecureContext) {
-        setSpeechError('Voice Protocol needs HTTPS (or localhost).');
-        setTimeout(() => setSpeechError(null), 6000);
-        return;
-      }
-
-      if (isListening) {
-        stopVoiceSession();
-        return;
-      }
-
-      if (voiceStartBusyRef.current) return;
-      voiceStartBusyRef.current = true;
-
-      accumulatedTextRef.current = '';
-      interimLiveRef.current = '';
-      setPrompt('');
-      setInterimTranscript('');
-      setSpeechError(null);
-      speechLangRef.current = resolvedSpeechLang;
-
-      try {
-        try {
-          rec.lang = speechLangRef.current;
-        } catch {
-          /* noop */
-        }
-        // Grant mic first — avoids fights between Web Speech and getUserMedia on many Chromium/Android builds
-        await startAudioAnalysis();
-        shouldBeListeningRef.current = true;
-        rec.start();
-        setIsListening(true);
-      } catch (err) {
-        console.error(err);
-        shouldBeListeningRef.current = false;
-        stopAudioAnalysis();
-        setIsListening(false);
-        setSpeechError('Allow microphone access to use Voice Protocol.');
-        setTimeout(() => setSpeechError(null), 5000);
-      } finally {
-        voiceStartBusyRef.current = false;
-      }
-    })();
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -559,24 +190,9 @@ export function HeroSection() {
       return;
     }
 
-    // Stop + flush first so effectivePrompt reflects everything heard (state updates async)
-    if (isListening) {
-      stopVoiceSession();
-    } else {
-      flushInterimIntoAccumulator();
-    }
-
-    const effectivePrompt =
-      accumulatedTextRef.current.replace(/\s+/g, ' ').trim() ||
-      prompt.trim() ||
-      interimTranscript.trim();
+    const effectivePrompt = prompt.trim();
 
     if (activeMode === 'create' && !effectivePrompt) return;
-    if (activeMode === 'voice' && !effectivePrompt) {
-      setSpeechError("Please say something first.");
-      setTimeout(() => setSpeechError(null), 3000);
-      return;
-    }
 
     const params = new URLSearchParams();
     if (effectivePrompt) params.set('prompt', effectivePrompt);
@@ -731,7 +347,6 @@ export function HeroSection() {
             <button
               type="button"
               onClick={() => {
-                stopVoiceSession();
                 setActiveMode('create');
               }}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'create' ? 'bg-primary text-white shadow-lg' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
@@ -742,7 +357,6 @@ export function HeroSection() {
             <button
               type="button"
               onClick={() => {
-                stopVoiceSession();
                 setActiveMode('enhance');
               }}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'enhance' ? 'bg-primary text-white shadow-lg' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
@@ -750,105 +364,16 @@ export function HeroSection() {
               <Upload size={14} />
               <span>Enhance PPT</span>
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                stopVoiceSession();
-                setActiveMode('voice');
-                setPrompt('');
-                setInterimTranscript('');
-                interimLiveRef.current = '';
-                accumulatedTextRef.current = '';
-              }}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'voice' ? 'bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)]' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
-            >
-              <Mic size={14} />
-              <span>Voice Protocol</span>
-            </button>
           </div>
 
           <div className="animated-border shadow-[0_40px_100px_-20px_rgba(71,59,240,0.25)] group">
-            <div className={`relative bg-white rounded-[1.45rem] flex flex-col p-4 sm:p-6 transition-all overflow-hidden ${activeMode === 'voice' ? 'min-h-[240px] sm:min-h-[300px] lg:min-h-[320px]' : 'min-h-[200px] h-auto sm:h-[220px]'}`}>
+            <div className="relative bg-white rounded-[1.45rem] flex flex-col p-4 sm:p-6 transition-all overflow-hidden min-h-[200px] h-auto sm:h-[220px]">
               {/* subtle premium sheen */}
               <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-primary/10 to-transparent" />
 
               {/* ── MODE CONTENT ── */}
               <div className="flex-1 flex flex-col min-h-0">
-                {activeMode === 'voice' ? (
-                  <div className="flex flex-col items-center gap-3 sm:gap-4 pt-1 sm:pt-2">
-                    {/* Intelligence Orb (Lottie AI Flow) — native button so taps always reach the handler */}
-                    <button
-                      type="button"
-                      aria-pressed={isListening}
-                      aria-label={isListening ? 'Stop listening' : 'Start voice input'}
-                      className="relative cursor-pointer inline-flex border-0 bg-transparent p-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                      onClick={toggleListening}
-                    >
-                      {isListening && [0, 1].map((i) => (
-                        <motion.div
-                          key={i}
-                          initial={{ scale: 1, opacity: 0.6 }}
-                          animate={{ scale: 2.2 + i * 0.4, opacity: 0 }}
-                          transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.5, ease: "easeOut" }}
-                          className="absolute rounded-full border border-primary/30 will-change-transform"
-                          style={{ width: 132, height: 132, left: '50%', top: '50%', marginLeft: -66, marginTop: -66 }}
-                        />
-                      ))}
-
-                      <div
-                        ref={orbVisualRef}
-                        className="relative w-32 h-32 sm:w-36 sm:h-36 lg:w-40 lg:h-40 flex items-center justify-center will-change-transform"
-                        style={{
-                          transform: 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1) translateZ(0)',
-                          filter: 'drop-shadow(0 0 14px rgba(71,59,240,0.12))',
-                        }}
-                      >
-                        <div className="absolute inset-2 rounded-full bg-gradient-to-br from-primary/30 via-indigo-400/10 to-cyan-300/20 blur-xl pointer-events-none" />
-                        <div className="absolute inset-[18%] rounded-full border border-primary/20 pointer-events-none" />
-                        {/* @ts-ignore */}
-                        <lottie-player
-                          id="voice-orb-lottie"
-                          src="/ai animation Flow 1.json"
-                          background="transparent"
-                          speed="1"
-                          style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
-                          loop
-                          autoplay
-                        />
-
-                        {!isListening && (
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div className="w-12 h-12 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-white/20">
-                              <Mic size={24} className="text-primary" />
-                            </div>
-                          </div>
-                        )}
-
-                      </div>
-                    </button>
-
-                    {/* Transcript Box — prompt already includes live interim while listening */}
-                    <div className="w-full min-h-[2.5rem] max-h-[3.25rem] sm:max-h-[3.75rem] overflow-y-auto px-4 py-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center">
-                      {prompt.trim() ? (
-                        <p className="text-[13px] sm:text-sm font-medium text-slate-800 leading-relaxed break-words w-full text-center">
-                          {prompt}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-slate-400 italic text-center">
-                          {isListening ? (
-                            <span className="text-primary animate-pulse">● Listening... speak now</span>
-                          ) : 'Tap the orb to start speaking'}
-                        </p>
-                      )}
-                    </div>
-
-                    {speechError ? (
-                      <p className="text-[11px] text-red-600 font-medium text-center px-3 leading-snug max-w-md" role="alert">
-                        {speechError}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : activeMode === 'create' ? (
+                {activeMode === 'create' ? (
                   <div className="relative flex-1 flex flex-col">
                     <textarea
                       value={prompt}
@@ -865,9 +390,7 @@ export function HeroSection() {
                       placeholder="Describe your presentation topic..."
                       className="w-full flex-1 min-h-[7rem] sm:min-h-0 bg-transparent border-none focus:ring-0 focus:outline-none text-base sm:text-lg md:text-xl text-textMain placeholder:text-textMuted resize-none font-medium pr-11 sm:pr-10 pb-14 sm:pb-10"
                     />
-                    <button onClick={toggleListening} className={`absolute right-0 top-0 p-2 rounded-lg transition-all ${isListening ? 'text-primary bg-primary/10' : 'text-textMuted hover:bg-panel'}`}>
-                      {isListening ? <Mic size={20} className="animate-pulse" /> : <MicOff size={20} className="opacity-40" />}
-                    </button>
+
                     {prompt.trim() && (
                       <button
                         onClick={handleEnhancePrompt}
@@ -903,27 +426,6 @@ export function HeroSection() {
                 )}
               </div>
 
-              {/* ── SHARED ACTION CENTER (Centered only for Voice) ── */}
-              {activeMode === 'voice' && (
-                <div className="flex justify-center mt-3 sm:mt-5">
-                  <button
-                    onClick={handleGenerate}
-                    disabled={!prompt.trim() && !interimTranscript.trim()}
-                    className="group relative h-11 sm:h-12 px-8 sm:px-10 bg-primary text-white rounded-full text-[12px] sm:text-[13px] font-bold shadow-xl hover:bg-primaryHover hover:scale-[1.02] transition-all active:scale-95 flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none"
-                  >
-                    <motion.div
-                      animate={{ x: ['-100%', '100%'] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]"
-                    />
-                    <Sparkles size={16} className="relative z-10 group-hover:rotate-12 transition-transform" />
-                    <span className="relative z-10">Generate Presentation</span>
-                    <ArrowRight size={16} className="relative z-10 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </div>
-              )}
-
-              {/* ── BOTTOM BAR — stack on narrow screens so CTA never clips ── */}
               <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-panel flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0 w-full min-w-0">
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full sm:w-auto justify-between sm:justify-start">
                   <button type="button" onClick={() => fileInputRef.current?.click()} className="w-10 h-10 shrink-0 rounded-full border border-borderSubtle flex items-center justify-center text-textMuted hover:bg-hoverSurface transition-colors shadow-sm bg-white text-2xl font-light">+</button>
@@ -939,24 +441,22 @@ export function HeroSection() {
                   </div>
                 </div>
 
-                {activeMode !== 'voice' && (
-                  <button
-                    type="button"
-                    onClick={handleGenerate}
-                    disabled={activeMode === 'create' ? !prompt.trim() : !selectedFile}
-                    className="group relative w-full sm:w-auto min-h-11 px-5 sm:px-8 justify-center bg-primary text-white rounded-full text-[11px] sm:text-[12px] font-bold shadow-xl hover:bg-primaryHover hover:scale-[1.01] sm:hover:scale-[1.02] transition-all active:scale-[0.98] flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none shrink-0"
-                  >
-                    <motion.div
-                      animate={{ x: ['-100%', '100%'] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]"
-                    />
-                    <span className="relative z-10 truncate max-w-[16rem] sm:max-w-none">
-                      {activeMode === 'enhance' ? 'Enhance PPT' : 'Generate Presentation'}
-                    </span>
-                    <ArrowRight size={16} className="relative z-10 shrink-0 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={activeMode === 'create' ? !prompt.trim() : !selectedFile}
+                  className="group relative w-full sm:w-auto min-h-11 px-5 sm:px-8 justify-center bg-primary text-white rounded-full text-[11px] sm:text-[12px] font-bold shadow-xl hover:bg-primaryHover hover:scale-[1.01] sm:hover:scale-[1.02] transition-all active:scale-[0.98] flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none shrink-0"
+                >
+                  <motion.div
+                    animate={{ x: ['-100%', '100%'] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]"
+                  />
+                  <span className="relative z-10 truncate max-w-[16rem] sm:max-w-none">
+                    {activeMode === 'enhance' ? 'Enhance PPT' : 'Generate Presentation'}
+                  </span>
+                  <ArrowRight size={16} className="relative z-10 shrink-0 group-hover:translate-x-1 transition-transform" />
+                </button>
               </div>
             </div>
           </div>
