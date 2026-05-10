@@ -649,7 +649,6 @@ export function HeroSection() {
                 setPrompt("");
                 setInterimTranscript("");
                 accumulatedTextRef.current = '';
-                setTimeout(() => toggleListening(), 100);
               }}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'voice' ? 'bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)]' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
             >
