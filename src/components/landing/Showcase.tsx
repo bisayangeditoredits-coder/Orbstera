@@ -100,7 +100,7 @@ export function Showcase() {
             className="relative"
           >
             {/* Glow Background */}
-            <div className="absolute -inset-10 bg-primary/10 rounded-full blur-[80px] animate-pulse" />
+            <div className="absolute -inset-10 bg-primary/10 rounded-full blur-[80px] opacity-90" />
             
             <div className="relative aspect-[16/11] bg-white/40 backdrop-blur-3xl rounded-[2.5rem] border border-white p-1 shadow-[0_50px_100px_-20px_rgba(71,59,240,0.15)] overflow-hidden group">
                <div className="absolute inset-0 bg-gradient-to-br from-white/80 via-white/40 to-transparent" />

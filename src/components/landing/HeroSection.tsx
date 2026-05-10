@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
 export function HeroSection() {
@@ -16,14 +16,14 @@ export function HeroSection() {
   const [isListening, setIsListening] = useState(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
   const [interimTranscript, setInterimTranscript] = useState("");
-  const [orbScale, setOrbScale] = useState(1);      // updated at 15fps to drive orb animation
-  const [orbGlow, setOrbGlow] = useState(30);     // glow intensity
   const recognitionRef = useRef<any>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const orbVisualRef = useRef<HTMLDivElement>(null);
+  const isListeningRef = useRef(false);
   const volumeRef = useRef(0);
   const rafScaleRef = useRef<number | null>(null);
   // Tracks USER INTENT to listen (vs browser's internal stop/start lifecycle)
@@ -31,6 +31,22 @@ export function HeroSection() {
   // Accumulates finalized text across session restarts (onend → restart wipes event.results)
   const accumulatedTextRef = useRef('');
   const typeAudioCtxRef = useRef<AudioContext | null>(null);
+
+  const heroParticles = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, i) => {
+        const s = (i + 1) * 0.618033988749895;
+        return {
+          id: i,
+          x: `${((Math.sin(s) + 1) / 2) * 100}%`,
+          y: `${((Math.cos(s * 1.7) + 1) / 2) * 100}%`,
+          duration: 4 + (i % 5),
+          delay: ((i * 3) % 10) * 0.35,
+          baseOpacity: 0.25 + (i % 4) * 0.1,
+        };
+      }),
+    []
+  );
 
   const playTypingSound = () => {
     try {
@@ -161,18 +177,11 @@ export function HeroSection() {
       };
     }
 
-    // Load Lottie Player Script
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js';
-    script.async = true;
-    document.body.appendChild(script);
-
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
   }, []);
+
+  useEffect(() => {
+    isListeningRef.current = isListening;
+  }, [isListening]);
 
   const startAudioAnalysis = async () => {
     try {
@@ -223,23 +232,25 @@ export function HeroSection() {
       };
       drawFrame();
 
-      // ── Orb scale update loop (Faster update) ──────────
+      // ── Orb visuals via refs (avoids 60 React re-renders/sec) ──────────
       const updateScale = () => {
-        const v = volumeRef.current; // 0-255
-
-        // Map 0-255 to a healthy scale and glow
+        const v = volumeRef.current;
         const normalizedVol = v / 255;
-        setOrbScale(1 + normalizedVol * 0.8);
-        setOrbGlow(30 + normalizedVol * 150);
+        const el = orbVisualRef.current;
 
-        // Dynamically update Lottie speed
-        const lottie = document.getElementById('voice-orb-lottie') as any;
+        if (el && isListeningRef.current) {
+          const scale = 1 + normalizedVol * 0.8;
+          const glow = 30 + normalizedVol * 150;
+          el.style.transform = `scale(${scale})`;
+          el.style.filter = `drop-shadow(0 0 ${glow / 2}px rgba(71,59,240,0.4))`;
+        }
+
+        const lottie = document.getElementById('voice-orb-lottie') as { speed?: number } | null;
         if (lottie) {
-          // Force speed update via property
           lottie.speed = 1 + normalizedVol * 2.5;
         }
 
-        rafScaleRef.current = window.setTimeout(updateScale, 16); // ~60fps updates for smooth motion
+        rafScaleRef.current = window.setTimeout(updateScale, 32);
       };
       updateScale();
 
@@ -254,8 +265,11 @@ export function HeroSection() {
     if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
     if (audioContextRef.current) audioContextRef.current.close();
     volumeRef.current = 0;
-    setOrbScale(1);
-    setOrbGlow(30);
+    const el = orbVisualRef.current;
+    if (el) {
+      el.style.transform = 'scale(1)';
+      el.style.filter = 'none';
+    }
     // Clear canvas
     const canvas = canvasRef.current;
     if (canvas) canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
@@ -382,26 +396,26 @@ export function HeroSection() {
         </div>
 
         {/* Ambient Sparkle Particles (More Visible) */}
-        {[...Array(30)].map((_, i) => (
+        {heroParticles.map((p) => (
           <motion.div
-            key={i}
+            key={p.id}
             initial={{
-              x: Math.random() * 100 + "%",
-              y: Math.random() * 100 + "%",
-              opacity: Math.random() * 0.5
+              x: p.x,
+              y: p.y,
+              opacity: p.baseOpacity,
             }}
             animate={{
               y: [null, "-40px", "40px"],
-              opacity: [0.2, 0.7, 0.2],
-              scale: [1, 1.5, 1],
+              opacity: [0.2, 0.65, 0.2],
+              scale: [1, 1.45, 1],
             }}
             transition={{
-              duration: Math.random() * 4 + 4,
+              duration: p.duration,
               repeat: Infinity,
               ease: "easeInOut",
-              delay: Math.random() * 5,
+              delay: p.delay,
             }}
-            className="absolute w-1.5 h-1.5 rounded-full"
+            className="absolute w-1.5 h-1.5 rounded-full will-change-transform"
             style={{ background: 'radial-gradient(circle, rgba(71,59,240,0.8) 0%, transparent 80%)' }}
           />
         ))}
@@ -499,19 +513,17 @@ export function HeroSection() {
                         <motion.div
                           key={i}
                           initial={{ scale: 1, opacity: 0.6 }}
-                          animate={{ scale: 2.2 + i * 0.4 + (orbScale - 1) * 3, opacity: 0 }}
+                          animate={{ scale: 2.2 + i * 0.4, opacity: 0 }}
                           transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.5, ease: "easeOut" }}
-                          className="absolute rounded-full border border-primary/30"
+                          className="absolute rounded-full border border-primary/30 will-change-transform"
                           style={{ width: 140, height: 140, left: '50%', top: '50%', marginLeft: -70, marginTop: -70 }}
                         />
                       ))}
 
-                      <motion.div
-                        animate={{
-                          scale: isListening ? orbScale : 1,
-                          filter: isListening ? `drop-shadow(0 0 ${orbGlow / 2}px rgba(71,59,240,0.4))` : 'none'
-                        }}
-                        className="relative w-40 h-40 flex items-center justify-center"
+                      <div
+                        ref={orbVisualRef}
+                        className="relative w-40 h-40 flex items-center justify-center will-change-transform"
+                        style={{ transform: 'scale(1)', filter: 'none' }}
                       >
                         {/* @ts-ignore */}
                         <lottie-player
@@ -531,7 +543,7 @@ export function HeroSection() {
                             </div>
                           </div>
                         )}
-                      </motion.div>
+                      </div>
                     </div>
 
                     {/* Transcript Box */}

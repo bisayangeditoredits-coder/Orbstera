@@ -1,167 +1,56 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-import { Sparkles } from 'lucide-react';
-
-export function PageTransition({ children }: { children: React.RefNode }) {
+export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const reduceMotion = useReducedMotion();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Trigger a brief loading state on pathname change
   useEffect(() => {
-    // Inject Lottie Script
-    const scriptId = 'lottie-player-script';
-    if (!document.getElementById(scriptId)) {
-      const script = document.createElement('script');
-      script.id = scriptId;
-      script.src = 'https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js';
-      script.async = true;
-      document.body.appendChild(script);
-    }
-
+    if (reduceMotion) return;
     setIsLoading(true);
-    const timer = setTimeout(() => setIsLoading(false), 1200); // Slightly longer for cinematic effect
+    const timer = setTimeout(() => setIsLoading(false), 320);
     return () => clearTimeout(timer);
-  }, [pathname]);
+  }, [pathname, reduceMotion]);
 
   return (
     <>
-      {/* Global Progress Bar */}
       <AnimatePresence>
-        {isLoading && (
-          <>
-            <motion.div
-              initial={{ width: '0%' }}
-              animate={{ width: '85%' }}
-              exit={{ width: '100%' }}
-              transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
-              className="fixed top-0 left-0 h-[4px] bg-gradient-to-r from-primary via-purple-500 to-blue-400 z-[9999] shadow-[0_0_20px_rgba(59,130,246,0.6)]"
-            />
-            
-            {/* Professional AI Loading Overlay */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[9998] bg-white/98 flex flex-col items-center justify-center overflow-hidden"
-            >
-              {/* Background Ambient Glows (Optimized with radial gradients instead of CSS blurs) */}
-              <div className="absolute inset-0 z-0 opacity-40">
-                 <div className="absolute top-[20%] left-[15%] w-[600px] h-[600px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(71,59,240,0.1) 0%, transparent 70%)' }} />
-                 <div className="absolute bottom-[20%] right-[15%] w-[600px] h-[600px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.1) 0%, transparent 70%)' }} />
-              </div>
-
-              <motion.div
-                className="relative z-10 flex flex-col items-center"
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.1, duration: 0.6, ease: "easeOut" }}
-              >
-                {/* Robot Mascot Container */}
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ 
-                    type: "spring",
-                    stiffness: 260,
-                    damping: 20,
-                    delay: 0.2
-                  }}
-                  className="relative w-64 h-64 mb-4 flex items-center justify-center"
-                >
-                  {/* Outer Orbitals/Glow for the robot (Optimized without blur) */}
-                  <div className="absolute inset-[-20%] rounded-full animate-pulse" style={{ background: 'radial-gradient(circle, rgba(71,59,240,0.1) 0%, transparent 60%)' }} />
-                  
-                  {/* Swirling Dots Background Animation (Behind Robot) */}
-                  <div className="absolute inset-[-50%] z-0 flex items-center justify-center">
-                    {/* @ts-ignore */}
-                    <lottie-player
-                      src="/Dots Swirling 01.json"
-                      background="transparent"
-                      speed="1.2"
-                      style={{ width: '100%', height: '100%', opacity: 0.8, transform: 'scale(1.3)' }}
-                      loop
-                      autoplay
-                    />
-                  </div>
-                  
-                  {/* Main Robot Mascot */}
-                  <div className="relative z-10 w-full h-full">
-                    {/* @ts-ignore */}
-                    <lottie-player
-                      src="/robo (2).json"
-                      background="transparent"
-                      speed="1"
-                      style={{ width: '100%', height: '100%' }}
-                      loop
-                      autoplay
-                    />
-                  </div>
-                </motion.div>
-
-                {/* Staggered Text Reveal */}
-                <div className="flex flex-col items-center gap-4">
-                  <motion.div className="overflow-hidden h-10">
-                    <motion.span 
-                      initial={{ y: 40 }}
-                      animate={{ y: 0 }}
-                      transition={{ delay: 0.4, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                      className="block text-[28px] font-black text-black tracking-[0.3em] uppercase"
-                    >
-                      Orbstera
-                    </motion.span>
-                  </motion.div>
-                  
-                  <motion.div
-                    initial={{ scaleX: 0 }}
-                    animate={{ scaleX: 1 }}
-                    transition={{ delay: 0.6, duration: 1 }}
-                    className="w-24 h-[3px] bg-gradient-to-r from-transparent via-primary to-transparent rounded-full"
-                  />
-
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 0.6 }}
-                    transition={{ delay: 0.8 }}
-                    className="flex flex-col items-center gap-2"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-[11px] font-bold text-black tracking-[0.5em] uppercase">Intelligence Node 4.0</span>
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
-                    </div>
-                    <span className="text-[10px] font-medium text-black/40 tracking-[0.2em] uppercase italic">Initializing neural pathways...</span>
-                  </motion.div>
-                </div>
-              </motion.div>
-            </motion.div>
-          </>
+        {isLoading && !reduceMotion && (
+          <motion.div
+            initial={{ width: '0%', opacity: 0.9 }}
+            animate={{ width: '100%', opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ width: { duration: 0.35, ease: [0.22, 1, 0.36, 1] }, opacity: { duration: 0.15 } }}
+            className="fixed top-0 left-0 h-[3px] bg-gradient-to-r from-primary via-purple-500 to-blue-400 z-[9999] shadow-[0_0_12px_rgba(59,130,246,0.35)] origin-left"
+          />
         )}
       </AnimatePresence>
 
-      {/* Global Loading Overlay */}
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={pathname}
-          initial={{ opacity: 0, y: 10 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="flex-1 flex flex-col"
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+          className="flex-1 flex flex-col min-h-0"
         >
           {children}
         </motion.div>
       </AnimatePresence>
 
-      {/* Initial Page Load Flash (Pure White) */}
-      <motion.div
-        initial={{ opacity: 1 }}
-        animate={{ opacity: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        className="fixed inset-0 bg-white z-[10000] pointer-events-none"
-      />
+      {!reduceMotion && (
+        <motion.div
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 0.35, delay: 0.05 }}
+          className="fixed inset-0 bg-white z-[10000] pointer-events-none"
+        />
+      )}
     </>
   );
 }

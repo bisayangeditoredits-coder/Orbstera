@@ -2,8 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Google Fonts ── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+/* Inter / Space Grotesk are loaded via next/font in layout.tsx */
 
 :root {
   --font-inter: 'Inter', sans-serif;
@@ -13,7 +12,8 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 html {
-  scroll-behavior: smooth;
+  /* Lenis handles smooth scrolling; native smooth fights the scroll proxy and feels janky */
+  scroll-behavior: auto;
   overflow-x: clip;
   /* Fluid root sizing — subtle scaling between phone and desktop */
   font-size: clamp(15px, 0.875rem + 0.35vw, 16px);
