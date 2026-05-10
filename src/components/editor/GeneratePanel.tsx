@@ -8,10 +8,12 @@ import { usePresentationStore } from '@/store/usePresentationStore';
 import { PresentationData } from '@/types';
 import { normalizePresentationPayload } from '@/lib/ai/orchestration';
 import { extractJsonObject } from '@/lib/ai/openrouter';
+import { createEditorSpeechRecognition, resolveEditorSpeechLang } from '@/lib/editor-speech';
+import { VoiceOrb } from '@/components/editor/VoiceOrb';
 import {
   Sparkles, X, ChevronDown, Loader2, Wand2,
   Zap, Gauge, Crown, Globe, ArrowRight,
-  Save, Trash2, Download, AlertCircle, Plus
+  Save, Trash2, Download, AlertCircle, Plus, Mic, MicOff
 } from 'lucide-react';
 
 interface GeneratePanelProps {
@@ -114,6 +116,82 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const isCreatorPro = userPlan === 'creator_pro';
   // Plan-based max slides (mirrors server MAX_SLIDES)
   const maxSlidesForPlan = isCreatorPro ? 40 : isPaid ? 25 : 5;
+
+  // ── Voice Protocol (Web Speech API — same robustness as homepage) ──
+  const [isListening, setIsListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const recognitionRef = useRef<any>(null);
+  const shouldBeListeningRef = useRef(false);
+  const speechLangRef = useRef(resolveEditorSpeechLang());
+
+  const ensureVoiceRecognition = () => {
+    if (recognitionRef.current) return recognitionRef.current;
+    recognitionRef.current = createEditorSpeechRecognition({
+      shouldBeListeningRef,
+      speechLangRef,
+      onTranscript: (text) => {
+        setVoiceTranscript(text);
+        setPrompt(text);
+      },
+      onListeningEnd: () => setIsListening(false),
+      onErrorMessage: (msg) => {
+        setError(msg);
+        setTimeout(() => setError(''), 5500);
+      },
+    });
+    return recognitionRef.current;
+  };
+
+  useEffect(() => {
+    return () => {
+      shouldBeListeningRef.current = false;
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        /* noop */
+      }
+      recognitionRef.current = null;
+    };
+  }, []);
+
+  const toggleVoice = () => {
+    if (isListening) {
+      shouldBeListeningRef.current = false;
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        /* noop */
+      }
+      setIsListening(false);
+      return;
+    }
+
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      setError('Voice needs HTTPS or localhost.');
+      setTimeout(() => setError(''), 5000);
+      return;
+    }
+
+    const rec = ensureVoiceRecognition();
+    if (!rec) {
+      setError('Voice not supported in this browser. Try Chrome or Edge.');
+      setTimeout(() => setError(''), 5000);
+      return;
+    }
+
+    shouldBeListeningRef.current = true;
+    speechLangRef.current = resolveEditorSpeechLang();
+    try {
+      rec.lang = speechLangRef.current;
+      rec.start();
+      setIsListening(true);
+    } catch {
+      shouldBeListeningRef.current = false;
+      setIsListening(false);
+      setError('Could not start voice input. Check microphone permission.');
+      setTimeout(() => setError(''), 5000);
+    }
+  };
 
   const [activeTab, setActiveTab] = useState<'create' | 'enhance'>('create');
   const [expandIntel, setExpandIntel] = useState(true);
@@ -647,15 +725,25 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.16em]">Your Vision</label>
+                <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-primary/80 uppercase tracking-[0.12em]">
+                  <Mic size={11} strokeWidth={1.75} className="opacity-80" aria-hidden />
+                  Voice input
+                </span>
               </div>
               <div className="animated-border shadow-[0_24px_48px_-20px_rgba(59,130,246,0.22)]">
                 <div className="bg-white p-4 flex flex-col min-h-[112px] transition-all rounded-[22px] relative overflow-hidden">
+                  {/* ✨ Voice Orb overlay — replaces textarea while listening */}
+                  <VoiceOrb
+                    isListening={isListening}
+                    transcript={voiceTranscript}
+                    onStop={toggleVoice}
+                  />
                   <textarea
                     ref={textareaRef}
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Describe your presentation topic..."
+                    placeholder={isListening ? '🎤 Listening... speak your vision' : 'Describe your presentation topic...'}
                     className="w-full flex-1 bg-transparent text-[16px] text-neutral-900 placeholder:text-neutral-300 resize-none focus:outline-none font-medium leading-relaxed min-h-[4.5rem]"
                   />
 
@@ -668,6 +756,19 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                         title="Attach reference"
                       >
                         <Plus size={17} strokeWidth={1.75} className="group-hover:rotate-90 transition-transform duration-200" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={toggleVoice}
+                        title={isListening ? 'Stop listening' : 'Voice input'}
+                        className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
+                          isListening
+                            ? 'bg-red-50 border-red-200/80 text-red-600 ring-2 ring-red-100'
+                            : 'bg-neutral-50 border-black/[0.07] text-neutral-500 hover:text-primary hover:bg-primary/[0.06] hover:border-primary/25'
+                        }`}
+                      >
+                        {isListening ? <MicOff size={17} strokeWidth={1.75} /> : <Mic size={17} strokeWidth={1.75} />}
                       </button>
 
                       {selectedFile && (
