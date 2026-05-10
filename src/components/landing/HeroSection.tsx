@@ -510,6 +510,7 @@ export function HeroSection() {
         } catch {
           /* noop */
         }
+        
         // Grant mic first — avoids fights between Web Speech and getUserMedia on many Chromium/Android builds
         shouldBeListeningRef.current = true;
         rec.start();

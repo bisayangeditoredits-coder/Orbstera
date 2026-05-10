@@ -107,76 +107,153 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
 
       // ── HERO SLIDE ────────────────────────────────────────────────────────
       if (isHero) {
-        if (slide.title) {
-          elements.push({
-            id: uid('el-title'), type: 'text', x: 80, y: 240, width: CANVAS_W - 160, height: 200, content: slide.title, zIndex: currentZ++, visible: true,
-            textStyle: { fontFamily: headingFont, fontSize: 72, fontWeight: 'bold', color: palette[1], textAlign: 'center', lineHeight: 1.15 },
-            animation: { entrance: 'fadeSlideUp', duration: 800, delay: 0 },
-          });
-        }
-        if (slide.subtitle) {
-          elements.push({
-            id: uid('el-sub'), type: 'text', x: 200, y: 460, width: CANVAS_W - 400, height: 80, content: slide.subtitle, zIndex: currentZ++, visible: true,
-            textStyle: { fontFamily: bodyFont, fontSize: 26, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'center', lineHeight: 1.5 },
-            animation: { entrance: 'fadeSlideUp', duration: 800, delay: 200 },
-          });
-        }
         if (slide.imagePrompt) {
           const bgId = uid('el-bg-image');
           elements.unshift({
-            id: bgId, type: 'image', src: '', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: 0, visible: true, opacity: 0.12,
+            id: bgId, type: 'image', src: '', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: 0, visible: true, opacity: 0.35,
             animation: { entrance: 'fadeIn', duration: 1500, delay: 0 },
           });
           imageTasks.push({ slideId: slide.id, elementId: bgId, prompt: slide.imagePrompt, w: 1280, h: 720 });
         }
-      } else if (isSplit) {
+        
+        // Add a sleek dark gradient overlay for text readability
+        elements.push({
+          id: uid('el-hero-overlay'), type: 'shape', shapeType: 'rect', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: currentZ++, visible: true,
+          shapeStyle: { fill: 'rgba(5, 5, 10, 0.65)', stroke: 'transparent', strokeWidth: 0 },
+          animation: { entrance: 'fadeIn', duration: 1000, delay: 0 }
+        });
+
         if (slide.title) {
           elements.push({
-            id: uid('el-title'), type: 'text', x: 60, y: 80, width: 580, height: 160, content: slide.title, zIndex: currentZ++, visible: true,
-            textStyle: { fontFamily: headingFont, fontSize: 52, fontWeight: 'bold', color: palette[1], textAlign: 'left', lineHeight: 1.2 },
-            animation: { entrance: 'fadeSlideLeft', duration: 600, delay: 0 },
+            id: uid('el-title'), type: 'text', x: 80, y: CANVAS_H / 2 - 80, width: CANVAS_W - 160, height: 160, content: slide.title, zIndex: currentZ++, visible: true,
+            textStyle: { fontFamily: headingFont, fontSize: 84, fontWeight: 'bold', color: palette[1], textAlign: 'center', lineHeight: 1.1 },
+            animation: { entrance: 'fadeSlideUp', duration: 800, delay: 100 },
+          });
+        }
+        if (slide.subtitle) {
+          elements.push({
+            id: uid('el-sub'), type: 'text', x: 200, y: CANVAS_H / 2 + 80, width: CANVAS_W - 400, height: 80, content: slide.subtitle, zIndex: currentZ++, visible: true,
+            textStyle: { fontFamily: bodyFont, fontSize: 28, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'center', lineHeight: 1.5, letterSpacing: 1.5 },
+            animation: { entrance: 'fadeSlideUp', duration: 800, delay: 300 },
+          });
+        }
+      } else if (isSplit) {
+        // High-Fidelity Split Layout (Bento Style)
+        elements.push({
+          id: uid('el-split-bg-left'), type: 'shape', shapeType: 'rect', x: 40, y: 40, width: 620, height: CANVAS_H - 80, zIndex: currentZ++, visible: true,
+          shapeStyle: { fill: 'rgba(255, 255, 255, 0.02)', stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 1, cornerRadius: 24, shadowColor: 'rgba(0,0,0,0.3)', shadowBlur: 30 },
+          animation: { entrance: 'fadeSlideLeft', duration: 600, delay: 0 }
+        });
+
+        if (slide.title) {
+          elements.push({
+            id: uid('el-title'), type: 'text', x: 80, y: 80, width: 540, height: 120, content: slide.title, zIndex: currentZ++, visible: true,
+            textStyle: { fontFamily: headingFont, fontSize: 46, fontWeight: 'bold', color: palette[1], textAlign: 'left', lineHeight: 1.2 },
+            animation: { entrance: 'fadeSlideLeft', duration: 600, delay: 100 },
+          });
+          // Subtle accent line under title
+          elements.push({
+            id: uid('el-accent'), type: 'shape', shapeType: 'rect', x: 80, y: 190, width: 60, height: 4, zIndex: currentZ++, visible: true,
+            shapeStyle: { fill: palette[2] || '#38BDF8', stroke: 'transparent', cornerRadius: 2 },
+            animation: { entrance: 'reveal', duration: 500, delay: 200 }
           });
         }
         if (mergedB.length > 0) {
           mergedB.slice(0, 5).forEach((bullet, i) => {
+            // Bento style bullet points
             elements.push({
-              id: uid(`el-bullet-${i}`), type: 'text', x: 60, y: 260 + (i * 72), width: 580, height: 66, content: `• ${bullet}`, zIndex: currentZ++, visible: true,
-              textStyle: { fontFamily: bodyFont, fontSize: 22, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'left', lineHeight: 1.4 },
-              animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 300 + (i * 100) },
+              id: uid(`el-bullet-bg-${i}`), type: 'shape', shapeType: 'rect', x: 80, y: 240 + (i * 80), width: 540, height: 64, zIndex: currentZ++, visible: true,
+              shapeStyle: { fill: 'rgba(255, 255, 255, 0.03)', cornerRadius: 12 },
+              animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 300 + (i * 80) }
+            });
+            elements.push({
+              id: uid(`el-bullet-${i}`), type: 'text', x: 100, y: 258 + (i * 80), width: 500, height: 64, content: bullet.replace(/^•\s*/, ''), zIndex: currentZ++, visible: true,
+              textStyle: { fontFamily: bodyFont, fontSize: 20, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'left', lineHeight: 1.4 },
+              animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 350 + (i * 80) },
             });
           });
         }
         const imgId = uid('el-image');
-        elements.push({ id: imgId, type: 'image', src: '', x: 700, y: 60, width: 520, height: 600, zIndex: currentZ++, visible: true, animation: { entrance: 'zoomIn', duration: 800, delay: 400 } });
+        // Image on right with sleek border radius
+        elements.push({
+          id: uid('el-split-bg-right'), type: 'shape', shapeType: 'rect', x: 680, y: 40, width: 560, height: CANVAS_H - 80, zIndex: currentZ++, visible: true,
+          shapeStyle: { fill: 'rgba(255, 255, 255, 0.02)', stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 1, cornerRadius: 24 },
+          animation: { entrance: 'fadeSlideRight', duration: 600, delay: 0 }
+        });
+        elements.push({ id: imgId, type: 'image', src: '', x: 700, y: 60, width: 520, height: CANVAS_H - 120, zIndex: currentZ++, visible: true, animation: { entrance: 'zoomIn', duration: 800, delay: 400 } });
         if (slide.imagePrompt) {
           imageTasks.push({ slideId: slide.id, elementId: imgId, prompt: slide.imagePrompt, w: 800, h: 900 });
         }
       } else if (isQuote) {
+        // High-end editorial quote layout
+        elements.push({
+          id: uid('el-quote-bg'), type: 'shape', shapeType: 'rect', x: 80, y: 100, width: CANVAS_W - 160, height: CANVAS_H - 200, zIndex: currentZ++, visible: true,
+          shapeStyle: { fill: 'rgba(255, 255, 255, 0.03)', stroke: 'rgba(255, 255, 255, 0.06)', strokeWidth: 1, cornerRadius: 32 },
+          animation: { entrance: 'zoomIn', duration: 800, delay: 0 }
+        });
+        elements.push({
+          id: uid('el-quote-mark'), type: 'text', x: 120, y: 80, width: CANVAS_W - 240, height: 100, content: '"', zIndex: currentZ++, visible: true,
+          textStyle: { fontFamily: headingFont, fontSize: 160, fontWeight: 'bold', color: palette[2] || '#38BDF8', textAlign: 'center', opacity: 0.3 },
+          animation: { entrance: 'fadeIn', duration: 1000, delay: 200 }
+        });
         if (slide.title) {
-          elements.push({ id: uid('el-quote'), type: 'text', x: 120, y: 180, width: CANVAS_W - 240, height: 280, content: `"${slide.title}"`, zIndex: currentZ++, visible: true,
-            textStyle: { fontFamily: headingFont, fontSize: 56, fontWeight: 'normal', fontStyle: 'italic', color: palette[1], textAlign: 'center', lineHeight: 1.35 },
-            animation: { entrance: 'fadeIn', duration: 1000, delay: 100 },
+          elements.push({ id: uid('el-quote'), type: 'text', x: 140, y: 220, width: CANVAS_W - 280, height: 240, content: slide.title, zIndex: currentZ++, visible: true,
+            textStyle: { fontFamily: headingFont, fontSize: 52, fontWeight: 'normal', fontStyle: 'italic', color: palette[1], textAlign: 'center', lineHeight: 1.35 },
+            animation: { entrance: 'fadeIn', duration: 1000, delay: 300 },
           });
         }
         if (slide.subtitle) {
-          elements.push({ id: uid('el-author'), type: 'text', x: 120, y: 490, width: CANVAS_W - 240, height: 60, content: `— ${slide.subtitle}`, zIndex: currentZ++, visible: true,
-            textStyle: { fontFamily: bodyFont, fontSize: 24, fontWeight: 'bold', color: palette[2], textAlign: 'center', lineHeight: 1.2 },
+          elements.push({ id: uid('el-author'), type: 'text', x: 140, y: 480, width: CANVAS_W - 280, height: 60, content: `— ${slide.subtitle}`, zIndex: currentZ++, visible: true,
+            textStyle: { fontFamily: bodyFont, fontSize: 24, fontWeight: 'bold', color: palette[2], textAlign: 'center', lineHeight: 1.2, letterSpacing: 2 },
             animation: { entrance: 'fadeIn', duration: 1000, delay: 500 },
           });
         }
       } else {
+        // CONTENT BENTO GRID LAYOUT
         if (slide.title) {
-          elements.push({ id: uid('el-title'), type: 'text', x: 60, y: 55, width: CANVAS_W - 120, height: 100, content: slide.title, zIndex: currentZ++, visible: true,
-            textStyle: { fontFamily: headingFont, fontSize: 48, fontWeight: 'bold', color: palette[1], textAlign: 'left', lineHeight: 1.2 },
-            animation: { entrance: 'fadeSlideUp', duration: 600, delay: 0 },
+          elements.push({
+            id: uid('el-title-bg'), type: 'shape', shapeType: 'rect', x: 40, y: 40, width: CANVAS_W - 80, height: 100, zIndex: currentZ++, visible: true,
+            shapeStyle: { fill: 'rgba(255, 255, 255, 0.02)', stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 1, cornerRadius: 20 },
+            animation: { entrance: 'fadeSlideUp', duration: 500, delay: 0 }
+          });
+          elements.push({ id: uid('el-title'), type: 'text', x: 80, y: 65, width: CANVAS_W - 160, height: 80, content: slide.title, zIndex: currentZ++, visible: true,
+            textStyle: { fontFamily: headingFont, fontSize: 42, fontWeight: 'bold', color: palette[1], textAlign: 'left', lineHeight: 1.2 },
+            animation: { entrance: 'fadeSlideUp', duration: 600, delay: 100 },
           });
         }
-        elements.push({ id: uid('el-divider'), type: 'shape', shapeType: 'rect', x: 60, y: 165, width: 80, height: 4, zIndex: currentZ++, visible: true, shapeStyle: { fill: palette[2] || '#7B61FF', stroke: 'transparent', strokeWidth: 0 }, animation: { entrance: 'reveal', duration: 400, delay: 200 } });
+        
         if (mergedB.length > 0) {
+          const numBullets = Math.min(mergedB.length, 6);
+          const isGrid = numBullets > 3;
+          const cols = isGrid ? 2 : 1;
+          const boxWidth = isGrid ? (CANVAS_W - 120) / 2 : CANVAS_W - 80;
+          const boxHeight = isGrid ? (CANVAS_H - 220) / Math.ceil(numBullets / 2) : 90;
+          const startY = 160;
+
           mergedB.slice(0, 6).forEach((bullet, i) => {
-            elements.push({ id: uid(`el-bullet-${i}`), type: 'text', x: 60, y: 195 + (i * 72), width: CANVAS_W - 120, height: 66, content: `• ${bullet}`, zIndex: currentZ++, visible: true,
-              textStyle: { fontFamily: bodyFont, fontSize: 24, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'left', lineHeight: 1.4 },
-              animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 250 + (i * 80) },
+            const col = isGrid ? i % 2 : 0;
+            const row = isGrid ? Math.floor(i / 2) : i;
+            const x = 40 + (col * (boxWidth + 40));
+            const y = startY + (row * (boxHeight + 20));
+
+            // Bento Box Cell
+            elements.push({
+              id: uid(`el-bullet-bg-${i}`), type: 'shape', shapeType: 'rect', x, y, width: boxWidth, height: boxHeight, zIndex: currentZ++, visible: true,
+              shapeStyle: { fill: 'rgba(255, 255, 255, 0.03)', stroke: 'rgba(255, 255, 255, 0.06)', strokeWidth: 1, cornerRadius: 16 },
+              animation: { entrance: 'zoomIn', duration: 500, delay: 200 + (i * 100) }
+            });
+            
+            // Minimal dot
+            elements.push({
+              id: uid(`el-bullet-dot-${i}`), type: 'shape', shapeType: 'circle', x: x + 24, y: y + 24, width: 8, height: 8, zIndex: currentZ++, visible: true,
+              shapeStyle: { fill: palette[2] || '#38BDF8' },
+              animation: { entrance: 'fadeIn', duration: 400, delay: 300 + (i * 100) }
+            });
+
+            // Clean Text
+            elements.push({ id: uid(`el-bullet-${i}`), type: 'text', x: x + 48, y: y + 18, width: boxWidth - 64, height: boxHeight - 36, content: bullet.replace(/^•\s*/, ''), zIndex: currentZ++, visible: true,
+              textStyle: { fontFamily: bodyFont, fontSize: isGrid ? 18 : 22, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'left', lineHeight: 1.5 },
+              animation: { entrance: 'fadeIn', duration: 500, delay: 350 + (i * 100) },
             });
           });
         }
@@ -467,13 +544,33 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     const isQuote = slideData.type === 'quote';
 
     if (isHero) {
-      if (slideData.title) elements.push({ id: uid('el-title'), type: 'text', x: 80, y: 240, width: CANVAS_W-160, height: 200, content: slideData.title, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 72, fontWeight: 'bold', color: palette[1], textAlign: 'center', lineHeight: 1.15 }, animation: { entrance: 'fadeSlideUp', duration: 800 } });
-      if (slideData.subtitle) elements.push({ id: uid('el-sub'), type: 'text', x: 200, y: 460, width: CANVAS_W-400, height: 80, content: slideData.subtitle, zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 26, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'center', lineHeight: 1.5 }, animation: { entrance: 'fadeSlideUp', duration: 800, delay: 200 } });
+        if (slideData.imagePrompt) {
+          const bgId = uid('el-bg-image');
+          elements.unshift({ id: bgId, type: 'image', src: '', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: 0, visible: true, opacity: 0.35, animation: { entrance: 'fadeIn', duration: 1500, delay: 0 } });
+          (async () => {
+            try {
+              const res = await fetch('/api/generate-image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: slideData.imagePrompt, width: 1280, height: 720 }) });
+              const json = await res.json();
+              if (json.url) get().updateElement(slideData.id, bgId, { src: json.url });
+            } catch (e) {}
+          })();
+        }
+        elements.push({ id: uid('el-hero-overlay'), type: 'shape', shapeType: 'rect', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(5, 5, 10, 0.65)', stroke: 'transparent', strokeWidth: 0 }, animation: { entrance: 'fadeIn', duration: 1000 } });
+        if (slideData.title) elements.push({ id: uid('el-title'), type: 'text', x: 80, y: CANVAS_H / 2 - 80, width: CANVAS_W-160, height: 160, content: slideData.title, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 84, fontWeight: 'bold', color: palette[1], textAlign: 'center', lineHeight: 1.1 }, animation: { entrance: 'fadeSlideUp', duration: 800 } });
+        if (slideData.subtitle) elements.push({ id: uid('el-sub'), type: 'text', x: 200, y: CANVAS_H / 2 + 80, width: CANVAS_W-400, height: 80, content: slideData.subtitle, zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 28, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'center', lineHeight: 1.5, letterSpacing: 1.5 }, animation: { entrance: 'fadeSlideUp', duration: 800, delay: 200 } });
     } else if (isSplit) {
-      if (slideData.title) elements.push({ id: uid('el-title'), type: 'text', x: 60, y: 80, width: 580, height: 160, content: slideData.title, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 52, fontWeight: 'bold', color: palette[1], textAlign: 'left', lineHeight: 1.2 }, animation: { entrance: 'fadeSlideLeft', duration: 600 } });
-      if (slideForLayout.bullets) slideForLayout.bullets!.slice(0, 5).forEach((b, i) => elements.push({ id: uid(`el-bullet-${i}`), type: 'text', x: 60, y: 260 + (i * 72), width: 580, height: 66, content: `• ${b}`, zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 22, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'left', lineHeight: 1.4 }, animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 300 + (i * 100) } }));
+      elements.push({ id: uid('el-split-bg-left'), type: 'shape', shapeType: 'rect', x: 40, y: 40, width: 620, height: CANVAS_H - 80, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.02)', stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 1, cornerRadius: 24, shadowColor: 'rgba(0,0,0,0.3)', shadowBlur: 30 }, animation: { entrance: 'fadeSlideLeft', duration: 600 } });
+      if (slideData.title) {
+        elements.push({ id: uid('el-title'), type: 'text', x: 80, y: 80, width: 540, height: 120, content: slideData.title, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 46, fontWeight: 'bold', color: palette[1], textAlign: 'left', lineHeight: 1.2 }, animation: { entrance: 'fadeSlideLeft', duration: 600 } });
+        elements.push({ id: uid('el-accent'), type: 'shape', shapeType: 'rect', x: 80, y: 190, width: 60, height: 4, zIndex: currentZ++, visible: true, shapeStyle: { fill: palette[2] || '#38BDF8', stroke: 'transparent', cornerRadius: 2 }, animation: { entrance: 'reveal', duration: 500, delay: 200 } });
+      }
+      if (slideForLayout.bullets) slideForLayout.bullets!.slice(0, 5).forEach((b, i) => {
+        elements.push({ id: uid(`el-bullet-bg-${i}`), type: 'shape', shapeType: 'rect', x: 80, y: 240 + (i * 80), width: 540, height: 64, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.03)', cornerRadius: 12 }, animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 300 + (i * 80) } });
+        elements.push({ id: uid(`el-bullet-${i}`), type: 'text', x: 100, y: 258 + (i * 80), width: 500, height: 64, content: b.replace(/^•\s*/, ''), zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 20, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'left', lineHeight: 1.4 }, animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 350 + (i * 80) } });
+      });
+      elements.push({ id: uid('el-split-bg-right'), type: 'shape', shapeType: 'rect', x: 680, y: 40, width: 560, height: CANVAS_H - 80, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.02)', stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 1, cornerRadius: 24 }, animation: { entrance: 'fadeSlideRight', duration: 600 } });
       const imgId = uid('el-image');
-      elements.push({ id: imgId, type: 'image', src: '', x: 700, y: 60, width: 520, height: 600, zIndex: currentZ++, visible: true, animation: { entrance: 'zoomIn', duration: 800, delay: 400 } });
+      elements.push({ id: imgId, type: 'image', src: '', x: 700, y: 60, width: 520, height: CANVAS_H - 120, zIndex: currentZ++, visible: true, animation: { entrance: 'zoomIn', duration: 800, delay: 400 } });
       if (slideData.imagePrompt) {
         (async () => {
           try {
@@ -484,10 +581,33 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         })();
       }
     } else if (isQuote) {
-      elements.push({ id: uid('el-quote'), type: 'text', x: 120, y: 220, width: CANVAS_W-240, height: 200, content: `"${slideData.title}"`, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 48, fontWeight: 'normal', fontStyle: 'italic', color: palette[1], textAlign: 'center', lineHeight: 1.3 }, animation: { entrance: 'fadeIn', duration: 800 } });
+      elements.push({ id: uid('el-quote-bg'), type: 'shape', shapeType: 'rect', x: 80, y: 100, width: CANVAS_W - 160, height: CANVAS_H - 200, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.03)', stroke: 'rgba(255, 255, 255, 0.06)', strokeWidth: 1, cornerRadius: 32 }, animation: { entrance: 'zoomIn', duration: 800 } });
+      elements.push({ id: uid('el-quote-mark'), type: 'text', x: 120, y: 80, width: CANVAS_W - 240, height: 100, content: '"', zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 160, fontWeight: 'bold', color: palette[2] || '#38BDF8', textAlign: 'center', opacity: 0.3 }, animation: { entrance: 'fadeIn', duration: 1000 } });
+      elements.push({ id: uid('el-quote'), type: 'text', x: 140, y: 220, width: CANVAS_W-280, height: 240, content: slideData.title || '', zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 52, fontWeight: 'normal', fontStyle: 'italic', color: palette[1], textAlign: 'center', lineHeight: 1.35 }, animation: { entrance: 'fadeIn', duration: 800, delay: 100 } });
+      if (slideData.subtitle) elements.push({ id: uid('el-author'), type: 'text', x: 140, y: 480, width: CANVAS_W-280, height: 60, content: `— ${slideData.subtitle}`, zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 24, fontWeight: 'bold', color: palette[2], textAlign: 'center', lineHeight: 1.2, letterSpacing: 2 }, animation: { entrance: 'fadeIn', duration: 800, delay: 300 } });
     } else {
-      if (slideData.title) elements.push({ id: uid('el-title'), type: 'text', x: 80, y: 60, width: CANVAS_W-160, height: 100, content: slideData.title, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 42, fontWeight: 'bold', color: palette[1], textAlign: 'center', lineHeight: 1.2 }, animation: { entrance: 'fadeSlideUp', duration: 600 } });
-      if (slideForLayout.bullets) slideForLayout.bullets!.forEach((b, i) => elements.push({ id: uid(`el-b-${i}`), type: 'text', x: 120, y: 180 + (i * 60), width: CANVAS_W-240, height: 50, content: `• ${b}`, zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 20, fontWeight: 'normal', color: palette[1], textAlign: 'left', lineHeight: 1.4 }, animation: { entrance: 'fadeSlideUp', duration: 500, delay: 200 + (i * 50) } }));
+      // CONTENT BENTO GRID
+      if (slideData.title) {
+        elements.push({ id: uid('el-title-bg'), type: 'shape', shapeType: 'rect', x: 40, y: 40, width: CANVAS_W - 80, height: 100, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.02)', stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 1, cornerRadius: 20 }, animation: { entrance: 'fadeSlideUp', duration: 500 } });
+        elements.push({ id: uid('el-title'), type: 'text', x: 80, y: 65, width: CANVAS_W-160, height: 80, content: slideData.title, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 42, fontWeight: 'bold', color: palette[1], textAlign: 'left', lineHeight: 1.2 }, animation: { entrance: 'fadeSlideUp', duration: 600, delay: 100 } });
+      }
+      if (slideForLayout.bullets) {
+        const numBullets = Math.min(slideForLayout.bullets.length, 6);
+        const isGrid = numBullets > 3;
+        const boxWidth = isGrid ? (CANVAS_W - 120) / 2 : CANVAS_W - 80;
+        const boxHeight = isGrid ? (CANVAS_H - 220) / Math.ceil(numBullets / 2) : 90;
+        
+        slideForLayout.bullets.slice(0, 6).forEach((b, i) => {
+          const col = isGrid ? i % 2 : 0;
+          const row = isGrid ? Math.floor(i / 2) : i;
+          const x = 40 + (col * (boxWidth + 40));
+          const y = 160 + (row * (boxHeight + 20));
+          
+          elements.push({ id: uid(`el-bullet-bg-${i}`), type: 'shape', shapeType: 'rect', x, y, width: boxWidth, height: boxHeight, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.03)', stroke: 'rgba(255, 255, 255, 0.06)', strokeWidth: 1, cornerRadius: 16 }, animation: { entrance: 'zoomIn', duration: 500, delay: 200 + (i * 100) } });
+          elements.push({ id: uid(`el-bullet-dot-${i}`), type: 'shape', shapeType: 'circle', x: x + 24, y: y + 24, width: 8, height: 8, zIndex: currentZ++, visible: true, shapeStyle: { fill: palette[2] || '#38BDF8' }, animation: { entrance: 'fadeIn', duration: 400, delay: 300 + (i * 100) } });
+          elements.push({ id: uid(`el-b-${i}`), type: 'text', x: x + 48, y: y + 18, width: boxWidth - 64, height: boxHeight - 36, content: b.replace(/^•\s*/, ''), zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: isGrid ? 18 : 22, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'left', lineHeight: 1.5 }, animation: { entrance: 'fadeIn', duration: 500, delay: 350 + (i * 100) } });
+        });
+      }
     }
 
     const rawSlide: Slide = {
