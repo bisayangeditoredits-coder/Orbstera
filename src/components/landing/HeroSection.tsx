@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Script from 'next/script';
 
 export function HeroSection() {
   const [prompt, setPrompt] = useState("");
@@ -684,7 +685,7 @@ export function HeroSection() {
           transition={{ duration: 1, delay: 0.5 }}
           className="w-full max-w-[1400px] rounded-2xl border border-borderSubtle bg-white p-2 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.12)] group overflow-hidden"
         >
-          <div className="aspect-[16/10] w-full rounded-xl bg-panel border border-borderSubtle overflow-hidden relative flex flex-col">
+          <div className="w-full rounded-xl bg-panel border border-borderSubtle overflow-hidden relative flex flex-col">
             {/* 1. Top Navigation Bar (High-Fidelity) */}
             <div className="h-12 border-b border-borderSubtle bg-white flex items-center justify-between px-4 z-30">
               <div className="flex items-center gap-4">
@@ -720,15 +721,16 @@ export function HeroSection() {
             </div>
 
             <div 
-              className="flex-1 w-full bg-black relative overflow-hidden group"
+              className="w-full aspect-video bg-black relative overflow-hidden group"
               style={{ transform: 'translateZ(0)', willChange: 'transform' }}
             >
               <iframe 
-                src="https://player.vimeo.com/video/1190814974?autoplay=1&muted=1&loop=1&badge=0&autopause=0&player_id=0&app_id=58479" 
+                src="https://player.vimeo.com/video/1190869944?badge=0&autopause=0&player_id=0&app_id=58479&autoplay=1&muted=1&loop=1" 
                 frameBorder="0" 
                 allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share" 
+                referrerPolicy="strict-origin-when-cross-origin"
                 className="absolute top-0 left-0 w-full h-full" 
-                title="Orbstera Promotional Video"
+                title="Orbstera_Video"
               />
               {/* Invisible overlay to prevent scroll wheel trapping while leaving controls clickable */}
               <div className="absolute top-0 left-0 w-full h-[85%] z-10 cursor-default" />
@@ -736,6 +738,7 @@ export function HeroSection() {
           </div>
         </motion.div>
       </div>
+      <Script src="https://player.vimeo.com/api/player.js" strategy="lazyOnload" />
     </section>
   );
 }
