@@ -153,7 +153,14 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
 }
 
 
-export function Sidebar() {
+type SidebarProps = {
+  /** On viewports below `md`, controls whether the slide drawer is visible */
+  drawerOpen?: boolean;
+  /** Called after choosing a slide — used to close the mobile drawer */
+  onAfterSlideSelect?: () => void;
+};
+
+export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps) {
   const {
     presentation,
     currentSlideIndex,
@@ -182,16 +189,28 @@ export function Sidebar() {
   }, [addSlide]);
 
   return (
-    <aside id="tour-gallery" className="w-[220px] shrink-0 border-r-2 border-black/[0.08] bg-[#FBFBFC] flex flex-col overflow-hidden shadow-[1px_0_10px_rgba(0,0,0,0.02)]">
+    <aside
+      id="tour-gallery"
+      className={`
+        z-[130] w-[220px] shrink-0 border-r-2 border-black/[0.08] bg-[#FBFBFC] flex flex-col overflow-hidden shadow-[1px_0_10px_rgba(0,0,0,0.02)]
+        max-md:fixed max-md:left-0 max-md:top-[var(--editor-topbar-h,104px)]
+        max-md:h-[calc(100dvh-var(--editor-topbar-h,104px)-env(safe-area-inset-bottom,0px))]
+        max-md:w-[min(260px,88vw)] max-md:transition-transform max-md:duration-300 max-md:ease-[cubic-bezier(0.16,1,0.3,1)]
+        pl-[max(0px,env(safe-area-inset-left,0px))]
+        ${drawerOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'}
+        md:relative md:top-auto md:h-auto md:translate-x-0 md:pt-0
+      `}
+    >
       {/* Premium Header */}
-      <div className="shrink-0 flex items-center justify-between px-6 py-8">
-        <div className="flex flex-col">
-          <span className="text-[10px] font-bold text-black/30 uppercase tracking-[0.3em]">Gallery</span>
-          <h2 className="text-[18px] font-semibold text-black tracking-tighter">{slides.length} Slides</h2>
+      <div className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-5 sm:py-8 gap-2 min-w-0">
+        <div className="flex flex-col min-w-0">
+          <span className="text-[10px] font-bold text-black/30 uppercase tracking-[0.3em] truncate">Gallery</span>
+          <h2 className="text-[clamp(15px,4vw,18px)] font-semibold text-black tracking-tighter truncate">{slides.length} Slides</h2>
         </div>
         <button
+          type="button"
           onClick={handleAddSlide}
-          className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white border border-black/[0.05] text-black hover:text-primary hover:border-primary/20 shadow-sm transition-all active:scale-[0.9] group"
+          className="w-10 h-10 min-w-10 shrink-0 flex items-center justify-center rounded-2xl bg-white border border-black/[0.05] text-black hover:text-primary hover:border-primary/20 shadow-sm transition-all active:scale-[0.9] group touch-manipulation"
           title="Add Architectural Slide"
         >
           <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
@@ -200,7 +219,7 @@ export function Sidebar() {
 
       {/* Orchestrated Slide List */}
       <div 
-        className="flex-1 overflow-y-auto px-4 pt-4 pb-8 space-y-5 custom-scrollbar"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 sm:px-4 pt-4 pb-[max(2rem,env(safe-area-inset-bottom,0px))] space-y-5 custom-scrollbar"
         data-lenis-prevent
       >
         <AnimatePresence mode="popLayout">
@@ -225,7 +244,10 @@ export function Sidebar() {
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                   className="relative group"
-                  onClick={() => setCurrentSlideIndex(index)}
+                  onClick={() => {
+                    setCurrentSlideIndex(index);
+                    onAfterSlideSelect?.();
+                  }}
                   onMouseEnter={() => setHoveredIndex(index)}
                   onMouseLeave={() => setHoveredIndex(null)}
                 >

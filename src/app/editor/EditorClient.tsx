@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { CanvasArea } from '@/components/editor/CanvasArea';
 import { Sidebar } from '@/components/editor/Sidebar';
 import { Toolbar } from '@/components/editor/Toolbar';
@@ -58,6 +58,24 @@ export default function EditorClient() {
     }
   }, [onboarding.hasSeenTour, startOnboarding]);
 
+  const [isMdUp, setIsMdUp] = useState(true);
+  const [mobileGalleryOpen, setMobileGalleryOpen] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const apply = () => {
+      setIsMdUp(mq.matches);
+      if (mq.matches) setMobileGalleryOpen(false);
+    };
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+
+  const closeMobileGallery = useCallback(() => {
+    if (!isMdUp) setMobileGalleryOpen(false);
+  }, [isMdUp]);
+
   // Global keyboard shortcuts
   useHotkeys('ctrl+z, meta+z', (e) => { e.preventDefault(); undo(); }, [undo]);
   useHotkeys('ctrl+y, meta+y, ctrl+shift+z', (e) => { e.preventDefault(); redo(); }, [redo]);
@@ -68,14 +86,38 @@ export default function EditorClient() {
   }, [setActivePanel, setPanelOpen]);
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-background text-textMain flex flex-col select-none">
+    <div className="editor-shell h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-background text-textMain flex flex-col select-none">
       <OnboardingTour />
       <PresentMode />
-      <TopBar />
+      <TopBar
+        showMobileGalleryTrigger={!isMdUp}
+        onOpenMobileGallery={() => setMobileGalleryOpen(true)}
+      />
 
-      <div className="flex-1 flex overflow-hidden min-h-0">
+      <div className="flex-1 flex overflow-hidden min-h-0 min-w-0 relative">
+        {!isMdUp && mobileGalleryOpen && (
+          <button
+            type="button"
+            aria-label="Close slide gallery"
+            className="fixed inset-0 z-[125] bg-black/35 backdrop-blur-[2px] md:hidden"
+            onClick={closeMobileGallery}
+          />
+        )}
+
+        {!isMdUp && isPanelOpen && (
+          <button
+            type="button"
+            aria-label="Close panel"
+            className="fixed inset-0 z-[127] bg-black/25 backdrop-blur-[1px] md:hidden"
+            onClick={() => setPanelOpen(false)}
+          />
+        )}
+
         {/* Left: slide thumbnails */}
-        <Sidebar />
+        <Sidebar
+          drawerOpen={isMdUp || mobileGalleryOpen}
+          onAfterSlideSelect={closeMobileGallery}
+        />
 
         {/* Center: canvas + toolbar */}
         <main className="flex-1 relative flex flex-col min-w-0 overflow-hidden">
@@ -93,7 +135,7 @@ export default function EditorClient() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 16 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="border-l-2 border-black/[0.08] bg-panel shrink-0 flex flex-col overflow-hidden w-[320px] shadow-[-1px_0_10px_rgba(0,0,0,0.02)]"
+              className="border-l-2 border-black/[0.08] bg-panel shrink-0 flex flex-col overflow-hidden w-full max-w-[100vw] xs:max-w-[min(100vw,360px)] md:w-[min(92vw,320px)] lg:w-[320px] shadow-[-1px_0_10px_rgba(0,0,0,0.02)] max-md:fixed max-md:z-[128] max-md:right-0 max-md:top-[var(--editor-topbar-h,104px)] max-md:bottom-0 max-md:h-[calc(100dvh-var(--editor-topbar-h,104px)-env(safe-area-inset-bottom,0px))] md:relative md:top-auto md:bottom-auto md:max-h-none md:h-auto"
             >
               {activePanel === 'generate' && (
                 <GeneratePanel onClose={() => setPanelOpen(false)} />

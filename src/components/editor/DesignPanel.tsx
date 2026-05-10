@@ -76,7 +76,7 @@ export function DesignPanel() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0 min-w-0 overflow-hidden">
       {/* Header */}
       <div className="shrink-0 px-6 pt-6 pb-4 border-b border-black/[0.06]">
         <div className="flex items-center gap-2 mb-1">
@@ -104,7 +104,7 @@ export function DesignPanel() {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-y-auto px-4 pb-8 custom-scrollbar">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 pb-8 pb-[max(2rem,env(safe-area-inset-bottom,0px))] custom-scrollbar">
 
         {/* ── Theme presets ────────────────────────────────────────── */}
         {activeTab === 'theme' && (

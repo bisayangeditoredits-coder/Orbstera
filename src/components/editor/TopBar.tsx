@@ -13,6 +13,7 @@ import {
   FileDown, PackageCheck, Sparkles,
   Clock, AlignLeft, LayoutTemplate, Palette,
   Upload, AlertCircle, RefreshCw,
+  PanelLeft,
 } from 'lucide-react';
 
 // ── Export Progress Modal ─────────────────────────────────────────────────────
@@ -30,14 +31,14 @@ function ExportModal({ step, done, error, onClose }: {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 safe-pad-y"
     >
       <motion.div
         initial={{ scale: 0.9, y: 20, opacity: 0 }}
         animate={{ scale: 1, y: 0, opacity: 1 }}
         exit={{ scale: 0.9, y: 20, opacity: 0 }}
         transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-        className="bg-white rounded-3xl shadow-2xl border border-black/[0.06] p-8 w-full max-w-sm mx-4 flex flex-col items-center gap-6"
+        className="bg-white rounded-3xl shadow-2xl border border-black/[0.06] p-6 sm:p-8 w-full max-w-sm max-h-[min(90dvh,640px)] overflow-y-auto flex flex-col items-center gap-6"
       >
         {done && !error ? (
           <>
@@ -196,7 +197,7 @@ function EditableTitle() {
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
-          className="font-semibold text-[13px] leading-tight max-w-[220px] bg-primary/5 border border-primary/20 rounded px-1.5 py-0.5 text-primary outline-none"
+          className="font-semibold text-[13px] leading-tight w-full max-w-[min(220px,calc(100vw-8rem))] sm:max-w-[220px] bg-primary/5 border border-primary/20 rounded px-1.5 py-0.5 text-primary outline-none"
           autoFocus
         />
       ) : (
@@ -205,7 +206,7 @@ function EditableTitle() {
           className="flex items-center gap-1.5 group/btn"
           title="Click to rename"
         >
-          <span className="font-semibold text-[13px] leading-tight truncate max-w-[200px] text-textMain">
+          <span className="font-semibold text-[13px] leading-tight truncate max-w-[min(200px,calc(100vw-10rem))] sm:max-w-[200px] text-textMain">
             {presentation.title || 'Untitled Presentation'}
           </span>
           <Pencil size={11} className="text-black/20 opacity-0 group-hover/btn:opacity-100 transition-opacity shrink-0" />
@@ -252,9 +253,13 @@ const PANEL_BUTTONS = [
 ] as const;
 
 // ── Main TopBar ───────────────────────────────────────────────────────────────
-interface TopBarProps { onOpenGenerate?: () => void; }
+interface TopBarProps {
+  onOpenGenerate?: () => void;
+  showMobileGalleryTrigger?: boolean;
+  onOpenMobileGallery?: () => void;
+}
 
-export function TopBar({ onOpenGenerate }: TopBarProps) {
+export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileGallery }: TopBarProps) {
   const router = useRouter();
   const store       = usePresentationStore();
   const presentation = store.presentation;
@@ -461,40 +466,40 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
         {showWatermarkModal && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[400] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 z-[400] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 safe-pad-y"
           >
             <motion.div
               initial={{ scale: 0.9, y: 20, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.9, y: 20, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl border border-black/[0.06] p-8 w-full max-w-sm mx-4 flex flex-col items-center gap-6"
+              className="bg-white rounded-3xl shadow-2xl border border-black/[0.06] p-6 sm:p-8 w-full max-w-sm max-h-[min(90dvh,640px)] overflow-y-auto flex flex-col items-center gap-6 relative"
             >
-              <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center shrink-0">
                 <Sparkles size={28} className="text-amber-500" />
               </div>
-              <div className="text-center">
-                <h3 className="text-xl font-bold text-black">Remove Watermark</h3>
-                <p className="text-sm text-gray-500 mt-2">
+              <div className="text-center min-w-0">
+                <h3 className="text-xl font-bold text-black text-balance">Remove Watermark</h3>
+                <p className="text-sm text-gray-500 mt-2 text-pretty">
                   Export your presentation without the Orbstera watermark.
                 </p>
               </div>
               
-              <div className="w-full space-y-3">
+              <div className="w-full space-y-3 shrink-0">
                 <button
                   onClick={handleCheckout}
-                  className="w-full h-12 rounded-xl bg-primary text-white font-bold text-[15px] hover:bg-primary/90 transition-all active:scale-[0.97] flex items-center justify-center gap-2"
+                  className="w-full min-h-12 py-3 rounded-xl bg-primary text-white font-bold text-[15px] hover:bg-primary/90 transition-all active:scale-[0.97] flex items-center justify-center gap-2 touch-manipulation"
                 >
                   Pay $1.49 once
                 </button>
                 <button
                   onClick={startExport}
-                  className="w-full h-12 rounded-xl bg-black/[0.03] text-gray-600 font-semibold text-[14px] hover:bg-black/[0.06] transition-all active:scale-[0.97]"
+                  className="w-full min-h-12 py-3 rounded-xl bg-black/[0.03] text-gray-600 font-semibold text-[14px] hover:bg-black/[0.06] transition-all active:scale-[0.97] touch-manipulation text-balance px-2"
                 >
                   Export with watermark (Free)
                 </button>
               </div>
               
-              <button onClick={() => setShowWatermarkModal(false)} className="absolute top-4 right-4 p-2 text-gray-400 hover:text-black">
+              <button type="button" onClick={() => setShowWatermarkModal(false)} className="absolute top-[max(0.75rem,env(safe-area-inset-top))] right-[max(0.75rem,env(safe-area-inset-right))] p-2 text-gray-400 hover:text-black touch-manipulation">
                 <X size={20} />
               </button>
             </motion.div>
@@ -559,25 +564,38 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
         )}
       </AnimatePresence>
 
-      <header className="h-[52px] border-b-2 border-black/[0.08] bg-background flex items-center justify-between px-4 z-50 shrink-0 shadow-sm">
+      <header className="border-b-2 border-black/[0.08] bg-background z-50 shrink-0 shadow-sm pt-[env(safe-area-inset-top,0px)]">
+        <div className="grid grid-cols-1 gap-y-2 py-2 px-2 sm:px-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center lg:gap-x-3 lg:gap-y-0 lg:py-0 lg:h-[52px] lg:px-4">
         {/* Left */}
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0 lg:flex-nowrap">
+          {showMobileGalleryTrigger && onOpenMobileGallery && (
+            <button
+              type="button"
+              onClick={onOpenMobileGallery}
+              className="md:hidden shrink-0 text-textMuted hover:text-textMain hover:bg-hoverSurface transition-all p-2 rounded-md touch-manipulation"
+              aria-label="Open slide gallery"
+            >
+              <PanelLeft size={18} />
+            </button>
+          )}
           <Link
             href="/dashboard"
-            className="shrink-0 text-textMuted hover:text-textMain hover:bg-hoverSurface transition-all p-1.5 rounded-md"
+            className="shrink-0 text-textMuted hover:text-textMain hover:bg-hoverSurface transition-all p-1.5 rounded-md touch-manipulation"
           >
             <ArrowLeft size={16} />
           </Link>
-          <div className="w-px h-[16px] bg-borderSubtle shrink-0" />
-          <Link href="/" className="shrink-0 flex items-center gap-2">
-            <img src="/logo.png.png" alt="Orbstera" className="h-5 w-auto object-contain" />
+          <div className="w-px h-[16px] bg-borderSubtle shrink-0 hidden xs:block" />
+          <Link href="/" className="shrink-0 flex items-center gap-2 min-w-0">
+            <img src="/logo.png.png" alt="Orbstera" className="h-5 w-auto max-h-8 object-contain" />
           </Link>
 
-          <EditableTitle />
+          <div className="min-w-0 flex-1 basis-[8rem] sm:basis-auto sm:flex-initial">
+            <EditableTitle />
+          </div>
 
           {/* Cloud sync status */}
           {presentation && (
-            <div className="shrink-0 flex items-center gap-1 flex-wrap max-w-[200px]">
+            <div className="flex flex-1 min-w-0 basis-full sm:basis-auto items-center gap-1 flex-wrap sm:max-w-[min(100%,220px)] lg:max-w-[200px]">
               <input
                 ref={importInputRef}
                 type="file"
@@ -589,7 +607,7 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
                 type="button"
                 disabled={importBusy}
                 onClick={() => importInputRef.current?.click()}
-                className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border border-black/[0.08] bg-white text-black/60 hover:text-black hover:border-black/15 transition-all disabled:opacity-40"
+                className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 min-h-9 sm:min-h-0 rounded-md border border-black/[0.08] bg-white text-black/60 hover:text-black hover:border-black/15 transition-all disabled:opacity-40 touch-manipulation"
                 title="Import .pptx"
               >
                 <Upload size={11} />
@@ -636,20 +654,25 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
             </div>
           )}
 
-          <div className="w-px h-[16px] bg-borderSubtle shrink-0 mx-1" />
+          <div className="w-px h-[16px] bg-borderSubtle shrink-0 mx-0.5 sm:mx-1 hidden sm:block" />
           <UndoRedo />
           <SlideStats />
         </div>
 
         {/* Center — panel toggles */}
-        <div id="tour-panel-tabs" className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 bg-surface/80 backdrop-blur-md border border-borderSubtle rounded-xl px-1 py-1 shadow-sm">
+        <div className="flex justify-center min-w-0 w-full lg:w-auto lg:max-w-[min(520px,42vw)] overflow-hidden">
+          <div
+            id="tour-panel-tabs"
+            className="inline-flex max-w-full items-center gap-0.5 sm:gap-1 bg-surface/80 backdrop-blur-md border border-borderSubtle rounded-xl px-1 py-1 shadow-sm overflow-x-auto scrollbar-none touch-pan-x"
+          >
           {PANEL_BUTTONS.map((btn) => {
             const isActive = activePanel === btn.id && isPanelOpen;
             return (
               <button
                 key={btn.id}
+                type="button"
                 onClick={() => handlePanelToggle(btn.id)}
-                className={`flex items-center gap-2 px-4 h-[32px] rounded-lg text-[12px] font-bold transition-all duration-200 ${
+                className={`flex shrink-0 items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 min-h-9 sm:h-[32px] rounded-lg text-[11px] sm:text-[12px] font-bold transition-all duration-200 touch-manipulation ${
                   isActive
                     ? 'bg-white text-primary border border-primary/10 shadow-[0_2px_8px_-2px_rgba(59,130,246,0.2)]'
                     : 'text-textSecondary hover:text-textMain hover:bg-hoverSurface'
@@ -660,10 +683,11 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
               </button>
             );
           })}
+          </div>
         </div>
 
         {/* Right */}
-        <div id="tour-actions" className="flex items-center gap-2 shrink-0">
+        <div id="tour-actions" className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2 min-w-0 shrink-0">
           {/* Keyboard shortcut hints */}
           <div className="hidden xl:flex items-center gap-1 text-[10px] text-black/25 font-mono mr-1">
             <span className="px-1.5 py-0.5 rounded bg-black/[0.04] border border-black/[0.06]">⌘P</span>
@@ -675,34 +699,39 @@ export function TopBar({ onOpenGenerate }: TopBarProps) {
           </div>
 
           <button 
+            type="button"
             onClick={handleShare}
-            className="h-[36px] px-[14px] text-textMain bg-white border border-borderSubtle hover:bg-hoverSurface rounded-lg shadow-sm transition-all flex items-center gap-2 text-[13px] font-semibold active:scale-[0.97]"
+            className="min-h-9 h-9 sm:h-[36px] px-2.5 sm:px-[14px] text-textMain bg-white border border-borderSubtle hover:bg-hoverSurface rounded-lg shadow-sm transition-all flex items-center gap-2 text-[12px] sm:text-[13px] font-semibold active:scale-[0.97] touch-manipulation"
           >
             {isCopied ? <CheckCircle size={16} className="text-emerald-500" /> : <Share2 size={16} className="text-textSecondary" />}
             <span className="hidden md:inline">{isCopied ? 'Copied Link!' : 'Share'}</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setEditorState({ isPresenting: true })}
-            className="h-[36px] px-[14px] text-textMain bg-white border border-borderSubtle hover:bg-hoverSurface rounded-lg shadow-sm transition-all flex items-center gap-2 text-[13px] font-semibold active:scale-[0.97]"
+            className="min-h-9 h-9 sm:h-[36px] px-2.5 sm:px-[14px] text-textMain bg-white border border-borderSubtle hover:bg-hoverSurface rounded-lg shadow-sm transition-all flex items-center gap-2 text-[12px] sm:text-[13px] font-semibold active:scale-[0.97] touch-manipulation"
           >
             <Play size={16} className="text-primary fill-primary/20" />
             <span className="hidden md:inline">Present</span>
           </button>
 
-          <div className="w-px h-[20px] bg-borderSubtle mx-1" />
+          <div className="w-px h-[20px] bg-borderSubtle mx-0.5 sm:mx-1 hidden sm:block" />
 
           <button
             id="tour-export"
+            type="button"
             onClick={handleExportCheck}
             disabled={!presentation || isExporting}
-            className="h-[36px] px-[16px] flex items-center gap-2 text-[13px] font-bold text-white bg-primary hover:bg-primary/90 rounded-lg shadow-md hover:shadow-primary/30 transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed relative overflow-hidden group"
+            className="min-h-9 h-9 sm:h-[36px] px-3 sm:px-[16px] flex items-center gap-1.5 sm:gap-2 text-[12px] sm:text-[13px] font-bold text-white bg-primary hover:bg-primary/90 rounded-lg shadow-md hover:shadow-primary/30 transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed relative overflow-hidden group touch-manipulation"
           >
             {/* Shimmer */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-            <Download size={16} />
-            <span>Export .pptx</span>
+            <Download size={16} className="shrink-0" />
+            <span className="hidden xs:inline">Export .pptx</span>
+            <span className="xs:hidden">PPTX</span>
           </button>
+        </div>
         </div>
       </header>
     </>

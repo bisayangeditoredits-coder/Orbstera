@@ -65,7 +65,7 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-4 safe-pad-y overflow-y-auto overscroll-contain">
       {/* Backdrop */}
       <motion.div 
         initial={{ opacity: 0 }}
@@ -77,7 +77,7 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
       <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="relative w-full max-w-xl bg-white rounded-[40px] shadow-2xl overflow-hidden border border-white/20"
+        className="relative w-full max-w-xl max-h-[min(92dvh,900px)] my-auto overflow-y-auto overscroll-contain bg-white rounded-[28px] sm:rounded-[40px] shadow-2xl border border-white/20"
       >
         {/* Progress Bar */}
         <div className="absolute top-0 left-0 w-full h-1.5 bg-gray-100">
@@ -88,7 +88,7 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
           />
         </div>
 
-        <div className="p-8 md:p-12">
+        <div className="p-5 sm:p-8 md:p-12">
           <AnimatePresence mode="wait">
             {step === 1 && (
               <motion.div
@@ -103,8 +103,8 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
                     <Sparkles size={18} />
                     <span className="text-[10px] font-black uppercase tracking-[0.2em]">Personalization Protocol</span>
                   </div>
-                  <h2 className="text-3xl font-black text-slate-900 leading-tight">
-                    Who are you <br />
+                  <h2 className="text-[clamp(1.35rem,4.5vw,1.875rem)] font-black text-slate-900 leading-tight text-balance">
+                    Who are you <br className="hidden xs:block" />
                     <span className="text-primary italic">creating for today?</span>
                   </h2>
                   <p className="text-sm text-slate-500 font-medium">We'll tailor the AI to match your professional tone.</p>

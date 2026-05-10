@@ -121,7 +121,7 @@ function GenerationLoader() {
       <div className="relative flex flex-col items-center justify-center w-full max-w-4xl h-full z-10 px-6">
         
         {/* 2. Orchestration Core (Lottie AI Orb & Robot Assistant) */}
-        <div className="relative flex items-center justify-center mb-8 w-[400px] h-[400px] scale-90 md:scale-110">
+        <div className="relative flex items-center justify-center mb-6 sm:mb-8 w-[min(400px,88vw)] h-[min(400px,55dvh)] scale-[0.82] xs:scale-90 md:scale-110">
            {/* AI Robot Mascot Assistant (Centered in Orb) */}
            <motion.div 
              animate={{ 
@@ -179,7 +179,7 @@ function GenerationLoader() {
               >
                 Orchestrating Narrative
               </motion.div>
-              <h2 className="text-4xl font-semibold text-black tracking-[-0.04em] leading-[1.1] text-balance">
+              <h2 className="text-[clamp(1.35rem,5vw,2.25rem)] font-semibold text-black tracking-[-0.04em] leading-[1.15] text-balance px-1">
                 {steps[currentStepIndex]?.label}
               </h2>
            </div>
@@ -223,7 +223,7 @@ function GenerationLoader() {
               </AnimatePresence>
            </div>
 
-           <div className="grid grid-cols-3 gap-8 pt-6 border-t border-black/[0.03]">
+           <div className="grid grid-cols-1 xs:grid-cols-3 gap-4 xs:gap-8 pt-6 border-t border-black/[0.03] w-full max-w-xl mx-auto">
               {[
                 { label: 'Progress', value: `${Math.round(((currentStepIndex + 1) / steps.length) * 100)}%` },
                 { label: 'Model', value: editor.activeModelLabel ? editor.activeModelLabel.split('/').pop() || 'Orchestra' : 'Orchestra' },
@@ -238,8 +238,8 @@ function GenerationLoader() {
         </div>
 
         {/* Brand Credit - Anchored to bottom to avoid clipping */}
-        <div className="absolute bottom-12 left-0 right-0 flex justify-center opacity-20">
-          <span className="text-[9px] font-black tracking-[0.6em] text-black uppercase">
+        <div className="absolute bottom-[max(3rem,env(safe-area-inset-bottom))] left-0 right-0 flex justify-center opacity-20 px-4">
+          <span className="text-[8px] sm:text-[9px] font-black tracking-[0.2em] sm:tracking-[0.6em] text-black uppercase text-center">
             Synthesized via CrelDesk Neural Architecture
           </span>
         </div>
@@ -253,6 +253,7 @@ function GenerationLoader() {
 export function CanvasArea() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ width: 900, height: 600 });
+  const [canvasPad, setCanvasPad] = useState(48);
   const { editor, setEditorState } = usePresentationStore();
   const { zoom, showGrid, isGenerating } = editor;
 
@@ -264,10 +265,11 @@ export function CanvasArea() {
   useEffect(() => {
     const measure = () => {
       if (containerRef.current) {
-        setDims({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight,
-        });
+        const width = containerRef.current.clientWidth;
+        const height = containerRef.current.clientHeight;
+        setDims({ width, height });
+        const edge = Math.min(width, height);
+        setCanvasPad(Math.max(12, Math.min(60, Math.round(edge * 0.065))));
       }
     };
     measure();
@@ -422,7 +424,10 @@ export function CanvasArea() {
       </div>
 
       {/* Canvas area container */}
-      <div className="flex-1 flex items-center justify-center overflow-hidden relative z-10" style={{ padding: '60px' }}>
+      <div
+        className="flex-1 flex items-center justify-center overflow-hidden relative z-10 min-h-0"
+        style={{ padding: canvasPad }}
+      >
         <motion.div
           initial={false}
           animate={{
@@ -431,7 +436,7 @@ export function CanvasArea() {
             scale: zoom
           }}
           transition={isPanning ? { duration: 0 } : { type: 'spring', damping: 25, stiffness: 200 }}
-          className="rounded-2xl"
+          className="rounded-2xl max-w-full max-h-full"
           style={{
             transformOrigin: 'center center',
             boxShadow:
@@ -439,36 +444,39 @@ export function CanvasArea() {
           }}
         >
           <KonvaCanvas
-            width={dims.width - 120}
-            height={dims.height - 120}
+            width={Math.max(120, dims.width - canvasPad * 2)}
+            height={Math.max(68, dims.height - canvasPad * 2)}
           />
         </motion.div>
       </div>
 
       {/* Premium Floating Zoom Controls */}
-      <div className="absolute bottom-10 right-10 z-50 flex items-center gap-2 bg-white/70 backdrop-blur-xl border border-black/[0.05] p-1.5 rounded-2xl shadow-premium">
+      <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom,0px))] right-[max(0.75rem,env(safe-area-inset-right,0px))] sm:bottom-10 sm:right-10 z-50 flex items-center gap-1 sm:gap-2 bg-white/70 backdrop-blur-xl border border-black/[0.05] p-1 sm:p-1.5 rounded-2xl shadow-premium touch-manipulation max-w-[calc(100vw-1rem)]">
         <button
+          type="button"
           onClick={() => setEditorState({ zoom: Math.max(0.1, zoom - 0.1) })}
-          className="w-10 h-10 flex items-center justify-center rounded-xl text-black/40 hover:text-black hover:bg-black/5 transition-all"
+          className="w-9 h-9 sm:w-10 sm:h-10 min-w-9 flex items-center justify-center rounded-xl text-black/40 hover:text-black hover:bg-black/5 transition-all touch-manipulation"
           title="Zoom Out"
         >
-          <span className="text-xl font-medium">−</span>
+          <span className="text-lg sm:text-xl font-medium">−</span>
         </button>
         
         <button
+          type="button"
           onClick={() => setEditorState({ zoom: 0.7, pan: { x: 0, y: 0 } })}
-          className="px-3 h-10 flex items-center justify-center rounded-xl text-[11px] font-black text-black/40 hover:text-black hover:bg-black/5 transition-all uppercase tracking-widest"
+          className="px-2 sm:px-3 h-9 sm:h-10 min-w-0 flex items-center justify-center rounded-xl text-[10px] sm:text-[11px] font-black text-black/40 hover:text-black hover:bg-black/5 transition-all uppercase tracking-widest touch-manipulation"
           title="Reset View"
         >
           {Math.round(zoom * 100)}%
         </button>
 
         <button
+          type="button"
           onClick={() => setEditorState({ zoom: Math.min(2, zoom + 0.1) })}
-          className="w-10 h-10 flex items-center justify-center rounded-xl text-black/40 hover:text-black hover:bg-black/5 transition-all"
+          className="w-9 h-9 sm:w-10 sm:h-10 min-w-9 flex items-center justify-center rounded-xl text-black/40 hover:text-black hover:bg-black/5 transition-all touch-manipulation"
           title="Zoom In"
         >
-          <span className="text-xl font-medium">+</span>
+          <span className="text-lg sm:text-xl font-medium">+</span>
         </button>
       </div>
     </div>

@@ -201,7 +201,7 @@ export function Toolbar() {
   const showGrid = editor.showGrid;
 
   return (
-    <div className="shrink-0 flex items-center justify-center py-6 bg-transparent absolute top-6 left-0 right-0 z-50 pointer-events-none">
+    <div className="shrink-0 flex items-center justify-center py-3 sm:py-6 px-1 bg-transparent absolute top-2 sm:top-6 left-0 right-0 z-50 pointer-events-none">
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -215,21 +215,25 @@ export function Toolbar() {
         }}
       />
 
-      <div id="tour-toolbar" className="flex items-center gap-1 bg-white/70 backdrop-blur-[32px] border border-black/[0.03] rounded-[28px] px-3 py-2.5 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] pointer-events-auto">
+      <div
+        id="tour-toolbar"
+        className="flex max-w-[calc(100vw-0.75rem)] items-center gap-0.5 sm:gap-1 overflow-x-auto overflow-y-visible scrollbar-none touch-pan-x bg-white/70 backdrop-blur-[32px] border border-black/[0.03] rounded-[22px] sm:rounded-[28px] px-2 sm:px-3 py-2 sm:py-2.5 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] pointer-events-auto"
+      >
         {TOOLBAR_TOOLS.map((tool) => (
           <div key={tool.id} className="flex items-center">
             {tool.separator && <div className="w-[1px] h-6 bg-black/[0.06] mx-2" />}
             <button
+              type="button"
               onClick={() => handleToolClick(tool.id)}
               title={tool.label}
-              className={`w-10 h-10 flex items-center justify-center rounded-[16px] transition-all active:scale-[0.85] relative group ${
+              className={`w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-[14px] sm:rounded-[16px] transition-all active:scale-[0.85] relative group touch-manipulation ${
                 editor.activeTool === tool.id 
                   ? 'text-primary bg-primary/[0.08]' 
                   : 'text-black/40 hover:text-primary hover:bg-primary/[0.06]'
               }`}
             >
               <tool.icon size={17} strokeWidth={1.5} />
-              <span className="absolute -top-11 left-1/2 -translate-x-1/2 bg-black/90 text-white text-[9px] font-bold px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-50 tracking-widest shadow-xl">
+              <span className="hidden sm:block absolute -top-11 left-1/2 -translate-x-1/2 bg-black/90 text-white text-[9px] font-bold px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-50 tracking-widest shadow-xl max-w-[min(240px,calc(100vw-2rem))] truncate">
                 {tool.label}
               </span>
             </button>
@@ -240,9 +244,10 @@ export function Toolbar() {
 
         {/* Drag & Drop upload button */}
         <button
+          type="button"
           onClick={() => fileInputRef.current?.click()}
           title="Upload Image (drag & drop or click)"
-          className="flex items-center gap-1.5 h-10 px-3 rounded-[16px] text-black/40 hover:text-primary hover:bg-primary/[0.06] transition-all active:scale-[0.85] relative group text-[11px] font-bold"
+          className="flex shrink-0 items-center gap-1.5 h-9 sm:h-10 px-2 sm:px-3 rounded-[14px] sm:rounded-[16px] text-black/40 hover:text-primary hover:bg-primary/[0.06] transition-all active:scale-[0.85] relative group text-[10px] sm:text-[11px] font-bold touch-manipulation"
         >
           <Upload size={15} strokeWidth={1.5} />
           <span className="hidden sm:block">Upload</span>
@@ -251,9 +256,10 @@ export function Toolbar() {
         <div className="w-[1px] h-6 bg-black/[0.06] mx-2" />
 
         <button
+          type="button"
           onClick={() => setEditorState({ showGrid: !showGrid })}
           title="Grid (G)"
-          className={`w-10 h-10 flex items-center justify-center rounded-[16px] transition-all active:scale-[0.85] ${
+          className={`w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-[14px] sm:rounded-[16px] transition-all active:scale-[0.85] touch-manipulation ${
             showGrid ? 'text-primary bg-primary/[0.08]' : 'text-black/40 hover:text-primary hover:bg-primary/[0.06]'
           }`}
         >
@@ -263,10 +269,10 @@ export function Toolbar() {
         <div className="w-[1px] h-6 bg-black/[0.06] mx-2" />
 
         <div className="flex items-center gap-0.5">
-          <button onClick={undo} disabled={!canUndo} className="w-10 h-10 flex items-center justify-center rounded-[16px] text-black/40 hover:text-primary hover:bg-primary/[0.06] transition-all active:scale-[0.85] disabled:opacity-10">
+          <button type="button" onClick={undo} disabled={!canUndo} className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-[14px] sm:rounded-[16px] text-black/40 hover:text-primary hover:bg-primary/[0.06] transition-all active:scale-[0.85] disabled:opacity-10 touch-manipulation">
             <Undo2 size={17} strokeWidth={1.5} />
           </button>
-          <button onClick={redo} disabled={!canRedo} className="w-10 h-10 flex items-center justify-center rounded-[16px] text-black/40 hover:text-primary hover:bg-primary/[0.06] transition-all active:scale-[0.85] disabled:opacity-10">
+          <button type="button" onClick={redo} disabled={!canRedo} className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-[14px] sm:rounded-[16px] text-black/40 hover:text-primary hover:bg-primary/[0.06] transition-all active:scale-[0.85] disabled:opacity-10 touch-manipulation">
             <Redo2 size={17} strokeWidth={1.5} />
           </button>
         </div>

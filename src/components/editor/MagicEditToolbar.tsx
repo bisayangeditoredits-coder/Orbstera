@@ -124,12 +124,12 @@ export function MagicEditToolbar() {
         animate={{ opacity: 1, y: 0,  scale: 1    }}
         exit={{    opacity: 0, y: 16, scale: 0.97 }}
         transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-        className="absolute bottom-16 left-1/2 -translate-x-1/2 z-50 pointer-events-auto select-none"
+        className="absolute bottom-12 sm:bottom-16 left-1/2 -translate-x-1/2 z-50 pointer-events-auto select-none w-[min(500px,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] px-2"
       >
-        <div className="flex flex-col items-center gap-1.5">
+        <div className="flex flex-col items-center gap-1.5 w-full min-w-0">
           {/* ── Always show the same toolbar UI ── */}
-          <div className={`animated-border shadow-2xl shadow-primary/10 w-[500px] ${!isPro ? 'opacity-80' : ''}`}>
-            <div className="flex items-center gap-2 bg-white/98 backdrop-blur-xl px-2 py-2 w-full">
+          <div className={`animated-border shadow-2xl shadow-primary/10 w-full max-w-full ${!isPro ? 'opacity-80' : ''}`}>
+            <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 bg-white/98 backdrop-blur-xl px-2 py-2 w-full min-w-0">
               <div className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl bg-primary/8 border border-primary/15">
                 {!selectedElementId               ? <Sparkles size={16} className="text-primary" />
                : targetElement?.type === 'text'  ? <Type     size={16} className="text-primary" />
@@ -144,7 +144,7 @@ export function MagicEditToolbar() {
                 onKeyDown={(e) => { if (e.key === 'Enter' && isPro) { e.preventDefault(); handleMagicEdit(); } }}
                 disabled={isLoading || (!isPro && !isListening)}
                 placeholder={isListening ? '🎤 Listening...' : isPro ? (!selectedElementId ? `Generate AI Background... e.g. "cyberpunk city"` : `Edit with AI... e.g. "make it more exciting"`) : `🔒 Pro feature — upgrade to edit with AI`}
-                className={`flex-1 bg-transparent border-none outline-none text-[13px] font-medium px-1 h-9 ${
+                className={`flex-1 min-w-0 bg-transparent border-none outline-none text-[13px] font-medium px-1 h-9 ${
                   isPro
                     ? 'text-textMain placeholder:text-textMuted/50'
                     : 'text-textMuted/60 placeholder:text-textMuted/50 cursor-not-allowed'
@@ -168,7 +168,7 @@ export function MagicEditToolbar() {
                 <button
                   onClick={handleMagicEdit}
                   disabled={!prompt.trim() || isLoading}
-                  className="shrink-0 h-9 px-5 bg-primary hover:bg-primary/90 text-white text-[12px] font-bold rounded-xl transition-all disabled:opacity-30 flex items-center gap-1.5 active:scale-95"
+                  className="shrink-0 h-9 px-3 sm:px-5 bg-primary hover:bg-primary/90 text-white text-[12px] font-bold rounded-xl transition-all disabled:opacity-30 flex items-center justify-center gap-1.5 active:scale-95 touch-manipulation"
                 >
                   {isLoading
                     ? <Loader2 size={14} className="animate-spin" />
@@ -192,7 +192,7 @@ export function MagicEditToolbar() {
             </div>
           </div>
 
-          <p className="text-[10px] text-black/25 font-medium">
+          <p className="text-[10px] text-black/25 font-medium text-center max-w-full px-1 break-words">
             {isPro ? (
               <>
                 {!selectedElementId ? (

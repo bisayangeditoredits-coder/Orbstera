@@ -526,7 +526,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         )}
       </AnimatePresence>
 
-      <div id="tour-generate" className="flex flex-col h-full bg-white text-black overflow-hidden relative">
+      <div id="tour-generate" className="flex flex-col h-full min-h-0 min-w-0 bg-white text-black overflow-hidden relative">
         {/* Global Hidden Input for Technical Attachments */}
         <input 
           type="file" 
@@ -535,15 +535,15 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           accept=".pptx,.pdf,.docx,.txt" 
           className="hidden" 
         />      {/* Header */}
-      <div className="shrink-0 flex flex-col border-b border-borderSubtle bg-white/50 backdrop-blur-xl sticky top-0 z-20">
-        <div className="flex items-center justify-between px-6 py-5">
+      <div className="shrink-0 flex flex-col border-b border-borderSubtle bg-white/50 backdrop-blur-xl sticky top-0 z-20 min-w-0">
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 sm:py-5 min-w-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
               <Wand2 size={18} className="text-primary" />
             </div>
-            <div>
-              <h2 className="text-[15px] font-bold text-black tracking-tight">AI Generation</h2>
-              <p className="text-[10px] font-medium text-textMuted uppercase tracking-widest">Powered by Orbstera Quantum Engine (v4.7)</p>
+            <div className="min-w-0">
+              <h2 className="text-[15px] font-bold text-black tracking-tight truncate">AI Generation</h2>
+              <p className="text-[10px] font-medium text-textMuted uppercase tracking-widest line-clamp-2 sm:line-clamp-none">Powered by Orbstera Quantum Engine (v4.7)</p>
             </div>
           </div>
           {onClose && (
@@ -554,8 +554,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         </div>
         
         {/* Modern Tabs */}
-        <div className="px-6 pb-4">
-          <div className="p-1 bg-panel rounded-2xl flex gap-1 border border-borderSubtle shadow-inner">
+        <div className="px-4 sm:px-6 pb-4 min-w-0 overflow-x-auto scrollbar-none">
+          <div className="p-1 bg-panel rounded-2xl flex gap-1 border border-borderSubtle shadow-inner min-w-0">
             <button 
               onClick={() => setActiveTab('create')}
               className={`flex-1 text-[12px] font-bold py-2.5 rounded-xl transition-all ${

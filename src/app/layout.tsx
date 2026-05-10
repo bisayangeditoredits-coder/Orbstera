@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/layout/Providers";
+import { PageTransition } from "@/components/layout/PageTransition";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
@@ -16,7 +17,12 @@ export const metadata: Metadata = {
   },
 };
 
-import { PageTransition } from "@/components/layout/PageTransition";
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#FDFCF9",
+};
 
 export default function RootLayout({
   children,
@@ -25,7 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans bg-background text-textMain min-h-screen antialiased`}>
+      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans bg-background text-textMain min-h-dvh max-w-[100vw] overflow-x-clip antialiased`}>
         <Providers>
           <PageTransition>
             {children}
