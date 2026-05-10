@@ -526,7 +526,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         )}
       </AnimatePresence>
 
-      <div id="tour-generate" className="flex flex-col h-full min-h-0 min-w-0 bg-white text-black overflow-hidden relative">
+      <div id="tour-generate" className="flex flex-col h-full min-h-0 min-w-0 bg-[#FAFAFA] text-black overflow-hidden relative">
         {/* Global Hidden Input for Technical Attachments */}
         <input 
           type="file" 
@@ -534,44 +534,52 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           onChange={handleFileChange} 
           accept=".pptx,.pdf,.docx,.txt" 
           className="hidden" 
-        />      {/* Header */}
-      <div className="shrink-0 flex flex-col border-b border-borderSubtle bg-white/50 backdrop-blur-xl sticky top-0 z-20 min-w-0">
-        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 sm:py-5 min-w-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Wand2 size={18} className="text-primary" />
+        />
+      <div className="shrink-0 flex flex-col border-b border-black/[0.06] bg-white/80 backdrop-blur-xl sticky top-0 z-20 min-w-0">
+        <div className="flex items-start justify-between gap-3 px-5 sm:px-6 pt-5 pb-3 min-w-0">
+          <div className="flex items-start gap-3.5 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary/12 to-primary/5 border border-primary/10 flex items-center justify-center shadow-[0_1px_0_rgba(255,255,255,0.8)_inset] shrink-0">
+              <Wand2 size={19} className="text-primary" strokeWidth={1.75} />
             </div>
-            <div className="min-w-0">
-              <h2 className="text-[15px] font-bold text-black tracking-tight truncate">AI Generation</h2>
-              <p className="text-[10px] font-medium text-textMuted uppercase tracking-widest line-clamp-2 sm:line-clamp-none">Powered by Orbstera Quantum Engine (v4.7)</p>
+            <div className="min-w-0 pt-0.5">
+              <h2 className="text-[16px] font-semibold text-neutral-900 tracking-tight truncate leading-tight">AI Generation</h2>
+              <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-[0.14em] mt-1 leading-snug">
+                Powered by Orbstera Quantum Engine <span className="text-neutral-500">(v4.7)</span>
+              </p>
             </div>
           </div>
           {onClose && (
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-hoverSurface text-textMuted transition-all">
-              <X size={18} />
+            <button
+              type="button"
+              onClick={onClose}
+              className="shrink-0 w-9 h-9 rounded-xl border border-black/[0.06] bg-white text-neutral-400 hover:text-neutral-900 hover:bg-neutral-50 hover:border-black/[0.08] transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)] flex items-center justify-center"
+              aria-label="Close panel"
+            >
+              <X size={17} strokeWidth={1.75} />
             </button>
           )}
         </div>
         
-        {/* Modern Tabs */}
-        <div className="px-4 sm:px-6 pb-4 min-w-0 overflow-x-auto scrollbar-none">
-          <div className="p-1 bg-panel rounded-2xl flex gap-1 border border-borderSubtle shadow-inner min-w-0">
+        <div className="px-5 sm:px-6 pb-4 min-w-0 overflow-x-auto scrollbar-none">
+          <div className="p-1 rounded-2xl flex gap-0.5 bg-neutral-100/90 border border-black/[0.05] shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] min-w-0">
             <button 
+              type="button"
               onClick={() => setActiveTab('create')}
-              className={`flex-1 text-[12px] font-bold py-2.5 rounded-xl transition-all ${
+              className={`flex-1 text-[12px] font-semibold py-2.5 px-3 rounded-[10px] transition-all ${
                 activeTab === 'create' 
-                  ? 'bg-white text-primary shadow-premium border border-borderSubtle' 
-                  : 'text-textSecondary hover:text-black hover:bg-white/40'
+                  ? 'bg-white text-neutral-900 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)]' 
+                  : 'text-neutral-500 hover:text-neutral-800 hover:bg-white/50'
               }`}
             >
               Create New
             </button>
             <button 
+              type="button"
               onClick={() => setActiveTab('enhance')}
-              className={`flex-1 text-[12px] font-bold py-2.5 rounded-xl transition-all ${
+              className={`flex-1 text-[12px] font-semibold py-2.5 px-3 rounded-[10px] transition-all ${
                 activeTab === 'enhance' 
-                  ? 'bg-white text-primary shadow-premium border border-borderSubtle' 
-                  : 'text-textSecondary hover:text-black hover:bg-white/40'
+                  ? 'bg-white text-neutral-900 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)]' 
+                  : 'text-neutral-500 hover:text-neutral-800 hover:bg-white/50'
               }`}
             >
               Enhancer
@@ -580,34 +588,42 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-6 pb-20 space-y-8">
-        {/* Intelligence Mode (Compact) */}
-        <div className="space-y-2">
-           <label className="text-[9px] font-black text-textMuted uppercase tracking-[0.2em] block">Intelligence</label>
-           <div className="grid grid-cols-3 gap-1.5">
+      <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-6 pb-24 space-y-7">
+        {/* Intelligence */}
+        <div className="space-y-2.5">
+           <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.16em] block">Intelligence</label>
+           <div className="grid grid-cols-3 gap-2">
             {[
-              { value: 'standard', label: 'Std', icon: <Zap size={12} />, free: true },
-              { value: 'fast', label: 'Fast', icon: <Gauge size={12} />, free: false },
-              { value: 'premium', label: 'Elite', icon: <Crown size={12} />, free: false },
+              { value: 'standard', label: 'Standard', short: 'Std', icon: Zap, free: true },
+              { value: 'fast', label: 'Fast', short: 'Fast', icon: Gauge, free: false },
+              { value: 'premium', label: 'Elite', short: 'Elite', icon: Crown, free: false },
             ].map((m) => {
+              const Icon = m.icon;
               const isLocked = !isPaid && !m.free;
               const isActive = mode === m.value;
               return (
                 <button
+                  type="button"
                   key={m.value}
-                  onClick={() => !isLocked && setMode(m.value as any)}
-                  title={isLocked ? 'Upgrade to Pro to unlock' : undefined}
-                  className={`flex flex-col items-center gap-1 py-2 rounded-xl text-[9px] font-bold transition-all border relative ${
+                  onClick={() => !isLocked && setMode(m.value as 'standard' | 'fast' | 'premium')}
+                  title={isLocked ? 'Upgrade to Pro to unlock' : m.label}
+                  className={`relative flex flex-col items-stretch gap-1.5 px-2.5 py-2.5 rounded-2xl text-left transition-all border min-h-[4.25rem] ${
                     isLocked
-                      ? 'bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed opacity-60'
+                      ? 'bg-neutral-100/50 border-black/[0.04] text-neutral-400 cursor-not-allowed'
                       : isActive
-                      ? 'bg-primary/5 text-primary border-primary/20 shadow-sm'
-                      : 'bg-white text-textSecondary border-borderSubtle hover:border-primary/10'
+                      ? 'bg-white border-primary/25 text-neutral-900 shadow-[0_4px_14px_-4px_rgba(59,130,246,0.35),0_0_0_1px_rgba(59,130,246,0.12)]'
+                      : 'bg-white border-black/[0.06] text-neutral-600 hover:border-black/10 hover:bg-neutral-50/80'
                   }`}
                 >
-                  {m.icon}
-                  <span className="uppercase tracking-widest">{m.label}</span>
-                  {isLocked && <Crown size={8} className="absolute top-1.5 right-1.5 text-amber-400" />}
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                    isActive ? 'bg-primary/10 text-primary' : 'bg-neutral-100 text-neutral-500'
+                  }`}>
+                    <Icon size={14} strokeWidth={1.75} />
+                  </div>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide leading-tight">{m.short}</span>
+                  {isLocked && (
+                    <Crown size={10} className="absolute top-2 right-2 text-amber-500/90" strokeWidth={1.75} />
+                  )}
                 </button>
               );
             })}
@@ -616,16 +632,17 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         {activeTab === 'create' ? (
           <>
             {/* Prompt Area */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-[10px] font-black text-textMuted uppercase tracking-[0.2em] block">Your Vision</label>
-                {/* Voice Protocol badge */}
-                <span className="text-[9px] font-bold text-primary/60 uppercase tracking-wider flex items-center gap-1">
-                  <Mic size={9} /> Voice Protocol
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.16em]">Your Vision</label>
+                <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-primary/80 uppercase tracking-[0.12em]">
+                  <Mic size={11} strokeWidth={1.75} className="opacity-80" />
+                  Voice
+                  <ChevronDown size={11} strokeWidth={1.75} className="text-primary/50" aria-hidden />
                 </span>
               </div>
-              <div className="animated-border shadow-[0_32px_64px_-16px_rgba(59,130,246,0.2)]">
-                <div className="bg-white p-5 flex flex-col min-h-[130px] transition-all rounded-[22px] relative overflow-hidden">
+              <div className="animated-border shadow-[0_24px_48px_-20px_rgba(59,130,246,0.22)]">
+                <div className="bg-white p-5 flex flex-col min-h-[140px] transition-all rounded-[22px] relative overflow-hidden">
                   {/* ✨ Voice Orb overlay — replaces textarea while listening */}
                   <VoiceOrb
                     isListening={isListening}
@@ -638,32 +655,31 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={isListening ? '🎤 Listening... speak your vision' : 'Describe your presentation topic...'}
-                    className="w-full flex-1 bg-transparent text-[18px] text-black placeholder:text-textMuted/40 resize-none focus:outline-none font-medium leading-relaxed"
+                    className="w-full flex-1 bg-transparent text-[17px] text-neutral-900 placeholder:text-neutral-300 resize-none focus:outline-none font-medium leading-relaxed"
                   />
 
-                  {/* Bottom toolbar */}
-                  <div className="mt-4 flex items-center justify-between pt-4 border-t border-black/[0.03]">
-                    <div className="flex items-center gap-3">
-                      {/* Attach button */}
+                  <div className="mt-4 flex items-center justify-between pt-4 border-t border-black/[0.05]">
+                    <div className="flex items-center gap-2">
                       <button
+                        type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="w-10 h-10 rounded-xl bg-[#F8F9FA] border border-black/[0.04] flex items-center justify-center text-black/40 hover:text-primary hover:bg-primary/[0.04] hover:border-primary/20 transition-all shadow-sm group"
-                        title="Attach Reference Document"
+                        className="w-10 h-10 rounded-xl bg-neutral-50 border border-black/[0.07] flex items-center justify-center text-neutral-500 hover:text-primary hover:bg-primary/[0.06] hover:border-primary/25 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)] group"
+                        title="Attach reference"
                       >
-                        <Plus size={18} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform" />
+                        <Plus size={17} strokeWidth={1.75} className="group-hover:rotate-90 transition-transform duration-200" />
                       </button>
 
-                      {/* Voice Protocol Mic */}
                       <button
+                        type="button"
                         onClick={toggleVoice}
-                        title={isListening ? 'Stop listening' : 'Start voice input'}
-                        className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all shadow-sm relative ${
+                        title={isListening ? 'Stop listening' : 'Voice input'}
+                        className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
                           isListening
-                            ? 'bg-red-50 border-red-200 text-red-500 animate-pulse'
-                            : 'bg-[#F8F9FA] border-black/[0.04] text-black/40 hover:text-primary hover:bg-primary/[0.04] hover:border-primary/20'
+                            ? 'bg-red-50 border-red-200/80 text-red-600 ring-2 ring-red-100'
+                            : 'bg-neutral-50 border-black/[0.07] text-neutral-500 hover:text-primary hover:bg-primary/[0.06] hover:border-primary/25'
                         }`}
                       >
-                        {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+                        {isListening ? <MicOff size={17} strokeWidth={1.75} /> : <Mic size={17} strokeWidth={1.75} />}
                       </button>
 
                       {selectedFile && (
@@ -683,7 +699,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                       )}
                     </div>
 
-                    <div className="text-[10px] font-bold text-black/10 uppercase tracking-[0.2em]">
+                    <div className="text-[9px] font-semibold text-neutral-300 uppercase tracking-[0.18em]">
                       Neural Prompt v4
                     </div>
                   </div>
@@ -692,17 +708,18 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             </div>
 
             {/* Tone Selection */}
-            <div className="space-y-3">
-              <label className="text-[10px] font-black text-textMuted uppercase tracking-[0.2em] block">Narrative Tone</label>
+            <div className="space-y-2.5">
+              <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.16em] block">Narrative Tone</label>
               <div className="flex flex-wrap gap-2">
                 {TONES.map((t) => (
                   <button
+                    type="button"
                     key={t.value}
                     onClick={() => setTone(t.value)}
-                    className={`px-4 py-2 rounded-full text-[12px] font-bold transition-all border ${
+                    className={`px-4 py-2 rounded-full text-[12px] font-semibold transition-all border ${
                       tone === t.value
-                        ? 'bg-black text-white border-black shadow-premium'
-                        : 'bg-white border-borderSubtle text-textSecondary hover:border-black/20'
+                        ? 'bg-neutral-900 text-white border-neutral-900 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.2)]'
+                        : 'bg-white border-black/[0.08] text-neutral-600 hover:border-black/15 hover:bg-neutral-50'
                     }`}
                   >
                     {t.label}
@@ -712,20 +729,20 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             </div>
 
             {/* Presentation style modes */}
-            <div className="space-y-3">
-              <label className="text-[10px] font-black text-textMuted uppercase tracking-[0.2em] block">
+            <div className="space-y-2.5">
+              <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.16em] block">
                 Presentation Style
               </label>
-              <div className="flex flex-wrap gap-1.5 max-h-[140px] overflow-y-auto custom-scrollbar pr-1">
+              <div className="grid grid-cols-2 gap-2 max-h-[148px] overflow-y-auto custom-scrollbar pr-0.5 -mr-0.5">
                 {PRESENTATION_STYLES.map((s) => (
                   <button
                     key={s.value}
                     type="button"
                     onClick={() => setPresentationStyle(s.value)}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${
+                    className={`px-3 py-2 rounded-xl text-[11px] font-semibold text-left transition-all border leading-snug ${
                       presentationStyle === s.value
-                        ? 'bg-black text-white border-black'
-                        : 'bg-white border-borderSubtle text-textSecondary hover:border-black/15'
+                        ? 'bg-neutral-900 text-white border-neutral-900 shadow-sm'
+                        : 'bg-white border-black/[0.07] text-neutral-600 hover:border-black/12 hover:bg-neutral-50/80'
                     }`}
                   >
                     {s.label}
@@ -735,12 +752,12 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             </div>
 
             {/* Slide Count — gated by plan */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-[10px] font-black text-textMuted uppercase tracking-[0.2em]">Density (Slides)</label>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.16em]">Density (Slides)</label>
                 {!isPaid
-                  ? <span className="text-[9px] font-bold text-amber-500 uppercase tracking-wider flex items-center gap-1"><Crown size={10} /> Free: max 5</span>
-                  : <span className="text-[9px] font-bold text-emerald-500 uppercase tracking-wider">Max {maxSlidesForPlan} slides</span>
+                  ? <span className="text-[9px] font-semibold text-amber-600 uppercase tracking-wide flex items-center gap-1"><Crown size={10} strokeWidth={1.75} /> Free · max 5</span>
+                  : <span className="text-[9px] font-semibold text-emerald-600 uppercase tracking-wide">Up to {maxSlidesForPlan}</span>
                 }
               </div>
               <div className="flex flex-wrap gap-2">
@@ -748,19 +765,20 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                   const isLocked = n > maxSlidesForPlan;
                   return (
                     <button
+                      type="button"
                       key={n}
                       onClick={() => !isLocked && setSlideCount(n)}
                       title={isLocked ? `Upgrade to unlock ${n} slides` : `Generate ${n} slides`}
-                      className={`flex-1 min-w-[40px] h-11 rounded-xl text-[12px] font-black transition-all flex items-center justify-center border relative ${
+                      className={`flex-1 min-w-[2.5rem] h-11 rounded-xl text-[12px] font-semibold transition-all flex items-center justify-center border relative ${
                         isLocked
-                          ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
+                          ? 'bg-neutral-100 border-black/[0.04] text-neutral-300 cursor-not-allowed'
                           : slideCount === n
-                          ? 'bg-primary text-white border-primary shadow-premium'
-                          : 'bg-white border-borderSubtle text-textSecondary hover:border-primary/20'
+                          ? 'bg-primary text-white border-primary shadow-[0_4px_12px_-4px_rgba(59,130,246,0.45)]'
+                          : 'bg-white border-black/[0.08] text-neutral-600 hover:border-primary/30'
                       }`}
                     >
                       {n}
-                      {isLocked && <Crown size={8} className="absolute top-1 right-1 text-amber-400" />}
+                      {isLocked && <Crown size={9} className="absolute top-1.5 right-1.5 text-amber-500" strokeWidth={1.75} />}
                     </button>
                   );
                 })}
@@ -795,27 +813,27 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       {/* Original Button Loading State (Overlay removed) */}
 
       {/* Consistent Luxury CTA */}
-      <div className="shrink-0 p-8 border-t border-black/[0.03] bg-white relative z-50">
+      <div className="shrink-0 px-5 sm:px-6 py-5 border-t border-black/[0.06] bg-white relative z-50">
         <button
+          type="button"
           onClick={handleGenerateClick}
           disabled={(activeTab === 'create' ? !prompt.trim() : !selectedFile) || isLoading}
-          className="group relative w-full h-14 rounded-full bg-primary hover:bg-primary/90 text-white shadow-[0_12px_24px_-8px_rgba(59,130,246,0.5)] disabled:opacity-30 disabled:shadow-none transition-all duration-300 active:scale-[0.96] overflow-hidden"
+          className="group relative w-full h-[3.25rem] rounded-full bg-gradient-to-b from-[#5B7CFF] to-primary hover:from-primary hover:to-[#3d5ef0] text-white shadow-[0_8px_24px_-6px_rgba(59,130,246,0.55),0_0_0_1px_rgba(255,255,255,0.12)_inset] disabled:opacity-35 disabled:shadow-none disabled:from-neutral-200 disabled:to-neutral-300 transition-all duration-200 active:scale-[0.98] overflow-hidden"
         >
-          <div className="relative flex items-center justify-center gap-3">
+          <div className="relative flex items-center justify-center gap-2.5">
             {isLoading ? (
               <>
-                <Loader2 size={20} className="animate-spin text-white/80" />
-                <span className="text-[15px] font-bold tracking-tight">Orchestrating...</span>
+                <Loader2 size={19} className="animate-spin text-white/90" strokeWidth={1.75} />
+                <span className="text-[14px] font-semibold tracking-tight">Orchestrating…</span>
               </>
             ) : (
               <>
-                <span className="text-[15px] font-bold tracking-tight">Generate Presentation</span>
-                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                <span className="text-[14px] font-semibold tracking-tight">Generate Presentation</span>
+                <ArrowRight size={18} strokeWidth={1.75} className="group-hover:translate-x-0.5 transition-transform" />
               </>
             )}
           </div>
-          
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 group-hover:opacity-100 group-hover:translate-x-full transition-all duration-700 translate-x-[-100%]" />
         </button>
       </div>
 

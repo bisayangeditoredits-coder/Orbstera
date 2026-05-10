@@ -148,11 +148,11 @@ function SlideStats() {
   const readMin = Math.max(1, Math.round(wordCount / 130));
 
   return (
-    <div className="hidden lg:flex items-center gap-3 px-3 py-1 rounded-lg bg-black/[0.03] border border-black/[0.04]">
+    <div className="hidden lg:flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-neutral-100/80 border border-black/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
       <Stat icon={LayoutTemplate} value={slides.length} label="slides" />
-      <div className="w-px h-3 bg-black/10" />
+      <div className="w-px h-3.5 bg-black/[0.08]" />
       <Stat icon={AlignLeft}      value={wordCount}     label="words"  />
-      <div className="w-px h-3 bg-black/10" />
+      <div className="w-px h-3.5 bg-black/[0.08]" />
       <Stat icon={Clock}          value={`${readMin}m`} label="read"   />
     </div>
   );
@@ -161,9 +161,9 @@ function SlideStats() {
 function Stat({ icon: Icon, value, label }: { icon: any; value: string | number; label: string }) {
   return (
     <div className="flex items-center gap-1.5">
-      <Icon size={11} className="text-black/30" />
-      <span className="text-[11px] font-bold text-black/50">{value}</span>
-      <span className="text-[10px] text-black/30 uppercase tracking-wider">{label}</span>
+      <Icon size={12} className="text-neutral-400" strokeWidth={1.75} />
+      <span className="text-[11px] font-semibold tabular-nums text-neutral-700">{value}</span>
+      <span className="text-[9px] text-neutral-400 uppercase tracking-[0.12em] font-medium">{label}</span>
     </div>
   );
 }
@@ -189,7 +189,7 @@ function EditableTitle() {
   if (!presentation) return null;
 
   return (
-    <div className="flex flex-col min-w-0 ml-2 group/title">
+    <div className="flex flex-col min-w-0 ml-0.5 group/title justify-center">
       {editing ? (
         <input
           ref={inputRef}
@@ -197,19 +197,20 @@ function EditableTitle() {
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
-          className="font-semibold text-[13px] leading-tight w-full max-w-[min(220px,calc(100vw-8rem))] sm:max-w-[220px] bg-primary/5 border border-primary/20 rounded px-1.5 py-0.5 text-primary outline-none"
+          className="font-semibold text-[13px] leading-tight w-full max-w-[min(220px,calc(100vw-8rem))] sm:max-w-[220px] bg-white border border-black/[0.1] rounded-lg px-2 py-1 text-neutral-900 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30"
           autoFocus
         />
       ) : (
         <button
+          type="button"
           onClick={startEdit}
-          className="flex items-center gap-1.5 group/btn"
+          className="flex items-center gap-1.5 group/btn text-left rounded-lg -mx-1 px-1 py-0.5 hover:bg-white/80 border border-transparent hover:border-black/[0.06] transition-colors"
           title="Click to rename"
         >
-          <span className="font-semibold text-[13px] leading-tight truncate max-w-[min(200px,calc(100vw-10rem))] sm:max-w-[200px] text-textMain">
+          <span className="font-semibold text-[13px] leading-tight truncate max-w-[min(200px,calc(100vw-10rem))] sm:max-w-[200px] text-neutral-800">
             {presentation.title || 'Untitled Presentation'}
           </span>
-          <Pencil size={11} className="text-black/20 opacity-0 group-hover/btn:opacity-100 transition-opacity shrink-0" />
+          <Pencil size={12} strokeWidth={1.75} className="text-neutral-300 opacity-0 group-hover/btn:opacity-100 transition-opacity shrink-0" />
         </button>
       )}
     </div>
@@ -223,22 +224,24 @@ function UndoRedo() {
   const canRedo = historyIndex < history.length - 1;
 
   return (
-    <div className="hidden sm:flex items-center gap-0.5 bg-black/[0.03] rounded-lg p-0.5 border border-black/[0.05]">
+    <div className="hidden sm:flex items-center gap-0.5 rounded-full p-0.5 bg-neutral-100/80 border border-black/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
       <button
+        type="button"
         onClick={undo}
         disabled={!canUndo}
         title="Undo (Ctrl+Z)"
-        className="w-7 h-7 flex items-center justify-center rounded-md text-textMuted hover:text-textMain hover:bg-white transition-all disabled:opacity-25 disabled:cursor-not-allowed"
+        className="w-8 h-8 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-900 hover:bg-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
       >
-        <Undo2 size={13} />
+        <Undo2 size={14} strokeWidth={1.75} />
       </button>
       <button
+        type="button"
         onClick={redo}
         disabled={!canRedo}
         title="Redo (Ctrl+Y)"
-        className="w-7 h-7 flex items-center justify-center rounded-md text-textMuted hover:text-textMain hover:bg-white transition-all disabled:opacity-25 disabled:cursor-not-allowed"
+        className="w-8 h-8 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-900 hover:bg-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
       >
-        <Redo2 size={13} />
+        <Redo2 size={14} strokeWidth={1.75} />
       </button>
     </div>
   );
@@ -564,29 +567,29 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
         )}
       </AnimatePresence>
 
-      <header className="border-b-2 border-black/[0.08] bg-background z-50 shrink-0 shadow-sm pt-[env(safe-area-inset-top,0px)]">
-        <div className="grid grid-cols-1 gap-y-2 py-2 px-2 sm:px-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center lg:gap-x-3 lg:gap-y-0 lg:py-0 lg:h-[52px] lg:px-4">
+      <header className="border-b border-black/[0.06] bg-[#FAFAFA]/95 backdrop-blur-md z-50 shrink-0 shadow-[0_1px_0_rgba(255,255,255,0.8)_inset] pt-[env(safe-area-inset-top,0px)]">
+        <div className="grid grid-cols-1 gap-y-2 py-2 px-2 sm:px-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center lg:gap-x-4 lg:gap-y-0 lg:py-0 lg:h-[52px] lg:px-5">
         {/* Left */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0 lg:flex-nowrap">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 min-w-0 lg:flex-nowrap">
           {showMobileGalleryTrigger && onOpenMobileGallery && (
             <button
               type="button"
               onClick={onOpenMobileGallery}
-              className="md:hidden shrink-0 text-textMuted hover:text-textMain hover:bg-hoverSurface transition-all p-2 rounded-md touch-manipulation"
+              className="md:hidden shrink-0 text-neutral-500 hover:text-neutral-900 hover:bg-white border border-transparent hover:border-black/[0.06] transition-all p-2 rounded-xl touch-manipulation"
               aria-label="Open slide gallery"
             >
-              <PanelLeft size={18} />
+              <PanelLeft size={18} strokeWidth={1.75} />
             </button>
           )}
           <Link
             href="/dashboard"
-            className="shrink-0 text-textMuted hover:text-textMain hover:bg-hoverSurface transition-all p-1.5 rounded-md touch-manipulation"
+            className="shrink-0 w-8 h-8 flex items-center justify-center text-neutral-500 hover:text-neutral-900 hover:bg-white border border-black/[0.06] bg-white/60 rounded-xl transition-all touch-manipulation shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+            aria-label="Back to dashboard"
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={16} strokeWidth={1.75} />
           </Link>
-          <div className="w-px h-[16px] bg-borderSubtle shrink-0 hidden xs:block" />
-          <Link href="/" className="shrink-0 flex items-center gap-2 min-w-0">
-            <img src="/logo.png.png" alt="Orbstera" className="h-5 w-auto max-h-8 object-contain" />
+          <Link href="/" className="shrink-0 flex items-center min-w-0 rounded-lg hover:opacity-90 transition-opacity">
+            <img src="/logo.png.png" alt="Orbstera" className="h-[1.35rem] w-auto max-h-7 object-contain" />
           </Link>
 
           <div className="min-w-0 flex-1 basis-[8rem] sm:basis-auto sm:flex-initial">
@@ -595,7 +598,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
 
           {/* Cloud sync status */}
           {presentation && (
-            <div className="flex flex-1 min-w-0 basis-full sm:basis-auto items-center gap-1 flex-wrap sm:max-w-[min(100%,220px)] lg:max-w-[200px]">
+            <div className="flex flex-1 min-w-0 basis-full sm:basis-auto items-center gap-1.5 flex-wrap sm:max-w-[min(100%,240px)] lg:max-w-[220px]">
               <input
                 ref={importInputRef}
                 type="file"
@@ -607,54 +610,61 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
                 type="button"
                 disabled={importBusy}
                 onClick={() => importInputRef.current?.click()}
-                className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 min-h-9 sm:min-h-0 rounded-md border border-black/[0.08] bg-white text-black/60 hover:text-black hover:border-black/15 transition-all disabled:opacity-40 touch-manipulation"
+                className="flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1.5 min-h-9 sm:min-h-0 rounded-full border border-black/[0.08] bg-white text-neutral-600 hover:text-neutral-900 hover:border-black/12 hover:bg-neutral-50 transition-all disabled:opacity-40 touch-manipulation shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
                 title="Import .pptx"
               >
-                <Upload size={11} />
+                <Upload size={12} strokeWidth={1.75} className="text-neutral-500" />
                 <span className="hidden sm:inline">Import</span>
               </button>
               {cloudSync === 'saving' && (
-                <div className="flex items-center gap-1 text-amber-600 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 border border-amber-100">
-                  <Loader2 size={10} className="animate-spin" />
+                <div className="flex items-center gap-1 text-amber-700 text-[10px] font-semibold px-2 py-1 rounded-full bg-amber-50/90 border border-amber-200/60">
+                  <Loader2 size={11} className="animate-spin shrink-0" strokeWidth={1.75} />
                   <span className="hidden sm:inline">Saving…</span>
                 </div>
               )}
               {cloudSync === 'saved' && (
-                <div className="flex items-center gap-1 text-emerald-600 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-100">
-                  <CheckCircle size={10} />
+                <div className="flex items-center gap-1 text-emerald-700 text-[10px] font-semibold px-2 py-1 rounded-full bg-emerald-50/90 border border-emerald-200/60">
+                  <CheckCircle size={11} strokeWidth={1.75} />
                   <span className="hidden sm:inline">Saved</span>
                 </div>
               )}
               {cloudSync === 'idle' && !importBusy && (
-                <div className="hidden md:flex items-center gap-1 text-black/35 text-[10px] font-medium px-1.5 py-0.5">
-                  <span>Cloud</span>
+                <div className="hidden md:flex items-center text-neutral-400 text-[10px] font-medium px-1.5">
+                  <span className="sr-only">Cloud idle</span>
                 </div>
               )}
               {cloudSync === 'error' && (
-                <div className="flex items-center gap-1 text-red-600 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-50 border border-red-100 max-w-[140px]">
-                  <AlertCircle size={10} className="shrink-0" />
-                  <span className="truncate" title={cloudMsg}>{cloudMsg || 'Sync error'}</span>
-                  <button type="button" onClick={retrySaveNow} className="shrink-0 p-0.5 rounded hover:bg-red-100" title="Retry save">
-                    <RefreshCw size={10} />
+                <div className="flex items-center gap-1 text-red-700 text-[10px] font-semibold px-2 py-1 rounded-full bg-red-50 border border-red-100 max-w-[150px]">
+                  <AlertCircle size={11} className="shrink-0" strokeWidth={1.75} />
+                  <span className="truncate min-w-0" title={cloudMsg}>{cloudMsg || 'Sync error'}</span>
+                  <button type="button" onClick={retrySaveNow} className="shrink-0 p-1 rounded-full hover:bg-red-100/80" title="Retry save">
+                    <RefreshCw size={11} strokeWidth={1.75} />
                   </button>
                 </div>
               )}
               {cloudSync === 'conflict' && (
-                <div className="flex items-center gap-1 text-violet-700 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-50 border border-violet-100 max-w-[160px]">
-                  <span className="truncate">Conflict</span>
-                  <button type="button" onClick={reloadFromCloud} className="shrink-0 underline">Reload</button>
+                <div className="flex items-center gap-1.5 text-neutral-700 text-[10px] font-medium px-2 py-1 rounded-full bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)] max-w-[200px]">
+                  <AlertCircle size={11} className="shrink-0 text-amber-600" strokeWidth={1.75} />
+                  <span className="truncate text-neutral-600">Newer version in cloud</span>
+                  <button
+                    type="button"
+                    onClick={reloadFromCloud}
+                    className="shrink-0 px-2 py-0.5 rounded-full bg-neutral-900 text-white text-[9px] font-semibold uppercase tracking-wide hover:bg-neutral-800"
+                  >
+                    Reload
+                  </button>
                 </div>
               )}
               {cloudSync === 'retrying' && (
-                <div className="flex items-center gap-1 text-amber-700 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 border border-amber-100">
-                  <Loader2 size={10} className="animate-spin" />
+                <div className="flex items-center gap-1 text-amber-800 text-[10px] font-semibold px-2 py-1 rounded-full bg-amber-50 border border-amber-100">
+                  <Loader2 size={11} className="animate-spin" strokeWidth={1.75} />
                   <span>Retry…</span>
                 </div>
               )}
             </div>
           )}
 
-          <div className="w-px h-[16px] bg-borderSubtle shrink-0 mx-0.5 sm:mx-1 hidden sm:block" />
+          <div className="w-px h-[18px] bg-black/[0.06] shrink-0 mx-0.5 hidden sm:block" />
           <UndoRedo />
           <SlideStats />
         </div>
@@ -663,7 +673,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
         <div className="flex justify-center min-w-0 w-full lg:w-auto lg:max-w-[min(520px,42vw)] overflow-hidden">
           <div
             id="tour-panel-tabs"
-            className="inline-flex max-w-full items-center gap-0.5 sm:gap-1 bg-surface/80 backdrop-blur-md border border-borderSubtle rounded-xl px-1 py-1 shadow-sm overflow-x-auto scrollbar-none touch-pan-x"
+            className="inline-flex max-w-full items-center gap-0.5 p-1 rounded-2xl bg-neutral-100/85 border border-black/[0.06] shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] overflow-x-auto scrollbar-none touch-pan-x"
           >
           {PANEL_BUTTONS.map((btn) => {
             const isActive = activePanel === btn.id && isPanelOpen;
@@ -672,13 +682,13 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
                 key={btn.id}
                 type="button"
                 onClick={() => handlePanelToggle(btn.id)}
-                className={`flex shrink-0 items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 min-h-9 sm:h-[32px] rounded-lg text-[11px] sm:text-[12px] font-bold transition-all duration-200 touch-manipulation ${
+                className={`flex shrink-0 items-center gap-2 px-3 sm:px-3.5 min-h-9 sm:h-[34px] rounded-[10px] text-[11px] sm:text-[12px] font-semibold transition-all duration-200 touch-manipulation ${
                   isActive
-                    ? 'bg-white text-primary border border-primary/10 shadow-[0_2px_8px_-2px_rgba(59,130,246,0.2)]'
-                    : 'text-textSecondary hover:text-textMain hover:bg-hoverSurface'
+                    ? 'bg-white text-neutral-900 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)]'
+                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-white/70'
                 }`}
               >
-                <btn.icon size={15} className={isActive ? 'text-primary' : 'text-textMuted'} />
+                <btn.icon size={15} strokeWidth={1.75} className={isActive ? 'text-primary' : 'text-neutral-400'} />
                 <span className="hidden sm:inline">{btn.label}</span>
               </button>
             );
@@ -687,49 +697,45 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
         </div>
 
         {/* Right */}
-        <div id="tour-actions" className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2 min-w-0 shrink-0">
-          {/* Keyboard shortcut hints */}
-          <div className="hidden xl:flex items-center gap-1 text-[10px] text-black/25 font-mono mr-1">
-            <span className="px-1.5 py-0.5 rounded bg-black/[0.04] border border-black/[0.06]">⌘P</span>
-            <span>Present</span>
-            <span className="px-1.5 py-0.5 rounded bg-black/[0.04] border border-black/[0.06] ml-2">⌘E</span>
-            <span>Export</span>
-            <span className="px-1.5 py-0.5 rounded bg-black/[0.04] border border-black/[0.06] ml-2">⌘D</span>
-            <span>Design</span>
+        <div id="tour-actions" className="flex flex-wrap items-center justify-end gap-2 min-w-0 shrink-0">
+          <div className="hidden xl:flex items-center gap-1.5 text-[10px] text-neutral-400 font-medium mr-0.5">
+            <span className="px-1.5 py-0.5 rounded-md bg-white border border-black/[0.06] text-neutral-500 tabular-nums">⌘P</span>
+            <span className="text-neutral-400">Present</span>
+            <span className="px-1.5 py-0.5 rounded-md bg-white border border-black/[0.06] text-neutral-500 tabular-nums ml-1">⌘E</span>
+            <span className="text-neutral-400">Export</span>
           </div>
 
           <button 
             type="button"
             onClick={handleShare}
-            className="min-h-9 h-9 sm:h-[36px] px-2.5 sm:px-[14px] text-textMain bg-white border border-borderSubtle hover:bg-hoverSurface rounded-lg shadow-sm transition-all flex items-center gap-2 text-[12px] sm:text-[13px] font-semibold active:scale-[0.97] touch-manipulation"
+            className="min-h-9 h-9 sm:h-[36px] px-3 sm:px-3.5 text-neutral-800 bg-white border border-black/[0.08] hover:bg-neutral-50 hover:border-black/12 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all flex items-center gap-2 text-[12px] sm:text-[13px] font-semibold active:scale-[0.98] touch-manipulation"
           >
-            {isCopied ? <CheckCircle size={16} className="text-emerald-500" /> : <Share2 size={16} className="text-textSecondary" />}
-            <span className="hidden md:inline">{isCopied ? 'Copied Link!' : 'Share'}</span>
+            {isCopied ? <CheckCircle size={15} className="text-emerald-600" strokeWidth={1.75} /> : <Share2 size={15} className="text-neutral-500" strokeWidth={1.75} />}
+            <span className="hidden md:inline">{isCopied ? 'Copied' : 'Share'}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setEditorState({ isPresenting: true })}
-            className="min-h-9 h-9 sm:h-[36px] px-2.5 sm:px-[14px] text-textMain bg-white border border-borderSubtle hover:bg-hoverSurface rounded-lg shadow-sm transition-all flex items-center gap-2 text-[12px] sm:text-[13px] font-semibold active:scale-[0.97] touch-manipulation"
+            className="min-h-9 h-9 sm:h-[36px] px-3 sm:px-3.5 text-neutral-800 bg-white border border-black/[0.08] hover:bg-neutral-50 hover:border-black/12 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all flex items-center gap-2 text-[12px] sm:text-[13px] font-semibold active:scale-[0.98] touch-manipulation"
           >
-            <Play size={16} className="text-primary fill-primary/20" />
+            <Play size={15} className="text-primary fill-primary/15" strokeWidth={1.75} />
             <span className="hidden md:inline">Present</span>
           </button>
 
-          <div className="w-px h-[20px] bg-borderSubtle mx-0.5 sm:mx-1 hidden sm:block" />
+          <div className="w-px h-[22px] bg-black/[0.06] mx-0.5 hidden sm:block" />
 
           <button
             id="tour-export"
             type="button"
             onClick={handleExportCheck}
             disabled={!presentation || isExporting}
-            className="min-h-9 h-9 sm:h-[36px] px-3 sm:px-[16px] flex items-center gap-1.5 sm:gap-2 text-[12px] sm:text-[13px] font-bold text-white bg-primary hover:bg-primary/90 rounded-lg shadow-md hover:shadow-primary/30 transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed relative overflow-hidden group touch-manipulation"
+            className="min-h-9 h-9 sm:h-[36px] px-3.5 sm:px-4 flex items-center gap-2 text-[12px] sm:text-[13px] font-semibold text-white bg-gradient-to-b from-[#5B7CFF] to-primary hover:from-primary hover:to-[#3d5ef0] rounded-full shadow-[0_4px_14px_-4px_rgba(59,130,246,0.55),0_0_0_1px_rgba(255,255,255,0.12)_inset] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none relative overflow-hidden group touch-manipulation"
           >
-            {/* Shimmer */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-            <Download size={16} className="shrink-0" />
-            <span className="hidden xs:inline">Export .pptx</span>
-            <span className="xs:hidden">PPTX</span>
+            <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/18 to-transparent opacity-0 group-hover:opacity-100 group-hover:translate-x-full transition-all duration-700 translate-x-[-100%]" />
+            <Download size={15} className="shrink-0 relative" strokeWidth={1.75} />
+            <span className="hidden xs:inline relative">Export .pptx</span>
+            <span className="xs:hidden relative">PPTX</span>
           </button>
         </div>
         </div>
