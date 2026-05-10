@@ -598,7 +598,8 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
 
           {/* Cloud sync status */}
           {presentation && (
-            <div className="flex flex-1 min-w-0 basis-full sm:basis-auto items-center gap-1.5 flex-wrap sm:max-w-[min(100%,240px)] lg:max-w-[220px]">
+            <div className="flex flex-1 min-w-0 basis-full sm:basis-auto items-center gap-1.5 overflow-x-clip sm:max-w-[min(100%,240px)] lg:max-w-[220px]">
+              <div className="flex w-full min-w-0 flex-wrap items-center gap-1.5">
               <input
                 ref={importInputRef}
                 type="file"
@@ -643,9 +644,11 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
                 </div>
               )}
               {cloudSync === 'conflict' && (
-                <div className="flex items-center gap-1.5 text-neutral-700 text-[10px] font-medium px-2 py-1 rounded-full bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)] max-w-[200px]">
+                <div className="flex basis-full min-w-0 w-full max-w-full items-center gap-1.5 text-neutral-700 text-[10px] font-medium px-2 py-1 rounded-full bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
                   <AlertCircle size={11} className="shrink-0 text-amber-600" strokeWidth={1.75} />
-                  <span className="truncate text-neutral-600">Newer version in cloud</span>
+                  <span className="min-w-0 flex-1 truncate text-neutral-600" title={cloudMsg || 'A newer copy exists in the cloud'}>
+                    Newer version in cloud
+                  </span>
                   <button
                     type="button"
                     onClick={reloadFromCloud}
@@ -661,11 +664,14 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
                   <span>Retry…</span>
                 </div>
               )}
+              </div>
             </div>
           )}
 
           <div className="w-px h-[18px] bg-black/[0.06] shrink-0 mx-0.5 hidden sm:block" />
-          <UndoRedo />
+          <div className="shrink-0 relative z-[1]">
+            <UndoRedo />
+          </div>
           <SlideStats />
         </div>
 
