@@ -32,7 +32,9 @@ function ElementNode({
   const shapeRef = useRef<Konva.Node>(null);
   const trRef    = useRef<Konva.Transformer>(null);
   const genFillBorderRef = useRef<Konva.Rect>(null);
-  const [img]    = useImage(el.src || '', 'anonymous');
+  // Omit crossOrigin so external URLs (e.g. Pollinations) load like sidebar `<img>`;
+  // `anonymous` requires ACAO and leaves the canvas stuck on the loading placeholder.
+  const [img]    = useImage(el.src || '');
 
   const { editor, setEditorState } = usePresentationStore();
   const previewId = editor.previewElementId;
@@ -176,7 +178,7 @@ function ElementNode({
       const statusTitle = awaitingPrompt ? 'Generative fill' : 'Rendering';
       const statusSub = awaitingPrompt
         ? 'Describe content in the panel below'
-        : 'Fetching high-res asset…';
+        : 'Loading image…';
 
       return (
         <Group {...commonProps}>
@@ -399,7 +401,7 @@ function SlideBackground({ colors, bgImageUrl }: { colors: string[], bgImageUrl?
   const { editor } = usePresentationStore();
   const bg     = colors[0] || '#05050A';
   const accent = colors[2] || '#38BDF8';
-  const [bgImg] = useImage(bgImageUrl || '', 'anonymous');
+  const [bgImg] = useImage(bgImageUrl || '');
 
   // Calculate crop for background image to prevent warping
   const bgCrop = bgImg ? (() => {
