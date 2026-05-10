@@ -29,6 +29,12 @@ export function HeroSection() {
     }
     return 'en-US';
   }, []);
+
+  /** Mutable lang — falls back to en-US if the engine rejects the locale */
+  const speechLangRef = useRef(resolvedSpeechLang);
+  speechLangRef.current = resolvedSpeechLang;
+
+  const voiceStartBusyRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const [isListening, setIsListening] = useState(false);
@@ -83,18 +89,14 @@ export function HeroSection() {
     if (typeof window === 'undefined') return null;
     if (recognitionRef.current) return recognitionRef.current;
 
-    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    // Prefer webkit* — matches Chromium / Safari stacks reliably
+    const SpeechRecognitionAPI = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
     if (!SpeechRecognitionAPI) return null;
 
     const rec = new SpeechRecognitionAPI();
     rec.continuous = true;
     rec.interimResults = true;
-    rec.lang = resolvedSpeechLang;
-    try {
-      rec.maxAlternatives = 3;
-    } catch {
-      /* optional */
-    }
+    rec.lang = speechLangRef.current;
 
     rec.onresult = (event: any) => {
       let newFinal = '';
@@ -137,6 +139,19 @@ export function HeroSection() {
         setIsListening(false);
         stopAudioAnalysis();
         setTimeout(() => setSpeechError(null), 5000);
+      } else if (event.error === 'language-not-supported') {
+        if (speechLangRef.current !== 'en-US') {
+          speechLangRef.current = 'en-US';
+          if (recognitionRef.current) {
+            try {
+              recognitionRef.current.lang = 'en-US';
+            } catch {
+              /* noop */
+            }
+          }
+          setSpeechError('Switched to English (US) for recognition.');
+          setTimeout(() => setSpeechError(null), 3500);
+        }
       } else if (event.error === 'network') {
         setSpeechError('Network error. Check your connection.');
         setTimeout(() => setSpeechError(null), 4000);
@@ -144,6 +159,12 @@ export function HeroSection() {
         /* common — session continues */
       } else if (event.error === 'aborted') {
         /* own .stop() */
+      } else if (event.error === 'service-not-allowed') {
+        setSpeechError('Voice recognition unavailable here. Use HTTPS or Chrome / Edge.');
+        shouldBeListeningRef.current = false;
+        setIsListening(false);
+        stopAudioAnalysis();
+        setTimeout(() => setSpeechError(null), 6000);
       } else {
         console.warn('SpeechRecognition non-fatal error:', event.error);
       }
@@ -155,7 +176,7 @@ export function HeroSection() {
         setTimeout(() => {
           if (!shouldBeListeningRef.current || !recognitionRef.current) return;
           try {
-            recognitionRef.current.lang = resolvedSpeechLang;
+            recognitionRef.current.lang = speechLangRef.current;
             recognitionRef.current.start();
           } catch {
             /* already running */
@@ -454,39 +475,57 @@ export function HeroSection() {
   };
 
   const toggleListening = () => {
-    const rec = ensureSpeechRecognition();
-    if (!rec) {
-      setSpeechError("Your browser doesn't support voice input. Try Chrome or Edge.");
-      setTimeout(() => setSpeechError(null), 5000);
-      return;
-    }
+    void (async () => {
+      const rec = ensureSpeechRecognition();
+      if (!rec) {
+        setSpeechError("Your browser doesn't support voice input. Try Chrome or Edge.");
+        setTimeout(() => setSpeechError(null), 5000);
+        return;
+      }
 
-    if (isListening) {
-      stopVoiceSession();
-    } else {
+      if (typeof window !== 'undefined' && !window.isSecureContext) {
+        setSpeechError('Voice Protocol needs HTTPS (or localhost).');
+        setTimeout(() => setSpeechError(null), 6000);
+        return;
+      }
+
+      if (isListening) {
+        stopVoiceSession();
+        return;
+      }
+
+      if (voiceStartBusyRef.current) return;
+      voiceStartBusyRef.current = true;
+
       accumulatedTextRef.current = '';
       interimLiveRef.current = '';
       setPrompt('');
       setInterimTranscript('');
       setSpeechError(null);
-      shouldBeListeningRef.current = true;
+      speechLangRef.current = resolvedSpeechLang;
+
       try {
         try {
-          rec.lang = resolvedSpeechLang;
+          rec.lang = speechLangRef.current;
         } catch {
           /* noop */
         }
+        // Grant mic first — avoids fights between Web Speech and getUserMedia on many Chromium/Android builds
+        await startAudioAnalysis();
+        shouldBeListeningRef.current = true;
         rec.start();
-        void startAudioAnalysis();
         setIsListening(true);
       } catch (err) {
         console.error(err);
         shouldBeListeningRef.current = false;
+        stopAudioAnalysis();
         setIsListening(false);
-        setSpeechError('Could not start microphone. Try again.');
-        setTimeout(() => setSpeechError(null), 4000);
+        setSpeechError('Allow microphone access to use Voice Protocol.');
+        setTimeout(() => setSpeechError(null), 5000);
+      } finally {
+        voiceStartBusyRef.current = false;
       }
-    }
+    })();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -515,25 +554,28 @@ export function HeroSection() {
   };
 
   const handleGenerate = () => {
-    // Determine the actual prompt to use (esp. for voice mode where final results might still be pending)
-    const effectivePrompt = (prompt.trim() || interimTranscript.trim());
+    if (activeMode === 'enhance' && !selectedFile) {
+      fileInputRef.current?.click();
+      return;
+    }
+
+    // Stop + flush first so effectivePrompt reflects everything heard (state updates async)
+    if (isListening) {
+      stopVoiceSession();
+    } else {
+      flushInterimIntoAccumulator();
+    }
+
+    const effectivePrompt =
+      accumulatedTextRef.current.replace(/\s+/g, ' ').trim() ||
+      prompt.trim() ||
+      interimTranscript.trim();
 
     if (activeMode === 'create' && !effectivePrompt) return;
     if (activeMode === 'voice' && !effectivePrompt) {
       setSpeechError("Please say something first.");
       setTimeout(() => setSpeechError(null), 3000);
       return;
-    }
-    if (activeMode === 'enhance' && !selectedFile) {
-      fileInputRef.current?.click();
-      return;
-    }
-
-    // Force stop listening to ensure all resources are released
-    if (isListening) {
-      stopVoiceSession();
-    } else {
-      flushInterimIntoAccumulator();
     }
 
     const params = new URLSearchParams();
