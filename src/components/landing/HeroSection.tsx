@@ -110,7 +110,7 @@ export function HeroSection() {
     };
   }, []);
 
-  const playTypingSound = () => {
+  const playTypingSound = (key?: string) => {
     try {
       if (!typeAudioCtxRef.current) {
         const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -121,43 +121,67 @@ export function HeroSection() {
 
       const time = ctx.currentTime;
 
-      // 1. Futuristic Glass UI "Sparkle/Tink" (High Frequency)
-      const oscHigh = ctx.createOscillator();
-      const gainHigh = ctx.createGain();
-      oscHigh.type = 'sine'; // Pure glassy tone
+      let baseModifier = 1;
+      let volumeModifier = 1;
 
-      // High frequency for a premium, clean UI feel (randomized for natural variation)
-      const highFreq = 1200 + Math.random() * 300;
-      oscHigh.frequency.setValueAtTime(highFreq, time);
-      oscHigh.frequency.exponentialRampToValueAtTime(highFreq * 0.6, time + 0.02);
+      if (key === 'Enter') {
+        baseModifier = 0.6; // Deepest thud
+        volumeModifier = 1.3; // Louder
+      } else if (key === ' ' || key === 'Spacebar') {
+        baseModifier = 0.75; // Deeper (spacebar thock)
+        volumeModifier = 1.2;
+      } else if (key === 'Backspace') {
+        baseModifier = 1.1; // Slightly higher
+        volumeModifier = 0.9;
+      } else if (key) {
+        // Deterministic variation based on character code
+        const code = key.charCodeAt(0) || 0;
+        baseModifier = 0.9 + (code % 20) * 0.01; // Vary between 0.9 and 1.1
+      }
 
-      gainHigh.gain.setValueAtTime(0, time);
-      gainHigh.gain.linearRampToValueAtTime(0.06, time + 0.002); // Very quiet and subtle
-      gainHigh.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
-
-      oscHigh.connect(gainHigh);
-      gainHigh.connect(ctx.destination);
-      oscHigh.start(time);
-      oscHigh.stop(time + 0.03);
-
-      // 2. Soft Tactile Body (Low Frequency "Pop")
+      // 1. The Core "Mac" Thud (Extremely short, creamy base)
       const oscLow = ctx.createOscillator();
       const gainLow = ctx.createGain();
-      oscLow.type = 'triangle'; // Gives a slightly warm, muted body
+      oscLow.type = 'sine'; // Pure sine for a clean, creamy thud
 
-      // Pitch drops smoothly to give tactile feedback without harshness
-      const lowFreq = 200 + Math.random() * 40;
-      oscLow.frequency.setValueAtTime(lowFreq, time);
-      oscLow.frequency.exponentialRampToValueAtTime(50, time + 0.04);
+      // Pitch drops very fast to give the illusion of a tactile tap
+      const baseFreq = (140 + Math.random() * 20) * baseModifier;
+      oscLow.frequency.setValueAtTime(baseFreq, time);
+      oscLow.frequency.exponentialRampToValueAtTime(40 * baseModifier, time + 0.03);
 
       gainLow.gain.setValueAtTime(0, time);
-      gainLow.gain.linearRampToValueAtTime(0.12, time + 0.003); // Soft attack
-      gainLow.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+      gainLow.gain.linearRampToValueAtTime(0.6 * volumeModifier, time + 0.002); // Very fast, soft attack
+      gainLow.gain.exponentialRampToValueAtTime(0.001, time + 0.03); // Very fast decay, no echo
 
       oscLow.connect(gainLow);
       gainLow.connect(ctx.destination);
       oscLow.start(time);
-      oscLow.stop(time + 0.05);
+      oscLow.stop(time + 0.03);
+
+      // 2. The Subtle Plastic Impact (Scissor switch mechanism)
+      const oscTap = ctx.createOscillator();
+      const gainTap = ctx.createGain();
+      oscTap.type = 'triangle'; // Warmer than square, sharper than sine
+
+      const tapFreq = (300 + Math.random() * 30) * baseModifier;
+      oscTap.frequency.setValueAtTime(tapFreq, time);
+      oscTap.frequency.exponentialRampToValueAtTime(100 * baseModifier, time + 0.02);
+
+      // Heavily muffled filter so it's "creamy" and not sharp at all
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(600 * baseModifier, time);
+      filter.frequency.exponentialRampToValueAtTime(200 * baseModifier, time + 0.02);
+
+      gainTap.gain.setValueAtTime(0, time);
+      gainTap.gain.linearRampToValueAtTime(0.2 * volumeModifier, time + 0.001); // Instant tap
+      gainTap.gain.exponentialRampToValueAtTime(0.001, time + 0.02); // Instant decay
+
+      oscTap.connect(filter);
+      filter.connect(gainTap);
+      gainTap.connect(ctx.destination);
+      oscTap.start(time);
+      oscTap.stop(time + 0.02);
 
     } catch (e) {
       // Silently fail if audio is blocked or unsupported
@@ -175,7 +199,7 @@ export function HeroSection() {
       // Default language is device-driven; user can switch in Voice Protocol.
       recognitionRef.current.lang = resolvedSpeechLang;
       // Some engines support multiple alternatives — helps accuracy when available.
-      try { recognitionRef.current.maxAlternatives = 5; } catch {}
+      try { recognitionRef.current.maxAlternatives = 5; } catch { }
 
       recognitionRef.current.onresult = (event: any) => {
         // Scan ONLY NEW results since the last event (from event.resultIndex)
@@ -260,9 +284,9 @@ export function HeroSection() {
   useEffect(() => {
     const rec = recognitionRef.current;
     if (!rec) return;
-    try { rec.lang = resolvedSpeechLang; } catch {}
+    try { rec.lang = resolvedSpeechLang; } catch { }
     if (isListeningRef.current && shouldBeListeningRef.current) {
-      try { rec.stop(); } catch {}
+      try { rec.stop(); } catch { }
       // onend will auto-restart due to shouldBeListeningRef
     }
   }, [resolvedSpeechLang]);
@@ -418,7 +442,7 @@ export function HeroSection() {
       shouldBeListeningRef.current = true;
       try {
         // Ensure selected language is applied right before start.
-        try { recognitionRef.current.lang = resolvedSpeechLang; } catch {}
+        try { recognitionRef.current.lang = resolvedSpeechLang; } catch { }
         recognitionRef.current?.start();
         startAudioAnalysis();
         setIsListening(true);
@@ -601,7 +625,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.1 }}
-          className="text-[1.65rem] xs:text-3xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-[80px] font-bold tracking-tight leading-[1.12] mb-3 sm:mb-4 text-[#1A1A1A] text-balance max-w-4xl mx-auto px-1 break-words"
+          className="text-[2rem] xs:text-4xl sm:text-5xl md:text-7xl lg:text-[84px] xl:text-[100px] font-bold tracking-tight leading-[1.08] mb-4 sm:mb-6 text-[#1A1A1A] text-balance max-w-5xl mx-auto px-1 break-words"
         >
           The Future of <span className="text-primary">AI</span>{' '}
           <br className="hidden xs:block" />
@@ -613,7 +637,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.2 }}
-          className="text-base sm:text-lg md:text-[22px] text-textSecondary max-w-2xl mb-6 sm:mb-8 text-balance leading-snug font-medium opacity-90 mx-auto px-1"
+          className="text-lg sm:text-xl md:text-[26px] text-textSecondary max-w-3xl mb-8 sm:mb-10 text-balance leading-snug font-medium opacity-90 mx-auto px-1"
         >
           Generate professional slides from simple prompts in seconds.
         </motion.p>
@@ -734,52 +758,48 @@ export function HeroSection() {
                         <button
                           type="button"
                           onClick={() => setSpeechLang('auto')}
-                          className={`px-3 py-1 rounded-full border transition-colors ${
-                            speechLang === 'auto'
-                              ? 'bg-primary text-white border-primary/40'
-                              : 'bg-white/60 border-slate-200 text-slate-500 hover:bg-white'
-                          }`}
+                          className={`px-3 py-1 rounded-full border transition-colors ${speechLang === 'auto'
+                            ? 'bg-primary text-white border-primary/40'
+                            : 'bg-white/60 border-slate-200 text-slate-500 hover:bg-white'
+                            }`}
                           title="Auto-detect from device language"
                         >
                           Auto
                         </button>
-                      <button
-                        type="button"
-                        onClick={() => setSpeechLang('en-PH')}
-                        className={`px-3 py-1 rounded-full border transition-colors ${
-                          speechLang === 'en-PH'
+                        <button
+                          type="button"
+                          onClick={() => setSpeechLang('en-PH')}
+                          className={`px-3 py-1 rounded-full border transition-colors ${speechLang === 'en-PH'
                             ? 'bg-primary text-white border-primary/40'
                             : 'bg-white/60 border-slate-200 text-slate-500 hover:bg-white'
-                        }`}
-                        title="English (Philippines)"
-                      >
-                        EN‑PH
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSpeechLang('en-US')}
-                        className={`px-3 py-1 rounded-full border transition-colors ${
-                          speechLang === 'en-US'
+                            }`}
+                          title="English (Philippines)"
+                        >
+                          EN‑PH
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSpeechLang('en-US')}
+                          className={`px-3 py-1 rounded-full border transition-colors ${speechLang === 'en-US'
                             ? 'bg-primary text-white border-primary/40'
                             : 'bg-white/60 border-slate-200 text-slate-500 hover:bg-white'
-                        }`}
-                        title="English (US)"
-                      >
-                        EN‑US
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSpeechLang('fil-PH')}
-                        className={`px-3 py-1 rounded-full border transition-colors ${
-                          speechLang === 'fil-PH'
+                            }`}
+                          title="English (US)"
+                        >
+                          EN‑US
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSpeechLang('fil-PH')}
+                          className={`px-3 py-1 rounded-full border transition-colors ${speechLang === 'fil-PH'
                             ? 'bg-primary text-white border-primary/40'
                             : 'bg-white/60 border-slate-200 text-slate-500 hover:bg-white'
-                        }`}
-                        title="Filipino (Philippines)"
-                      >
-                        FIL
-                      </button>
-                    </div>
+                            }`}
+                          title="Filipino (Philippines)"
+                        >
+                          FIL
+                        </button>
+                      </div>
                       <p className="text-[10px] text-slate-400 font-medium">
                         Accuracy tip: choose the language you’re speaking (EN‑PH for PH English).
                       </p>
@@ -792,7 +812,7 @@ export function HeroSection() {
                       onChange={(e) => setPrompt(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') {
-                          playTypingSound();
+                          playTypingSound(e.key);
                         }
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
@@ -862,25 +882,6 @@ export function HeroSection() {
 
               {/* ── BOTTOM BAR — stack on narrow screens so CTA never clips ── */}
               <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-panel flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0 w-full min-w-0">
-                {activeMode !== 'voice' && (
-                  <button
-                    type="button"
-                    onClick={handleGenerate}
-                    disabled={activeMode === 'create' ? !prompt.trim() : !selectedFile}
-                    className="group relative order-first sm:order-none w-full sm:w-auto min-h-11 px-5 sm:px-8 justify-center bg-primary text-white rounded-full text-[11px] sm:text-[12px] font-bold shadow-xl hover:bg-primaryHover hover:scale-[1.01] sm:hover:scale-[1.02] transition-all active:scale-[0.98] flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none shrink-0"
-                  >
-                    <motion.div
-                      animate={{ x: ['-100%', '100%'] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]"
-                    />
-                    <span className="relative z-10 truncate max-w-[16rem] sm:max-w-none">
-                      {activeMode === 'enhance' ? 'Enhance PPT' : 'Generate Presentation'}
-                    </span>
-                    <ArrowRight size={16} className="relative z-10 shrink-0 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                )}
-
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full sm:w-auto justify-between sm:justify-start">
                   <button type="button" onClick={() => fileInputRef.current?.click()} className="w-10 h-10 shrink-0 rounded-full border border-borderSubtle flex items-center justify-center text-textMuted hover:bg-hoverSurface transition-colors shadow-sm bg-white text-2xl font-light">+</button>
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -894,6 +895,25 @@ export function HeroSection() {
                     <span className="text-[11px] sm:text-[12px] text-textMuted font-bold truncate">10k+ creators</span>
                   </div>
                 </div>
+
+                {activeMode !== 'voice' && (
+                  <button
+                    type="button"
+                    onClick={handleGenerate}
+                    disabled={activeMode === 'create' ? !prompt.trim() : !selectedFile}
+                    className="group relative w-full sm:w-auto min-h-11 px-5 sm:px-8 justify-center bg-primary text-white rounded-full text-[11px] sm:text-[12px] font-bold shadow-xl hover:bg-primaryHover hover:scale-[1.01] sm:hover:scale-[1.02] transition-all active:scale-[0.98] flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none shrink-0"
+                  >
+                    <motion.div
+                      animate={{ x: ['-100%', '100%'] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]"
+                    />
+                    <span className="relative z-10 truncate max-w-[16rem] sm:max-w-none">
+                      {activeMode === 'enhance' ? 'Enhance PPT' : 'Generate Presentation'}
+                    </span>
+                    <ArrowRight size={16} className="relative z-10 shrink-0 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -941,16 +961,16 @@ export function HeroSection() {
               </div>
             </div>
 
-            <div 
+            <div
               className="w-full aspect-video bg-black relative overflow-hidden group"
               style={{ transform: 'translateZ(0)', willChange: 'transform' }}
             >
-              <iframe 
-                src="https://player.vimeo.com/video/1190869944?badge=0&autopause=0&player_id=0&app_id=58479&autoplay=1&muted=1&loop=1" 
-                frameBorder="0" 
-                allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share" 
+              <iframe
+                src="https://player.vimeo.com/video/1190869944?badge=0&autopause=0&player_id=0&app_id=58479&autoplay=1&muted=1&loop=1"
+                frameBorder="0"
+                allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"
                 referrerPolicy="strict-origin-when-cross-origin"
-                className="absolute top-0 left-0 w-full h-full" 
+                className="absolute top-0 left-0 w-full h-full"
                 title="Orbstera_Video"
               />
               {/* Invisible overlay to prevent scroll wheel trapping while leaving controls clickable */}
