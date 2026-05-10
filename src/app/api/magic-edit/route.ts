@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { SlideElement } from '@/types';
+import { generatePollinationsImageUrl } from '@/lib/pollinations-image';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
@@ -142,9 +143,29 @@ Return the modified element JSON only.`;
         Number(updatedElement.width) || Number(element.width) || 1024,
         Number(updatedElement.height) || Number(element.height) || 1024,
       );
-      const seed = Math.floor(Math.random() * 1_000_000);
-      const encoded = encodeURIComponent(promptText);
-      updatedElement.src = `https://image.pollinations.ai/prompt/${encoded}?width=${width}&height=${height}&seed=${seed}&nologo=true&enhance=true`;
+      if (!process.env.POLLINATIONS_API_KEY?.trim()) {
+        return NextResponse.json(
+          {
+            error:
+              'Image generation is not configured. Set POLLINATIONS_API_KEY (Pollinations) for Magic Edit images.',
+          },
+          { status: 503 }
+        );
+      }
+      try {
+        updatedElement.src = await generatePollinationsImageUrl({
+          prompt: promptText,
+          width,
+          height,
+          polish: true,
+        });
+      } catch (e) {
+        console.error('[MagicEdit] Pollinations image:', e);
+        return NextResponse.json(
+          { error: e instanceof Error ? e.message : 'Failed to generate image for Magic Edit' },
+          { status: 502 }
+        );
+      }
     }
 
     return NextResponse.json(updatedElement);

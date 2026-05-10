@@ -12,16 +12,23 @@ export function HeroSection() {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [activeMode, setActiveMode] = useState<'create' | 'enhance' | 'voice'>('create');
-  const getAutoSpeechLang = () => {
-    if (typeof navigator === 'undefined') return 'en-US' as const;
-    const nl = (navigator.language || '').toLowerCase();
-    // PH devices commonly report en-PH; Tagalog may show fil/tl.
-    if (nl.startsWith('fil') || nl.startsWith('tl')) return 'fil-PH' as const;
-    if (nl.startsWith('en-ph')) return 'en-PH' as const;
-    return 'en-US' as const;
-  };
-
-  const [speechLang, setSpeechLang] = useState<'auto' | 'en-PH' | 'en-US' | 'fil-PH'>('auto');
+  /** Pick best BCP-47 tag for Web Speech API from the user's preferred locales (no manual picker). */
+  const resolvedSpeechLang = useMemo(() => {
+    if (typeof navigator === 'undefined') return 'en-US';
+    const list = [...(navigator.languages || []), navigator.language].filter(Boolean);
+    for (const raw of list) {
+      const tag = String(raw).trim().replace(/_/g, '-');
+      const lower = tag.toLowerCase();
+      // Filipino / Tagalog
+      if (lower.startsWith('fil') || lower.startsWith('tl')) return 'fil-PH';
+      if (lower.startsWith('en-ph')) return 'en-PH';
+      // Preserve other regional Englishes (en-GB, en-AU, …) for accent/model matching
+      const enMatch = /^en-([a-z]{2})$/i.exec(lower);
+      if (enMatch) return `en-${enMatch[1].toUpperCase()}`;
+      if (lower === 'en' || lower.startsWith('en-')) break;
+    }
+    return 'en-US';
+  }, []);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const [isListening, setIsListening] = useState(false);
@@ -188,15 +195,12 @@ export function HeroSection() {
     }
   };
 
-  const resolvedSpeechLang = speechLang === 'auto' ? getAutoSpeechLang() : speechLang;
-
   useEffect(() => {
     if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
-      // Default language is device-driven; user can switch in Voice Protocol.
       recognitionRef.current.lang = resolvedSpeechLang;
       // Some engines support multiple alternatives — helps accuracy when available.
       try { recognitionRef.current.maxAlternatives = 5; } catch { }
@@ -229,10 +233,12 @@ export function HeroSection() {
           accumulatedTextRef.current += newFinal;
         }
 
-        // Always update display: accumulated finals + current interim
-        const fullText = accumulatedTextRef.current.replace(/\s+/g, ' ').trimEnd();
-        setPrompt(fullText);
-        setInterimTranscript(interimText.replace(/\s+/g, ' ').trim());
+        // Live transcript: finals + space + interim so the line matches what users hear while speaking.
+        const finals = accumulatedTextRef.current.replace(/\s+/g, ' ').trimEnd();
+        const interimNorm = interimText.replace(/\s+/g, ' ').trim();
+        const combined = [finals, interimNorm].filter(Boolean).join(' ');
+        setPrompt(combined);
+        setInterimTranscript(interimNorm);
       };
 
       recognitionRef.current.onerror = (event: any) => {
@@ -278,17 +284,6 @@ export function HeroSection() {
       };
     }
 
-  }, [resolvedSpeechLang]);
-
-  // If language changes mid-session, restart recognition cleanly.
-  useEffect(() => {
-    const rec = recognitionRef.current;
-    if (!rec) return;
-    try { rec.lang = resolvedSpeechLang; } catch { }
-    if (isListeningRef.current && shouldBeListeningRef.current) {
-      try { rec.stop(); } catch { }
-      // onend will auto-restart due to shouldBeListeningRef
-    }
   }, [resolvedSpeechLang]);
 
   useEffect(() => {
@@ -434,7 +429,16 @@ export function HeroSection() {
       recognitionRef.current?.stop();
       stopAudioAnalysis();
       setIsListening(false);
-      setInterimTranscript(''); // clear partial text on stop
+      // Keep partial (interim) words — commit them so nothing is lost mid-sentence.
+      setInterimTranscript((partial) => {
+        const t = partial.trim();
+        if (t) {
+          accumulatedTextRef.current = `${accumulatedTextRef.current}${accumulatedTextRef.current && !accumulatedTextRef.current.endsWith(' ') ? ' ' : ''}${t} `;
+          const merged = accumulatedTextRef.current.replace(/\s+/g, ' ').trimEnd();
+          setPrompt(merged);
+        }
+        return '';
+      });
     } else {
       // Fresh session — reset accumulator so old text doesn't bleed in
       accumulatedTextRef.current = '';
@@ -719,29 +723,29 @@ export function HeroSection() {
                           src="/ai animation Flow 1.json"
                           background="transparent"
                           speed="1"
-                          style={{ width: '100%', height: '100%' }}
+                          style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
                           loop
                           autoplay
                         />
 
                         {!isListening && (
-                          <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <div className="w-12 h-12 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-white/20">
                               <Mic size={24} className="text-primary" />
                             </div>
                           </div>
                         )}
+
+                        {/* Bulletproof click catcher overlay */}
+                        <div className="absolute inset-0 z-20" />
                       </div>
                     </div>
 
-                    {/* Transcript Box */}
+                    {/* Transcript Box — prompt already includes live interim while listening */}
                     <div className="w-full min-h-[2.5rem] max-h-[3.25rem] sm:max-h-[3.75rem] overflow-y-auto px-4 py-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center">
-                      {(prompt || interimTranscript) ? (
-                        <p className="text-[13px] sm:text-sm font-medium text-slate-700 leading-relaxed break-words w-full text-center">
-                          <span className="text-slate-800">{prompt}</span>
-                          {interimTranscript && (
-                            <span className="text-primary/60 italic"> {interimTranscript}</span>
-                          )}
+                      {prompt.trim() ? (
+                        <p className="text-[13px] sm:text-sm font-medium text-slate-800 leading-relaxed break-words w-full text-center">
+                          {prompt}
                         </p>
                       ) : (
                         <p className="text-xs text-slate-400 italic text-center">
@@ -750,59 +754,6 @@ export function HeroSection() {
                           ) : 'Tap the orb to start speaking'}
                         </p>
                       )}
-                    </div>
-
-                    {/* Language selector (accuracy control) */}
-                    <div className="flex flex-col items-center justify-center gap-2 select-none">
-                      <div className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                        <button
-                          type="button"
-                          onClick={() => setSpeechLang('auto')}
-                          className={`px-3 py-1 rounded-full border transition-colors ${speechLang === 'auto'
-                            ? 'bg-primary text-white border-primary/40'
-                            : 'bg-white/60 border-slate-200 text-slate-500 hover:bg-white'
-                            }`}
-                          title="Auto-detect from device language"
-                        >
-                          Auto
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSpeechLang('en-PH')}
-                          className={`px-3 py-1 rounded-full border transition-colors ${speechLang === 'en-PH'
-                            ? 'bg-primary text-white border-primary/40'
-                            : 'bg-white/60 border-slate-200 text-slate-500 hover:bg-white'
-                            }`}
-                          title="English (Philippines)"
-                        >
-                          EN‑PH
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSpeechLang('en-US')}
-                          className={`px-3 py-1 rounded-full border transition-colors ${speechLang === 'en-US'
-                            ? 'bg-primary text-white border-primary/40'
-                            : 'bg-white/60 border-slate-200 text-slate-500 hover:bg-white'
-                            }`}
-                          title="English (US)"
-                        >
-                          EN‑US
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSpeechLang('fil-PH')}
-                          className={`px-3 py-1 rounded-full border transition-colors ${speechLang === 'fil-PH'
-                            ? 'bg-primary text-white border-primary/40'
-                            : 'bg-white/60 border-slate-200 text-slate-500 hover:bg-white'
-                            }`}
-                          title="Filipino (Philippines)"
-                        >
-                          FIL
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-slate-400 font-medium">
-                        Accuracy tip: choose the language you’re speaking (EN‑PH for PH English).
-                      </p>
                     </div>
                   </div>
                 ) : activeMode === 'create' ? (

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { generatePollinationsImageUrl } from '@/lib/pollinations-image';
 
 const POLISH_SUFFIX =
   ', editorial quality, sharp focus, balanced composition, clean professional look, no text overlays, no watermarks';
@@ -10,6 +11,16 @@ export async function POST(req: Request) {
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
+    }
+
+    if (!process.env.POLLINATIONS_API_KEY?.trim()) {
+      return NextResponse.json(
+        {
+          error:
+            'Image generation is not configured. Set POLLINATIONS_API_KEY in your environment (see .env.example).',
+        },
+        { status: 503 }
+      );
     }
 
     let text = String(prompt).trim();
@@ -25,12 +36,17 @@ export async function POST(req: Request) {
     console.log('Generating AI Image for prompt:', text.substring(0, 80));
 
     const seed = Math.floor(Math.random() * 1_000_000);
-    const encoded = encodeURIComponent(text);
-    const imageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=${w}&height=${h}&seed=${seed}&nologo=true&enhance=true`;
+    const url = await generatePollinationsImageUrl({
+      prompt: text,
+      width: w,
+      height: h,
+      polish: Boolean(polish),
+    });
 
-    return NextResponse.json({ url: imageUrl, seed });
+    return NextResponse.json({ url, seed });
   } catch (error) {
     console.error('Image Generation Error:', error);
-    return NextResponse.json({ error: 'Failed to generate image' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Failed to generate image';
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 }
