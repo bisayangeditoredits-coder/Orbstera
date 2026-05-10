@@ -30,6 +30,8 @@ export function HeroSection() {
   const smoothedVolumeRef = useRef(0);
   const motionEnergyRef = useRef(0);
   const phaseRef = useRef(0);
+  const leftFloatInnerRef = useRef<HTMLDivElement>(null);
+  const rightFloatInnerRef = useRef<HTMLDivElement>(null);
   // Tracks USER INTENT to listen (vs browser's internal stop/start lifecycle)
   const shouldBeListeningRef = useRef(false);
   // Accumulates finalized text across session restarts (onend → restart wipes event.results)
@@ -57,6 +59,65 @@ export function HeroSection() {
     { icon: Zap, label: 'Sub-60s first draft' },
     { icon: Clock3, label: 'Realtime editing workflow' },
   ] as const;
+
+  const seenIn = [
+    'Product Hunt',
+    'TechCrunch',
+    'Forbes',
+    'Fast Company',
+    'The Verge',
+    'WIRED',
+  ] as const;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    const coarsePointer = window.matchMedia?.('(pointer: coarse)')?.matches;
+    const wideEnough = window.matchMedia?.('(min-width: 1024px)')?.matches;
+    if (reduceMotion || coarsePointer || !wideEnough) return;
+
+    let raf: number | null = null;
+    let lastX = 0;
+    let lastY = 0;
+
+    const apply = () => {
+      raf = null;
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      const dx = (lastX - cx) / cx; // -1..1
+      const dy = (lastY - cy) / cy; // -1..1
+
+      const l = leftFloatInnerRef.current;
+      const r = rightFloatInnerRef.current;
+      if (l) {
+        const tx = dx * 10;
+        const ty = dy * 8;
+        l.style.transform = `translate3d(${tx.toFixed(2)}px, ${ty.toFixed(2)}px, 0)`;
+      }
+      if (r) {
+        const tx = dx * -9;
+        const ty = dy * 7;
+        r.style.transform = `translate3d(${tx.toFixed(2)}px, ${ty.toFixed(2)}px, 0)`;
+      }
+    };
+
+    const onMove = (e: MouseEvent) => {
+      lastX = e.clientX;
+      lastY = e.clientY;
+      if (raf == null) raf = window.requestAnimationFrame(apply);
+    };
+
+    window.addEventListener('mousemove', onMove, { passive: true });
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      if (raf != null) window.cancelAnimationFrame(raf);
+      const l = leftFloatInnerRef.current;
+      const r = rightFloatInnerRef.current;
+      if (l) l.style.transform = 'translate3d(0,0,0)';
+      if (r) r.style.transform = 'translate3d(0,0,0)';
+    };
+  }, []);
 
   const playTypingSound = () => {
     try {
@@ -473,10 +534,12 @@ export function HeroSection() {
         transition={{ duration: 0.7, delay: 0.35 }}
         className="hidden lg:flex absolute left-8 xl:left-14 top-[11rem] z-10"
       >
-        <div className="rounded-2xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-[0_20px_45px_-18px_rgba(59,130,246,0.32)] px-4 py-3">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-textMuted mb-1">Average Outcome</p>
-          <p className="text-[22px] font-black tracking-tight text-[#1A1A1A]">+43%</p>
-          <p className="text-[11px] text-textSecondary font-semibold">faster deck completion</p>
+        <div ref={leftFloatInnerRef} className="will-change-transform transition-transform duration-200 ease-out">
+          <div className="rounded-2xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-[0_20px_45px_-18px_rgba(59,130,246,0.32)] px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-textMuted mb-1">Average Outcome</p>
+            <p className="text-[22px] font-black tracking-tight text-[#1A1A1A]">+43%</p>
+            <p className="text-[11px] text-textSecondary font-semibold">faster deck completion</p>
+          </div>
         </div>
       </motion.div>
       <motion.div
@@ -485,18 +548,20 @@ export function HeroSection() {
         transition={{ duration: 0.7, delay: 0.45 }}
         className="hidden lg:flex absolute right-8 xl:right-14 top-[12.5rem] z-10"
       >
-        <div className="rounded-2xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-[0_20px_45px_-18px_rgba(15,23,42,0.22)] px-4 py-3 min-w-[190px]">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-textMuted">Product Signal</p>
-            <div className="flex items-center gap-0.5 text-amber-500">
-              <Star size={11} fill="currentColor" />
-              <Star size={11} fill="currentColor" />
-              <Star size={11} fill="currentColor" />
-              <Star size={11} fill="currentColor" />
-              <Star size={11} fill="currentColor" />
+        <div ref={rightFloatInnerRef} className="will-change-transform transition-transform duration-200 ease-out">
+          <div className="rounded-2xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-[0_20px_45px_-18px_rgba(15,23,42,0.22)] px-4 py-3 min-w-[190px]">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-textMuted">Product Signal</p>
+              <div className="flex items-center gap-0.5 text-amber-500">
+                <Star size={11} fill="currentColor" />
+                <Star size={11} fill="currentColor" />
+                <Star size={11} fill="currentColor" />
+                <Star size={11} fill="currentColor" />
+                <Star size={11} fill="currentColor" />
+              </div>
             </div>
+            <p className="mt-1.5 text-[12px] font-semibold text-textSecondary">Loved by founders, agencies, and teams.</p>
           </div>
-          <p className="mt-1.5 text-[12px] font-semibold text-textSecondary">Loved by founders, agencies, and teams.</p>
         </div>
       </motion.div>
 
@@ -519,6 +584,34 @@ export function HeroSection() {
 
           {/* Subtle Glow Behind */}
           <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        </motion.div>
+
+        {/* “As seen in” logo rail (tiny, additive) */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.32 }}
+          className="w-full max-w-4xl mb-4 sm:mb-6"
+        >
+          <div className="flex items-center justify-center gap-3 text-[10px] font-bold uppercase tracking-[0.28em] text-textMuted/70 mb-2">
+            <span className="h-px w-10 bg-black/5" />
+            As seen in
+            <span className="h-px w-10 bg-black/5" />
+          </div>
+          <div className="relative">
+            <div className="absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r from-[#F2F7FF] to-transparent pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-[#F2F7FF] to-transparent pointer-events-none" />
+            <div className="flex items-center justify-center gap-2.5 sm:gap-3.5 overflow-x-auto scrollbar-none py-1 px-2">
+              {seenIn.map((name) => (
+                <span
+                  key={name}
+                  className="shrink-0 rounded-full border border-white/60 bg-white/55 backdrop-blur-md px-3 py-1 text-[10px] sm:text-[11px] font-semibold tracking-tight text-textSecondary/80 shadow-[0_10px_35px_-22px_rgba(15,23,42,0.35)]"
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
+          </div>
         </motion.div>
 
         {/* Headline (Updated to AI Presentations) */}
@@ -848,6 +941,15 @@ export function HeroSection() {
         </motion.div>
       </div>
       <Script src="https://player.vimeo.com/api/player.js" strategy="lazyOnload" />
+
+      {/* Animated gradient divider into SocialProof */}
+      <div className="w-full mt-8 sm:mt-10">
+        <div className="relative h-[22px] w-full overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-70 blur-[0.5px]" />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(59,130,246,0.22),rgba(56,189,248,0.18),transparent)] bg-[length:200%_100%] animate-shimmer" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/40 to-white" />
+        </div>
+      </div>
     </section>
   );
 }
