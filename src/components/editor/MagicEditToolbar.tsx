@@ -7,9 +7,11 @@ import { Sparkles, Loader2, X, Type, Wand2, Crown, Lock, Mic, MicOff } from 'luc
 import { createClient } from '@/lib/supabase';
 
 export function MagicEditToolbar() {
-  const { presentation, currentSlideIndex, editor, updateElement } = usePresentationStore();
+  const { presentation, currentSlideIndex, editor, updateElement, removeElement } = usePresentationStore();
   const [prompt,    setPrompt]    = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [phaseLabel, setPhaseLabel] = useState('');
+  const [errorHint, setErrorHint] = useState('');
   const [dismissed, setDismissed] = useState<string | null>(null);
   const [isPro, setIsPro]         = useState(false);
   const [planChecked, setPlanChecked] = useState(false);
@@ -27,6 +29,7 @@ export function MagicEditToolbar() {
   
   // The toolbar is visible if an element is selected, OR if no element is selected (acts as slide background editor)
   const isVisible         = !!slide && (selectedElementId !== dismissed);
+  const genFillOpen       = !!editor.generativeFillTarget;
 
   // Fetch the user's plan once on mount
   useEffect(() => {
@@ -51,11 +54,14 @@ export function MagicEditToolbar() {
 
   const handleMagicEdit = async () => {
     if (!prompt.trim() || !slide || isLoading || !isPro) return;
-    
-    // If we have a target element, use it. If not, we are generating a NEW background element.
+
+    setErrorHint('');
     let elementToEdit = targetElement;
+    let createdBgId: string | null = null;
+    const prevImageSrc =
+      elementToEdit?.type === 'image' && elementToEdit.src ? elementToEdit.src : undefined;
+
     if (!elementToEdit && !selectedElementId) {
-      // Create a virtual background element to send to the API
       elementToEdit = {
         id: `el-bg-${Date.now()}`,
         type: 'image',
@@ -64,30 +70,49 @@ export function MagicEditToolbar() {
         width: 1280, height: 720,
         zIndex: 0,
         visible: true,
-        opacity: 0.18
+        opacity: 0.18,
+        locked: false,
       };
-      // Instantly add it to the canvas with an empty src so it shows the "Generating..." state
       const { addElement } = usePresentationStore.getState();
       addElement(slide.id, { ...elementToEdit, src: '' });
+      createdBgId = elementToEdit.id;
     } else if (elementToEdit && elementToEdit.type === 'image') {
-      // Real-time update: clear src instantly so KonvaCanvas shows "DREAMING IMAGE..."
       updateElement(slide.id, elementToEdit.id, { src: '' });
     }
 
     setIsLoading(true);
+    setPhaseLabel('Interpreting your request…');
     try {
       const res = await fetch('/api/magic-edit', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ prompt: prompt.trim(), element: elementToEdit }),
+        body:    JSON.stringify({
+          prompt: prompt.trim(),
+          element: elementToEdit,
+          slideContext: {
+            deckTitle: presentation?.title,
+            slideTitle: slide.title,
+            palette: presentation?.colorPalette,
+          },
+        }),
       });
-      if (!res.ok) throw new Error('Magic Edit failed');
-      const updated = await res.json();
-      updateElement(slide.id, elementToEdit!.id, updated);
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof payload.error === 'string' ? payload.error : 'Magic Edit failed');
+      }
+      setPhaseLabel('Applying to canvas…');
+      updateElement(slide.id, elementToEdit!.id, payload);
       setPrompt('');
+      setPhaseLabel('');
     } catch (err) {
       console.error(err);
-      // Revert if failed (optional, but for now we just log)
+      setErrorHint(err instanceof Error ? err.message : 'Magic Edit failed');
+      if (createdBgId) {
+        removeElement(slide.id, createdBgId);
+      } else if (prevImageSrc && elementToEdit) {
+        updateElement(slide.id, elementToEdit.id, { src: prevImageSrc });
+      }
+      setPhaseLabel('');
     } finally {
       setIsLoading(false);
     }
@@ -104,9 +129,13 @@ export function MagicEditToolbar() {
     const recognition = new SR();
     recognition.lang = 'en-US';
     recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.onresult = (e: any) => {
-      setPrompt(e.results[0]?.[0]?.transcript || '');
+      let text = '';
+      for (let i = 0; i < e.results.length; i++) {
+        text += e.results[i][0]?.transcript || '';
+      }
+      setPrompt(text.trimStart());
     };
     recognition.onend = () => setIsListening(false);
     recognitionRef.current = recognition;
@@ -114,7 +143,7 @@ export function MagicEditToolbar() {
     setIsListening(true);
   };
 
-  if (!isVisible || !planChecked) return null;
+  if (!isVisible || !planChecked || genFillOpen) return null;
 
   return (
     <AnimatePresence>
@@ -172,7 +201,7 @@ export function MagicEditToolbar() {
                 >
                   {isLoading
                     ? <Loader2 size={14} className="animate-spin" />
-                    : <><Sparkles size={13} /><span>Edit</span></>}
+                    : <><Sparkles size={13} /><span>Apply</span></>}
                 </button>
               ) : (
                 <a
@@ -192,13 +221,17 @@ export function MagicEditToolbar() {
             </div>
           </div>
 
-          <p className="text-[10px] text-black/25 font-medium text-center max-w-full px-1 break-words">
+          <p className="text-[10px] text-black/25 font-medium text-center max-w-full px-1 break-words min-h-[14px]">
             {isPro ? (
               <>
-                {!selectedElementId ? (
-                  <>AI generating <span className="text-primary/50 font-bold">Slide Background</span></>
+                {phaseLabel ? (
+                  <span className="text-primary/70 font-semibold animate-pulse">{phaseLabel}</span>
+                ) : errorHint ? (
+                  <span className="text-red-500/90 font-semibold">{errorHint}</span>
+                ) : !selectedElementId ? (
+                  <>Magic AI: <span className="text-primary/50 font-bold">slide background</span> — results stream in as the image loads</>
                 ) : (
-                  <>AI editing <span className="text-primary/50 font-bold">{targetElement?.type}</span>
+                  <>Magic AI: editing <span className="text-primary/50 font-bold">{targetElement?.type}</span>
                     {targetElement?.type === 'text' && targetElement?.content && (
                       <> — "{targetElement.content.slice(0, 40)}{targetElement.content.length > 40 ? '…' : ''}"</>
                     )}
@@ -206,7 +239,7 @@ export function MagicEditToolbar() {
                 )}
               </>
             ) : (
-              <span className="text-amber-500/70 font-bold flex items-center gap-1"><Lock size={9} /> Pro members only — <a href="/pricing" className="underline">Upgrade now</a></span>
+              <span className="text-amber-500/70 font-bold flex items-center justify-center gap-1 flex-wrap"><Lock size={9} /> Pro only — <a href="/pricing" className="underline">Upgrade</a></span>
             )}
           </p>
         </div>

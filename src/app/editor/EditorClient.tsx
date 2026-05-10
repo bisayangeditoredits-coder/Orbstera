@@ -8,6 +8,7 @@ import { LayersPanel } from '@/components/editor/LayersPanel';
 import { TopBar } from '@/components/editor/TopBar';
 import { GeneratePanel } from '@/components/editor/GeneratePanel';
 import { MagicEditToolbar } from '@/components/editor/MagicEditToolbar';
+import { GenerativeFillToolbar } from '@/components/editor/GenerativeFillToolbar';
 import { PresentMode } from '@/components/editor/PresentMode';
 import { DesignPanel } from '@/components/editor/DesignPanel';
 import { OnboardingTour } from '@/components/editor/OnboardingTour';
@@ -123,6 +124,7 @@ export default function EditorClient() {
         <main className="flex-1 relative flex flex-col min-w-0 overflow-hidden">
           <Toolbar />
           <CanvasArea />
+          <GenerativeFillToolbar />
           <MagicEditToolbar />
         </main>
 

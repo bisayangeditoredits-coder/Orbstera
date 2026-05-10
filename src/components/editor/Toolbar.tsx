@@ -85,7 +85,7 @@ export function Toolbar() {
     
     if (toolId === 'gen-fill') {
       selectElement(null);
-      setEditorState({ activeTool: 'gen-fill' });
+      setEditorState({ activeTool: 'gen-fill', generativeFillTarget: null });
       return;
     }
 

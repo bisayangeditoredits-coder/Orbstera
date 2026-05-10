@@ -372,6 +372,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   editor: {
     activeTool: 'select',
     selectedElementId: null,
+    generativeFillTarget: null,
     isDragging: false,
     isResizing: false,
     zoom: 0.7,

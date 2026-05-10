@@ -31,6 +31,7 @@ function ElementNode({
 }) {
   const shapeRef = useRef<Konva.Node>(null);
   const trRef    = useRef<Konva.Transformer>(null);
+  const genFillBorderRef = useRef<Konva.Rect>(null);
   const [img]    = useImage(el.src || '', 'anonymous');
 
   const { editor, setEditorState } = usePresentationStore();
@@ -78,6 +79,22 @@ function ElementNode({
       onFinish: () => setEditorState({ previewElementId: null }),
     });
   }, [previewId, el.id, el.animation, el.x, el.y, el.width, el.height, el.shapeType, setEditorState]);
+
+  useEffect(() => {
+    if (el.type !== 'image' || img) return;
+    const node = genFillBorderRef.current;
+    if (!node) return;
+    const layer = node.getLayer();
+    if (!layer) return;
+    const anim = new Konva.Animation((frame) => {
+      const t = frame?.time ?? 0;
+      node.dashOffset((t / 24) % 32);
+    }, layer);
+    anim.start();
+    return () => {
+      anim.stop();
+    };
+  }, [el.type, el.id, img]);
 
   useEffect(() => {
     if (isSelected && trRef.current && shapeRef.current) {
@@ -155,34 +172,62 @@ function ElementNode({
         return { x, y, width, height };
       })() : undefined;
 
+      const awaitingPrompt = !el.src?.trim();
+      const statusTitle = awaitingPrompt ? 'Generative fill' : 'Rendering';
+      const statusSub = awaitingPrompt
+        ? 'Describe content in the panel below'
+        : 'Fetching high-res asset…';
+
       return (
         <Group {...commonProps}>
           {!img && (
             <Group>
               <Rect
                 x={0} y={0} width={el.width} height={el.height}
-                fill="rgba(255,255,255,0.02)"
-                stroke="rgba(255,255,255,0.1)"
-                strokeWidth={1}
+                fillLinearGradientStartPoint={{ x: 0, y: 0 }}
+                fillLinearGradientEndPoint={{ x: el.width, y: el.height }}
+                fillLinearGradientColorStops={[
+                  0, 'rgba(15,23,42,0.92)',
+                  0.45, 'rgba(30,41,59,0.88)',
+                  1, 'rgba(15,23,42,0.94)',
+                ]}
                 cornerRadius={12}
               />
+              <Rect
+                ref={genFillBorderRef}
+                x={0} y={0} width={el.width} height={el.height}
+                fill="transparent"
+                stroke="rgba(56,189,248,0.65)"
+                strokeWidth={1.5}
+                cornerRadius={12}
+                dash={[10, 7]}
+              />
               <Text
-                x={0} y={el.height / 2 - 12} width={el.width}
+                x={0} y={el.height / 2 - 26} width={el.width}
                 text="✦"
-                fill="#3B82F6"
-                fontSize={24}
+                fill="#38BDF8"
+                fontSize={22}
                 align="center"
                 fontFamily="Inter"
               />
               <Text
-                x={0} y={el.height / 2 + 15} width={el.width}
-                text={el.src ? "DREAMING IMAGE..." : "ORCHESTRATING AI VISUAL..."}
-                fill="rgba(255,255,255,0.3)"
-                fontSize={10}
+                x={0} y={el.height / 2 - 2} width={el.width}
+                text={statusTitle}
+                fill="rgba(248,250,252,0.92)"
+                fontSize={12}
                 align="center"
                 fontFamily="Inter"
                 fontStyle="bold"
-                letterSpacing={2}
+                letterSpacing={0.3}
+              />
+              <Text
+                x={0} y={el.height / 2 + 16} width={el.width}
+                text={statusSub}
+                fill="rgba(148,163,184,0.85)"
+                fontSize={9}
+                align="center"
+                fontFamily="Inter"
+                lineHeight={1.35}
               />
             </Group>
           )}
@@ -472,32 +517,35 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
     }
   }, [editor.activeTool, drawingRect]);
 
-  const handleMouseUp = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (editor.activeTool === 'gen-fill' && drawingRect) {
-      if (Math.abs(drawingRect.w) > 20 && Math.abs(drawingRect.h) > 20) {
-        const x = drawingRect.w < 0 ? drawingRect.x + drawingRect.w : drawingRect.x;
-        const y = drawingRect.h < 0 ? drawingRect.y + drawingRect.h : drawingRect.y;
-        const w = Math.abs(drawingRect.w);
-        const h = Math.abs(drawingRect.h);
-
-        const newId = `el-genfill-${Date.now()}`;
-        const newEl: SlideElement = {
-          id: newId,
-          type: 'image',
-          src: '', // Empty src triggers the AI loading placeholder
-          x, y, width: w, height: h,
-          opacity: 1, visible: true, locked: false,
-          zIndex: (slide?.elements?.length || 0) + 1,
-        };
-
-        if (slide) {
-          usePresentationStore.getState().addElement(slide.id, newEl);
-          usePresentationStore.getState().selectElement(newId);
-        }
-      }
-      setDrawingRect(null);
+  const handleMouseUp = useCallback(() => {
+    if (editor.activeTool !== 'gen-fill' || !drawingRect) return;
+    const rw = drawingRect.w;
+    const rh = drawingRect.h;
+    const bigEnough = Math.abs(rw) > 20 && Math.abs(rh) > 20;
+    if (bigEnough && slide) {
+      const x = rw < 0 ? drawingRect.x + rw : drawingRect.x;
+      const y = rh < 0 ? drawingRect.y + rh : drawingRect.y;
+      const w = Math.abs(rw);
+      const h = Math.abs(rh);
+      const newId = `el-genfill-${Date.now()}`;
+      const newEl: SlideElement = {
+        id: newId,
+        type: 'image',
+        src: '',
+        x, y, width: w, height: h,
+        opacity: 1, visible: true, locked: false,
+        zIndex: (slide.elements?.length || 0) + 1,
+      };
+      usePresentationStore.getState().addElement(slide.id, newEl);
+      usePresentationStore.getState().selectElement(newId);
+      setEditorState({
+        activeTool: 'select',
+        generativeFillTarget: { slideId: slide.id, elementId: newId },
+      });
+    } else {
       setEditorState({ activeTool: 'select' });
     }
+    setDrawingRect(null);
   }, [editor.activeTool, drawingRect, slide, setEditorState]);
 
   if (!slide || !presentation) {
@@ -555,18 +603,49 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
                 stageRef={stageRef}
               />
             ))}
-            {drawingRect && (
-              <Rect
-                x={drawingRect.w < 0 ? drawingRect.x + drawingRect.w : drawingRect.x}
-                y={drawingRect.h < 0 ? drawingRect.y + drawingRect.h : drawingRect.y}
-                width={Math.abs(drawingRect.w)}
-                height={Math.abs(drawingRect.h)}
-                fill="rgba(59, 130, 246, 0.08)"
-                stroke="#38BDF8"
-                strokeWidth={2}
-                dash={[5, 5]}
-              />
-            )}
+            {drawingRect && (() => {
+              const rx = drawingRect.w < 0 ? drawingRect.x + drawingRect.w : drawingRect.x;
+              const ry = drawingRect.h < 0 ? drawingRect.y + drawingRect.h : drawingRect.y;
+              const rwPx = Math.abs(drawingRect.w);
+              const rhPx = Math.abs(drawingRect.h);
+              const label = `${Math.round(rwPx)} × ${Math.round(rhPx)}`;
+              const lw = Math.min(160, 14 + label.length * 6.5);
+              return (
+                <Group>
+                  <Rect
+                    x={rx}
+                    y={ry}
+                    width={rwPx}
+                    height={rhPx}
+                    fill="rgba(56, 189, 248, 0.12)"
+                    stroke="rgba(56, 189, 248, 0.85)"
+                    strokeWidth={1.5}
+                    dash={[8, 6]}
+                  />
+                  <Rect x={rx + 6} y={ry + 6} width={10} height={10} stroke="rgba(56,189,248,0.5)" strokeWidth={1} cornerRadius={1} />
+                  <Rect x={rx + rwPx - 16} y={ry + rhPx - 16} width={10} height={10} stroke="rgba(56,189,248,0.5)" strokeWidth={1} cornerRadius={1} />
+                  <Group x={rx + rwPx / 2 - lw / 2} y={Math.max(4, ry - 28)}>
+                    <Rect
+                      x={0} y={0} width={lw} height={22}
+                      fill="rgba(15,23,42,0.92)"
+                      stroke="rgba(56,189,248,0.35)"
+                      strokeWidth={1}
+                      cornerRadius={6}
+                    />
+                    <Text
+                      x={0} y={5} width={lw}
+                      text={label}
+                      fill="#E2E8F0"
+                      fontSize={10}
+                      align="center"
+                      fontFamily="Inter"
+                      fontStyle="bold"
+                      letterSpacing={0.5}
+                    />
+                  </Group>
+                </Group>
+              );
+            })()}
           </Layer>
         </Stage>
       </div>

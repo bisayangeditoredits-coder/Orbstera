@@ -3,73 +3,113 @@ import { SlideElement } from '@/types';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
-const SYSTEM_PROMPT = `You are a precision AI design assistant in a presentation software.
-The user wants to edit a SPECIFIC element on their slide.
-You will be provided with the element's current JSON data, and the user's prompt (e.g. "make it red", "shorten this text", "change to a neon cyberpunk background").
-You must return the EXACT SAME JSON structure, but with the requested modifications applied.
+const SYSTEM_PROMPT = `You are a precision AI design assistant in a presentation editor.
+The user edits ONE slide element. You receive its JSON, optional slide/deck context, and a short instruction.
 
-ONLY return valid JSON. Do not include markdown code fences.
+Return the SAME JSON object shape and keys as the input element, with edits applied. Preserve \`id\`, \`zIndex\`, and layout (\`x\`, \`y\`, \`width\`, \`height\`) unless the user explicitly asks to move or resize.
 
-If the user asks to change an IMAGE, rewrite the \`src\` field with a highly detailed, cinematic DALL-E style image prompt starting with "PROMPT: " (e.g. "PROMPT: Hyper-realistic neon cyberpunk city at night, 8k resolution"). Our system will later convert this prompt into an actual image.
+ONLY output valid JSON. No markdown, no code fences, no commentary.
 
-If the user asks to change TEXT, update the \`content\` field and any relevant \`textStyle\` properties (like color, fontSize).
+IMAGE rules:
+- If the user wants a new or replaced image, set \`src\` to a highly detailed prompt beginning with exactly "PROMPT: " (one line or short paragraph, no line breaks inside the prefix).
+- Match the presentation tone implied by context (professional deck imagery unless user says otherwise).
 
-If the user asks to change a SHAPE, update the \`shapeStyle\` properties (like fill, stroke, cornerRadius).`;
+TEXT rules:
+- Update \`content\` and any relevant \`textStyle\` (color, fontSize, fontWeight, textAlign).
+
+SHAPE rules:
+- Update \`shapeStyle\` (fill, stroke, strokeWidth, cornerRadius).`;
+
+function parseElementJson(raw: string): Record<string, unknown> {
+  const cleaned = raw
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  try {
+    return JSON.parse(cleaned) as Record<string, unknown>;
+  } catch {
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      return JSON.parse(cleaned.slice(start, end + 1)) as Record<string, unknown>;
+    }
+    throw new Error('Could not parse model JSON');
+  }
+}
+
+function toPollinationPixels(w: number, h: number) {
+  const ew = Math.max(32, w || 1024);
+  const eh = Math.max(32, h || 1024);
+  const maxEdge = 1024;
+  const scale = Math.min(maxEdge / ew, maxEdge / eh);
+  let pw = Math.round(ew * scale);
+  let ph = Math.round(eh * scale);
+  pw = Math.max(256, Math.min(1024, pw));
+  ph = Math.max(256, Math.min(1024, ph));
+  return { width: pw, height: ph };
+}
 
 export async function POST(req: Request) {
   try {
-    const { prompt, element } = await req.json();
+    const { prompt, element, slideContext } = await req.json();
 
     if (!prompt || !element) {
       return NextResponse.json({ error: 'Prompt and element data are required' }, { status: 400 });
     }
 
-    const userMessage = `Current Element JSON:
+    const ctx =
+      slideContext && typeof slideContext === 'object'
+        ? `
+Deck / slide context (for tone and colors only — do not invent new elements):
+- Deck title: ${String(slideContext.deckTitle || '').slice(0, 200) || '(none)'}
+- Slide title: ${String(slideContext.slideTitle || '').slice(0, 200) || '(none)'}
+- Palette (hex): ${Array.isArray(slideContext.palette) ? slideContext.palette.join(', ') : 'n/a'}
+`
+        : '';
+
+    const userMessage = `Current element JSON:
 ${JSON.stringify(element, null, 2)}
+${ctx}
+User request: "${String(prompt).trim()}"
 
-User Request: "${prompt}"
-
-Return the modified JSON.`;
+Return the modified element JSON only.`;
 
     const models = [
-      'anthropic/claude-3.5-sonnet',
       'google/gemini-2.0-flash-001',
+      'anthropic/claude-3.5-sonnet',
       'anthropic/claude-3-7-sonnet',
-      'deepseek/deepseek-chat'
+      'deepseek/deepseek-chat',
     ];
 
     let response: Response | null = null;
-    let lastError = '';
 
     for (const model of models) {
       try {
-        console.log(`[MagicEdit] Trying model: ${model}`);
         const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
             'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
             'X-Title': 'Orbstera AI Magic Edit',
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: model,
+            model,
             messages: [
               { role: 'system', content: SYSTEM_PROMPT },
               { role: 'user', content: userMessage },
             ],
-            temperature: 0.1, // very low for precision
-            max_tokens: 1500,
+            temperature: 0.15,
+            max_tokens: 2800,
           }),
         });
 
         if (res.ok) {
           response = res;
           break;
-        } else {
-          lastError = await res.text();
-          console.error(`[MagicEdit] Model ${model} failed:`, lastError);
         }
+        console.error(`[MagicEdit] Model ${model} failed:`, await res.text());
       } catch (e) {
         console.error(`[MagicEdit] Error calling ${model}:`, e);
       }
@@ -80,24 +120,31 @@ Return the modified JSON.`;
     }
 
     const data = await response.json();
-    let content: string = data.choices?.[0]?.message?.content;
+    const content: string | undefined = data.choices?.[0]?.message?.content;
 
     if (!content) {
       return NextResponse.json({ error: 'Empty response from AI' }, { status: 500 });
     }
 
-    content = content.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
-    const updatedElement: SlideElement = JSON.parse(content);
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = parseElementJson(content);
+    } catch (e) {
+      console.error('[MagicEdit] JSON parse:', e);
+      return NextResponse.json({ error: 'AI returned invalid JSON' }, { status: 502 });
+    }
 
-    // ─── Post-processing for AI-generated images ──────────────────────────
+    const updatedElement = { ...element, ...parsed } as SlideElement;
+
     if (updatedElement.type === 'image' && updatedElement.src?.startsWith('PROMPT:')) {
-      const promptText = updatedElement.src.replace('PROMPT:', '').trim();
-      console.log(`[MagicEdit] Generating AI image for: ${promptText}`);
-      
+      const promptText = updatedElement.src.replace(/^PROMPT:\s*/i, '').trim();
+      const { width, height } = toPollinationPixels(
+        Number(updatedElement.width) || Number(element.width) || 1024,
+        Number(updatedElement.height) || Number(element.height) || 1024,
+      );
       const seed = Math.floor(Math.random() * 1_000_000);
       const encoded = encodeURIComponent(promptText);
-      // Immediately return the generative URL so the browser can load it in real-time
-      updatedElement.src = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&seed=${seed}&nologo=true&enhance=true`;
+      updatedElement.src = `https://image.pollinations.ai/prompt/${encoded}?width=${width}&height=${height}&seed=${seed}&nologo=true&enhance=true`;
     }
 
     return NextResponse.json(updatedElement);

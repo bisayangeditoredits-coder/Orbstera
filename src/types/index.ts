@@ -211,6 +211,8 @@ export interface HistoryEntry {
 export interface EditorState {
   activeTool: 'select' | 'gen-fill';
   selectedElementId: string | null;
+  /** After drawing a generative-fill region, prompts appear for this element. */
+  generativeFillTarget: { slideId: string; elementId: string } | null;
   isDragging: boolean;
   isResizing: boolean;
   zoom: number;
