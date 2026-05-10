@@ -478,10 +478,10 @@ export function PresentMode() {
   );
 
   const activeTransition = useMemo(() => {
-    if (reduceMotion) return 'fade' as const;
     if (!slide) return 'fade';
+    // The presenter must honor user-selected motion; do not hard-disable transitions here.
     return inferSlideTransition(slide, motionCtx);
-  }, [slide, motionCtx, reduceMotion]);
+  }, [slide, motionCtx]);
 
   const slideVariants = useMemo(
     () => getSlideTransitionVariants(activeTransition),
@@ -489,7 +489,7 @@ export function PresentMode() {
   );
 
   const cinematicEffects =
-    (presentation?.cinematicPresenterEffects !== false) && effectsOn && !reduceMotion;
+    (presentation?.cinematicPresenterEffects !== false) && effectsOn;
 
   const notes = (slide?.speakerNotes || '').trim();
 
@@ -706,7 +706,8 @@ export function PresentMode() {
               <PresentSlideView
                 slide={slide}
                 palette={palette}
-                animationsOn={animationsOn && !reduceMotion}
+                // "Motion" toggle should control element entrances even if OS prefers reduced motion.
+                animationsOn={animationsOn}
               />
             </motion.div>
           </AnimatePresence>
