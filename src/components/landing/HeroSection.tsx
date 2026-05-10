@@ -27,6 +27,9 @@ export function HeroSection() {
   const isListeningRef = useRef(false);
   const volumeRef = useRef(0);
   const rafScaleRef = useRef<number | null>(null);
+  const smoothedVolumeRef = useRef(0);
+  const motionEnergyRef = useRef(0);
+  const phaseRef = useRef(0);
   // Tracks USER INTENT to listen (vs browser's internal stop/start lifecycle)
   const shouldBeListeningRef = useRef(false);
   // Accumulates finalized text across session restarts (onend → restart wipes event.results)
@@ -197,29 +200,48 @@ export function HeroSection() {
       }
 
       analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 256;            // lower fftSize for faster response
-      analyserRef.current.smoothingTimeConstant = 0.5; // less smoothing for instant feel
+      analyserRef.current.fftSize = 512;
+      analyserRef.current.smoothingTimeConstant = 0.82;
       const source = audioContextRef.current.createMediaStreamSource(stream);
       source.connect(analyserRef.current);
 
       const bufferLength = analyserRef.current.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
+      const freqArray = new Uint8Array(bufferLength);
+      const timeArray = new Uint8Array(analyserRef.current.fftSize);
 
-      // ── Canvas draw loop (60 fps) ────────────
+      // ── Audio envelope loop (smooth + stable) ────────────
       const drawFrame = () => {
         animationFrameRef.current = requestAnimationFrame(drawFrame);
         if (!analyserRef.current) return;
 
-        analyserRef.current.getByteFrequencyData(dataArray);
+        analyserRef.current.getByteTimeDomainData(timeArray);
+        analyserRef.current.getByteFrequencyData(freqArray);
 
-        // Better volume detection using peak
-        let max = 0;
-        for (let i = 0; i < bufferLength; i++) {
-          if (dataArray[i] > max) max = dataArray[i];
+        // Blend RMS energy (stable) + spectral peak (responsive)
+        let sumSquares = 0;
+        for (let i = 0; i < timeArray.length; i++) {
+          const sample = (timeArray[i] - 128) / 128;
+          sumSquares += sample * sample;
         }
+        const rms = Math.sqrt(sumSquares / timeArray.length);
 
-        // Exponential smoothing for the volume ref
-        volumeRef.current = volumeRef.current * 0.6 + max * 0.4;
+        let maxBand = 0;
+        for (let i = 2; i < bufferLength; i++) {
+          if (freqArray[i] > maxBand) maxBand = freqArray[i];
+        }
+        const peak = maxBand / 255;
+
+        const target = Math.min(1, rms * 1.45 + peak * 0.85);
+        const prev = smoothedVolumeRef.current;
+        const attack = 0.42;
+        const release = 0.14;
+        const next = target > prev
+          ? prev + (target - prev) * attack
+          : prev + (target - prev) * release;
+
+        smoothedVolumeRef.current = next;
+        motionEnergyRef.current = motionEnergyRef.current * 0.88 + Math.abs(next - prev) * 1.8;
+        volumeRef.current = next;
 
         // Draw on canvas (if visible)
         if (canvasRef.current) {
@@ -235,23 +257,33 @@ export function HeroSection() {
 
       // ── Orb visuals via refs (avoids 60 React re-renders/sec) ──────────
       const updateScale = () => {
-        const v = volumeRef.current;
-        const normalizedVol = v / 255;
+        const level = volumeRef.current;
+        const energy = Math.min(1, motionEnergyRef.current);
         const el = orbVisualRef.current;
+        phaseRef.current += 0.09 + energy * 0.08;
+        const wave = Math.sin(phaseRef.current);
+        const microPulse = wave * 0.018 * (0.3 + level);
 
         if (el && isListeningRef.current) {
-          const scale = 1 + normalizedVol * 0.8;
-          const glow = 30 + normalizedVol * 150;
-          el.style.transform = `scale(${scale})`;
-          el.style.filter = `drop-shadow(0 0 ${glow / 2}px rgba(71,59,240,0.4))`;
+          const scale = 1 + level * 0.42 + energy * 0.1 + microPulse;
+          const tiltX = Math.sin(phaseRef.current * 0.72) * (2 + level * 3);
+          const tiltY = Math.cos(phaseRef.current * 0.84) * (2 + level * 3.2);
+          const glow = 26 + level * 95 + energy * 42;
+          const glowOuter = 60 + level * 120;
+          el.style.transform = `perspective(900px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) scale(${scale.toFixed(4)}) translateZ(0)`;
+          el.style.filter = `drop-shadow(0 0 ${Math.round(glow)}px rgba(71,59,240,0.36)) drop-shadow(0 0 ${Math.round(glowOuter)}px rgba(56,189,248,0.18)) saturate(${(1 + level * 0.32).toFixed(2)}) contrast(${(1 + level * 0.08).toFixed(2)})`;
+        } else if (el) {
+          // Smoothly settle instead of snapping when listening toggles off.
+          el.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1) translateZ(0)';
+          el.style.filter = 'drop-shadow(0 0 14px rgba(71,59,240,0.12))';
         }
 
         const lottie = document.getElementById('voice-orb-lottie') as { speed?: number } | null;
         if (lottie) {
-          lottie.speed = 1 + normalizedVol * 2.5;
+          lottie.speed = 0.9 + level * 1.8 + energy * 0.8;
         }
 
-        rafScaleRef.current = window.setTimeout(updateScale, 32);
+        rafScaleRef.current = requestAnimationFrame(updateScale);
       };
       updateScale();
 
@@ -262,14 +294,19 @@ export function HeroSection() {
 
   const stopAudioAnalysis = () => {
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-    if (rafScaleRef.current) clearTimeout(rafScaleRef.current);
+    if (rafScaleRef.current) cancelAnimationFrame(rafScaleRef.current);
+    animationFrameRef.current = null;
+    rafScaleRef.current = null;
     if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
     if (audioContextRef.current) audioContextRef.current.close();
     volumeRef.current = 0;
+    smoothedVolumeRef.current = 0;
+    motionEnergyRef.current = 0;
+    phaseRef.current = 0;
     const el = orbVisualRef.current;
     if (el) {
-      el.style.transform = 'scale(1)';
-      el.style.filter = 'none';
+      el.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1) translateZ(0)';
+      el.style.filter = 'drop-shadow(0 0 14px rgba(71,59,240,0.12))';
     }
     // Clear canvas
     const canvas = canvasRef.current;
@@ -528,8 +565,13 @@ export function HeroSection() {
                       <div
                         ref={orbVisualRef}
                         className="relative w-40 h-40 flex items-center justify-center will-change-transform"
-                        style={{ transform: 'scale(1)', filter: 'none' }}
+                        style={{
+                          transform: 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1) translateZ(0)',
+                          filter: 'drop-shadow(0 0 14px rgba(71,59,240,0.12))',
+                        }}
                       >
+                        <div className="absolute inset-2 rounded-full bg-gradient-to-br from-primary/30 via-indigo-400/10 to-cyan-300/20 blur-xl pointer-events-none" />
+                        <div className="absolute inset-[18%] rounded-full border border-primary/20 pointer-events-none" />
                         {/* @ts-ignore */}
                         <lottie-player
                           id="voice-orb-lottie"
