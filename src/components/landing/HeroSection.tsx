@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff } from 'lucide-react';
+import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff, ShieldCheck, Zap, Clock3, Star } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
@@ -51,6 +51,12 @@ export function HeroSection() {
       }),
     []
   );
+
+  const premiumSignals = [
+    { icon: ShieldCheck, label: 'Enterprise-grade privacy' },
+    { icon: Zap, label: 'Sub-60s first draft' },
+    { icon: Clock3, label: 'Realtime editing workflow' },
+  ] as const;
 
   const playTypingSound = () => {
     try {
@@ -460,6 +466,40 @@ export function HeroSection() {
         ))}
       </div>
 
+      {/* Floating credibility cards (desktop only) */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, delay: 0.35 }}
+        className="hidden lg:flex absolute left-8 xl:left-14 top-[11rem] z-10"
+      >
+        <div className="rounded-2xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-[0_20px_45px_-18px_rgba(59,130,246,0.32)] px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-textMuted mb-1">Average Outcome</p>
+          <p className="text-[22px] font-black tracking-tight text-[#1A1A1A]">+43%</p>
+          <p className="text-[11px] text-textSecondary font-semibold">faster deck completion</p>
+        </div>
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, delay: 0.45 }}
+        className="hidden lg:flex absolute right-8 xl:right-14 top-[12.5rem] z-10"
+      >
+        <div className="rounded-2xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-[0_20px_45px_-18px_rgba(15,23,42,0.22)] px-4 py-3 min-w-[190px]">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-textMuted">Product Signal</p>
+            <div className="flex items-center gap-0.5 text-amber-500">
+              <Star size={11} fill="currentColor" />
+              <Star size={11} fill="currentColor" />
+              <Star size={11} fill="currentColor" />
+              <Star size={11} fill="currentColor" />
+              <Star size={11} fill="currentColor" />
+            </div>
+          </div>
+          <p className="mt-1.5 text-[12px] font-semibold text-textSecondary">Loved by founders, agencies, and teams.</p>
+        </div>
+      </motion.div>
+
       <div className="relative z-10 flex flex-col items-center text-center max-w-7xl w-full min-w-0 px-3 sm:px-6">
         {/* Premium Evolution Badge */}
         <motion.div
@@ -503,6 +543,26 @@ export function HeroSection() {
           Generate professional slides from simple prompts in seconds.
         </motion.p>
 
+        {/* Premium trust signal strip */}
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.28 }}
+          className="w-full max-w-3xl mb-5 sm:mb-7"
+        >
+          <div className="grid grid-cols-1 xs:grid-cols-3 gap-2 sm:gap-2.5">
+            {premiumSignals.map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-white/70 bg-white/60 backdrop-blur-md px-2.5 py-2 shadow-[0_8px_30px_-16px_rgba(59,130,246,0.35)]"
+              >
+                <Icon size={13} className="text-primary shrink-0" />
+                <span className="text-[10px] sm:text-[11px] font-semibold text-textSecondary leading-none whitespace-nowrap">{label}</span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
         {/* AI Input Box (Fixed Overlaps) */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -544,6 +604,8 @@ export function HeroSection() {
 
           <div className="animated-border shadow-[0_40px_100px_-20px_rgba(71,59,240,0.25)] group">
             <div className={`relative bg-white rounded-[1.45rem] flex flex-col p-4 sm:p-6 transition-all overflow-hidden ${activeMode === 'voice' ? 'min-h-[280px] sm:min-h-[360px]' : 'min-h-[200px] h-auto sm:h-[220px]'}`}>
+              {/* subtle premium sheen */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-primary/10 to-transparent" />
 
               {/* ── MODE CONTENT ── */}
               <div className="flex-1 flex flex-col min-h-0">
