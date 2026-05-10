@@ -8,6 +8,7 @@ import { usePresentationStore } from '@/store/usePresentationStore';
 import { PresentationData } from '@/types';
 import { normalizePresentationPayload } from '@/lib/ai/orchestration';
 import { extractJsonObject } from '@/lib/ai/openrouter';
+import { createEditorSpeechRecognition, resolveEditorSpeechLang } from '@/lib/editor-speech';
 import { VoiceOrb } from '@/components/editor/VoiceOrb';
 import {
   Sparkles, X, ChevronDown, Loader2, Wand2,
@@ -116,37 +117,80 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   // Plan-based max slides (mirrors server MAX_SLIDES)
   const maxSlidesForPlan = isCreatorPro ? 40 : isPaid ? 25 : 5;
 
-  // ── Voice Protocol ──────────────────────────────────────────
+  // ── Voice Protocol (Web Speech API — same robustness as homepage) ──
   const [isListening, setIsListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const recognitionRef = useRef<any>(null);
+  const shouldBeListeningRef = useRef(false);
+  const speechLangRef = useRef(resolveEditorSpeechLang());
+
+  const ensureVoiceRecognition = () => {
+    if (recognitionRef.current) return recognitionRef.current;
+    recognitionRef.current = createEditorSpeechRecognition({
+      shouldBeListeningRef,
+      speechLangRef,
+      onTranscript: (text) => {
+        setVoiceTranscript(text);
+        setPrompt(text);
+      },
+      onListeningEnd: () => setIsListening(false),
+      onErrorMessage: (msg) => {
+        setError(msg);
+        setTimeout(() => setError(''), 5500);
+      },
+    });
+    return recognitionRef.current;
+  };
+
+  useEffect(() => {
+    return () => {
+      shouldBeListeningRef.current = false;
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        /* noop */
+      }
+      recognitionRef.current = null;
+    };
+  }, []);
 
   const toggleVoice = () => {
     if (isListening) {
-      recognitionRef.current?.stop();
+      shouldBeListeningRef.current = false;
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        /* noop */
+      }
       setIsListening(false);
       return;
     }
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) { setError('Voice not supported in this browser.'); return; }
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.onresult = (e: any) => {
-      let transcript = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        transcript += e.results[i][0].transcript;
-      }
-      setVoiceTranscript(transcript);
-      setPrompt(transcript);
-    };
-    recognition.onend = () => { setIsListening(false); setVoiceTranscript(''); };
-    recognition.onerror = () => { setIsListening(false); setVoiceTranscript(''); };
-    recognitionRef.current = recognition;
-    recognition.start();
-    setIsListening(true);
-    setVoiceTranscript('');
+
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      setError('Voice needs HTTPS or localhost.');
+      setTimeout(() => setError(''), 5000);
+      return;
+    }
+
+    const rec = ensureVoiceRecognition();
+    if (!rec) {
+      setError('Voice not supported in this browser. Try Chrome or Edge.');
+      setTimeout(() => setError(''), 5000);
+      return;
+    }
+
+    shouldBeListeningRef.current = true;
+    speechLangRef.current = resolveEditorSpeechLang();
+    try {
+      rec.lang = speechLangRef.current;
+      rec.start();
+      setIsListening(true);
+    } catch {
+      shouldBeListeningRef.current = false;
+      setIsListening(false);
+      setError('Could not start voice input. Check microphone permission.');
+      setTimeout(() => setError(''), 5000);
+    }
   };
 
   const [activeTab, setActiveTab] = useState<'create' | 'enhance'>('create');
@@ -682,9 +726,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               <div className="flex items-center justify-between gap-2">
                 <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.16em]">Your Vision</label>
                 <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-primary/80 uppercase tracking-[0.12em]">
-                  <Mic size={11} strokeWidth={1.75} className="opacity-80" />
-                  Voice
-                  <ChevronDown size={11} strokeWidth={1.75} className="text-primary/50" aria-hidden />
+                  <Mic size={11} strokeWidth={1.75} className="opacity-80" aria-hidden />
+                  Voice input
                 </span>
               </div>
               <div className="animated-border shadow-[0_24px_48px_-20px_rgba(59,130,246,0.22)]">

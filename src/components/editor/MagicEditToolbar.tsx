@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { Sparkles, Loader2, X, Type, Wand2, Crown, Lock, Mic, MicOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { createEditorSpeechRecognition, resolveEditorSpeechLang } from '@/lib/editor-speech';
 
 export function MagicEditToolbar() {
   const { presentation, currentSlideIndex, editor, updateElement, removeElement } = usePresentationStore();
@@ -17,6 +18,35 @@ export function MagicEditToolbar() {
   const [planChecked, setPlanChecked] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const shouldBeListeningRef = useRef(false);
+  const speechLangRef = useRef(resolveEditorSpeechLang());
+
+  const ensureVoiceRecognition = () => {
+    if (recognitionRef.current) return recognitionRef.current;
+    recognitionRef.current = createEditorSpeechRecognition({
+      shouldBeListeningRef,
+      speechLangRef,
+      onTranscript: (text) => setPrompt(text),
+      onListeningEnd: () => setIsListening(false),
+      onErrorMessage: (msg) => {
+        setErrorHint(msg);
+        setTimeout(() => setErrorHint(''), 5500);
+      },
+    });
+    return recognitionRef.current;
+  };
+
+  useEffect(() => {
+    return () => {
+      shouldBeListeningRef.current = false;
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        /* noop */
+      }
+      recognitionRef.current = null;
+    };
+  }, []);
 
   const selectedElementId = editor.selectedElementId;
   const slide             = presentation?.slides[currentSlideIndex];
@@ -120,27 +150,41 @@ export function MagicEditToolbar() {
 
   const toggleVoice = () => {
     if (isListening) {
-      recognitionRef.current?.stop();
+      shouldBeListeningRef.current = false;
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        /* noop */
+      }
       setIsListening(false);
       return;
     }
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) return;
-    const recognition = new SR();
-    recognition.lang = 'en-US';
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.onresult = (e: any) => {
-      let text = '';
-      for (let i = 0; i < e.results.length; i++) {
-        text += e.results[i][0]?.transcript || '';
-      }
-      setPrompt(text.trimStart());
-    };
-    recognition.onend = () => setIsListening(false);
-    recognitionRef.current = recognition;
-    recognition.start();
-    setIsListening(true);
+
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      setErrorHint('Voice needs HTTPS or localhost.');
+      setTimeout(() => setErrorHint(''), 5000);
+      return;
+    }
+
+    const rec = ensureVoiceRecognition();
+    if (!rec) {
+      setErrorHint('Voice not supported. Try Chrome or Edge.');
+      setTimeout(() => setErrorHint(''), 5000);
+      return;
+    }
+
+    shouldBeListeningRef.current = true;
+    speechLangRef.current = resolveEditorSpeechLang();
+    try {
+      rec.lang = speechLangRef.current;
+      rec.start();
+      setIsListening(true);
+    } catch {
+      shouldBeListeningRef.current = false;
+      setIsListening(false);
+      setErrorHint('Could not start voice input.');
+      setTimeout(() => setErrorHint(''), 5000);
+    }
   };
 
   if (!isVisible || !planChecked || genFillOpen) return null;
@@ -182,6 +226,7 @@ export function MagicEditToolbar() {
 
               {/* Voice mic button */}
               <button
+                type="button"
                 onClick={toggleVoice}
                 title={isListening ? 'Stop' : 'Voice input'}
                 className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all relative ${

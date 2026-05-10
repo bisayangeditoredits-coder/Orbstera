@@ -10,11 +10,7 @@ interface VoiceOrbProps {
 }
 
 export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
-  const lottieRef  = useRef<any>(null);
-  const animRef    = useRef<number>(0);
-  const streamRef  = useRef<MediaStream | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const ctxRef     = useRef<AudioContext | null>(null);
+  const lottieRef = useRef<any>(null);
 
   // Ensure lottie-player script is injected once
   useEffect(() => {
@@ -28,78 +24,21 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
     }
   }, []);
 
-  // Start / stop audio analysis when isListening changes
+  // No second getUserMedia here — it fights Web Speech API on Chrome/Edge and breaks recognition.
   useEffect(() => {
     if (!isListening) {
-      cancelAnimationFrame(animRef.current);
-      streamRef.current?.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-      ctxRef.current?.close();
-      ctxRef.current = null;
-      analyserRef.current = null;
-      // Reset animation speed to calm idle
-      try { lottieRef.current?.setSpeed?.(0.6); } catch (_) {}
+      try {
+        lottieRef.current?.setSpeed?.(0.6);
+      } catch {
+        /* noop */
+      }
       return;
     }
-
-    async function startAnalyser() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        streamRef.current = stream;
-
-        const ctx = new AudioContext();
-        ctxRef.current = ctx;
-
-        const source = ctx.createMediaStreamSource(stream);
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 512;
-        analyser.smoothingTimeConstant = 0.75;
-        source.connect(analyser);
-        analyserRef.current = analyser;
-
-        const data = new Uint8Array(analyser.frequencyBinCount);
-
-        function tick() {
-          if (!analyserRef.current) return;
-          analyserRef.current.getByteFrequencyData(data);
-
-          // Average of the lower-frequency bins (voice range)
-          const voiceBins = data.slice(0, 60);
-          const avg = voiceBins.reduce((s, v) => s + v, 0) / voiceBins.length;
-
-          // Map avg (0-100) → speed (0.4 → 3.5)
-          const speed = 0.4 + (avg / 100) * 3.1;
-          const clamped = Math.max(0.4, Math.min(3.5, speed));
-
-          try {
-            if (lottieRef.current) {
-              // lottie-player exposes setSpeed() on the element
-              if (typeof lottieRef.current.setSpeed === 'function') {
-                lottieRef.current.setSpeed(clamped);
-              } else {
-                lottieRef.current.speed = clamped;
-              }
-            }
-          } catch (_) {}
-
-          animRef.current = requestAnimationFrame(tick);
-        }
-
-        tick();
-      } catch (err) {
-        console.warn('VoiceOrb: microphone access denied for audio visualiser', err);
-        // Still show the animation but at a fixed speed
-        try { lottieRef.current?.setSpeed?.(1.5); } catch (_) {}
-      }
+    try {
+      lottieRef.current?.setSpeed?.(1.65);
+    } catch {
+      /* noop */
     }
-
-    startAnalyser();
-
-    return () => {
-      cancelAnimationFrame(animRef.current);
-      streamRef.current?.getTracks().forEach(t => t.stop());
-      ctxRef.current?.close().catch(() => {});
-    };
   }, [isListening]);
 
   return (
@@ -114,7 +53,6 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
           className="absolute inset-0 z-20 rounded-[22px] bg-white/95 backdrop-blur-xl flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden shadow-[0_30px_80px_-20px_rgba(59,130,246,0.15)]"
           onClick={onStop}
         >
-          {/* Lottie Flow animation — speed controlled by voice volume */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[180px] h-[180px] pointer-events-none select-none flex items-center justify-center">
             {/* @ts-ignore custom element */}
             <lottie-player
@@ -128,7 +66,6 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
             />
           </div>
 
-          {/* Caption */}
           <div className="relative z-10 flex flex-col items-center gap-1 px-4 text-center mt-auto mb-2 bg-white/50 backdrop-blur-sm rounded-full py-1">
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
