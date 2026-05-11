@@ -89,8 +89,9 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
     if (ctx.state === 'suspended') await ctx.resume();
 
     const analyser = ctx.createAnalyser();
-    analyser.fftSize = 512;
-    analyser.smoothingTimeConstant = 0.85;
+    // Smaller FFT + less smoothing → level tracks speech faster (feels more “live”).
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.45;
     analyserRef.current = analyser;
     const source = ctx.createMediaStreamSource(stream);
     source.connect(analyser);
@@ -98,6 +99,10 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
     const bufferLength = analyser.frequencyBinCount;
     const freqArray = new Uint8Array(bufferLength);
     const timeArray = new Uint8Array(analyser.fftSize);
+    const binHz = ctx.sampleRate / analyser.fftSize;
+    const speechLo = Math.max(2, Math.min(bufferLength - 1, Math.floor(200 / binHz)));
+    const speechHi = Math.max(speechLo, Math.min(bufferLength - 1, Math.ceil(4000 / binHz)));
+    const speechBinCount = Math.max(1, speechHi - speechLo + 1);
 
     const drawFrame = () => {
       animationFrameRef.current = requestAnimationFrame(drawFrame);
@@ -112,20 +117,31 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
       }
       const rms = Math.sqrt(sumSquares / timeArray.length);
 
-      let maxBand = 0;
+      // Emphasize ~200Hz–4kHz (speech) for a level that tracks talking more accurately.
+      let speechBand = 0;
+      let bandMax = 0;
       for (let i = 2; i < bufferLength; i++) {
-        if (freqArray[i] > maxBand) maxBand = freqArray[i];
+        const v = freqArray[i];
+        if (v > bandMax) bandMax = v;
+        if (i >= speechLo && i <= speechHi) speechBand += v;
       }
-      const peak = maxBand / 255;
+      const speechAvg = speechBand / speechBinCount;
+      const peak = bandMax / 255;
+      const speech = speechAvg / 255;
 
-      const target = Math.min(1, rms * 1.5 + peak * 0.88);
+      const raw = Math.min(
+        1,
+        rms * 1.72 + peak * 0.72 + speech * 0.95
+      );
+      const target = Math.min(1, Math.pow(raw, 0.92));
+
       const prev = smoothedVolumeRef.current;
-      const attack = 0.38;
-      const release = 0.12;
+      const attack = 0.72;
+      const release = 0.22;
       const next =
         target > prev ? prev + (target - prev) * attack : prev + (target - prev) * release;
       smoothedVolumeRef.current = next;
-      motionEnergyRef.current = motionEnergyRef.current * 0.86 + Math.abs(next - prev) * 1.85;
+      motionEnergyRef.current = motionEnergyRef.current * 0.82 + Math.abs(next - prev) * 2.15;
       volumeRef.current = next;
     };
     drawFrame();
@@ -137,15 +153,15 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
       const el = orbVisualRef.current;
       phaseRef.current += 0.085 + energy * 0.09;
       const wave = Math.sin(phaseRef.current);
-      const microPulse = wave * 0.02 * (0.28 + level);
+      const microPulse = wave * 0.024 * (0.35 + level);
 
       if (el && isListeningRef.current) {
-        // Keep pulse modest so the orb stays inside the panel (no clipping).
-        const scale = 1 + level * 0.36 + energy * 0.09 + microPulse * 0.85;
-        const tiltX = Math.sin(phaseRef.current * 0.72) * (1.8 + level * 2.8);
-        const tiltY = Math.cos(phaseRef.current * 0.84) * (1.8 + level * 2.9);
-        const glow = 28 + level * 100 + energy * 48;
-        const glowOuter = 64 + level * 125;
+        // Base orb is larger in layout; scale pulse stays strong but capped to avoid clipping.
+        const scale = 1 + level * 0.5 + energy * 0.12 + microPulse;
+        const tiltX = Math.sin(phaseRef.current * 0.72) * (2 + level * 3.2);
+        const tiltY = Math.cos(phaseRef.current * 0.84) * (2 + level * 3.3);
+        const glow = 32 + level * 110 + energy * 52;
+        const glowOuter = 72 + level * 130;
         el.style.transform = `perspective(900px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) scale(${scale.toFixed(4)}) translateZ(0)`;
         el.style.filter = `drop-shadow(0 0 ${Math.round(glow)}px rgba(79,70,229,0.38)) drop-shadow(0 0 ${Math.round(glowOuter)}px rgba(56,189,248,0.2)) saturate(${(1 + level * 0.35).toFixed(2)}) contrast(${(1 + level * 0.09).toFixed(2)})`;
       } else if (el) {
@@ -157,7 +173,7 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
         | { speed?: number; setSpeed?: (n: number) => void }
         | null;
       if (lottie && isListeningRef.current) {
-        const spd = 0.85 + level * 2.1 + energy * 0.9;
+        const spd = 0.78 + level * 2.55 + energy * 1.05;
         try {
           lottie.setSpeed?.(spd);
         } catch {
@@ -180,7 +196,7 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
       if (isListeningRef.current) {
         startAudioAnalysis().catch((err) => console.warn('[VoiceOrb] Audio analysis skipped:', err));
       }
-    }, 750);
+    }, 480);
 
     return () => {
       stopAudioAnalysis();
@@ -201,10 +217,10 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
         >
           {/* Flex centering for the orb; animated transform is applied only on the inner ref
               so we never overwrite Tailwind translate centering (that caused corner clipping). */}
-          <div className="flex-1 min-h-0 flex items-center justify-center px-3 pt-3 pb-1 pointer-events-none">
+          <div className="flex-1 min-h-0 flex items-center justify-center px-2 pt-2 pb-0 pointer-events-none w-full">
             <div
               ref={orbVisualRef}
-              className="relative w-[min(168px,calc(100%-1.5rem))] h-[min(168px,calc(100%-1.5rem))] max-h-[min(168px,42vh)] shrink-0 flex items-center justify-center will-change-transform [transform-origin:center]"
+              className="relative aspect-square w-[min(280px,min(92%,calc(100%-1rem)))] max-w-[280px] max-h-[min(280px,calc(100%-0.5rem))] h-auto shrink-0 flex items-center justify-center will-change-transform [transform-origin:center]"
               style={{
                 transform: 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1) translateZ(0)',
                 filter: 'drop-shadow(0 0 14px rgba(71,59,240,0.14))',
