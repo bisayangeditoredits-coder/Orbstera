@@ -7,7 +7,7 @@ import { SurveyModal } from './SurveyModal';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { PresentationData } from '@/types';
 import { normalizePresentationPayload } from '@/lib/ai/orchestration';
-import { extractJsonObject } from '@/lib/ai/openrouter';
+import { extractDeckJsonFromModelOutput } from '@/lib/ai/openrouter';
 import {
   createEditorSpeechRecognition,
   resolveEditorSpeechLang,
@@ -412,8 +412,13 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                   continue;
                 }
 
-                const content = json.choices?.[0]?.delta?.content || '';
-                accumulatedText += content;
+                const ch = json.choices?.[0] as
+                  | { delta?: { content?: string }; message?: { content?: string } }
+                  | undefined;
+                const piece =
+                  (typeof ch?.delta?.content === 'string' ? ch.delta.content : '') ||
+                  (typeof ch?.message?.content === 'string' ? ch.message.content : '');
+                accumulatedText += piece;
 
                 // ── Extract Reasoning (e.g. from DeepSeek R1 thinking tags) ──
                 const thoughtMatch = accumulatedText.match(/<(?:think|thought)>([\s\S]*?)(?:<\/(?:think|thought)>|$)/i);
@@ -449,8 +454,13 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             try {
               const json = JSON.parse(data);
               if (!json.orb) {
-                const content = json.choices?.[0]?.delta?.content || '';
-                accumulatedText += content;
+                const ch = json.choices?.[0] as
+                  | { delta?: { content?: string }; message?: { content?: string } }
+                  | undefined;
+                const piece =
+                  (typeof ch?.delta?.content === 'string' ? ch.delta.content : '') ||
+                  (typeof ch?.message?.content === 'string' ? ch.message.content : '');
+                accumulatedText += piece;
               }
             } catch {
               /* ignore truncated tail */
@@ -460,7 +470,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
         // Final attempt to parse full JSON — balanced-brace extraction (nested slides safe)
         try {
-          let parsedRaw = extractJsonObject(accumulatedText);
+          let parsedRaw = extractDeckJsonFromModelOutput(accumulatedText);
 
           if (!parsedRaw) {
             const streamed = usePresentationStore.getState().presentation;
