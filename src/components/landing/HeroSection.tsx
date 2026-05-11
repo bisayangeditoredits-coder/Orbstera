@@ -716,11 +716,9 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.1 }}
-          className="text-[2rem] xs:text-4xl sm:text-5xl md:text-7xl lg:text-[84px] xl:text-[100px] font-bold tracking-tight leading-[1.08] mb-4 sm:mb-6 text-[#1A1A1A] text-balance max-w-5xl mx-auto px-1 break-words"
+          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-[80px] font-bold tracking-tighter leading-[1.1] mb-6 text-[#1A1A1A] text-balance max-w-4xl mx-auto px-4"
         >
-          The Future of <span className="text-primary">AI</span>{' '}
-          <br className="hidden xs:block" />
-          <span className="italic font-light">Presentations</span> is Here.
+          The Future of <span className="text-primary">AI</span> <span className="italic font-light">Presentations</span> is Here.
         </motion.h1>
 
         {/* Subhead (Compact) */}
@@ -728,7 +726,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.2 }}
-          className="text-lg sm:text-xl md:text-[26px] text-textSecondary max-w-3xl mb-8 sm:mb-10 text-balance leading-snug font-medium opacity-90 mx-auto px-1"
+          className="text-base sm:text-lg md:text-xl text-textSecondary max-w-2xl mb-10 text-balance leading-relaxed font-medium mx-auto px-4"
         >
           Generate professional slides from simple prompts in seconds.
         </motion.p>

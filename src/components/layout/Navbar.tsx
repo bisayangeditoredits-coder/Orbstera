@@ -71,27 +71,29 @@ export function Navbar() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-[100] border-b border-primary/10 bg-white/95 backdrop-blur-md pt-[env(safe-area-inset-top,0px)] shadow-[0_1px_0_rgba(59,130,246,0.06)]">
-      <div className="mx-auto flex h-[52px] w-full max-w-[100vw] min-w-0 items-center justify-between gap-2 px-3 sm:h-14 sm:gap-3 sm:px-5 md:px-8">
-        {/* Logo */}
-        <Link
-          href="/"
-          className="group flex shrink-0 items-center min-w-0"
-          onClick={() => setMobileNavOpen(false)}
-        >
-          <div className="relative shrink-0">
-            <div className="absolute inset-0 rounded-full bg-primary/15 opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-100" />
-            <img
-              src="/logo.png.png"
-              alt="Orbstera"
-              className="relative z-10 h-7 w-auto max-h-8 object-contain transition-transform duration-300 sm:h-8"
-            />
-          </div>
-        </Link>
+      <div className="mx-auto flex h-[52px] w-full max-w-7xl min-w-0 items-center justify-between gap-2 px-3 sm:h-14 sm:gap-3 sm:px-5 md:px-8">
+        {/* Left */}
+        <div className="flex flex-1 justify-start min-w-0">
+          <Link
+            href="/"
+            className="group flex shrink-0 items-center min-w-0"
+            onClick={() => setMobileNavOpen(false)}
+          >
+            <div className="relative shrink-0">
+              <div className="absolute inset-0 rounded-full bg-primary/15 opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-100" />
+              <img
+                src="/logo.png.png"
+                alt="Orbstera"
+                className="relative z-10 h-7 w-auto max-h-8 object-contain transition-transform duration-300 sm:h-8"
+              />
+            </div>
+          </Link>
+        </div>
 
         {/* Center: single horizontal strip — scroll on narrow desktop, never wrap */}
-        <div className="mx-1 hidden min-h-0 min-w-0 flex-1 justify-center overflow-hidden md:flex md:px-1">
+        <div className="mx-1 hidden min-h-0 min-w-0 shrink-0 justify-center overflow-hidden md:flex md:px-1">
           <div
-            className="flex max-w-full flex-nowrap items-center justify-center gap-x-3 overflow-x-auto overscroll-x-contain whitespace-nowrap py-0.5 font-montserrat text-[10px] font-semibold uppercase tracking-[0.11em] text-textSecondary scrollbar-none sm:gap-x-4 sm:text-[11px] sm:tracking-[0.14em] lg:gap-x-5"
+            className="flex max-w-full flex-nowrap items-center justify-center gap-x-4 overflow-x-auto overscroll-x-contain whitespace-nowrap py-0.5 font-montserrat text-[11px] font-bold uppercase tracking-[0.12em] text-textSecondary scrollbar-none sm:gap-x-5 sm:text-[13px] sm:tracking-[0.15em] lg:gap-x-6"
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
             {NAV_LINKS.map((item) => (
@@ -115,7 +117,7 @@ export function Navbar() {
         </div>
 
         {/* Right */}
-        <div className="flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-2">
+        <div className="flex flex-1 shrink-0 flex-nowrap items-center justify-end gap-1.5 sm:gap-2 min-w-0">
           <button
             type="button"
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/10 bg-white text-gray-800 transition-colors hover:bg-accentBlue touch-manipulation md:hidden"
@@ -128,7 +130,7 @@ export function Navbar() {
 
           <Link
             href="/editor"
-            className="group relative flex h-9 shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-full bg-primary px-3 text-[10px] font-bold uppercase tracking-wide text-white shadow-[0_8px_20px_-6px_rgba(59,130,246,0.45)] transition-all hover:bg-primaryHover active:scale-[0.98] touch-manipulation sm:h-10 sm:gap-2 sm:px-5 sm:text-[11px] sm:tracking-wider"
+            className="group relative flex h-9 shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-full bg-primary px-4 text-[10px] font-bold uppercase tracking-widest text-white shadow-[0_8px_20px_-6px_rgba(59,130,246,0.45)] transition-all hover:bg-primaryHover hover:shadow-primary/30 active:scale-[0.98] touch-manipulation sm:h-10 sm:gap-2 sm:px-6 sm:text-[11px] md:h-11 md:px-7 md:text-[12px]"
           >
             <span className="relative z-10 truncate whitespace-nowrap">
               <span className="hidden xs:inline">Start Creating</span>
@@ -136,9 +138,9 @@ export function Navbar() {
             </span>
             <ArrowRight
               size={14}
-              className="relative z-10 shrink-0 transition-transform group-hover:translate-x-0.5 sm:w-4 sm:h-4"
+              className="relative z-10 shrink-0 transition-transform group-hover:translate-x-1 sm:w-4 sm:h-4"
             />
-            <div className="absolute inset-0 bg-white/10 opacity-0 transition-opacity group-hover:opacity-100" />
+            <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity group-hover:opacity-100" />
           </Link>
 
           {user ? (
