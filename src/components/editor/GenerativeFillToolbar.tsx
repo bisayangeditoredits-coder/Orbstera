@@ -5,34 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { Sparkles, Loader2, X, Wand2, Trash2 } from 'lucide-react';
 
-function regionToImagePixels(regionW: number, regionH: number, maxEdge = 1024, minEdge = 320) {
-  const rw = Math.max(1, Math.round(regionW));
-  const rh = Math.max(1, Math.round(regionH));
-  const aspect = rw / rh;
-
-  // Start by fitting the longer edge to maxEdge (preserves aspect ratio).
-  let w = rw >= rh ? maxEdge : Math.round(maxEdge * aspect);
-  let h = rw >= rh ? Math.round(maxEdge / aspect) : maxEdge;
-
-  // If the short edge is too small, scale up uniformly (still preserve aspect).
-  const short = Math.min(w, h);
-  if (short < minEdge) {
-    const scaleUp = minEdge / short;
-    w = Math.round(w * scaleUp);
-    h = Math.round(h * scaleUp);
-  }
-
-  // Clamp to maxEdge on the long side (best-effort while preserving aspect).
-  const long = Math.max(w, h);
-  if (long > maxEdge) {
-    const scaleDown = maxEdge / long;
-    w = Math.max(256, Math.round(w * scaleDown));
-    h = Math.max(256, Math.round(h * scaleDown));
-  }
-
-  // Final hard clamps.
-  w = Math.max(256, Math.min(1536, w));
-  h = Math.max(256, Math.min(1536, h));
+function regionToImagePixels(regionW: number, regionH: number) {
+  // Keep generation dimensions aligned to the exact rectangle the user drew.
+  // We cap only the upper bound for provider safety; no aspect remapping.
+  const w = Math.max(1, Math.min(1536, Math.round(regionW)));
+  const h = Math.max(1, Math.min(1536, Math.round(regionH)));
   return { width: w, height: h };
 }
 
@@ -139,9 +116,13 @@ export function GenerativeFillToolbar() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Image generation failed');
       if (!data.url) throw new Error('No image URL returned');
+      const cacheBustedUrl =
+        typeof data.url === 'string' && data.url.trim()
+          ? `${data.url}${data.url.includes('?') ? '&' : '?'}v=${Date.now()}`
+          : data.url;
 
       updateElement(slide.id, el.id, {
-        src: data.url,
+        src: cacheBustedUrl,
         animation: el.animation ?? { entrance: 'fadeIn', duration: 600, delay: 0 },
       });
       setEditorState({

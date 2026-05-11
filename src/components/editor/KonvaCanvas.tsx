@@ -175,21 +175,6 @@ function ElementNode({
           : 'Describe content in the panel below'
         : 'Loading image…';
 
-      // Calculate crop to achieve 'cover' fit without warping
-      const crop = img ? (() => {
-        const aspectRatio = img.width / img.height;
-        const targetRatio = el.width / el.height;
-        let x = 0, y = 0, width = img.width, height = img.height;
-        if (aspectRatio > targetRatio) {
-          width = img.height * targetRatio;
-          x = (img.width - width) / 2;
-        } else {
-          height = img.width / targetRatio;
-          y = (img.height - height) / 2;
-        }
-        return { x, y, width, height };
-      })() : undefined;
-
       return (
         <Group
           ref={shapeRef as React.RefObject<Konva.Group>}
@@ -263,8 +248,7 @@ function ElementNode({
             <KonvaImage
               image={img}
               x={0} y={0} width={el.width} height={el.height}
-              crop={crop}
-              listening={false}
+              listening
             />
           )}
         </Group>

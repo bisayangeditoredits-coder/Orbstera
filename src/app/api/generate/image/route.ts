@@ -7,7 +7,8 @@ const DEFAULT_IMAGE_MODEL =
 function clampImageEdge(n: unknown, fallback: number) {
   const v = Math.round(Number(n));
   if (!Number.isFinite(v) || v <= 0) return fallback;
-  return Math.max(256, Math.min(1536, v));
+  // Preserve requested region dimensions as much as possible.
+  return Math.max(1, Math.min(1536, v));
 }
 
 export async function POST(req: Request) {
