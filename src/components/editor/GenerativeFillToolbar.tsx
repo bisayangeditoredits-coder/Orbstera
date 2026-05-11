@@ -102,15 +102,17 @@ export function GenerativeFillToolbar() {
       }
 
       setPhase('render');
+      // Mark as AI-driven slot so the canvas placeholder reflects realtime rendering.
+      updateElement(slide.id, el.id, { aiImagePending: true, src: '' });
       const { width, height } = regionToImagePixels(el.width, el.height);
-      const res = await fetch('/api/generate-image', {
+      const res = await fetch('/api/generate/image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: finalPrompt,
           width,
           height,
-          polish,
+          // Optional override: set OPENROUTER_IMAGE_MODEL in env or pass `model` here.
         }),
       });
       const data = await res.json();

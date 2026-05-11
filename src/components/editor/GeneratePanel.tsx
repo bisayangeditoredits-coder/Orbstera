@@ -26,6 +26,16 @@ interface GeneratePanelProps {
   onClose?: () => void;
 }
 
+async function waitForPendingDeckImages(epoch: number, timeoutMs = 120_000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const { editor } = usePresentationStore.getState();
+    if (editor.generationEpoch !== epoch) return;
+    if ((editor.generationPendingImages ?? 0) <= 0) return;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
 const EXAMPLE_PROMPTS = [
   'Create a 12-slide Series A pitch deck for an AI robotics startup with a dark cyber theme',
   'Build a product launch deck for a fintech SaaS app targeting enterprise companies',
@@ -380,9 +390,21 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         });
       }
 
-      setEditorState({ isGenerating: true });
+      const nextEpoch = usePresentationStore.getState().editor.generationEpoch + 1;
+      setEditorState({
+        isGenerating: true,
+        generationEpoch: nextEpoch,
+        generationBlockingOverlay: true,
+        generationTargetSlides: slideCount,
+        generationPendingImages: 0,
+        generationImageJobsTotal: 0,
+        generationImageJobsCompleted: 0,
+        deckGenerationLifecycle: 'connecting',
+      });
       setError('');
       setStreamedSlides([]);
+
+      let createGenerationSucceeded = false;
 
       try {
         const res = await fetch('/api/generate', {
@@ -402,11 +424,22 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           const errData = await res.json().catch(() => ({}));
           if (res.status === 403 && errData.error === 'LIMIT_REACHED') {
             setShowUpgradeModal(true);
-            setEditorState({ isGenerating: false });
+            setEditorState({
+              isGenerating: false,
+              generationBlockingOverlay: false,
+              deckGenerationLifecycle: 'idle',
+              generationTargetSlides: 0,
+              generationPendingImages: 0,
+              generationImageJobsTotal: 0,
+              generationImageJobsCompleted: 0,
+              orchestrationPhase: '',
+              activeModelLabel: '',
+            });
             return;
           }
           throw new Error(errData.error || errData.message || 'Generation failed');
         }
+        setEditorState({ deckGenerationLifecycle: 'streaming' });
         if (!res.body) throw new Error('No response body');
 
         const reader = res.body.getReader();
@@ -499,6 +532,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           }
         }
 
+        setEditorState({ deckGenerationLifecycle: 'building' });
+
         // Final attempt to parse full JSON — balanced-brace extraction (nested slides safe)
         try {
           let parsedRaw = extractJsonObject(accumulatedText);
@@ -529,7 +564,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           let finalData = normalizePresentationPayload(parsedRaw);
 
           if (mode === 'premium') {
-            setEditorState({ orchestrationPhase: 'elite_polish' });
+            setEditorState({ orchestrationPhase: 'elite_polish', deckGenerationLifecycle: 'polishing' });
             try {
               const pr = await fetch('/api/generate/polish', {
                 method: 'POST',
@@ -546,15 +581,28 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           }
 
           if (finalData.slides?.length) {
+            const commitEpoch = usePresentationStore.getState().editor.generationEpoch + 1;
+            setEditorState({
+              generationEpoch: commitEpoch,
+              generationPendingImages: 0,
+              generationImageJobsTotal: 0,
+              generationImageJobsCompleted: 0,
+            });
             if (appendMode === 'append') {
               const existingSlides = usePresentationStore.getState().presentation?.slides || [];
               storeSetPresentation({ ...finalData, slides: [...existingSlides, ...finalData.slides] });
             } else {
               storeSetPresentation(finalData);
             }
+            const imgJobs = usePresentationStore.getState().editor.generationImageJobsTotal;
+            setEditorState({
+              deckGenerationLifecycle: 'images',
+              ...(imgJobs > 0 ? { generationBlockingOverlay: false } : {}),
+            });
           } else {
             throw new Error('JSON parsed but no slides array found.');
           }
+          createGenerationSucceeded = true;
         } catch (e) {
           console.error('Final JSON parse failed:', e, accumulatedText?.slice?.(-4000));
           throw new Error(
@@ -566,16 +614,27 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
       } finally {
-        setEditorState({
-          isGenerating: false,
-          orchestrationPhase: '',
-          activeModelLabel: '',
-        });
+        if (activeTab === 'create') {
+          if (createGenerationSucceeded) {
+            await waitForPendingDeckImages(usePresentationStore.getState().editor.generationEpoch);
+          }
+          setEditorState({
+            isGenerating: false,
+            generationBlockingOverlay: false,
+            deckGenerationLifecycle: 'idle',
+            generationTargetSlides: 0,
+            generationPendingImages: 0,
+            generationImageJobsTotal: 0,
+            generationImageJobsCompleted: 0,
+            orchestrationPhase: '',
+            activeModelLabel: '',
+          });
+        }
       }
     } else {
       // Enhance Mode
       if (!selectedFile || isLoading) return;
-      setEditorState({ isGenerating: true });
+      setEditorState({ isGenerating: true, generationBlockingOverlay: true, deckGenerationLifecycle: 'building' });
       setError('');
 
       try {
@@ -600,7 +659,11 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Upload failed. Please check your Cloudflare R2 settings or file format.');
       } finally {
-        setEditorState({ isGenerating: false });
+        setEditorState({
+          isGenerating: false,
+          generationBlockingOverlay: false,
+          deckGenerationLifecycle: 'idle',
+        });
       }
     }
   };

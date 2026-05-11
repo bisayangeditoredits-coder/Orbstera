@@ -167,9 +167,12 @@ function ElementNode({
 
     if (el.type === 'image') {
       const awaitingPrompt = !el.src?.trim();
-      const statusTitle = awaitingPrompt ? 'Generative fill' : 'Rendering';
+      const aiSlot = !!(awaitingPrompt && el.aiImagePending);
+      const statusTitle = awaitingPrompt ? (aiSlot ? 'AI visuals' : 'Generative fill') : 'Rendering';
       const statusSub = awaitingPrompt
-        ? 'Describe content in the panel below'
+        ? aiSlot
+          ? 'Rendering with AI — updates live'
+          : 'Describe content in the panel below'
         : 'Loading image…';
 
       // Calculate crop to achieve 'cover' fit without warping

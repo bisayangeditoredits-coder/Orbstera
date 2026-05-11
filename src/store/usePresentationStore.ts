@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { PresentationData, Slide, SlideElement, EditorState, HistoryEntry } from '@/types';
+import { PresentationData, Slide, SlideElement, HistoryEntry } from '@/types';
 import { finalizeSlideMotion } from '@/lib/presentationMotion';
 
 const MAX_HISTORY = 50;
@@ -49,6 +49,8 @@ interface PresentationStore {
 
   // ─── Streaming & Live Generation ───────────────────────────────────────────
   streamSlide: (slide: Slide) => void;
+  /** Bounded / tracked /api/generate-image work for accurate generation progress */
+  trackDeckGenerationImage: (work: () => Promise<void>) => void;
 
   // ─── Onboarding ────────────────────────────────────────────────────────────
   onboarding: {
@@ -111,6 +113,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
           const bgId = uid('el-bg-image');
           elements.unshift({
             id: bgId, type: 'image', src: '', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: 0, visible: true, opacity: 0.35,
+            aiImagePending: true,
             animation: { entrance: 'fadeIn', duration: 1500, delay: 0 },
           });
           imageTasks.push({ slideId: slide.id, elementId: bgId, prompt: slide.imagePrompt, w: 1280, h: 720 });
@@ -180,7 +183,19 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
           shapeStyle: { fill: 'rgba(255, 255, 255, 0.02)', stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 1, cornerRadius: 24 },
           animation: { entrance: 'fadeSlideRight', duration: 600, delay: 0 }
         });
-        elements.push({ id: imgId, type: 'image', src: '', x: 700, y: 60, width: 520, height: CANVAS_H - 120, zIndex: currentZ++, visible: true, animation: { entrance: 'zoomIn', duration: 800, delay: 400 } });
+        elements.push({
+          id: imgId,
+          type: 'image',
+          src: '',
+          aiImagePending: true,
+          x: 700,
+          y: 60,
+          width: 520,
+          height: CANVAS_H - 120,
+          zIndex: currentZ++,
+          visible: true,
+          animation: { entrance: 'zoomIn', duration: 800, delay: 400 },
+        });
         if (slide.imagePrompt) {
           imageTasks.push({ slideId: slide.id, elementId: imgId, prompt: slide.imagePrompt, w: 800, h: 900 });
         }
@@ -284,25 +299,34 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     // Do not POST here — a previous fire-and-forget save advanced the server version without
     // updating the client, which produced constant 409 conflicts on the next sync.
 
-    // Fire ALL image generation tasks in parallel — much faster than sequential
-    if (imageTasks.length > 0) {
-      Promise.allSettled(
-        imageTasks.map(task =>
-          fetch('/api/generate-image', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ prompt: task.prompt, width: task.w, height: task.h }),
-          })
-          .then(res => res.json())
-          .then(json => {
+    const runImageTasks = () => {
+      const job = (task: (typeof imageTasks)[0]) =>
+        fetch('/api/generate-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: task.prompt, width: task.w, height: task.h }),
+        })
+          .then((res) => res.json())
+          .then((json) => {
             if (json.url) {
               get().updateElement(task.slideId, task.elementId, { src: json.url });
             }
           })
-          .catch(e => console.error(`[Store] Image failed for ${task.elementId}`, e))
-        )
-      );
-    }
+          .catch((e) => console.error(`[Store] Image failed for ${task.elementId}`, e));
+
+      if (imageTasks.length === 0) return;
+      if (get().editor.isGenerating) {
+        const track = get().trackDeckGenerationImage;
+        imageTasks.forEach((task) =>
+          track(async () => {
+            await job(task);
+          }),
+        );
+      } else {
+        void Promise.allSettled(imageTasks.map((task) => job(task)));
+      }
+    };
+    runImageTasks();
   },
 
   updatePresentation: (updates) =>
@@ -395,6 +419,10 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   updateElement: (slideId, elementId, updates) => {
     set((state) => {
       if (!state.presentation) return state;
+      const clearPending =
+        typeof updates.src === 'string' && updates.src.trim().length > 0
+          ? { aiImagePending: false as const }
+          : {};
       return {
         presentation: {
           ...state.presentation,
@@ -403,7 +431,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
               ? {
                   ...s,
                   elements: (s.elements || []).map((el) =>
-                    el.id === elementId ? { ...el, ...updates } : el
+                    el.id === elementId ? { ...el, ...updates, ...clearPending } : el
                   ),
                 }
               : s
@@ -463,6 +491,13 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     gridSize: 20,
     isPresenting: false,
     isGenerating: false,
+    generationBlockingOverlay: false,
+    generationEpoch: 0,
+    deckGenerationLifecycle: 'idle',
+    generationTargetSlides: 0,
+    generationPendingImages: 0,
+    generationImageJobsTotal: 0,
+    generationImageJobsCompleted: 0,
     previewElementId: null,
     reasoning: '',
     pan: { x: 0, y: 0 },
@@ -515,6 +550,40 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   isPanelOpen: true,
   setPanelOpen: (open) => set({ isPanelOpen: open }),
 
+  trackDeckGenerationImage: (work) => {
+    const epochSnapshot = get().editor.generationEpoch;
+    let scheduled = false;
+    set((state) => {
+      if (!state.editor.isGenerating || state.editor.generationEpoch !== epochSnapshot) return state;
+      scheduled = true;
+      return {
+        editor: {
+          ...state.editor,
+          generationImageJobsTotal: state.editor.generationImageJobsTotal + 1,
+          generationPendingImages: state.editor.generationPendingImages + 1,
+        },
+      };
+    });
+    work()
+      .catch(() => {})
+      .finally(() => {
+        if (!scheduled) return;
+        set((state) => {
+          if (state.editor.generationEpoch !== epochSnapshot) return state;
+          return {
+            editor: {
+              ...state.editor,
+              generationPendingImages: Math.max(0, state.editor.generationPendingImages - 1),
+              generationImageJobsCompleted: Math.min(
+                state.editor.generationImageJobsTotal,
+                state.editor.generationImageJobsCompleted + 1,
+              ),
+            },
+          };
+        });
+      });
+  },
+
   streamSlide: (slideData) => {
     const state = get();
     if (!state.presentation) {
@@ -546,14 +615,29 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     if (isHero) {
         if (slideData.imagePrompt) {
           const bgId = uid('el-bg-image');
-          elements.unshift({ id: bgId, type: 'image', src: '', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: 0, visible: true, opacity: 0.35, animation: { entrance: 'fadeIn', duration: 1500, delay: 0 } });
-          (async () => {
-            try {
-              const res = await fetch('/api/generate-image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: slideData.imagePrompt, width: 1280, height: 720 }) });
-              const json = await res.json();
-              if (json.url) get().updateElement(slideData.id, bgId, { src: json.url });
-            } catch (e) {}
-          })();
+          elements.unshift({
+            id: bgId,
+            type: 'image',
+            src: '',
+            aiImagePending: true,
+            x: 0,
+            y: 0,
+            width: CANVAS_W,
+            height: CANVAS_H,
+            zIndex: 0,
+            visible: true,
+            opacity: 0.35,
+            animation: { entrance: 'fadeIn', duration: 1500, delay: 0 },
+          });
+          get().trackDeckGenerationImage(async () => {
+            const res = await fetch('/api/generate-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ prompt: slideData.imagePrompt, width: 1280, height: 720 }),
+            });
+            const json = await res.json();
+            if (json.url) get().updateElement(slideData.id, bgId, { src: json.url });
+          });
         }
         elements.push({ id: uid('el-hero-overlay'), type: 'shape', shapeType: 'rect', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(5, 5, 10, 0.65)', stroke: 'transparent', strokeWidth: 0 }, animation: { entrance: 'fadeIn', duration: 1000 } });
         if (slideData.title) elements.push({ id: uid('el-title'), type: 'text', x: 80, y: CANVAS_H / 2 - 80, width: CANVAS_W-160, height: 160, content: slideData.title, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 84, fontWeight: 'bold', color: palette[1], textAlign: 'center', lineHeight: 1.1 }, animation: { entrance: 'fadeSlideUp', duration: 800 } });
@@ -570,15 +654,29 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       });
       elements.push({ id: uid('el-split-bg-right'), type: 'shape', shapeType: 'rect', x: 680, y: 40, width: 560, height: CANVAS_H - 80, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.02)', stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 1, cornerRadius: 24 }, animation: { entrance: 'fadeSlideRight', duration: 600 } });
       const imgId = uid('el-image');
-      elements.push({ id: imgId, type: 'image', src: '', x: 700, y: 60, width: 520, height: CANVAS_H - 120, zIndex: currentZ++, visible: true, animation: { entrance: 'zoomIn', duration: 800, delay: 400 } });
+      elements.push({
+        id: imgId,
+        type: 'image',
+        src: '',
+        aiImagePending: true,
+        x: 700,
+        y: 60,
+        width: 520,
+        height: CANVAS_H - 120,
+        zIndex: currentZ++,
+        visible: true,
+        animation: { entrance: 'zoomIn', duration: 800, delay: 400 },
+      });
       if (slideData.imagePrompt) {
-        (async () => {
-          try {
-            const res = await fetch('/api/generate-image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: slideData.imagePrompt, width: 800, height: 900 }) });
-            const json = await res.json();
-            if (json.url) get().updateElement(slideData.id, imgId, { src: json.url });
-          } catch (e) {}
-        })();
+        get().trackDeckGenerationImage(async () => {
+          const res = await fetch('/api/generate-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: slideData.imagePrompt, width: 800, height: 900 }),
+          });
+          const json = await res.json();
+          if (json.url) get().updateElement(slideData.id, imgId, { src: json.url });
+        });
       }
     } else if (isQuote) {
       elements.push({ id: uid('el-quote-bg'), type: 'shape', shapeType: 'rect', x: 80, y: 100, width: CANVAS_W - 160, height: CANVAS_H - 200, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.03)', stroke: 'rgba(255, 255, 255, 0.06)', strokeWidth: 1, cornerRadius: 32 }, animation: { entrance: 'zoomIn', duration: 800 } });

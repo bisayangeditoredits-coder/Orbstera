@@ -122,6 +122,8 @@ export interface SlideElement {
   textStyle?: TextStyle;
   // Image element
   src?: string;
+  /** True while this slot is waiting on deck-level /api/generate-image (UI placeholder). */
+  aiImagePending?: boolean;
   // Shape element
   shapeType?: 'rect' | 'circle' | 'triangle' | 'star' | 'line' | 'arrow';
   shapeStyle?: ShapeStyle;
@@ -208,6 +210,16 @@ export interface HistoryEntry {
   timestamp: number;
 }
 
+export type DeckGenerationLifecycle =
+  | 'idle'
+  | 'connecting'
+  | 'streaming'
+  /** Stream closed; parsing accumulated JSON before deck commit */
+  | 'building'
+  | 'polishing'
+  /** Deck JSON applied — optional AI visuals still hydrating */
+  | 'images';
+
 export interface EditorState {
   activeTool: 'select' | 'gen-fill';
   selectedElementId: string | null;
@@ -221,6 +233,17 @@ export interface EditorState {
   gridSize: number;
   isPresenting: boolean;
   isGenerating: boolean;
+  /** Full splash overlay vs slim banner — images phase shows canvas realtime */
+  generationBlockingOverlay: boolean;
+  /** Monotonic counter; stale async image tasks ignore progress counters */
+  generationEpoch: number;
+  deckGenerationLifecycle: DeckGenerationLifecycle;
+  /** User-requested slide count for this generation (progress denominator) */
+  generationTargetSlides: number;
+  /** Tracked AI image HTTP jobs for this generationEpoch */
+  generationPendingImages: number;
+  generationImageJobsTotal: number;
+  generationImageJobsCompleted: number;
   previewElementId: string | null;
   reasoning: string;
   pan: { x: number; y: number };
