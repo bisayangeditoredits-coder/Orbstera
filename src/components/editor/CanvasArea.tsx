@@ -43,16 +43,6 @@ function GenerationLoader() {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js';
-    script.async = true;
-    document.body.appendChild(script);
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
-
   return (
     <motion.div
       initial={{ opacity: 0 }}

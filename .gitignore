@@ -42,3 +42,5 @@ PUSH_TO_GITHUB.bat
 
 # scratch / test files
 /scratch/
+
+.vercel

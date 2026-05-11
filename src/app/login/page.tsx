@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ArrowRight, Lock, Mail, ShieldCheck, Check } from 'lucide-react';
 
 import { Suspense } from 'react';
+import { ensureLottiePlayerScript } from '@/lib/ensure-lottie-player';
 
 function LoginContent() {
   const [email, setEmail] = useState('');
@@ -97,16 +98,8 @@ function LoginContent() {
     }
   };
 
-  // Inject Lottie Script
   useEffect(() => {
-    const scriptId = 'lottie-player-script';
-    if (!document.getElementById(scriptId)) {
-      const script = document.createElement('script');
-      script.id = scriptId;
-      script.src = 'https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js';
-      script.async = true;
-      document.body.appendChild(script);
-    }
+    ensureLottiePlayerScript();
   }, []);
 
   return (
