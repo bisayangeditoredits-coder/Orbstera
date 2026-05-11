@@ -110,6 +110,7 @@ export function GenerativeFillToolbar() {
           width,
           height,
           format: 'png',
+          polish,
           // Optional override: set OPENROUTER_IMAGE_MODEL in env or pass `model` here.
         }),
       });
