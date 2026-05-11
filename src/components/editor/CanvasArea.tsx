@@ -20,11 +20,11 @@ function GenerationLoader() {
   ];
 
   const reasoningSteps = [
-    "Deconstructing user prompt into semantic logical nodes...",
-    "Cross-referencing elite SaaS architectural layout patterns...",
-    "Synthesizing visual assets with Sonnet-3.5 neural mapping...",
-    "Optimizing narrative hierarchy for cinematic impact...",
-    "Finalizing structural refinement and deployment protocols..."
+    'Reading intent and emotional arc from your brief…',
+    'Shaping narrative rhythm and slide flow…',
+    'Applying layout, typography, and motion intelligence…',
+    'Tuning transitions for a keynote feel…',
+    'Locking cinematic polish before you edit…',
   ];
 
   const currentStepIndex = steps.findIndex((s, i) => {
@@ -216,7 +216,14 @@ function GenerationLoader() {
            <div className="grid grid-cols-1 xs:grid-cols-3 gap-4 xs:gap-8 pt-6 border-t border-black/[0.03] w-full max-w-xl mx-auto">
               {[
                 { label: 'Progress', value: `${Math.round(((currentStepIndex + 1) / steps.length) * 100)}%` },
-                { label: 'Model', value: editor.activeModelLabel ? editor.activeModelLabel.split('/').pop() || 'Orchestra' : 'Orchestra' },
+                {
+                  label: 'Engine',
+                  value: editor.orchestrationPhase
+                    ? String(editor.orchestrationPhase)
+                        .replace(/_/g, ' ')
+                        .replace(/^\w/, (c) => c.toUpperCase())
+                    : 'Orbstera',
+                },
                 { label: 'Status', value: 'ACTIVE', color: 'text-emerald-500' },
               ].map((stat, i) => (
                 <div key={i} className="flex flex-col gap-1">
@@ -230,7 +237,7 @@ function GenerationLoader() {
         {/* Brand Credit - Anchored to bottom to avoid clipping */}
         <div className="absolute bottom-[max(3rem,env(safe-area-inset-bottom))] left-0 right-0 flex justify-center opacity-20 px-4">
           <span className="text-[8px] sm:text-[9px] font-black tracking-[0.2em] sm:tracking-[0.6em] text-black uppercase text-center">
-            Synthesized via CrelDesk Neural Architecture
+            Orbstera presentation engine
           </span>
         </div>
       </div>

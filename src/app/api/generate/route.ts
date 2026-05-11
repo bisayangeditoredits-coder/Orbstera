@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { pickComposerModel, PIPELINE_TIER, OR_MODELS } from '@/lib/ai/models';
-import { runPreflight, buildComposerMessages } from '@/lib/ai/orchestration';
+import { getDeckComposerModels } from '@/lib/ai/models';
+import { buildComposerMessages } from '@/lib/ai/orchestration';
 import { runOpenRouterOrchestration } from '@/lib/ai/prompt-chain';
 import { openRouterStream } from '@/lib/ai/openrouter';
 
@@ -52,36 +52,37 @@ export async function POST(req: Request) {
     const usedGenerations = profile?.generations_used || 0;
 
     const LIMITS: Record<string, number> = {
-      free:        3,
-      pro:         30,
+      free: 3,
+      pro: 30,
       student_pro: 30,
       creator_pro: 100,
     };
     const MAX_SLIDES: Record<string, number> = {
-      free:        5,
-      pro:         25,
+      free: 5,
+      pro: 25,
       student_pro: 25,
       creator_pro: 40,
     };
 
-    const monthlyLimit = LIMITS[plan] || 3;
+    const generationLimit = LIMITS[plan] || 3;
     const maxSlides = MAX_SLIDES[plan] || 5;
     const finalSlideCount = Math.min(Math.max(1, slideCount), maxSlides);
 
-    if (usedGenerations >= monthlyLimit) {
+    if (usedGenerations >= generationLimit) {
       const isFree = plan === 'free' || !plan;
       const planLabel = isFree ? 'Free' : plan === 'creator_pro' ? 'Creator Pro' : 'Student Pro';
+      const limitKind = isFree ? 'lifetime' : 'monthly';
       return NextResponse.json({
         error: 'LIMIT_REACHED',
-        message: `You've used all ${monthlyLimit} of your ${planLabel} monthly AI generations.`,
+        message: isFree
+          ? `You've used all ${generationLimit} of your ${planLabel} AI presentations (${limitKind} limit). Upgrade to create more.`
+          : `You've used all ${generationLimit} of your ${planLabel} ${limitKind} AI generations.`,
         used: usedGenerations,
-        limit: monthlyLimit,
+        limit: generationLimit,
       }, { status: 403 });
     }
 
-    const tier = PIPELINE_TIER;
-    const { primary: primaryModel, fallback: fallbackModel } = pickComposerModel(tier);
-    const outlineModel = OR_MODELS.outlineElite;
+    const { primary: primaryModel, fallback: fallbackModel } = getDeckComposerModels();
 
     const userPrompt = String(prompt || '').trim();
     if (!userPrompt) {
@@ -108,13 +109,12 @@ export async function POST(req: Request) {
         try {
           sendOrb({
             orb: {
-              phase: 'orchestration_chain',
-              pipeline: 'multi-agent',
-              message: 'Running multi-model prompt orchestration…',
+              phase: 'starting',
+              message: 'Preparing your presentation…',
             },
           });
 
-          const { dossierText, refinedBrief } = await runOpenRouterOrchestration(
+          const { dossierText, refinedBrief, preflightSummary } = await runOpenRouterOrchestration(
             APP_URL,
             userPrompt,
             {
@@ -122,13 +122,11 @@ export async function POST(req: Request) {
               tone: String(tone),
               language: String(language),
             },
-            (phase, model) => {
+            (phase, message) => {
               sendOrb({
                 orb: {
-                  phase: `orchestrate_${phase}`,
-                  pipeline: 'multi-agent',
-                  model,
-                  message: `Agent pass: ${phase}`,
+                  phase,
+                  message,
                 },
               });
             }
@@ -136,23 +134,13 @@ export async function POST(req: Request) {
 
           sendOrb({
             orb: {
-              phase: 'analyzing_intent',
-              pipeline: 'multi-agent',
-              message: 'Synthesizing narrative arc and slide plan…',
+              phase: 'composing',
+              message: 'Translating the brief into slide structure and motion…',
             },
           });
 
-          const preflight = await runPreflight({
-            appUrl: APP_URL,
-            tier,
-            userPrompt: `${dossierText}\n\nOriginal request (verbatim, for grounding):\n${userPrompt}`,
-            slideCount: finalSlideCount,
-            tone: String(tone),
-            language: String(language),
-          });
-
           const { system, user: userMessage } = buildComposerMessages({
-            preflightSummary: preflight.summaryForPrompt,
+            preflightSummary: `${preflightSummary}\n\n--- Full dossier ---\n${dossierText}`,
             userPrompt,
             refinedBrief,
             slideCount: finalSlideCount,
@@ -163,26 +151,8 @@ export async function POST(req: Request) {
 
           sendOrb({
             orb: {
-              phase: 'preflight_complete',
-              pipeline: 'multi-agent',
-              tier,
-              models: { outline: outlineModel, composer: primaryModel, fallback: fallbackModel },
-              intent:
-                typeof preflight.raw.detectedIntent === 'string'
-                  ? preflight.raw.detectedIntent
-                  : undefined,
-              presentationType:
-                typeof preflight.raw.presentationType === 'string'
-                  ? preflight.raw.presentationType
-                  : undefined,
-            },
-          });
-
-          sendOrb({
-            orb: {
               phase: 'streaming',
-              model: primaryModel,
-              message: 'Composing structured presentation JSON…',
+              message: 'Rendering your deck…',
             },
           });
 
@@ -213,15 +183,14 @@ export async function POST(req: Request) {
             sendOrb({
               orb: {
                 phase: 'fallback',
-                model: fallbackModel,
-                message: 'Primary composer unavailable — switching to fallback model.',
+                message: 'Continuing with an alternate composer…',
               },
             });
             ok = await tryStream(fallbackModel);
           }
           if (!ok) {
             sendOrb({
-              orb: { phase: 'error', message: 'All composer models failed. Try again shortly.' },
+              orb: { phase: 'error', message: 'Generation could not complete. Try again shortly.' },
             });
           }
         } catch (e: unknown) {

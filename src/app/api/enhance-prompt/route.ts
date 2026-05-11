@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { AGENT_MODELS } from '@/lib/ai/agent-models';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.3-70b-instruct',
+        model: AGENT_MODELS.gptOrchestrator,
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: prompt }

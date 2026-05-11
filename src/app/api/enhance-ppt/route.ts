@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
-import { OR_MODELS } from '@/lib/ai/models';
+import { getDeckComposerModels } from '@/lib/ai/models';
 import crypto from 'crypto';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import JSZip from 'jszip';
@@ -164,10 +164,11 @@ export async function POST(req: Request) {
     }
     // -------------------
 
-    // 3. Send to OpenRouter — same automatic pipeline as create (best configured composer).
-    let model = OR_MODELS.composerElite;
+    // 3. Send to OpenRouter — same automatic composer stack as create.
+    const { primary: composerPrimary, fallback: composerFallback } = getDeckComposerModels();
+    let model = composerPrimary;
     if (extractedText.split(/\s+/).length > 2000) {
-      model = OR_MODELS.composerEliteFallback;
+      model = composerFallback;
     }
 
     const userMessage = `Here is the raw text extracted from the user's old presentation:\n\n---\n${extractedText}\n---\n\nPlease enhance this into a stunning modern presentation. Return the JSON.`;
@@ -195,10 +196,9 @@ export async function POST(req: Request) {
 
     let response = await callOpenRouter(model);
 
-    // Fallback if the selected model fails (e.g. out of credits)
-    if (!response.ok && (response.status === 402 || response.status === 400)) {
-      console.warn(`[Enhance] ${model} failed, trying free fallback...`);
-      response = await callOpenRouter('google/gemini-2.0-pro-exp-02-05:free');
+    if (!response.ok && (response.status === 402 || response.status === 400) && model !== composerFallback) {
+      console.warn(`[Enhance] ${model} failed, trying configured fallback composer…`);
+      response = await callOpenRouter(composerFallback);
     }
 
     if (!response.ok) {

@@ -1,23 +1,24 @@
 import type { PresentationData, Slide, SlideLayoutType } from '@/types';
 import { coerceSlideTransition } from '@/lib/presentationMotion';
-import { pickOutlineModel, type IntelligenceTier } from './models';
 import { openRouterComplete, extractJsonObject } from './openrouter';
 import { PREFLIGHT_SYSTEM, buildComposerSystemPrompt } from './prompts';
+import { AGENT_MODELS } from './agent-models';
 
 export interface PreflightResult {
   raw: Record<string, unknown>;
   summaryForPrompt: string;
 }
 
+/** Optional standalone preflight (e.g. tools). Deck generation uses prompt-chain output instead. */
 export async function runPreflight(args: {
   appUrl: string;
-  tier: IntelligenceTier;
   userPrompt: string;
   slideCount: number;
   tone: string;
   language: string;
+  model?: string;
 }): Promise<PreflightResult> {
-  const model = pickOutlineModel(args.tier);
+  const model = args.model ?? AGENT_MODELS.gptOrchestrator;
   const user = `User request:\n${args.userPrompt}\n\nConstraints:\n- Target slides: ${args.slideCount}\n- Tone: ${args.tone}\n- Language: ${args.language}\n- Infer the best presentation type and narrative arc.`;
 
   try {
@@ -55,7 +56,7 @@ export function buildComposerMessages(args: {
   const system = buildComposerSystemPrompt(args.preflightSummary);
   const style =
     args.styleMode && args.styleMode !== 'auto'
-      ? `\n- Requested style mode: ${args.styleMode} (adapt layouts + typography accordingly).`
+      ? `\n- Style hint (optional): ${args.styleMode} — adapt layouts + typography if it helps; otherwise infer from orchestration context.`
       : '';
   const user = `Construct the full presentation JSON.
 

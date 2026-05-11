@@ -34,30 +34,7 @@ const EXAMPLE_PROMPTS = [
   'Build a go-to-market strategy deck for a health-tech startup',
 ];
 
-const TONES = [
-  { value: 'professional', label: 'Professional' },
-  { value: 'creative', label: 'Creative' },
-  { value: 'bold', label: 'Bold' },
-  { value: 'casual', label: 'Casual' },
-  { value: 'minimal', label: 'Minimal' },
-];
-
 const SLIDE_COUNTS = [2, 5, 10, 15, 20, 25, 30, 35, 40];
-
-const PRESENTATION_STYLES: { value: string; label: string }[] = [
-  { value: 'auto', label: 'Auto (AI picks)' },
-  { value: 'apple_keynote', label: 'Apple Keynote' },
-  { value: 'startup_pitch', label: 'Startup Pitch' },
-  { value: 'minimal_dark', label: 'Minimal Dark' },
-  { value: 'corporate', label: 'Corporate' },
-  { value: 'futuristic', label: 'Futuristic' },
-  { value: 'luxury', label: 'Luxury' },
-  { value: 'glassmorphism', label: 'Glass' },
-  { value: 'bento', label: 'Bento' },
-  { value: 'editorial', label: 'Editorial' },
-  { value: 'creative', label: 'Creative' },
-  { value: 'cinematic', label: 'Cinematic' },
-];
 
 function CollapsibleSection({
   title,
@@ -103,10 +80,7 @@ function CollapsibleSection({
 
 export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const [prompt, setPrompt] = useState('');
-  const [tone, setTone] = useState('professional');
   const [slideCount, setSlideCount] = useState(5);
-  const [language, setLanguage] = useState('English');
-  const [presentationStyle, setPresentationStyle] = useState('auto');
   const [error, setError] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -246,8 +220,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   };
 
   const [activeTab, setActiveTab] = useState<'create' | 'enhance'>('create');
-  const [expandTone, setExpandTone] = useState(false);
-  const [expandStyle, setExpandStyle] = useState(false);
   const [expandDensity, setExpandDensity] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -389,9 +361,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           body: JSON.stringify({
             prompt: trimmed,
             slideCount,
-            tone,
-            language,
-            styleMode: presentationStyle,
+            tone: 'professional',
+            language: 'English',
           }),
         });
 
@@ -433,19 +404,10 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
                 if (json.orb) {
                   const orb = json.orb as Record<string, unknown>;
-                  const models = orb.models as Record<string, string> | undefined;
                   setEditorState({
                     orchestrationPhase: String(orb.phase || ''),
-                    activeModelLabel:
-                      (typeof orb.model === 'string' ? orb.model : null) ||
-                      models?.composer ||
-                      '',
-                    reasoning:
-                      typeof orb.message === 'string'
-                        ? orb.message
-                        : typeof orb.intent === 'string'
-                          ? orb.intent
-                          : '',
+                    activeModelLabel: '',
+                    reasoning: typeof orb.message === 'string' ? orb.message : '',
                   });
                   continue;
                 }
@@ -525,7 +487,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
           let finalData = normalizePresentationPayload(parsedRaw);
 
-          setEditorState({ orchestrationPhase: 'elite_polish' });
+          setEditorState({ orchestrationPhase: 'finishing' });
           try {
             const pr = await fetch('/api/generate/polish', {
               method: 'POST',
@@ -651,7 +613,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               </div>
               <h2 className="text-2xl font-black font-space-grotesk mb-2">Limit Reached</h2>
               <p className="text-white/60 text-sm mb-8 leading-relaxed">
-                You've used all 3 of your free monthly AI presentations. Upgrade to keep generating decks with full multi-agent orchestration.
+                You've used all 3 free AI presentations (lifetime limit on the Free plan). Upgrade to keep generating full cinematic decks.
               </p>
               <div className="flex flex-col gap-3">
                 <a href="/pricing" className="w-full py-3.5 bg-amber-500 text-black font-bold rounded-xl hover:bg-amber-400 transition-colors flex items-center justify-center gap-2">
@@ -684,7 +646,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             <div className="min-w-0 pt-0.5">
               <h2 className="text-[16px] font-semibold text-neutral-900 tracking-tight truncate leading-tight">AI Generation</h2>
               <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-[0.14em] mt-1 leading-snug">
-                Multi-agent orchestration · OpenRouter
+                Automatic cinematic generation
               </p>
             </div>
           </div>
@@ -799,60 +761,12 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                     </div>
 
                     <div className="text-[9px] font-semibold text-neutral-300 uppercase tracking-[0.18em]">
-                      Auto pipeline
+                      Orbstera AI
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-
-            <CollapsibleSection
-              title="Narrative Tone"
-              summary={TONES.find((t) => t.value === tone)?.label ?? tone}
-              expanded={expandTone}
-              onToggle={() => setExpandTone((v) => !v)}
-            >
-              <div className="flex flex-wrap gap-1.5">
-                {TONES.map((t) => (
-                  <button
-                    type="button"
-                    key={t.value}
-                    onClick={() => setTone(t.value)}
-                    className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all border ${
-                      tone === t.value
-                        ? 'bg-neutral-900 text-white border-neutral-900'
-                        : 'bg-white border-black/[0.08] text-neutral-600 hover:border-black/15'
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </CollapsibleSection>
-
-            <CollapsibleSection
-              title="Presentation Style"
-              summary={PRESENTATION_STYLES.find((s) => s.value === presentationStyle)?.label ?? presentationStyle}
-              expanded={expandStyle}
-              onToggle={() => setExpandStyle((v) => !v)}
-            >
-              <div className="grid grid-cols-2 gap-1.5 max-h-[min(40vh,200px)] overflow-y-auto custom-scrollbar pr-0.5">
-                {PRESENTATION_STYLES.map((s) => (
-                  <button
-                    key={s.value}
-                    type="button"
-                    onClick={() => setPresentationStyle(s.value)}
-                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-left transition-all border leading-snug ${
-                      presentationStyle === s.value
-                        ? 'bg-neutral-900 text-white border-neutral-900'
-                        : 'bg-white border-black/[0.07] text-neutral-600 hover:border-black/12'
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </CollapsibleSection>
 
             <CollapsibleSection
               title="Density (Slides)"

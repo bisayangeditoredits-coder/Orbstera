@@ -305,29 +305,36 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     // Do not POST here — a previous fire-and-forget save advanced the server version without
     // updating the client, which produced constant 409 conflicts on the next sync.
 
-    // Fire ALL image generation tasks in parallel — much faster than sequential
+    // Progressive images: deck renders first; OpenRouter Flux fills in without blocking the UI thread.
+    // Limited concurrency avoids rate spikes while still feeling fast.
     if (imageTasks.length > 0) {
-      Promise.allSettled(
-        imageTasks.map(task =>
-          fetch('/api/generate-image', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              prompt: task.prompt,
-              width: task.w,
-              height: task.h,
-              visualProfile: task.visualProfile,
-            }),
-          })
-          .then(res => res.json())
-          .then(json => {
+      const queue = [...imageTasks];
+      const concurrency = 2;
+      const worker = async () => {
+        while (queue.length) {
+          const task = queue.shift();
+          if (!task) break;
+          try {
+            const res = await fetch('/api/generate-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                prompt: task.prompt,
+                width: task.w,
+                height: task.h,
+                visualProfile: task.visualProfile,
+              }),
+            });
+            const json = await res.json().catch(() => ({}));
             if (json.url) {
               get().updateElement(task.slideId, task.elementId, { src: json.url });
             }
-          })
-          .catch(e => console.error(`[Store] Image failed for ${task.elementId}`, e))
-        )
-      );
+          } catch (e) {
+            console.error(`[Store] Image failed for ${task.elementId}`, e);
+          }
+        }
+      };
+      void Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, () => worker()));
     }
   },
 
