@@ -52,6 +52,8 @@ async function putJsonWithRetry(
   throw last;
 }
 
+const PRIVATE_CACHE_HEADERS = { 'Cache-Control': 'private, no-store, max-age=0' } as const;
+
 async function getAuthUser() {
   const cookieStore = cookies();
   const supabase = createServerClient(
@@ -84,9 +86,11 @@ export async function GET(req: Request) {
       })
     );
     const body = await streamToString(response.Body);
-    return NextResponse.json(JSON.parse(body));
+    return NextResponse.json(JSON.parse(body), { headers: PRIVATE_CACHE_HEADERS });
   } catch (error: any) {
-    if (error.name === 'NoSuchKey') return NextResponse.json(id ? null : []);
+    if (error.name === 'NoSuchKey') {
+      return NextResponse.json(id ? null : [], { headers: PRIVATE_CACHE_HEADERS });
+    }
     console.error('R2 Get Error:', error);
     return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 });
   }
@@ -110,7 +114,7 @@ export async function POST(req: Request) {
     // Prevent "Generating..." placeholders or empty decks from polluting the dashboard index.
     // This handles cases where the user quits before generation finishes.
     if (presentation.title === 'Generating...' || !presentation.slides || presentation.slides.length === 0) {
-      return NextResponse.json({ message: 'Placeholder skipped' });
+      return NextResponse.json({ message: 'Placeholder skipped' }, { headers: PRIVATE_CACHE_HEADERS });
     }
 
     if (!presentation.id)        presentation.id        = uuidv4();
@@ -177,12 +181,15 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      id: presentation.id,
-      saveVersion: presentation.saveVersion,
-      updatedAt: presentation.updatedAt,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        id: presentation.id,
+        saveVersion: presentation.saveVersion,
+        updatedAt: presentation.updatedAt,
+      },
+      { headers: PRIVATE_CACHE_HEADERS }
+    );
   } catch (error) {
     console.error('R2 Save Error:', error);
     return NextResponse.json({ error: 'Failed to save presentation' }, { status: 500 });

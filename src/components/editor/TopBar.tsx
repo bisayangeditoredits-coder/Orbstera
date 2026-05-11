@@ -304,7 +304,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
     const id = presentation?.id;
     if (!id) return;
     try {
-      const res = await fetch(`/api/presentations?id=${encodeURIComponent(id)}`);
+      const res = await fetch(`/api/presentations?id=${encodeURIComponent(id)}`, { cache: 'no-store' });
       const data = await res.json();
       if (data?.id) {
         setPresentation(data);
@@ -324,6 +324,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+        cache: 'no-store',
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 409) {

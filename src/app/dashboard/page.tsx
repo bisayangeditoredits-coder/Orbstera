@@ -58,7 +58,7 @@ function DashboardContent() {
             setTimeout(() => init(retryCount + 1), 2000);
           }
         }
-        const res = await fetch('/api/presentations');
+        const res = await fetch('/api/presentations', { cache: 'no-store' });
         if (res.ok) setPresentations(await res.json());
       } catch (e) {
         console.error('Dashboard init error:', e);

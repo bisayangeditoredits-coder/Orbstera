@@ -63,8 +63,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    // Skip static assets and API routes from middleware
-    '/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  // Only routes that need auth checks — avoids Supabase getUser() on marketing pages (faster TTFB).
+  matcher: ['/editor/:path*', '/dashboard/:path*', '/settings/:path*', '/admin/:path*', '/login'],
 };

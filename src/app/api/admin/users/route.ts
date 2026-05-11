@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    // We MUST use the Service Role Key to bypass RLS and access the auth schema
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+    if (!url || !serviceKey) {
+      return NextResponse.json({ error: 'Admin API not configured' }, { status: 503 });
+    }
+
+    const supabaseAdmin = createClient(url, serviceKey);
 
     // Note: In production, you MUST check if the request is coming from your admin email
     // e.g. check cookies/session first to ensure regular users can't hit this API!

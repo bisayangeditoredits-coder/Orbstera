@@ -1,7 +1,7 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState, useCallback } from 'react';
-import { CanvasArea } from '@/components/editor/CanvasArea';
 import { Sidebar } from '@/components/editor/Sidebar';
 import { Toolbar } from '@/components/editor/Toolbar';
 import { LayersPanel } from '@/components/editor/LayersPanel';
@@ -9,14 +9,36 @@ import { TopBar } from '@/components/editor/TopBar';
 import { GeneratePanel } from '@/components/editor/GeneratePanel';
 import { MagicEditToolbar } from '@/components/editor/MagicEditToolbar';
 import { GenerativeFillToolbar } from '@/components/editor/GenerativeFillToolbar';
-import { PresentMode } from '@/components/editor/PresentMode';
 import { DesignPanel } from '@/components/editor/DesignPanel';
-import { OnboardingTour } from '@/components/editor/OnboardingTour';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { usePresentationCloudSync } from '@/hooks/usePresentationCloudSync';
+
+const EditorCanvasLoading = () => (
+  <div className="flex-1 min-h-0 flex items-center justify-center bg-background text-textMuted">
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-9 h-9 border-2 border-primary/25 border-t-primary rounded-full animate-spin" />
+      <span className="text-[12px] font-medium">Loading canvas…</span>
+    </div>
+  </div>
+);
+
+const CanvasArea = dynamic(
+  () => import('@/components/editor/CanvasArea').then((m) => m.CanvasArea),
+  { ssr: false, loading: () => <EditorCanvasLoading /> }
+);
+
+const PresentMode = dynamic(
+  () => import('@/components/editor/PresentMode').then((m) => m.PresentMode),
+  { ssr: false }
+);
+
+const OnboardingTour = dynamic(
+  () => import('@/components/editor/OnboardingTour').then((m) => m.OnboardingTour),
+  { ssr: false }
+);
 
 export default function EditorClient() {
   const { 
@@ -27,26 +49,32 @@ export default function EditorClient() {
 
   usePresentationCloudSync();
 
-  // Handle auto-generation or loading from URL
+  // Handle auto-generation or loading from URL (abort in-flight fetch if params change)
   useEffect(() => {
     const prompt = searchParams.get('prompt');
     const mode = searchParams.get('mode');
     const id = searchParams.get('id');
+    const ac = new AbortController();
 
     if (id) {
-      // Load existing presentation from Cloudflare R2
-      fetch(`/api/presentations?id=${id}`)
-        .then(res => res.json())
-        .then(data => {
+      fetch(`/api/presentations?id=${encodeURIComponent(id)}`, { signal: ac.signal, cache: 'no-store' })
+        .then((res) => res.json())
+        .then((data) => {
+          if (ac.signal.aborted) return;
           if (data && data.id) {
             usePresentationStore.getState().setPresentation(data);
           }
         })
-        .catch(err => console.error('Failed to load presentation:', err));
+        .catch((err) => {
+          if ((err as Error).name === 'AbortError') return;
+          console.error('Failed to load presentation:', err);
+        });
     } else if (prompt || mode) {
       setActivePanel('generate');
       setPanelOpen(true);
     }
+
+    return () => ac.abort();
   }, [searchParams, setActivePanel, setPanelOpen]);
 
   // Auto-trigger onboarding tour

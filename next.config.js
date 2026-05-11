@@ -11,6 +11,8 @@ const nextConfig = {
   experimental: {
     // Prevent canvas native module from being bundled server-side
     serverComponentsExternalPackages: ['canvas'],
+    // Tree-shake icon barrel imports on the client
+    optimizePackageImports: ['lucide-react'],
   },
 
   webpack: (config, { isServer }) => {

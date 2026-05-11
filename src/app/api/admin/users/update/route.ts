@@ -9,11 +9,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    // Use Service Role Key to bypass RLS and update ANY user's auth metadata
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+    if (!url || !serviceKey) {
+      return NextResponse.json({ error: 'Admin API not configured' }, { status: 503 });
+    }
+
+    const supabaseAdmin = createClient(url, serviceKey);
 
     // 1. Update the specific user's user_metadata in the auth system
     const { data: user, error: authError } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
