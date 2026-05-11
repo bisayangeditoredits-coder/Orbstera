@@ -140,9 +140,10 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
       const microPulse = wave * 0.02 * (0.28 + level);
 
       if (el && isListeningRef.current) {
-        const scale = 1 + level * 0.48 + energy * 0.12 + microPulse;
-        const tiltX = Math.sin(phaseRef.current * 0.72) * (2.2 + level * 3.4);
-        const tiltY = Math.cos(phaseRef.current * 0.84) * (2.2 + level * 3.5);
+        // Keep pulse modest so the orb stays inside the panel (no clipping).
+        const scale = 1 + level * 0.36 + energy * 0.09 + microPulse * 0.85;
+        const tiltX = Math.sin(phaseRef.current * 0.72) * (1.8 + level * 2.8);
+        const tiltY = Math.cos(phaseRef.current * 0.84) * (1.8 + level * 2.9);
         const glow = 28 + level * 100 + energy * 48;
         const glowOuter = 64 + level * 125;
         el.style.transform = `perspective(900px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) scale(${scale.toFixed(4)}) translateZ(0)`;
@@ -195,30 +196,41 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="absolute inset-0 z-20 rounded-[22px] bg-white/95 backdrop-blur-xl flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden shadow-[0_30px_80px_-20px_rgba(59,130,246,0.15)]"
+          className="absolute inset-0 z-20 rounded-[22px] bg-white/95 backdrop-blur-xl flex flex-col min-h-0 cursor-pointer overflow-hidden shadow-[0_30px_80px_-20px_rgba(59,130,246,0.15)]"
           onClick={onStop}
         >
-          <div
-            ref={orbVisualRef}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[180px] h-[180px] pointer-events-none select-none flex items-center justify-center will-change-transform"
-            style={{
-              transform: 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1) translateZ(0)',
-              filter: 'drop-shadow(0 0 14px rgba(71,59,240,0.14))',
-            }}
-          >
-            {/* @ts-ignore custom element */}
-            <lottie-player
-              id={`voice-orb-lottie-${lottieId}`}
-              src="/ai animation Flow 1.json"
-              background="transparent"
-              speed="0.65"
-              style={{ width: '100%', height: '100%', transform: 'scale(1.1)' }}
-              loop
-              autoplay
-            />
+          {/* Flex centering for the orb; animated transform is applied only on the inner ref
+              so we never overwrite Tailwind translate centering (that caused corner clipping). */}
+          <div className="flex-1 min-h-0 flex items-center justify-center px-3 pt-3 pb-1 pointer-events-none">
+            <div
+              ref={orbVisualRef}
+              className="relative w-[min(168px,calc(100%-1.5rem))] h-[min(168px,calc(100%-1.5rem))] max-h-[min(168px,42vh)] shrink-0 flex items-center justify-center will-change-transform [transform-origin:center]"
+              style={{
+                transform: 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1) translateZ(0)',
+                filter: 'drop-shadow(0 0 14px rgba(71,59,240,0.14))',
+              }}
+            >
+              {/* @ts-ignore custom element */}
+              <lottie-player
+                id={`voice-orb-lottie-${lottieId}`}
+                src="/ai animation Flow 1.json"
+                background="transparent"
+                speed="0.65"
+                className="max-w-full max-h-full"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  objectFit: 'contain',
+                }}
+                loop
+                autoplay
+              />
+            </div>
           </div>
 
-          <div className="relative z-10 flex flex-col items-center gap-1 px-4 text-center mt-auto mb-2 bg-white/50 backdrop-blur-sm rounded-full py-1">
+          <div className="relative z-10 flex flex-col items-center gap-1 px-4 text-center shrink-0 mb-2 mx-2 bg-white/50 backdrop-blur-sm rounded-full py-1">
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
               <p className="text-[11px] font-bold text-textMuted italic line-clamp-1 leading-snug">
