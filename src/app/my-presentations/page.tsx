@@ -59,31 +59,35 @@ export default function MyPresentationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0B0D] text-neutral-100">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(59,130,246,0.12),transparent)]" />
+    <div className="min-h-screen bg-[#F4F7FC] text-neutral-900">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_90%_60%_at_50%_-10%,rgba(59,130,246,0.08),transparent)]" />
       <Navbar />
 
       {deleteTarget && (
         <div
-          className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[999] flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm"
           onClick={() => !deleting && setDeleteTarget(null)}
         >
           <div
-            className="w-full max-w-md border border-white/10 bg-[#121214] p-8 shadow-2xl"
+            className="w-full max-w-md border border-neutral-200 bg-white p-8 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">Remove deck</p>
-            <h2 className="mt-2 text-xl font-semibold tracking-tight text-white">Delete this presentation?</h2>
-            <p className="mt-3 text-sm leading-relaxed text-white/60">
-              <span className="text-white/90">{deleteTarget.title}</span> will be removed from your library. This
-              cannot be undone.
+            <p className="font-serif text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/80">
+              Remove deck
+            </p>
+            <h2 className="mt-2 font-serif text-xl font-semibold tracking-tight text-neutral-950">
+              Delete this presentation?
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-neutral-600">
+              <span className="font-medium text-neutral-900">{deleteTarget.title}</span> will be removed from your
+              library. This cannot be undone.
             </p>
             <div className="mt-8 flex gap-3">
               <button
                 type="button"
                 disabled={deleting}
                 onClick={() => setDeleteTarget(null)}
-                className="flex-1 border border-white/15 py-2.5 text-sm font-medium text-white/90 transition hover:bg-white/5 disabled:opacity-50"
+                className="flex-1 border border-neutral-300 bg-white py-2.5 text-sm font-medium text-neutral-800 transition hover:bg-neutral-50 disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -100,32 +104,31 @@ export default function MyPresentationsPage() {
         </div>
       )}
 
-      <main className="relative mx-auto max-w-6xl px-5 pb-24 pt-28 sm:px-8 sm:pt-32">
-        <header className="mb-14 border-b border-white/[0.08] pb-12">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">Studio library</p>
+      <main className="relative mx-auto max-w-6xl min-w-0 px-5 pb-24 pt-28 sm:px-8 sm:pt-32">
+        <header className="mb-14 border-b border-primary/10 bg-white/80 pb-12 shadow-sm backdrop-blur-sm">
+          <p className="font-serif text-[11px] font-semibold uppercase tracking-[0.22em] text-primary/90">
+            Studio library
+          </p>
           <div className="mt-4 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h1
-                className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl"
-                style={{ fontFamily: 'var(--font-space-grotesk), ui-sans-serif, system-ui' }}
-              >
+            <div className="min-w-0">
+              <h1 className="font-serif text-3xl font-semibold tracking-tight text-neutral-950 sm:text-4xl">
                 My presentations
               </h1>
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/55">
-                Jump back into decks you touched recently, or search everything you have saved. Thumbnails reflect your
-                first slide—images when available, otherwise the slide headline on a palette from your deck.
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-neutral-600">
+                Jump back into decks you touched recently, or search everything you have saved. Thumbnails use your
+                first slide—image when available, otherwise the slide headline on your deck palette.
               </p>
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex shrink-0 flex-wrap gap-3">
               <Link
                 href="/editor"
-                className="inline-flex border border-white/20 bg-white px-5 py-2.5 text-sm font-medium text-neutral-950 transition hover:bg-white/90"
+                className="inline-flex items-center justify-center border border-primary bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-[0_4px_14px_-4px_rgba(59,130,246,0.45)] transition hover:bg-primaryHover"
               >
                 New deck
               </Link>
               <Link
                 href="/account"
-                className="inline-flex border border-white/15 px-5 py-2.5 text-sm font-medium text-white/90 transition hover:bg-white/5"
+                className="inline-flex items-center justify-center border border-neutral-200 bg-white px-5 py-2.5 text-sm font-semibold text-neutral-800 transition hover:border-primary/25 hover:bg-accentBlue"
               >
                 Account &amp; usage
               </Link>
@@ -135,18 +138,18 @@ export default function MyPresentationsPage() {
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-32">
-            <div className="h-px w-16 bg-gradient-to-r from-transparent via-white/40 to-transparent" />
-            <p className="mt-6 text-sm text-white/45">Loading your library</p>
+            <div className="h-0.5 w-14 rounded-full bg-primary/30" />
+            <p className="mt-6 text-sm text-neutral-500">Loading your library</p>
           </div>
         ) : presentations.length === 0 ? (
-          <div className="border border-dashed border-white/15 bg-white/[0.02] px-8 py-20 text-center">
-            <h2 className="text-lg font-semibold text-white">No presentations yet</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-white/50">
+          <div className="border border-dashed border-primary/20 bg-white/90 px-8 py-20 text-center shadow-sm">
+            <h2 className="font-serif text-lg font-semibold text-neutral-950">No presentations yet</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-neutral-600">
               Generate a deck in the editor and save it—your work will show up here automatically.
             </p>
             <Link
               href="/editor"
-              className="mt-8 inline-block border border-white/20 bg-white px-6 py-2.5 text-sm font-medium text-neutral-950 transition hover:bg-white/90"
+              className="mt-8 inline-block border border-primary bg-primary px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primaryHover"
             >
               Open editor
             </Link>
@@ -154,24 +157,23 @@ export default function MyPresentationsPage() {
         ) : (
           <>
             <section className="mb-20">
-              <div className="mb-6 flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">Continue</p>
-                  <h2 className="mt-1 text-lg font-semibold text-white">Recently edited</h2>
-                  <p className="mt-1 text-xs text-white/45">The decks you opened or saved most recently</p>
-                </div>
+              <div className="mb-6">
+                <p className="font-serif text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/80">
+                  Continue
+                </p>
+                <h2 className="mt-1 font-serif text-lg font-semibold text-neutral-950">Recently edited</h2>
+                <p className="mt-1 text-xs text-neutral-500">The decks you opened or saved most recently</p>
               </div>
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 {continueWorking.map((deck) => (
-                  <div key={deck.id} className="[&_article]:border-white/10 [&_article]:bg-[#121214] [&_h3]:text-white [&_p]:text-white/50 [&_a]:text-white [&_button]:text-red-300">
-                    <DeckCard
-                      deck={deck}
-                      selectionMode={false}
-                      selected={false}
-                      onToggleSelect={() => {}}
-                      onDelete={() => setDeleteTarget(deck)}
-                    />
-                  </div>
+                  <DeckCard
+                    key={deck.id}
+                    deck={deck}
+                    selectionMode={false}
+                    selected={false}
+                    onToggleSelect={() => {}}
+                    onDelete={() => setDeleteTarget(deck)}
+                  />
                 ))}
               </div>
             </section>
@@ -179,9 +181,11 @@ export default function MyPresentationsPage() {
             <section>
               <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">Library</p>
-                  <h2 className="mt-1 text-lg font-semibold text-white">All saved presentations</h2>
-                  <p className="mt-1 text-xs text-white/45">{sorted.length} total</p>
+                  <p className="font-serif text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/80">
+                    Library
+                  </p>
+                  <h2 className="mt-1 font-serif text-lg font-semibold text-neutral-950">All saved presentations</h2>
+                  <p className="mt-1 text-xs text-neutral-500">{sorted.length} total</p>
                 </div>
                 <label className="block w-full sm:max-w-xs">
                   <span className="sr-only">Search presentations</span>
@@ -190,30 +194,26 @@ export default function MyPresentationsPage() {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search by title…"
-                    className="w-full border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder:text-white/35 outline-none transition focus:border-white/25"
+                    className="w-full border border-neutral-200 bg-white px-4 py-2.5 text-sm text-neutral-900 shadow-sm outline-none transition placeholder:text-neutral-400 focus:border-primary/40 focus:ring-2 focus:ring-primary/15"
                   />
                 </label>
               </div>
 
               {filtered.length === 0 ? (
-                <p className="border border-white/10 bg-white/[0.02] px-6 py-12 text-center text-sm text-white/50">
+                <p className="border border-neutral-200 bg-white px-6 py-12 text-center text-sm text-neutral-500 shadow-sm">
                   No decks match that search.
                 </p>
               ) : (
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {filtered.map((deck) => (
-                    <div
+                    <DeckCard
                       key={deck.id}
-                      className="[&_article]:border-white/10 [&_article]:bg-[#121214] [&_h3]:text-white [&_p]:text-white/50 [&_a]:text-white [&_button]:text-red-300"
-                    >
-                      <DeckCard
-                        deck={deck}
-                        selectionMode={false}
-                        selected={false}
-                        onToggleSelect={() => {}}
-                        onDelete={() => setDeleteTarget(deck)}
-                      />
-                    </div>
+                      deck={deck}
+                      selectionMode={false}
+                      selected={false}
+                      onToggleSelect={() => {}}
+                      onDelete={() => setDeleteTarget(deck)}
+                    />
                   ))}
                 </div>
               )}

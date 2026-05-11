@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Inter, Space_Grotesk, Lora } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/layout/Providers";
 import { PageTransition } from "@/components/layout/PageTransition";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
+const lora = Lora({ subsets: ["latin"], variable: "--font-lora" });
 
 export const metadata: Metadata = {
   title: "Orbstera — Futuristic Presentation Generation",
@@ -31,7 +32,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans bg-background text-textMain min-h-dvh max-w-[100vw] overflow-x-clip antialiased`}>
+      <body className={`${inter.variable} ${spaceGrotesk.variable} ${lora.variable} font-sans bg-background text-textMain min-h-dvh max-w-[100vw] overflow-x-clip antialiased`}>
         <Providers>
           <PageTransition>
             {children}
