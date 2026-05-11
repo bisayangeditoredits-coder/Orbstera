@@ -113,6 +113,15 @@ export async function POST(req: Request) {
       language: String(language),
     });
 
+    const preflightRecommendedStyle =
+      typeof preflight.raw?.recommendedStyle === 'string' && preflight.raw.recommendedStyle.trim()
+        ? preflight.raw.recommendedStyle.trim()
+        : undefined;
+    const effectiveStyleMode =
+      styleMode && String(styleMode).trim() && String(styleMode) !== 'auto'
+        ? String(styleMode).trim()
+        : preflightRecommendedStyle;
+
     const { system, user: userMessage } = buildComposerMessages({
       tier,
       preflightSummary: preflight.summaryForPrompt,
@@ -120,7 +129,7 @@ export async function POST(req: Request) {
       slideCount: finalSlideCount,
       tone: String(tone),
       language: String(language),
-      styleMode: styleMode ? String(styleMode) : undefined,
+      styleMode: effectiveStyleMode,
     });
 
     const { error: updateError } = await supabase
@@ -153,8 +162,22 @@ export async function POST(req: Request) {
               typeof preflight.raw.presentationType === 'string'
                 ? preflight.raw.presentationType
                 : undefined,
+            recommendedStyle: preflightRecommendedStyle,
+            interviewAnswers:
+              typeof preflight.raw.interviewAnswers === 'object' && preflight.raw.interviewAnswers
+                ? preflight.raw.interviewAnswers
+                : undefined,
           },
         });
+
+        if (preflightRecommendedStyle) {
+          sendOrb({
+            orb: {
+              phase: 'theme_auto_selected',
+              message: `Auto-selected theme style: ${preflightRecommendedStyle}`,
+            },
+          });
+        }
 
         sendOrb({
           orb: {

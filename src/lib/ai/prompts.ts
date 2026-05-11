@@ -39,9 +39,14 @@ Each slide:
 
 RULES:
 - Never repeat the same layout 3 times in a row.
+- Never repeat the same slide "type" 3 times in a row.
 - Keep bullets ≤5 per slide; prefer whitespace over clutter.
 - imagePrompt must stay on-brand across slides (consistent lighting/mood).
 - Vary slide types for narrative rhythm (hook → tension → proof → vision → close).
+- For decks with 6+ slides, include at least 5 distinct slide types.
+- For decks with 10+ slides, include at least 7 distinct slide types.
+- Use this narrative rhythm by default unless user says otherwise:
+  1) hero/opening, 2) context/problem, 3) framework, 4) evidence/data, 5) comparison/options, 6) timeline/plan, 7) CTA/closing.
 `;
 
 export function buildComposerSystemPrompt(
@@ -74,6 +79,13 @@ Schema:
   "presentationType": "startup_pitch | investor_deck | business_proposal | education | product_showcase | marketing | corporate | storytelling | futuristic | timeline | portfolio | data_story",
   "detectedIntent": "one sentence",
   "recommendedStyle": "apple_keynote | startup_pitch | minimal_dark | corporate | futuristic | luxury | glassmorphism | bento | editorial | creative | cinematic",
+  "interviewAnswers": {
+    "primaryAudience": "who this deck is for",
+    "primaryOutcome": "what success looks like",
+    "contentDepth": "summary | balanced | detailed",
+    "visualDirection": "brand/visual direction",
+    "toneDirection": "speaking/communication tone"
+  },
   "narrativeArc": ["act labels e.g. Hook", "Problem", ...],
   "outline": [{"segment":"section name","slideIdeas":["idea 1","idea 2"]}],
   "visualRules": {
