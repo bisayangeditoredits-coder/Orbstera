@@ -619,7 +619,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               const polished = await pr.json();
               finalData = normalizePresentationPayload(polished as Record<string, unknown>);
             }
-            }
           } catch (polishErr) {
             console.warn('Polish pass skipped:', polishErr);
           }
