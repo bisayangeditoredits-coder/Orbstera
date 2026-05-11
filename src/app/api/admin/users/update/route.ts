@@ -16,15 +16,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-<<<<<<< HEAD
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-    if (!url || !serviceKey) {
-      return NextResponse.json({ error: 'Admin API not configured' }, { status: 503 });
-    }
-
-    const supabaseAdmin = createClient(url, serviceKey);
-=======
     const supabaseAdmin = adminClientOrNull();
     if (!supabaseAdmin) {
       return NextResponse.json(
@@ -32,7 +23,6 @@ export async function POST(req: Request) {
         { status: 503 },
       );
     }
->>>>>>> cursor/pollinations-api-voice-protocol
 
     // 1. Update the specific user's user_metadata in the auth system
     const { data: user, error: authError } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, {

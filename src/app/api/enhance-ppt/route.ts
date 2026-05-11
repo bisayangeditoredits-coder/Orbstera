@@ -164,27 +164,16 @@ export async function POST(req: Request) {
     }
     // -------------------
 
-<<<<<<< HEAD
+    if (!OPENROUTER_API_KEY) {
+      return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured.' }, { status: 500 });
+    }
+
     // 3. Send to OpenRouter — same automatic composer stack as create.
     const { primary: composerPrimary, fallback: composerFallback } = getDeckComposerModels();
     let model = composerPrimary;
     if (extractedText.split(/\s+/).length > 2000) {
       model = composerFallback;
-=======
-    if (!OPENROUTER_API_KEY) {
-      return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured.' }, { status: 500 });
     }
-
-    // 3. Send to OpenRouter for Enhancement
-    let model = 'deepseek/deepseek-chat';
-    if (mode === 'premium') {
-      model = 'anthropic/claude-sonnet-latest';
-    } else if (mode === 'fast') {
-      model = 'google/gemini-2.5-flash';
-    } else if (extractedText.split(' ').length > 2000) {
-      // If the PPT is very long, force a stronger/larger context model
-      model = 'anthropic/claude-sonnet-latest';
->>>>>>> cursor/pollinations-api-voice-protocol
     }
 
     const userMessage = `Here is the raw text extracted from the user's old presentation:\n\n---\n${extractedText}\n---\n\nPlease enhance this into a stunning modern presentation. Return the JSON.`;
@@ -212,16 +201,11 @@ export async function POST(req: Request) {
 
     let response = await callOpenRouter(model);
 
-<<<<<<< HEAD
+    // Fallback if the selected model fails (e.g. out of credits)
     if (!response.ok && (response.status === 402 || response.status === 400) && model !== composerFallback) {
       console.warn(`[Enhance] ${model} failed, trying configured fallback composer…`);
       response = await callOpenRouter(composerFallback);
-=======
-    // Fallback if the selected model fails (e.g. out of credits)
-    if (!response.ok && (response.status === 402 || response.status === 400)) {
-      console.warn(`[Enhance] ${model} failed, trying free fallback...`);
-      response = await callOpenRouter('google/gemini-2.5-flash');
->>>>>>> cursor/pollinations-api-voice-protocol
+    }
     }
 
     if (!response.ok) {

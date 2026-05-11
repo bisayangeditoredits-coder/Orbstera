@@ -608,8 +608,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
           let finalData = normalizePresentationPayload(parsedRaw);
 
-<<<<<<< HEAD
-          setEditorState({ orchestrationPhase: 'finishing' });
+          setEditorState({ orchestrationPhase: 'finishing', deckGenerationLifecycle: 'polishing' });
           try {
             const pr = await fetch('/api/generate/polish', {
               method: 'POST',
@@ -619,22 +618,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             if (pr.ok) {
               const polished = await pr.json();
               finalData = normalizePresentationPayload(polished as Record<string, unknown>);
-=======
-          if (mode === 'premium') {
-            setEditorState({ orchestrationPhase: 'elite_polish', deckGenerationLifecycle: 'polishing' });
-            try {
-              const pr = await fetch('/api/generate/polish', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ presentation: finalData }),
-              });
-              if (pr.ok) {
-                const polished = await pr.json();
-                finalData = normalizePresentationPayload(polished as Record<string, unknown>);
-              }
-            } catch (polishErr) {
-              console.warn('Elite polish skipped:', polishErr);
->>>>>>> cursor/pollinations-api-voice-protocol
+            }
             }
           } catch (polishErr) {
             console.warn('Polish pass skipped:', polishErr);
@@ -858,58 +842,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-5 py-3 pb-24 space-y-2.5 min-h-0">
-<<<<<<< HEAD
-=======
-        <CollapsibleSection
-          title="Intelligence"
-          summary={
-            !isPaid
-              ? 'Standard · Ideal for most decks'
-              : mode === 'standard'
-              ? 'Standard'
-              : mode === 'fast'
-              ? 'Fast'
-              : 'Elite'
-          }
-          expanded={expandIntel}
-          onToggle={() => setExpandIntel((v) => !v)}
-        >
-          <div className="grid grid-cols-3 gap-1.5">
-            {[
-              { value: 'standard', label: 'Standard', short: 'Std', icon: Zap, free: true },
-              { value: 'fast', label: 'Fast', short: 'Fast', icon: Gauge, free: false },
-              { value: 'premium', label: 'Elite', short: 'Elite', icon: Crown, free: false },
-            ]
-              .filter((m) => isPaid || m.free)
-              .map((m) => {
-                const Icon = m.icon;
-                const isActive = mode === m.value;
-                return (
-                  <button
-                    type="button"
-                    key={m.value}
-                    onClick={() => setMode(m.value as 'standard' | 'fast' | 'premium')}
-                    title={m.label}
-                    className={`relative flex flex-row items-center gap-1.5 px-2 py-2 rounded-xl text-left transition-all border ${
-                      isActive
-                        ? 'bg-white border-primary/25 text-neutral-900 shadow-[0_2px_10px_-4px_rgba(59,130,246,0.35)]'
-                        : 'bg-white border-black/[0.06] text-neutral-600 hover:border-black/10'
-                    }`}
-                  >
-                    <div
-                      className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
-                        isActive ? 'bg-primary/10 text-primary' : 'bg-neutral-100 text-neutral-500'
-                      }`}
-                    >
-                      <Icon size={12} strokeWidth={1.75} />
-                    </div>
-                    <span className="text-[9px] font-semibold uppercase tracking-wide">{m.short}</span>
-                  </button>
-                );
-              })}
-          </div>
-        </CollapsibleSection>
->>>>>>> cursor/pollinations-api-voice-protocol
+
         {activeTab === 'create' ? (
           <>
             {/* Prompt Area */}

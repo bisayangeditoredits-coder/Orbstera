@@ -111,11 +111,7 @@ export function GenerativeFillToolbar() {
           height,
           format: 'png',
           polish,
-<<<<<<< HEAD
           visualProfile: 'cinematic',
-=======
-          // Optional override: set OPENROUTER_IMAGE_MODEL in env or pass `model` here.
->>>>>>> cursor/pollinations-api-voice-protocol
         }),
       });
       const data = await res.json();

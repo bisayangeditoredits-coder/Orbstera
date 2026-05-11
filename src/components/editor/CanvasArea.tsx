@@ -112,19 +112,11 @@ function GenerationLoader() {
   ];
 
   const reasoningSteps = [
-<<<<<<< HEAD
     'Reading intent and emotional arc from your brief…',
     'Shaping narrative rhythm and slide flow…',
     'Applying layout, typography, and motion intelligence…',
     'Tuning transitions for a keynote feel…',
     'Locking cinematic polish before you edit…',
-=======
-    'Handshaking with the orchestration layer…',
-    'Streaming slide objects as the model writes them…',
-    'Validating structure and slide graph…',
-    'Optional elite polish improving tone and clarity…',
-    'Rendering visuals as each completes (live on canvas below)…',
->>>>>>> cursor/pollinations-api-voice-protocol
   ];
 
   const currentStepIndex =
@@ -314,7 +306,6 @@ function GenerationLoader() {
 
            <div className="grid grid-cols-1 xs:grid-cols-3 gap-4 xs:gap-8 pt-6 border-t border-black/[0.03] w-full max-w-xl mx-auto">
               {[
-<<<<<<< HEAD
                 { label: 'Progress', value: `${Math.round(((currentStepIndex + 1) / steps.length) * 100)}%` },
                 {
                   label: 'Engine',
@@ -324,10 +315,6 @@ function GenerationLoader() {
                         .replace(/^\w/, (c) => c.toUpperCase())
                     : 'Orbstera',
                 },
-=======
-                { label: 'Progress', value: `${pct}%` },
-                { label: 'Model', value: editor.activeModelLabel ? editor.activeModelLabel.split('/').pop() || 'Orchestra' : 'Orchestra' },
->>>>>>> cursor/pollinations-api-voice-protocol
                 { label: 'Status', value: 'ACTIVE', color: 'text-emerald-500' },
               ].map((stat, i) => (
                 <div key={i} className="flex flex-col gap-1">

@@ -1,17 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-<<<<<<< HEAD
-export async function GET() {
-  try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-    if (!url || !serviceKey) {
-      return NextResponse.json({ error: 'Admin API not configured' }, { status: 503 });
-    }
-
-    const supabaseAdmin = createClient(url, serviceKey);
-=======
 function adminClientOrNull() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -28,7 +17,6 @@ export async function GET() {
         { status: 503 },
       );
     }
->>>>>>> cursor/pollinations-api-voice-protocol
 
     // Note: In production, you MUST check if the request is coming from your admin email
     // e.g. check cookies/session first to ensure regular users can't hit this API!

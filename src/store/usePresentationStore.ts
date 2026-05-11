@@ -355,7 +355,6 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     // Do not POST here — a previous fire-and-forget save advanced the server version without
     // updating the client, which produced constant 409 conflicts on the next sync.
 
-<<<<<<< HEAD
     // Progressive images: deck renders first; OpenRouter Flux fills in without blocking the UI thread.
     // Limited concurrency avoids rate spikes while still feeling fast.
     if (imageTasks.length > 0) {
@@ -387,36 +386,6 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       };
       void Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, () => worker()));
     }
-=======
-    const runImageTasks = () => {
-      const job = (task: (typeof imageTasks)[0]) =>
-        fetch('/api/generate-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: task.prompt, width: task.w, height: task.h }),
-        })
-          .then((res) => res.json())
-          .then((json) => {
-            if (json.url) {
-              get().updateElement(task.slideId, task.elementId, { src: json.url });
-            }
-          })
-          .catch((e) => console.error(`[Store] Image failed for ${task.elementId}`, e));
-
-      if (imageTasks.length === 0) return;
-      if (get().editor.isGenerating) {
-        const track = get().trackDeckGenerationImage;
-        imageTasks.forEach((task) =>
-          track(async () => {
-            await job(task);
-          }),
-        );
-      } else {
-        void Promise.allSettled(imageTasks.map((task) => job(task)));
-      }
-    };
-    runImageTasks();
->>>>>>> cursor/pollinations-api-voice-protocol
   },
 
   updatePresentation: (updates) =>
@@ -705,7 +674,6 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     if (isHero) {
         if (slideData.imagePrompt) {
           const bgId = uid('el-bg-image');
-<<<<<<< HEAD
           elements.unshift({ id: bgId, type: 'image', src: '', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: 0, visible: true, opacity: 0.35, animation: { entrance: 'fadeIn', duration: 1500, delay: 0 } });
           (async () => {
             try {
@@ -723,31 +691,6 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
               if (json.url) get().updateElement(slideData.id, bgId, { src: json.url });
             } catch (e) {}
           })();
-=======
-          elements.unshift({
-            id: bgId,
-            type: 'image',
-            src: '',
-            aiImagePending: true,
-            x: 0,
-            y: 0,
-            width: CANVAS_W,
-            height: CANVAS_H,
-            zIndex: 0,
-            visible: true,
-            opacity: 0.35,
-            animation: { entrance: 'fadeIn', duration: 1500, delay: 0 },
-          });
-          get().trackDeckGenerationImage(async () => {
-            const res = await fetch('/api/generate-image', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ prompt: slideData.imagePrompt, width: 1280, height: 720 }),
-            });
-            const json = await res.json();
-            if (json.url) get().updateElement(slideData.id, bgId, { src: json.url });
-          });
->>>>>>> cursor/pollinations-api-voice-protocol
         }
         elements.push({ id: uid('el-hero-overlay'), type: 'shape', shapeType: 'rect', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(5, 5, 10, 0.65)', stroke: 'transparent', strokeWidth: 0 }, animation: { entrance: 'fadeIn', duration: 1000 } });
         if (slideData.title) elements.push({ id: uid('el-title'), type: 'text', x: 80, y: CANVAS_H / 2 - 80, width: CANVAS_W-160, height: 160, content: slideData.title, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 84, fontWeight: 'bold', color: palette[1], textAlign: 'center', lineHeight: 1.1 }, animation: { entrance: 'fadeSlideUp', duration: 800 } });
@@ -778,7 +721,6 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         animation: { entrance: 'zoomIn', duration: 800, delay: 400 },
       });
       if (slideData.imagePrompt) {
-<<<<<<< HEAD
         (async () => {
           try {
             const res = await fetch('/api/generate-image', {
@@ -795,17 +737,6 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
             if (json.url) get().updateElement(slideData.id, imgId, { src: json.url });
           } catch (e) {}
         })();
-=======
-        get().trackDeckGenerationImage(async () => {
-          const res = await fetch('/api/generate-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: slideData.imagePrompt, width: 800, height: 900 }),
-          });
-          const json = await res.json();
-          if (json.url) get().updateElement(slideData.id, imgId, { src: json.url });
-        });
->>>>>>> cursor/pollinations-api-voice-protocol
       }
     } else if (isQuote) {
       elements.push({ id: uid('el-quote-bg'), type: 'shape', shapeType: 'rect', x: 80, y: 100, width: CANVAS_W - 160, height: CANVAS_H - 200, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.03)', stroke: 'rgba(255, 255, 255, 0.06)', strokeWidth: 1, cornerRadius: 32 }, animation: { entrance: 'zoomIn', duration: 800 } });

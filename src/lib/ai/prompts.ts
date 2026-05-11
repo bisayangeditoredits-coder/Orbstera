@@ -41,15 +41,12 @@ RULES:
 - Keep bullets ≤5 per slide; prefer whitespace over clutter.
 - imagePrompt must stay on-brand across slides (consistent lighting/mood).
 - Vary slide types for narrative rhythm (hook → tension → proof → vision → close).
-<<<<<<< HEAD
 - Prefer defaultSlideTransition + slideTransition choices that feel cinematic (blurReveal, parallaxFlow, keynote, glassSwipe) where appropriate.
 - Choose animation.entrance per element gravity: hero reveals use cinematicImageZoom or blurIn; lists use staggerLines or verticalRise.
-=======
 - For decks with 6+ slides, include at least 5 distinct slide types.
 - For decks with 10+ slides, include at least 7 distinct slide types.
 - Use this narrative rhythm by default unless user says otherwise:
   1) hero/opening, 2) context/problem, 3) framework, 4) evidence/data, 5) comparison/options, 6) timeline/plan, 7) CTA/closing.
->>>>>>> cursor/pollinations-api-voice-protocol
 `;
 
 export function buildComposerSystemPrompt(preflightBlock: string): string {

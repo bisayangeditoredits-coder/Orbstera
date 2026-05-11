@@ -53,18 +53,11 @@ export function buildComposerMessages(args: {
   language: string;
   styleMode?: string;
 }): { system: string; user: string } {
-<<<<<<< HEAD
   const system = buildComposerSystemPrompt(args.preflightSummary);
   const style =
     args.styleMode && args.styleMode !== 'auto'
       ? `\n- Style hint (optional): ${args.styleMode} — adapt layouts + typography if it helps; otherwise infer from orchestration context.`
       : '';
-=======
-  const system = buildComposerSystemPrompt(args.tier, args.preflightSummary);
-  const style = args.styleMode
-    ? `\n- Requested style mode: ${args.styleMode} (adapt layouts + typography accordingly).`
-    : '';
->>>>>>> cursor/pollinations-api-voice-protocol
   const user = `Construct the full presentation JSON.
 
 Original user request:

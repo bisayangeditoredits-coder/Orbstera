@@ -1,9 +1,5 @@
 import { NextResponse } from 'next/server';
-<<<<<<< HEAD
-import { AGENT_MODELS } from '@/lib/ai/agent-models';
-=======
 import { openRouterComplete } from '@/lib/ai/openrouter';
->>>>>>> cursor/pollinations-api-voice-protocol
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -36,27 +32,6 @@ export async function POST(req: Request) {
       String(purpose) === 'image' ? IMAGE_SYSTEM_PROMPT : DECK_SYSTEM_PROMPT;
     const maxTokens = String(purpose) === 'image' ? 220 : 150;
 
-<<<<<<< HEAD
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: AGENT_MODELS.gptOrchestrator,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.7,
-        max_tokens: maxTokens,
-      })
-    });
-
-    if (!res.ok) {
-      throw new Error('Failed to fetch from AI provider');
-=======
     let enhancedPrompt: string;
     try {
       enhancedPrompt = (
@@ -76,7 +51,6 @@ export async function POST(req: Request) {
         { error: e instanceof Error ? e.message : 'Failed to fetch from AI provider' },
         { status: 502 },
       );
->>>>>>> cursor/pollinations-api-voice-protocol
     }
 
     if (!enhancedPrompt) {
