@@ -8,7 +8,12 @@ import { usePresentationStore } from '@/store/usePresentationStore';
 import { PresentationData } from '@/types';
 import { normalizePresentationPayload } from '@/lib/ai/orchestration';
 import { extractJsonObject } from '@/lib/ai/openrouter';
-import { createEditorSpeechRecognition, resolveEditorSpeechLang } from '@/lib/editor-speech';
+import {
+  createEditorSpeechRecognition,
+  resolveEditorSpeechLang,
+  resetEditorSpeechSession,
+  flushEditorSpeechInterim,
+} from '@/lib/editor-speech';
 import { VoiceOrb } from '@/components/editor/VoiceOrb';
 import {
   Sparkles, X, ChevronDown, Loader2, Wand2,
@@ -123,12 +128,15 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const recognitionRef = useRef<any>(null);
   const shouldBeListeningRef = useRef(false);
   const speechLangRef = useRef(resolveEditorSpeechLang());
+  const voicePromptPrefixRef = useRef('');
+  const voiceStartBusyRef = useRef(false);
 
   const ensureVoiceRecognition = () => {
     if (recognitionRef.current) return recognitionRef.current;
     recognitionRef.current = createEditorSpeechRecognition({
       shouldBeListeningRef,
       speechLangRef,
+      promptPrefixRef: voicePromptPrefixRef,
       onTranscript: (text) => {
         setVoiceTranscript(text);
         setPrompt(text);
@@ -154,9 +162,14 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
     };
   }, []);
 
-  const toggleVoice = () => {
+  const toggleVoice = async () => {
     if (isListening) {
       shouldBeListeningRef.current = false;
+      try {
+        flushEditorSpeechInterim(recognitionRef.current);
+      } catch {
+        /* noop */
+      }
       try {
         recognitionRef.current?.stop();
       } catch {
@@ -179,10 +192,23 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       return;
     }
 
-    
-    shouldBeListeningRef.current = true;
+    if (voiceStartBusyRef.current) return;
+    voiceStartBusyRef.current = true;
     speechLangRef.current = resolveEditorSpeechLang();
+    resetEditorSpeechSession(rec);
+    voicePromptPrefixRef.current = prompt;
+    setVoiceTranscript(prompt);
     try {
+      const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      tempStream.getTracks().forEach((t) => t.stop());
+      await new Promise((resolve) => setTimeout(resolve, 120));
+
+      try {
+        rec.stop();
+      } catch {
+        /* not running */
+      }
+      shouldBeListeningRef.current = true;
       rec.lang = speechLangRef.current;
       rec.start();
       setIsListening(true);
@@ -191,6 +217,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       setIsListening(false);
       setError('Could not start voice input. Check microphone permission.');
       setTimeout(() => setError(''), 5000);
+    } finally {
+      voiceStartBusyRef.current = false;
     }
   };
 

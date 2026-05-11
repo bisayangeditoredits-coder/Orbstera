@@ -1,6 +1,7 @@
 /**
  * Shared Web Speech setup for editor panels (GeneratePanel, MagicEditToolbar).
- * Handles full-session transcript, auto-restart on onend, and browser quirks.
+ * Mirrors landing HeroSection behavior: incremental results, final/interim handling,
+ * accumulation across recognition restarts, and optional prefix when combining with typed text.
  */
 
 export function resolveEditorSpeechLang(): string {
@@ -19,14 +20,60 @@ export function resolveEditorSpeechLang(): string {
 }
 
 export interface EditorSpeechOptions {
-  /** Called with full transcript (final + interim) each onresult */
+  /** Called with full transcript (typed prefix + voice finals + live interim) */
   onTranscript: (text: string) => void;
-  /** Listening state for UI when session fully ends */
   onListeningEnd: () => void;
-  /** User still wants to listen — restart after onend */
   shouldBeListeningRef: { current: boolean };
   speechLangRef: { current: string };
   onErrorMessage?: (message: string) => void;
+  /** Set `.current` to the prompt in the field right before `rec.start()` so voice appends to typed text */
+  promptPrefixRef?: { current: string };
+}
+
+type InternalState = {
+  accumulated: string;
+  interimLive: string;
+  opts: EditorSpeechOptions;
+};
+
+const internalByRec = new WeakMap<any, InternalState>();
+
+function applyPrefix(opts: EditorSpeechOptions, voiceText: string): string {
+  const p = opts.promptPrefixRef?.current?.trim() ?? '';
+  const v = voiceText.replace(/\s+/g, ' ').trim();
+  if (!p) return v;
+  if (!v) return p;
+  return `${p} ${v}`.replace(/\s+/g, ' ').trim();
+}
+
+function emitTranscript(st: InternalState, voiceCombined: string) {
+  st.opts.onTranscript(applyPrefix(st.opts, voiceCombined));
+}
+
+/** Clear per-session voice accumulation (call when opening the mic). */
+export function resetEditorSpeechSession(rec: any) {
+  const st = internalByRec.get(rec);
+  if (st) {
+    st.accumulated = '';
+    st.interimLive = '';
+  }
+}
+
+/**
+ * Merge pending interim into finals and notify `onTranscript` (call before `stop()` so last words are kept).
+ */
+export function flushEditorSpeechInterim(rec: any) {
+  const st = internalByRec.get(rec);
+  if (!st) return;
+  const t = st.interimLive.trim();
+  st.interimLive = '';
+  if (t) {
+    const acc = st.accumulated;
+    const spacer = acc && !acc.endsWith(' ') ? ' ' : '';
+    st.accumulated = `${acc}${spacer}${t} `;
+  }
+  const voiceOnly = st.accumulated.replace(/\s+/g, ' ').trimEnd();
+  emitTranscript(st, voiceOnly);
 }
 
 export function createEditorSpeechRecognition(opts: EditorSpeechOptions): any | null {
@@ -39,15 +86,24 @@ export function createEditorSpeechRecognition(opts: EditorSpeechOptions): any | 
   const rec = new SpeechRecognitionAPI();
   rec.continuous = true;
   rec.interimResults = true;
-  opts.speechLangRef.current = resolveEditorSpeechLang();
+  try {
+    rec.maxAlternatives = 5;
+  } catch {
+    /* older engines */
+  }
   rec.lang = opts.speechLangRef.current;
 
+  const st: InternalState = { accumulated: '', interimLive: '', opts };
+  internalByRec.set(rec, st);
+
   rec.onresult = (event: any) => {
-    let full = '';
-    for (let i = 0; i < event.results.length; i++) {
+    let newFinal = '';
+    let interimText = '';
+
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
       const result = event.results[i];
       let best = result?.[0];
-      if (result?.length > 1) {
+      if (result?.length && result.length > 1) {
         for (let j = 1; j < result.length; j++) {
           const cand = result[j];
           if (
@@ -60,10 +116,21 @@ export function createEditorSpeechRecognition(opts: EditorSpeechOptions): any | 
           }
         }
       }
-      full += String(best?.transcript || '');
+      const text = String(best?.transcript || '').trim();
+      if (!text) continue;
+      if (result.isFinal) newFinal += `${text} `;
+      else interimText += `${text} `;
     }
-    const t = full.replace(/\s+/g, ' ').trim();
-    opts.onTranscript(t);
+
+    if (newFinal) {
+      st.accumulated += newFinal;
+    }
+
+    const finals = st.accumulated.replace(/\s+/g, ' ').trimEnd();
+    const interimNorm = interimText.replace(/\s+/g, ' ').trim();
+    st.interimLive = interimNorm;
+    const voiceCombined = [finals, interimNorm].filter(Boolean).join(' ');
+    emitTranscript(st, voiceCombined);
   };
 
   rec.onerror = (event: any) => {
@@ -85,6 +152,8 @@ export function createEditorSpeechRecognition(opts: EditorSpeechOptions): any | 
       opts.shouldBeListeningRef.current = false;
       opts.onListeningEnd();
       opts.onErrorMessage?.('Voice needs HTTPS (or localhost) and a supported browser.');
+    } else if (event.error === 'network') {
+      opts.onErrorMessage?.('Network error. Check your connection.');
     } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
       console.warn('[EditorSpeech]', event.error);
     }

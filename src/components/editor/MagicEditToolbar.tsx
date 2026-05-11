@@ -5,7 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { Sparkles, Loader2, X, Type, Wand2, Crown, Lock, Mic, MicOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
-import { createEditorSpeechRecognition, resolveEditorSpeechLang } from '@/lib/editor-speech';
+import {
+  createEditorSpeechRecognition,
+  resolveEditorSpeechLang,
+  resetEditorSpeechSession,
+  flushEditorSpeechInterim,
+} from '@/lib/editor-speech';
 
 export function MagicEditToolbar() {
   const { presentation, currentSlideIndex, editor, updateElement, removeElement } = usePresentationStore();
@@ -20,12 +25,15 @@ export function MagicEditToolbar() {
   const recognitionRef = useRef<any>(null);
   const shouldBeListeningRef = useRef(false);
   const speechLangRef = useRef(resolveEditorSpeechLang());
+  const voicePromptPrefixRef = useRef('');
+  const voiceStartBusyRef = useRef(false);
 
   const ensureVoiceRecognition = () => {
     if (recognitionRef.current) return recognitionRef.current;
     recognitionRef.current = createEditorSpeechRecognition({
       shouldBeListeningRef,
       speechLangRef,
+      promptPrefixRef: voicePromptPrefixRef,
       onTranscript: (text) => setPrompt(text),
       onListeningEnd: () => setIsListening(false),
       onErrorMessage: (msg) => {
@@ -148,9 +156,14 @@ export function MagicEditToolbar() {
     }
   };
 
-  const toggleVoice = () => {
+  const toggleVoice = async () => {
     if (isListening) {
       shouldBeListeningRef.current = false;
+      try {
+        flushEditorSpeechInterim(recognitionRef.current);
+      } catch {
+        /* noop */
+      }
       try {
         recognitionRef.current?.stop();
       } catch {
@@ -173,10 +186,22 @@ export function MagicEditToolbar() {
       return;
     }
 
-    
-    shouldBeListeningRef.current = true;
+    if (voiceStartBusyRef.current) return;
+    voiceStartBusyRef.current = true;
     speechLangRef.current = resolveEditorSpeechLang();
+    resetEditorSpeechSession(rec);
+    voicePromptPrefixRef.current = prompt;
     try {
+      const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      tempStream.getTracks().forEach((t) => t.stop());
+      await new Promise((resolve) => setTimeout(resolve, 120));
+
+      try {
+        rec.stop();
+      } catch {
+        /* not running */
+      }
+      shouldBeListeningRef.current = true;
       rec.lang = speechLangRef.current;
       rec.start();
       setIsListening(true);
@@ -185,6 +210,8 @@ export function MagicEditToolbar() {
       setIsListening(false);
       setErrorHint('Could not start voice input.');
       setTimeout(() => setErrorHint(''), 5000);
+    } finally {
+      voiceStartBusyRef.current = false;
     }
   };
 

@@ -474,63 +474,72 @@ export function HeroSection() {
     if (canvas) canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
   };
 
-  const toggleListening = () => {
-    void (async () => {
-      const rec = ensureSpeechRecognition();
-      if (!rec) {
-        setSpeechError("Your browser doesn't support voice input. Try Chrome or Edge.");
-        setTimeout(() => setSpeechError(null), 5000);
-        return;
-      }
+  const toggleListening = async () => {
+    const rec = ensureSpeechRecognition();
+    if (!rec) {
+      setSpeechError("Your browser doesn't support voice input. Try Chrome or Edge.");
+      setTimeout(() => setSpeechError(null), 5000);
+      return;
+    }
 
-      if (typeof window !== 'undefined' && !window.isSecureContext) {
-        setSpeechError('Voice Protocol needs HTTPS (or localhost).');
-        setTimeout(() => setSpeechError(null), 6000);
-        return;
-      }
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      setSpeechError('Voice Protocol needs HTTPS (or localhost).');
+      setTimeout(() => setSpeechError(null), 6000);
+      return;
+    }
 
-      if (isListening) {
-        stopVoiceSession();
-        return;
-      }
+    if (isListening) {
+      stopVoiceSession();
+      return;
+    }
 
-      if (voiceStartBusyRef.current) return;
-      voiceStartBusyRef.current = true;
+    if (voiceStartBusyRef.current) return;
+    voiceStartBusyRef.current = true;
 
-      accumulatedTextRef.current = '';
-      interimLiveRef.current = '';
-      setPrompt('');
-      setInterimTranscript('');
-      setSpeechError(null);
-      speechLangRef.current = resolvedSpeechLang;
+    accumulatedTextRef.current = '';
+    interimLiveRef.current = '';
+    setPrompt('');
+    setInterimTranscript('');
+    setSpeechError(null);
+    speechLangRef.current = resolvedSpeechLang;
 
+    try {
       try {
-        try {
-          rec.lang = speechLangRef.current;
-        } catch {
-          /* noop */
-        }
-        
-        // Grant mic first — avoids fights between Web Speech and getUserMedia on many Chromium/Android builds
-        shouldBeListeningRef.current = true;
-        rec.start();
-        setIsListening(true);
-        setTimeout(() => {
-          if (shouldBeListeningRef.current) {
-            startAudioAnalysis().catch(err => console.warn("Audio analysis skipped due to lock:", err));
-          }
-        }, 800);
-      } catch (err) {
-        console.error(err);
-        shouldBeListeningRef.current = false;
-        stopAudioAnalysis();
-        setIsListening(false);
-        setSpeechError('Allow microphone access to use Voice Protocol.');
-        setTimeout(() => setSpeechError(null), 5000);
-      } finally {
-        voiceStartBusyRef.current = false;
+        rec.lang = speechLangRef.current;
+      } catch {
+        /* noop */
       }
-    })();
+      
+      // 1. Force the permission prompt & grab the hardware briefly
+      const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // 2. Stop the stream to release the hardware lock
+      tempStream.getTracks().forEach(t => t.stop());
+      
+      // 3. Wait a tiny bit for the Windows audio subsystem to actually free the lock
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // 4. Safely start Speech Recognition
+      shouldBeListeningRef.current = true;
+      rec.start();
+      setIsListening(true);
+      
+      // 5. Start audio visualization slightly later to avoid race conditions
+      setTimeout(() => {
+        if (shouldBeListeningRef.current) {
+          startAudioAnalysis().catch(err => console.warn("Audio analysis skipped due to lock:", err));
+        }
+      }, 800);
+    } catch (err) {
+      console.error(err);
+      shouldBeListeningRef.current = false;
+      stopAudioAnalysis();
+      setIsListening(false);
+      setSpeechError('Allow microphone access to use Voice Protocol.');
+      setTimeout(() => setSpeechError(null), 5000);
+    } finally {
+      voiceStartBusyRef.current = false;
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
