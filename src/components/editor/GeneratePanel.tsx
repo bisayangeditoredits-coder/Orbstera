@@ -19,7 +19,8 @@ import { VoiceOrb } from '@/components/editor/VoiceOrb';
 import {
   Sparkles, X, ChevronDown, Loader2, Wand2,
   Crown, Globe, ArrowRight,
-  Save, Trash2, Download, AlertCircle, Plus, Mic, MicOff
+  Save, Trash2, Download, AlertCircle, Plus, Mic, MicOff,
+  Briefcase, Palette, Zap, Minus, BookOpen, FlaskConical
 } from 'lucide-react';
 
 interface GeneratePanelProps {
@@ -37,12 +38,12 @@ const EXAMPLE_PROMPTS = [
 const SLIDE_COUNTS = [2, 5, 10, 15, 20, 25, 30, 35, 40];
 
 const TONE_OPTIONS = [
-  { id: 'professional', label: 'Professional', icon: '💼' },
-  { id: 'creative',     label: 'Creative',     icon: '🎨' },
-  { id: 'bold',         label: 'Bold & Impact', icon: '⚡' },
-  { id: 'minimal',      label: 'Minimal',       icon: '✦'  },
-  { id: 'storytelling', label: 'Storytelling',  icon: '📖' },
-  { id: 'technical',    label: 'Technical',     icon: '🔬' },
+  { id: 'professional', label: 'Professional', Icon: Briefcase },
+  { id: 'creative',     label: 'Creative',     Icon: Palette },
+  { id: 'bold',         label: 'Bold & Impact', Icon: Zap },
+  { id: 'minimal',      label: 'Minimal',       Icon: Minus },
+  { id: 'storytelling', label: 'Storytelling',  Icon: BookOpen },
+  { id: 'technical',    label: 'Technical',     Icon: FlaskConical },
 ];
 
 const THEME_OPTIONS = [
@@ -867,7 +868,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                         : 'bg-white border-black/[0.07] text-neutral-600 hover:border-primary/20 hover:bg-primary/[0.03]'
                     }`}
                   >
-                    <span className="text-base leading-none">{t.icon}</span>
+                    <t.Icon size={13} strokeWidth={1.75} className="shrink-0" />
                     <span className="text-[11px] font-semibold">{t.label}</span>
                   </button>
                 ))}
