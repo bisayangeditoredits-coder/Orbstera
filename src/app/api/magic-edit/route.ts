@@ -78,9 +78,9 @@ User request: "${String(prompt).trim()}"
 Return the modified element JSON only.`;
 
     const models = [
-      'google/gemini-2.0-flash-001',
-      'anthropic/claude-3.5-sonnet',
-      'anthropic/claude-3-7-sonnet',
+      'google/gemini-2.5-flash',
+      'anthropic/claude-sonnet-latest',
+      'openai/gpt-4.1-mini',
       'deepseek/deepseek-chat',
     ];
 

@@ -19,7 +19,7 @@ export async function POST(req: Request) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'sourceful/riverflow-v2-fast',
+        model: 'black-forest-labs/flux-1.1-pro',
         prompt,
         size,
         response_format: 'url',

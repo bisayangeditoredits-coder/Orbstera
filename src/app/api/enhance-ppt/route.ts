@@ -167,12 +167,12 @@ export async function POST(req: Request) {
     // 3. Send to OpenRouter for Enhancement
     let model = 'deepseek/deepseek-chat';
     if (mode === 'premium') {
-      model = 'anthropic/claude-3.5-sonnet';
+      model = 'anthropic/claude-sonnet-latest';
     } else if (mode === 'fast') {
-      model = 'google/gemini-2.0-flash-exp:free';
+      model = 'google/gemini-2.5-flash';
     } else if (extractedText.split(' ').length > 2000) {
       // If the PPT is very long, force a stronger/larger context model
-      model = 'anthropic/claude-3.5-sonnet';
+      model = 'anthropic/claude-sonnet-latest';
     }
 
     const userMessage = `Here is the raw text extracted from the user's old presentation:\n\n---\n${extractedText}\n---\n\nPlease enhance this into a stunning modern presentation. Return the JSON.`;
@@ -203,7 +203,7 @@ export async function POST(req: Request) {
     // Fallback if the selected model fails (e.g. out of credits)
     if (!response.ok && (response.status === 402 || response.status === 400)) {
       console.warn(`[Enhance] ${model} failed, trying free fallback...`);
-      response = await callOpenRouter('google/gemini-2.0-pro-exp-02-05:free');
+      response = await callOpenRouter('google/gemini-2.5-flash');
     }
 
     if (!response.ok) {
