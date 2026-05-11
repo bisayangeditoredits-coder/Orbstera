@@ -11,6 +11,7 @@ import {
   resetEditorSpeechSession,
   flushEditorSpeechInterim,
 } from '@/lib/editor-speech';
+import { explainGetUserMediaError, explainRecognitionStartError } from '@/lib/mic-access';
 
 export function MagicEditToolbar() {
   const { presentation, currentSlideIndex, editor, updateElement, removeElement } = usePresentationStore();
@@ -192,9 +193,27 @@ export function MagicEditToolbar() {
     resetEditorSpeechSession(rec);
     voicePromptPrefixRef.current = prompt;
     try {
-      const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setErrorHint('Microphone is not available in this browser. Try Chrome or Edge.');
+        setTimeout(() => setErrorHint(''), 6000);
+        return;
+      }
+
+      let tempStream: MediaStream;
+      try {
+        tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (gumErr) {
+        console.error('[Voice] getUserMedia:', gumErr);
+        shouldBeListeningRef.current = false;
+        setIsListening(false);
+        const hint = explainGetUserMediaError(gumErr);
+        setErrorHint(hint || 'Could not open the microphone.');
+        setTimeout(() => setErrorHint(''), 7000);
+        return;
+      }
+
       tempStream.getTracks().forEach((t) => t.stop());
-      await new Promise((resolve) => setTimeout(resolve, 120));
+      await new Promise((resolve) => setTimeout(resolve, 150));
 
       try {
         rec.stop();
@@ -203,13 +222,18 @@ export function MagicEditToolbar() {
       }
       shouldBeListeningRef.current = true;
       rec.lang = speechLangRef.current;
-      rec.start();
+      try {
+        rec.start();
+      } catch (recErr) {
+        console.error('[Voice] recognition.start:', recErr);
+        shouldBeListeningRef.current = false;
+        setIsListening(false);
+        const hint = explainRecognitionStartError(recErr);
+        setErrorHint(hint || 'Speech recognition failed to start. Try again in a moment.');
+        setTimeout(() => setErrorHint(''), 6000);
+        return;
+      }
       setIsListening(true);
-    } catch {
-      shouldBeListeningRef.current = false;
-      setIsListening(false);
-      setErrorHint('Could not start voice input.');
-      setTimeout(() => setErrorHint(''), 5000);
     } finally {
       voiceStartBusyRef.current = false;
     }

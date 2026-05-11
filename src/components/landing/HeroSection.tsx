@@ -6,6 +6,7 @@ import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff, Shiel
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
+import { explainGetUserMediaError, explainRecognitionStartError } from '@/lib/mic-access';
 
 export function HeroSection() {
   const [prompt, setPrompt] = useState("");
@@ -96,6 +97,11 @@ export function HeroSection() {
     const rec = new SpeechRecognitionAPI();
     rec.continuous = true;
     rec.interimResults = true;
+    try {
+      rec.maxAlternatives = 5;
+    } catch {
+      /* older engines */
+    }
     rec.lang = speechLangRef.current;
 
     rec.onresult = (event: any) => {
@@ -509,34 +515,62 @@ export function HeroSection() {
       } catch {
         /* noop */
       }
-      
-      // 1. Force the permission prompt & grab the hardware briefly
-      const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // 2. Stop the stream to release the hardware lock
-      tempStream.getTracks().forEach(t => t.stop());
-      
-      // 3. Wait a tiny bit for the Windows audio subsystem to actually free the lock
-      await new Promise(resolve => setTimeout(resolve, 100));
 
-      // 4. Safely start Speech Recognition
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setSpeechError('Microphone is not available in this browser. Use Chrome or Edge.');
+        setTimeout(() => setSpeechError(null), 6000);
+        return;
+      }
+
+      // 1. Permission prompt + brief capture (helps Windows audio + Chrome)
+      let tempStream: MediaStream;
+      try {
+        tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (gumErr) {
+        console.error('[Voice] getUserMedia:', gumErr);
+        shouldBeListeningRef.current = false;
+        stopAudioAnalysis();
+        setIsListening(false);
+        const hint = explainGetUserMediaError(gumErr);
+        setSpeechError(
+          hint || 'Could not open the microphone. Check browser and system settings, then try again.'
+        );
+        setTimeout(() => setSpeechError(null), 7000);
+        return;
+      }
+
+      tempStream.getTracks().forEach((t) => t.stop());
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      try {
+        rec.stop();
+      } catch {
+        /* not running */
+      }
+
       shouldBeListeningRef.current = true;
-      rec.start();
+      try {
+        rec.start();
+      } catch (recErr) {
+        console.error('[Voice] recognition.start:', recErr);
+        shouldBeListeningRef.current = false;
+        stopAudioAnalysis();
+        setIsListening(false);
+        const hint = explainRecognitionStartError(recErr);
+        setSpeechError(
+          hint || 'Speech recognition failed to start. Wait a moment and try again.'
+        );
+        setTimeout(() => setSpeechError(null), 6000);
+        return;
+      }
+
       setIsListening(true);
-      
-      // 5. Start audio visualization slightly later to avoid race conditions
+
       setTimeout(() => {
         if (shouldBeListeningRef.current) {
-          startAudioAnalysis().catch(err => console.warn("Audio analysis skipped due to lock:", err));
+          startAudioAnalysis().catch((err) => console.warn('Audio analysis skipped due to lock:', err));
         }
       }, 800);
-    } catch (err) {
-      console.error(err);
-      shouldBeListeningRef.current = false;
-      stopAudioAnalysis();
-      setIsListening(false);
-      setSpeechError('Allow microphone access to use Voice Protocol.');
-      setTimeout(() => setSpeechError(null), 5000);
     } finally {
       voiceStartBusyRef.current = false;
     }
