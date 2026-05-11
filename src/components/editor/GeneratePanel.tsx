@@ -112,6 +112,18 @@ function CollapsibleSection({
 }
 
 export function GeneratePanel({ onClose }: GeneratePanelProps) {
+  type InterviewSummary = {
+    detectedIntent?: string;
+    presentationType?: string;
+    recommendedStyle?: string;
+    interviewAnswers?: {
+      primaryAudience?: string;
+      primaryOutcome?: string;
+      contentDepth?: string;
+      visualDirection?: string;
+      toneDirection?: string;
+    };
+  };
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState<'standard' | 'fast' | 'premium'>('standard');
   const [tone, setTone] = useState('professional');
@@ -264,6 +276,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [streamedSlides, setStreamedSlides] = useState<{id: string, title: string}[]>([]);
+  const [interviewSummary, setInterviewSummary] = useState<InterviewSummary | null>(null);
+  const [showInterviewSummary, setShowInterviewSummary] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Guard: auto-trigger from URL params fires exactly once
   const hasAutoTriggered = useRef(false);
@@ -403,6 +417,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       });
       setError('');
       setStreamedSlides([]);
+      setInterviewSummary(null);
+      setShowInterviewSummary(false);
 
       let createGenerationSucceeded = false;
 
@@ -483,6 +499,27 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                           ? orb.intent
                           : '',
                   });
+                  if (orb.phase === 'preflight_complete') {
+                    const summary: InterviewSummary = {
+                      detectedIntent:
+                        typeof orb.intent === 'string' ? orb.intent : undefined,
+                      presentationType:
+                        typeof orb.presentationType === 'string'
+                          ? orb.presentationType
+                          : undefined,
+                      recommendedStyle:
+                        typeof orb.recommendedStyle === 'string'
+                          ? orb.recommendedStyle
+                          : undefined,
+                      interviewAnswers:
+                        typeof orb.interviewAnswers === 'object' && orb.interviewAnswers
+                          ? (orb.interviewAnswers as InterviewSummary['interviewAnswers'])
+                          : undefined,
+                    };
+                    setInterviewSummary(summary);
+                    setShowInterviewSummary(true);
+                    window.setTimeout(() => setShowInterviewSummary(false), 6000);
+                  }
                   continue;
                 }
 
@@ -503,6 +540,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                     try {
                       const slideObj = JSON.parse(matches[i]);
                       if (slideObj.type && slideObj.title) {
+                        // Unblock canvas once slides start streaming so users see live build.
+                        setEditorState({ generationBlockingOverlay: false });
                         streamSlide(slideObj);
                         setStreamedSlides(prev => [...prev, { id: slideObj.id || `s-${i}`, title: slideObj.title }]);
                         processedSlideCount++;
@@ -630,6 +669,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             activeModelLabel: '',
           });
         }
+        setShowInterviewSummary(false);
       }
     } else {
       // Enhance Mode
@@ -1028,6 +1068,48 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-2xl bg-red-50 border border-red-100 text-[12px] text-red-600 font-medium">
             {error}
           </motion.div>
+        )}
+        <AnimatePresence>
+          {showInterviewSummary && interviewSummary && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="p-3 rounded-2xl border border-sky-500/25 bg-sky-50/70 text-[11px] text-slate-700 space-y-1.5"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-sky-700">Auto interview summary</p>
+              {interviewSummary.detectedIntent && (
+                <p><span className="font-semibold">Intent:</span> {interviewSummary.detectedIntent}</p>
+              )}
+              <p className="flex flex-wrap gap-x-3 gap-y-1">
+                {interviewSummary.presentationType && (
+                  <span><span className="font-semibold">Type:</span> {interviewSummary.presentationType}</span>
+                )}
+                {interviewSummary.recommendedStyle && (
+                  <span><span className="font-semibold">Theme:</span> {interviewSummary.recommendedStyle}</span>
+                )}
+              </p>
+              {interviewSummary.interviewAnswers && (
+                <p className="text-slate-600">
+                  {interviewSummary.interviewAnswers.primaryAudience && (
+                    <>Audience: {interviewSummary.interviewAnswers.primaryAudience}. </>
+                  )}
+                  {interviewSummary.interviewAnswers.primaryOutcome && (
+                    <>Outcome: {interviewSummary.interviewAnswers.primaryOutcome}. </>
+                  )}
+                  {interviewSummary.interviewAnswers.contentDepth && (
+                    <>Depth: {interviewSummary.interviewAnswers.contentDepth}.</>
+                  )}
+                </p>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {isLoading && streamedSlides.length > 0 && (
+          <div className="p-3 rounded-2xl border border-black/[0.08] bg-white text-[11px] text-neutral-700">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-500 mb-1.5">Live slide streaming</p>
+            <p className="font-medium">Generated {streamedSlides.length} slide{streamedSlides.length > 1 ? 's' : ''} so far.</p>
+          </div>
         )}
       </div>
 

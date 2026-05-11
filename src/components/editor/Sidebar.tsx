@@ -163,6 +163,7 @@ type SidebarProps = {
 export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps) {
   const {
     presentation,
+    editor,
     currentSlideIndex,
     setCurrentSlideIndex,
     addSlide,
@@ -174,6 +175,8 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const slides = presentation?.slides || [];
   const colors = presentation?.colorPalette || ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'];
+  const isLiveGenerating = editor.isGenerating && editor.deckGenerationLifecycle === 'streaming';
+  const targetSlides = Math.max(editor.generationTargetSlides || 0, 0);
 
   const handleAddSlide = useCallback(() => {
     const newSlide: Slide = {
@@ -206,6 +209,11 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
         <div className="flex flex-col min-w-0">
           <span className="text-[10px] font-bold text-black/30 uppercase tracking-[0.3em] truncate">Gallery</span>
           <h2 className="text-[clamp(15px,4vw,18px)] font-semibold text-black tracking-tighter truncate">{slides.length} Slides</h2>
+          {isLiveGenerating && (
+            <p className="mt-1 text-[10px] font-semibold text-primary/80 truncate">
+              Live generating {slides.length}{targetSlides > 0 ? ` / ${targetSlides}` : ''}…
+            </p>
+          )}
         </div>
         <button
           type="button"
