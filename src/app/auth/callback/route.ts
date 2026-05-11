@@ -8,12 +8,19 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get('next') ?? '/editor';
 
   if (code) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+    if (!supabaseUrl || !supabaseAnon) {
+      console.error('[Auth Callback] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY');
+      return NextResponse.redirect(`${origin}/login?error=auth_configuration`);
+    }
+
     // Build a response object first so we can write cookies onto it
     const response = NextResponse.redirect(`${origin}${next}`);
 
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabaseUrl,
+      supabaseAnon,
       {
         cookies: {
           get(name: string) {

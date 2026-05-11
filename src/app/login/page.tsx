@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ArrowRight, Lock, Mail, ShieldCheck, Check } from 'lucide-react';
+import { Sparkles, Lock, Mail, ShieldCheck, Check } from 'lucide-react';
 
 import { Suspense } from 'react';
 
@@ -14,7 +15,7 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [mode, setMode] = useState<'login' | 'signup' | 'recovery'>('login');
   const [agreed, setAgreed] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -22,12 +23,28 @@ function LoginContent() {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Construct final redirect URL with preserved params
+
+    if (mode === 'recovery') {
+      setLoading(true);
+      setError(null);
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/login')}`,
+        });
+        if (error) throw error;
+        setError('If an account exists for that email, a reset link is on the way. Check your inbox.');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Could not send reset email.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     const baseRedirect = searchParams.get('redirect') || '/';
     const prompt = searchParams.get('prompt');
     const modeParam = searchParams.get('mode');
-    
+
     let finalRedirect = baseRedirect;
     if (prompt || modeParam) {
       const url = new URL(baseRedirect, window.location.origin);
@@ -36,7 +53,7 @@ function LoginContent() {
       finalRedirect = url.pathname + url.search;
     }
     if (!agreed && mode === 'signup') {
-      setError("Please agree to the Terms of use.");
+      setError('Please agree to the Terms of use.');
       return;
     }
     setLoading(true);
@@ -47,21 +64,21 @@ function LoginContent() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
-        const { error } = await supabase.auth.signUp({ 
-          email, 
+        const { error } = await supabase.auth.signUp({
+          email,
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth/callback`,
-          }
+          },
         });
         if (error) throw error;
-        setError("Account created! Please check your email for confirmation.");
+        setError('Account created! Please check your email for confirmation.');
         setLoading(false);
         return;
       }
       router.push(finalRedirect);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
       setLoading(false);
     }
@@ -91,8 +108,8 @@ function LoginContent() {
         },
       });
       if (error) throw error;
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Google sign-in failed.');
       setGoogleLoading(false);
     }
   };
@@ -128,17 +145,20 @@ function LoginContent() {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="w-full max-w-[440px] relative z-20"
         >
-          <div className="bg-white rounded-[40px] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.06)] border border-gray-100/50 overflow-hidden flex flex-col relative z-20">
+          <div className="bg-white rounded-[40px] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.06)] border border-gray-100/50 ring-1 ring-black/[0.03] overflow-hidden flex flex-col relative z-20">
             {/* Modern Tab System */}
             <div className="flex bg-gray-50/50 p-2 m-2 rounded-[24px]">
-              {[
-                { id: 'login', label: 'Sign In' },
-                { id: 'signup', label: 'Sign Up' },
-                { id: 'recovery', label: 'Recovery' },
-              ].map((tab) => (
+              {(
+                [
+                  { id: 'login' as const, label: 'Sign In' },
+                  { id: 'signup' as const, label: 'Sign Up' },
+                  { id: 'recovery' as const, label: 'Recovery' },
+                ] as const
+              ).map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => tab.id !== 'recovery' && setMode(tab.id as any)}
+                  type="button"
+                  onClick={() => setMode(tab.id)}
                   className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-[18px] transition-all duration-300 ${
                     mode === tab.id
                       ? 'text-primary bg-white shadow-sm'
@@ -158,21 +178,31 @@ function LoginContent() {
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Auth Protocol</span>
                  </div>
                  <h2 className="text-[32px] font-black text-[#1E293B] tracking-tight leading-tight">
-                   {mode === 'login' ? 'Welcome back' : 'Start your journey'}
+                   {mode === 'recovery'
+                     ? 'Reset your access'
+                     : mode === 'login'
+                       ? 'Welcome back'
+                       : 'Start your journey'}
                  </h2>
-                 <p className="text-[13px] text-gray-400 mt-2 font-medium">Access the future of AI presentations.</p>
+                 <p className="text-[13px] text-gray-400 mt-2 font-medium">
+                   {mode === 'recovery'
+                     ? 'We will email you a secure link to set a new password.'
+                     : 'Access the future of AI presentations.'}
+                 </p>
               </div>
 
               <form onSubmit={handleAuth} className="space-y-6">
                 {/* Email Field */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase ml-1 tracking-[0.1em]">Identity / Email</label>
+                  <label htmlFor="auth-email" className="text-[10px] font-black text-gray-400 uppercase ml-1 tracking-[0.1em]">Identity / Email</label>
                   <div className="relative group">
-                    <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-primary transition-colors">
+                    <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-primary transition-colors pointer-events-none" aria-hidden>
                       <Mail size={18} />
                     </div>
                     <input 
+                      id="auth-email"
                       type="email"
+                      autoComplete="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -183,30 +213,43 @@ function LoginContent() {
                 </div>
 
                 {/* Password Field */}
+                {mode !== 'recovery' && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between px-1">
-                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Security / Key</label>
-                     {mode === 'login' && <button type="button" className="text-[10px] font-bold text-primary/60 hover:text-primary transition-colors">Forgot Key?</button>}
+                     <label htmlFor="auth-password" className="text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Security / Key</label>
+                     {mode === 'login' && (
+                       <button
+                         type="button"
+                         onClick={() => { setMode('recovery'); setError(null); }}
+                         className="text-[10px] font-bold text-primary/60 hover:text-primary transition-colors"
+                       >
+                         Forgot Key?
+                       </button>
+                     )}
                   </div>
                   <div className="relative group">
-                    <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-primary transition-colors">
+                    <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-primary transition-colors pointer-events-none" aria-hidden>
                       <Lock size={18} />
                     </div>
                     <input 
+                      id="auth-password"
                       type="password"
+                      autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
                       className="w-full h-14 bg-gray-50/80 border border-transparent rounded-[20px] pl-14 pr-12 text-[14px] font-bold text-gray-800 placeholder:text-gray-300 focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary/20 transition-all outline-none"
                     />
-                    <div className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-200">
+                    <div className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-200 pointer-events-none" aria-hidden>
                       <ShieldCheck size={18} />
                     </div>
                   </div>
                 </div>
+                )}
 
                 {/* Bot Protection Check */}
+                {mode !== 'recovery' && (
                 <div className="bg-gray-50/50 border border-gray-100/50 rounded-[20px] p-4 flex items-center justify-between group cursor-pointer" onClick={() => setAgreed(!agreed)}>
                   <div className="flex items-center gap-3">
                     <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${agreed ? 'bg-primary border-primary' : 'bg-white border-gray-200 group-hover:border-primary/30'}`}>
@@ -218,12 +261,18 @@ function LoginContent() {
                      <img src="https://www.gstatic.com/recaptcha/api2/logo_48.png" className="w-5 h-5 grayscale" alt="" />
                   </div>
                 </div>
+                )}
 
                 {error && (
                   <motion.div 
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="p-4 rounded-2xl bg-red-50 text-red-500 text-[12px] font-bold border border-red-100"
+                    role="alert"
+                    className={`p-4 rounded-2xl text-[12px] font-bold border ${
+                      error.startsWith('Account created') || error.startsWith('If an account')
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-100'
+                        : 'bg-red-50 text-red-500 border-red-100'
+                    }`}
                   >
                     {error}
                   </motion.div>
@@ -231,15 +280,25 @@ function LoginContent() {
 
                 {/* Primary Action */}
                 <button
+                  type="submit"
                   disabled={loading}
+                  aria-busy={loading}
                   className="w-full h-14 bg-primary text-white rounded-[22px] font-black text-[14px] uppercase tracking-[0.15em] shadow-[0_20px_40px_-10px_rgba(59,130,246,0.3)] hover:shadow-[0_25px_50px_-10px_rgba(59,130,246,0.4)] hover:-translate-y-1 active:translate-y-0 active:scale-[0.98] transition-all disabled:opacity-50"
                 >
-                  {loading ? 'Processing...' : (mode === 'login' ? 'Sign In' : 'Create Account')}
+                  {loading
+                    ? 'Processing...'
+                    : mode === 'recovery'
+                      ? 'Send reset link'
+                      : mode === 'login'
+                        ? 'Sign In'
+                        : 'Create Account'}
                 </button>
               </form>
 
+              {mode !== 'recovery' && (
               <div className="mt-10 flex flex-col gap-3">
                  <button 
+                  type="button"
                   disabled={googleLoading}
                   onClick={() => handleOAuth('google')}
                   className="w-full h-12 bg-white border border-gray-100 rounded-[20px] flex items-center justify-center gap-3 font-bold text-[13px] text-gray-600 hover:bg-gray-50 transition-all active:scale-[0.98]"
@@ -259,6 +318,13 @@ function LoginContent() {
                    )}
                  </button>
               </div>
+              )}
+
+              <p className="mt-8 text-center text-[11px] text-gray-400">
+                <Link href="/" className="font-bold text-primary/80 hover:text-primary transition-colors">
+                  Return to Orbstera home
+                </Link>
+              </p>
             </div>
           </div>
         </motion.div>
@@ -280,7 +346,7 @@ function LoginContent() {
               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
               className="absolute -top-12 -right-12 w-48 h-48 pointer-events-none z-30 hidden xl:block"
             >
-               {/* @ts-ignore */}
+               {/* @ts-expect-error custom element from lottie-player script */}
                <lottie-player
                  src="/robo (2).json"
                  background="transparent"
@@ -307,7 +373,7 @@ function LoginContent() {
               transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
               className="absolute inset-0 z-10 flex items-center justify-center"
             >
-              {/* @ts-ignore */}
+              {/* @ts-expect-error custom element from lottie-player script */}
               <lottie-player
                 src="/A Man with VR headset touches a holographic screen.json"
                 background="transparent"

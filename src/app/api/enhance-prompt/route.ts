@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { openRouterComplete } from '@/lib/ai/openrouter';
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 const DECK_SYSTEM_PROMPT = `You are an expert prompt engineer for an AI presentation maker.
 The user will give you a short, brief idea for a presentation.
@@ -23,33 +24,38 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
+    if (!process.env.OPENROUTER_API_KEY?.trim()) {
+      return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured.' }, { status: 500 });
+    }
+
     const system =
       String(purpose) === 'image' ? IMAGE_SYSTEM_PROMPT : DECK_SYSTEM_PROMPT;
     const maxTokens = String(purpose) === 'image' ? 220 : 150;
 
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-3.3-70b-instruct',
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.7,
-        max_tokens: maxTokens,
-      })
-    });
-
-    if (!res.ok) {
-      throw new Error('Failed to fetch from AI provider');
+    let enhancedPrompt: string;
+    try {
+      enhancedPrompt = (
+        await openRouterComplete(APP_URL, {
+          model: 'meta-llama/llama-3.3-70b-instruct',
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.7,
+          max_tokens: maxTokens,
+        })
+      ).trim();
+    } catch (e) {
+      console.error('Enhance prompt OpenRouter error:', e);
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : 'Failed to fetch from AI provider' },
+        { status: 502 },
+      );
     }
 
-    const data = await res.json();
-    const enhancedPrompt = data.choices[0]?.message?.content?.trim() || prompt;
+    if (!enhancedPrompt) {
+      return NextResponse.json({ enhancedPrompt: prompt });
+    }
 
     return NextResponse.json({ enhancedPrompt });
   } catch (error) {

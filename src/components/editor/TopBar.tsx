@@ -582,9 +582,9 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
             </button>
           )}
           <Link
-            href="/dashboard"
+            href="/my-presentations"
             className="shrink-0 w-8 h-8 flex items-center justify-center text-neutral-500 hover:text-neutral-900 hover:bg-white border border-black/[0.06] bg-white/60 rounded-xl transition-all touch-manipulation shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-            aria-label="Back to dashboard"
+            aria-label="Back to my presentations"
           >
             <ArrowLeft size={16} strokeWidth={1.75} />
           </Link>

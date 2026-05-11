@@ -7,13 +7,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (!supabaseUrl || !supabaseAnon) {
+    console.error('[Middleware] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    return NextResponse.next();
+  }
+
   let response = NextResponse.next({
     request: { headers: request.headers },
   });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnon,
     {
       cookies: {
         get(name: string) {
@@ -42,6 +49,8 @@ export async function middleware(request: NextRequest) {
   const isProtectedRoute =
     pathname.startsWith('/editor') ||
     pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/account') ||
+    pathname.startsWith('/my-presentations') ||
     pathname.startsWith('/settings') ||
     pathname.startsWith('/admin');
 

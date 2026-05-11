@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { LogOut, ArrowRight, Settings, Command, Menu, X } from 'lucide-react';
+import { LogOut, ArrowRight, Settings, Command, Menu, X, LayoutGrid } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
@@ -67,17 +67,25 @@ export function Navbar() {
           </div>
         </Link>
         
-        <div className="hidden md:flex items-center gap-10 text-[12px] font-bold text-textSecondary uppercase tracking-[0.2em] ml-12">
-          <Link href="#features" className="hover:text-primary transition-all relative group">
+        <div className="hidden md:flex items-center gap-8 text-[11px] font-bold text-textSecondary uppercase tracking-[0.18em] ml-8 lg:ml-12 flex-wrap">
+          <Link href="/#features" className="hover:text-primary transition-all relative group">
             <span>Features</span>
             <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
           </Link>
-          <Link href="#templates" className="hover:text-primary transition-all relative group">
+          <Link href="/#templates" className="hover:text-primary transition-all relative group">
             <span>Templates</span>
             <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
           </Link>
-          <Link href="#pricing" className="hover:text-primary transition-all relative group">
+          <Link href="/pricing" className="hover:text-primary transition-all relative group">
             <span>Pricing</span>
+            <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
+          </Link>
+          <Link href="/about" className="hover:text-primary transition-all relative group">
+            <span>About</span>
+            <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
+          </Link>
+          <Link href="/blog" className="hover:text-primary transition-all relative group">
+            <span>Journal</span>
             <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
           </Link>
         </div>
@@ -92,6 +100,16 @@ export function Navbar() {
           >
             <Menu size={20} strokeWidth={2} />
           </button>
+
+          {user && (
+            <Link
+              href="/my-presentations"
+              className="hidden lg:inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-textSecondary hover:text-primary transition-colors"
+            >
+              <LayoutGrid size={14} strokeWidth={2} className="opacity-70" aria-hidden />
+              My presentations
+            </Link>
+          )}
 
           <Link href="/editor" className="group relative h-9 sm:h-11 px-4 sm:px-7 rounded-full text-[10px] sm:text-[12px] font-bold uppercase tracking-wider sm:tracking-widest text-white transition-all flex items-center justify-center gap-1.5 sm:gap-2 overflow-hidden bg-primary shadow-[0_12px_24px_-8px_rgba(59,130,246,0.4)] hover:shadow-[0_15px_30px_-10px_rgba(59,130,246,0.5)] active:scale-95 touch-manipulation whitespace-nowrap max-w-[42vw] sm:max-w-none">
             <span className="relative z-10 truncate"><span className="hidden xs:inline">Start Creating</span><span className="xs:hidden">Create</span></span>
@@ -140,9 +158,14 @@ export function Navbar() {
                       <p className="text-[12px] font-bold text-gray-900 truncate">{user.email}</p>
                     </div>
                     
-                    <Link href="/dashboard" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-[13px] font-semibold text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl transition-all group">
+                    <Link href="/my-presentations" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-[13px] font-semibold text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl transition-all group">
+                      <LayoutGrid size={16} className="text-gray-400 group-hover:text-primary transition-colors" />
+                      My presentations
+                    </Link>
+
+                    <Link href="/account" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-[13px] font-semibold text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl transition-all group">
                       <Command size={16} className="text-gray-400 group-hover:text-primary transition-colors" />
-                      My Dashboard
+                      Account &amp; usage
                     </Link>
                     
                     <Link href="/settings" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-[13px] font-semibold text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl transition-all group">
@@ -171,9 +194,9 @@ export function Navbar() {
 
           {user && (
             <Link
-              href="/dashboard"
+              href="/my-presentations"
               className="sm:hidden flex w-10 h-10 rounded-full overflow-hidden items-center justify-center bg-gradient-to-br from-primary via-indigo-500 to-purple-600 border border-gray-200/60 touch-manipulation shrink-0"
-              aria-label="My Dashboard"
+              aria-label="My presentations"
             >
               {avatarUrl ? (
                 <img src={avatarUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -217,12 +240,15 @@ export function Navbar() {
               </div>
               <nav className="flex flex-col gap-1">
                 {[
-                  { href: '#features', label: 'Features' },
-                  { href: '#templates', label: 'Templates' },
-                  { href: '#pricing', label: 'Pricing' },
+                  { href: '/#features', label: 'Features' },
+                  { href: '/#templates', label: 'Templates' },
+                  { href: '/pricing', label: 'Pricing' },
+                  { href: '/about', label: 'About' },
+                  { href: '/blog', label: 'Journal' },
+                  { href: '/contact', label: 'Contact' },
                 ].map((item) => (
                   <Link
-                    key={item.href}
+                    key={item.href + item.label}
                     href={item.href}
                     className="py-3 px-3 rounded-xl text-[13px] font-bold text-gray-800 hover:bg-primary/5 hover:text-primary transition-colors"
                     onClick={() => setMobileNavOpen(false)}
@@ -230,6 +256,15 @@ export function Navbar() {
                     {item.label}
                   </Link>
                 ))}
+                {user && (
+                  <Link
+                    href="/my-presentations"
+                    className="py-3 px-3 rounded-xl text-[13px] font-bold text-gray-800 hover:bg-primary/5 hover:text-primary transition-colors"
+                    onClick={() => setMobileNavOpen(false)}
+                  >
+                    My presentations
+                  </Link>
+                )}
                 <Link
                   href="/editor"
                   className="mt-4 py-3.5 px-3 rounded-2xl text-center text-[12px] font-black uppercase tracking-widest text-white bg-primary shadow-lg"

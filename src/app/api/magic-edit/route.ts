@@ -62,6 +62,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Prompt and element data are required' }, { status: 400 });
     }
 
+    if (!OPENROUTER_API_KEY.trim()) {
+      return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured.' }, { status: 500 });
+    }
+
     // Basic plan-gate for Magic Edit on free users (best-effort; does not break if profiles table missing fields).
     const cookieStore = cookies();
     const supabase = createServerClient(
