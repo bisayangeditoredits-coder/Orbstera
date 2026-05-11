@@ -939,22 +939,8 @@ export function HeroSection() {
               )}
 
               {/* ── BOTTOM BAR — stack on narrow screens so CTA never clips ── */}
-              <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-panel flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0 w-full min-w-0">
-                <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full sm:w-auto justify-between sm:justify-start">
-                  <button type="button" onClick={() => fileInputRef.current?.click()} className="w-10 h-10 shrink-0 rounded-full border border-borderSubtle flex items-center justify-center text-textMuted hover:bg-hoverSurface transition-colors shadow-sm bg-white text-2xl font-light">+</button>
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                    <div className="flex -space-x-3 shrink-0">
-                      {[1, 2, 3].map(i => (
-                        <div key={i} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 border-white bg-panel overflow-hidden shadow-sm">
-                          <img src={`https://i.pravatar.cc/100?u=${i + 10}`} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
-                        </div>
-                      ))}
-                    </div>
-                    <span className="text-[11px] sm:text-[12px] text-textMuted font-bold truncate">10k+ creators</span>
-                  </div>
-                </div>
-
-                {activeMode !== 'voice' && (
+              {activeMode !== 'voice' && (
+                <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-panel flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end shrink-0 w-full min-w-0">
                   <button
                     type="button"
                     onClick={handleGenerate}
@@ -971,8 +957,8 @@ export function HeroSection() {
                     </span>
                     <ArrowRight size={16} className="relative z-10 shrink-0 group-hover:translate-x-1 transition-transform" />
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>
