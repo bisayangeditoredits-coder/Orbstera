@@ -36,6 +36,35 @@ const EXAMPLE_PROMPTS = [
 
 const SLIDE_COUNTS = [2, 5, 10, 15, 20, 25, 30, 35, 40];
 
+const TONE_OPTIONS = [
+  { id: 'professional', label: 'Professional', icon: '💼' },
+  { id: 'creative',     label: 'Creative',     icon: '🎨' },
+  { id: 'bold',         label: 'Bold & Impact', icon: '⚡' },
+  { id: 'minimal',      label: 'Minimal',       icon: '✦'  },
+  { id: 'storytelling', label: 'Storytelling',  icon: '📖' },
+  { id: 'technical',    label: 'Technical',     icon: '🔬' },
+];
+
+const THEME_OPTIONS = [
+  { id: 'modern-dark',  label: 'Obsidian Night', desc: 'Deep dark with neon accents', preview: 'bg-gradient-to-br from-[#05050A] to-[#1a1a2e]' },
+  { id: 'corporate',   label: 'Executive Blue',  desc: 'Clean corporate authority',  preview: 'bg-gradient-to-br from-[#0F4C81] to-[#1a6bb0]' },
+  { id: 'gradient',    label: 'Aurora',          desc: 'Vivid gradient spectacle',   preview: 'bg-gradient-to-br from-[#7928CA] to-[#FF0080]' },
+  { id: 'minimal',     label: 'Paper White',     desc: 'Ultra-clean minimalism',     preview: 'bg-gradient-to-br from-white to-[#F1F5F9] border border-black/10' },
+  { id: 'warm',        label: 'Sunset Gold',     desc: 'Warm, premium editorial',    preview: 'bg-gradient-to-br from-[#B45309] to-[#F59E0B]' },
+  { id: 'tech',        label: 'Cyber Grid',      desc: 'Futuristic tech aesthetic',  preview: 'bg-gradient-to-br from-[#0D1117] to-[#00FF88]/40' },
+];
+
+const LANGUAGE_OPTIONS = [
+  { code: 'en', label: 'English',    flag: '🇺🇸' },
+  { code: 'es', label: 'Spanish',   flag: '🇪🇸' },
+  { code: 'fr', label: 'French',    flag: '🇫🇷' },
+  { code: 'de', label: 'German',    flag: '🇩🇪' },
+  { code: 'pt', label: 'Portuguese', flag: '🇧🇷' },
+  { code: 'zh', label: 'Chinese',   flag: '🇨🇳' },
+  { code: 'ja', label: 'Japanese',  flag: '🇯🇵' },
+  { code: 'ar', label: 'Arabic',    flag: '🇸🇦' },
+];
+
 function CollapsibleSection({
   title,
   summary,
@@ -221,6 +250,12 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
   const [activeTab, setActiveTab] = useState<'create' | 'enhance'>('create');
   const [expandDensity, setExpandDensity] = useState(true);
+  const [selectedTone, setSelectedTone] = useState('Professional');
+  const [expandTone, setExpandTone] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState('Obsidian Night');
+  const [expandTheme, setExpandTheme] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState('English');
+  const [expandLanguage, setExpandLanguage] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [streamedSlides, setStreamedSlides] = useState<{id: string, title: string}[]>([]);
@@ -361,8 +396,9 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           body: JSON.stringify({
             prompt: trimmed,
             slideCount,
-            tone: 'professional',
-            language: 'English',
+            tone: selectedTone.toLowerCase().replace(/ & /g, '_'),
+            theme: selectedTheme,
+            language: selectedLanguage,
           }),
         });
 
@@ -811,6 +847,112 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                 })}
               </div>
             </CollapsibleSection>
+
+            {/* ── TONE & STYLE ── */}
+            <CollapsibleSection
+              title="Tone & Style"
+              summary={selectedTone}
+              expanded={expandTone}
+              onToggle={() => setExpandTone((v) => !v)}
+            >
+              <div className="grid grid-cols-2 gap-1.5">
+                {TONE_OPTIONS.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setSelectedTone(t.label)}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                      selectedTone === t.label
+                        ? 'bg-primary/[0.07] border-primary/30 text-primary'
+                        : 'bg-white border-black/[0.07] text-neutral-600 hover:border-primary/20 hover:bg-primary/[0.03]'
+                    }`}
+                  >
+                    <span className="text-base leading-none">{t.icon}</span>
+                    <span className="text-[11px] font-semibold">{t.label}</span>
+                  </button>
+                ))}
+              </div>
+            </CollapsibleSection>
+
+            {/* ── VISUAL THEME ── */}
+            <CollapsibleSection
+              title="Visual Theme"
+              summary={selectedTheme}
+              expanded={expandTheme}
+              onToggle={() => setExpandTheme((v) => !v)}
+            >
+              <div className="flex flex-col gap-1.5">
+                {THEME_OPTIONS.map((th) => (
+                  <button
+                    key={th.id}
+                    type="button"
+                    onClick={() => setSelectedTheme(th.label)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                      selectedTheme === th.label
+                        ? 'bg-primary/[0.07] border-primary/30'
+                        : 'bg-white border-black/[0.07] hover:border-primary/20 hover:bg-primary/[0.03]'
+                    }`}
+                  >
+                    <div className={`w-7 h-7 rounded-lg flex-shrink-0 ${th.preview}`} />
+                    <div className="min-w-0">
+                      <p className={`text-[11px] font-semibold ${selectedTheme === th.label ? 'text-primary' : 'text-neutral-800'}`}>{th.label}</p>
+                      <p className="text-[10px] text-neutral-400 truncate">{th.desc}</p>
+                    </div>
+                    {selectedTheme === th.label && (
+                      <div className="ml-auto w-4 h-4 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </CollapsibleSection>
+
+            {/* ── LANGUAGE ── */}
+            <CollapsibleSection
+              title="Output Language"
+              summary={selectedLanguage}
+              expanded={expandLanguage}
+              onToggle={() => setExpandLanguage((v) => !v)}
+            >
+              <div className="grid grid-cols-2 gap-1.5">
+                {LANGUAGE_OPTIONS.map((lang) => (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    onClick={() => setSelectedLanguage(lang.label)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all ${
+                      selectedLanguage === lang.label
+                        ? 'bg-primary/[0.07] border-primary/30 text-primary'
+                        : 'bg-white border-black/[0.07] text-neutral-600 hover:border-primary/20'
+                    }`}
+                  >
+                    <span className="text-sm">{lang.flag}</span>
+                    <span className="text-[11px] font-semibold truncate">{lang.label}</span>
+                  </button>
+                ))}
+              </div>
+            </CollapsibleSection>
+
+            {/* ── AI QUICK PROMPTS ── */}
+            <div className="rounded-2xl border border-black/[0.07] bg-white/80 shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
+              <div className="px-3 py-2 border-b border-black/[0.05]">
+                <div className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.14em]">Quick Prompts</div>
+              </div>
+              <div className="p-2 flex flex-col gap-1">
+                {EXAMPLE_PROMPTS.map((ex, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => fillExample(ex)}
+                    className="w-full text-left px-3 py-2 rounded-xl text-[11px] text-neutral-600 font-medium hover:bg-primary/[0.05] hover:text-primary transition-all leading-snug group flex items-start gap-2"
+                  >
+                    <span className="mt-0.5 text-neutral-300 group-hover:text-primary transition-colors flex-shrink-0">→</span>
+                    <span className="line-clamp-2">{ex}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
 
           </>
         ) : (
