@@ -302,9 +302,10 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
     fetchUser();
   }, [searchParams]); // Re-run if URL params change (e.g. after payment redirect)
 
-  // Auto-trigger from URL params — runs exactly ONCE on mount
+  // Auto-trigger from URL params — runs exactly ONCE on mount or when profile is loaded
   useEffect(() => {
     if (hasAutoTriggered.current) return;
+    if (isProfileLoading) return;
 
     const urlPrompt  = searchParams.get('prompt');
     const urlFileName = searchParams.get('fileName');
@@ -318,18 +319,25 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       hasAutoTriggered.current = true;  // lock before async work
       setPrompt(urlPrompt);
       if (urlFileName) setSelectedFile({ name: urlFileName } as File);
+      setTimeout(() => {
+        handleGenerateClick(urlPrompt);
+      }, 50);
     } else if (urlFileName) {
       hasAutoTriggered.current = true;
       setSelectedFile({ name: urlFileName } as File);
+      setTimeout(() => {
+        handleGenerateClick();
+      }, 50);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // empty deps = mount only, no re-trigger on re-render
+  }, [isProfileLoading, searchParams]);
 
-  const handleGenerateClick = () => {
+  const handleGenerateClick = (overridePrompt?: string) => {
+    const targetPrompt = overridePrompt || prompt;
     // ── AUTH GATE ──
     if (!user) {
       // Encode prompt to pass it through login
-      const encodedPrompt = encodeURIComponent(prompt);
+      const encodedPrompt = encodeURIComponent(targetPrompt);
       router.push(`/login?redirect=/editor&prompt=${encodedPrompt}&mode=create`);
       return;
     }
@@ -349,7 +357,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
     if (presentation && presentation.slides.length > 0) {
       setShowConfirm(true);
     } else {
-      executeGenerate('replace');
+      executeGenerate('replace', targetPrompt);
     }
   };
 

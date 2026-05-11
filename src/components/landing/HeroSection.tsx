@@ -227,14 +227,7 @@ export function HeroSection() {
 
 
 
-  const seenIn = [
-    'Product Hunt',
-    'TechCrunch',
-    'Forbes',
-    'Fast Company',
-    'The Verge',
-    'WIRED',
-  ] as const;
+
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -716,33 +709,7 @@ export function HeroSection() {
           <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         </motion.div>
 
-        {/* “As seen in” logo rail (tiny, additive) */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.32 }}
-          className="w-full max-w-4xl mb-4 sm:mb-6"
-        >
-          <div className="flex items-center justify-center gap-3 text-[10px] font-bold uppercase tracking-[0.28em] text-textMuted/70 mb-2">
-            <span className="h-px w-10 bg-black/5" />
-            As seen in
-            <span className="h-px w-10 bg-black/5" />
-          </div>
-          <div className="relative">
-            <div className="absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r from-[#F2F7FF] to-transparent pointer-events-none" />
-            <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-[#F2F7FF] to-transparent pointer-events-none" />
-            <div className="flex items-center justify-center gap-2.5 sm:gap-3.5 overflow-x-auto scrollbar-none py-1 px-2">
-              {seenIn.map((name) => (
-                <span
-                  key={name}
-                  className="shrink-0 rounded-full border border-white/60 bg-white/55 backdrop-blur-md px-3 py-1 text-[10px] sm:text-[11px] font-semibold tracking-tight text-textSecondary/80 shadow-[0_10px_35px_-22px_rgba(15,23,42,0.35)]"
-                >
-                  {name}
-                </span>
-              ))}
-            </div>
-          </div>
-        </motion.div>
+
 
         {/* Headline (Updated to AI Presentations) */}
         <motion.h1
