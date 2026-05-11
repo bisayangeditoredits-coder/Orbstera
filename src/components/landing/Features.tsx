@@ -6,7 +6,7 @@ import { Layers, Wand2, Download, Zap, MousePointer2, Presentation } from 'lucid
 const features = [
   {
     title: "Cinematic Generation",
-    description: "Multi-model AI architecture utilizing DeepSeek V3 and Claude 3.5 Sonnet to craft deep narratives and striking visuals.",
+    description: "Multi-model AI architecture utilizing GPT-5.5 and DeepSeek R1 to craft deep narratives and striking visuals.",
     icon: <Wand2 className="text-primary" size={24} />
   },
   {

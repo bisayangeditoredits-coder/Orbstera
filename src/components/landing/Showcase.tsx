@@ -42,7 +42,7 @@ export function Showcase() {
                 <Terminal size={18} />
               </div>
               <span className="font-bold text-textMain text-sm uppercase tracking-wider">Generation Prompt</span>
-              <span className="ml-auto text-[10px] font-bold bg-primary text-white px-3 py-1 rounded-full uppercase tracking-tighter">DeepSeek V3</span>
+              <span className="ml-auto text-[10px] font-bold bg-primary text-white px-3 py-1 rounded-full uppercase tracking-tighter">GPT-5.5</span>
             </div>
 
             <div className="bg-[#F8FAFC] rounded-2xl p-6 font-mono text-sm leading-relaxed border border-blue-50 relative group">
