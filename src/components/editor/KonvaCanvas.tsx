@@ -248,7 +248,9 @@ function ElementNode({
             <KonvaImage
               image={img}
               x={0} y={0} width={el.width} height={el.height}
-              listening
+              // Keep image itself non-listening so the draggable parent Group
+              // consistently receives pointer events (select/drag/transform).
+              listening={false}
             />
           )}
         </Group>
