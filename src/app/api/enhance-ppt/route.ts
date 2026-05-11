@@ -148,17 +148,19 @@ export async function POST(req: Request) {
       .update(JSON.stringify({ text: extractedText.trim(), mode }))
       .digest('hex')}`;
 
-    try {
-      const cachedResult = await redis.get(cacheKey);
-      if (cachedResult) {
-        console.log('Serving ENHANCED PPT from Redis cache:', cacheKey);
-        // Ensure fileUrl is still attached if it was newly uploaded
-        const result = cachedResult as any;
-        if (fileUrl) result.originalFileUrl = fileUrl;
-        return NextResponse.json(result);
+    if (redis) {
+      try {
+        const cachedResult = await redis.get(cacheKey);
+        if (cachedResult) {
+          console.log('Serving ENHANCED PPT from Redis cache:', cacheKey);
+          // Ensure fileUrl is still attached if it was newly uploaded
+          const result = cachedResult as any;
+          if (fileUrl) result.originalFileUrl = fileUrl;
+          return NextResponse.json(result);
+        }
+      } catch (cacheError) {
+        console.error('Redis cache check error:', cacheError);
       }
-    } catch (cacheError) {
-      console.error('Redis cache check error:', cacheError);
     }
     // -------------------
 
@@ -240,11 +242,13 @@ export async function POST(req: Request) {
     }
 
     // --- STORE IN CACHE ---
-    try {
-      await redis.set(cacheKey, parsedJson, { ex: 86400 }); // Cache for 24 hours
-      console.log('Saved ENHANCED PPT to Redis cache:', cacheKey);
-    } catch (cacheSetError) {
-      console.error('Redis cache set error:', cacheSetError);
+    if (redis) {
+      try {
+        await redis.set(cacheKey, parsedJson, { ex: 86400 }); // Cache for 24 hours
+        console.log('Saved ENHANCED PPT to Redis cache:', cacheKey);
+      } catch (cacheSetError) {
+        console.error('Redis cache set error:', cacheSetError);
+      }
     }
     // ---------------------
 
