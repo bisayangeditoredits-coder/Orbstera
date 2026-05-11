@@ -27,6 +27,16 @@ interface GeneratePanelProps {
   onClose?: () => void;
 }
 
+async function waitForPendingDeckImages(epoch: number, timeoutMs = 120_000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const { editor } = usePresentationStore.getState();
+    if (editor.generationEpoch !== epoch) return;
+    if ((editor.generationPendingImages ?? 0) <= 0) return;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
 const EXAMPLE_PROMPTS = [
   'Create a 12-slide Series A pitch deck for an AI robotics startup with a dark cyber theme',
   'Build a product launch deck for a fintech SaaS app targeting enterprise companies',
@@ -109,6 +119,18 @@ function CollapsibleSection({
 }
 
 export function GeneratePanel({ onClose }: GeneratePanelProps) {
+  type InterviewSummary = {
+    detectedIntent?: string;
+    presentationType?: string;
+    recommendedStyle?: string;
+    interviewAnswers?: {
+      primaryAudience?: string;
+      primaryOutcome?: string;
+      contentDepth?: string;
+      visualDirection?: string;
+      toneDirection?: string;
+    };
+  };
   const [prompt, setPrompt] = useState('');
   const [slideCount, setSlideCount] = useState(5);
   const [error, setError] = useState('');
@@ -260,6 +282,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [streamedSlides, setStreamedSlides] = useState<{id: string, title: string}[]>([]);
+  const [interviewSummary, setInterviewSummary] = useState<InterviewSummary | null>(null);
+  const [showInterviewSummary, setShowInterviewSummary] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Guard: auto-trigger from URL params fires exactly once
   const hasAutoTriggered = useRef(false);
@@ -386,9 +410,23 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         });
       }
 
-      setEditorState({ isGenerating: true });
+      const nextEpoch = usePresentationStore.getState().editor.generationEpoch + 1;
+      setEditorState({
+        isGenerating: true,
+        generationEpoch: nextEpoch,
+        generationBlockingOverlay: true,
+        generationTargetSlides: slideCount,
+        generationPendingImages: 0,
+        generationImageJobsTotal: 0,
+        generationImageJobsCompleted: 0,
+        deckGenerationLifecycle: 'connecting',
+      });
       setError('');
       setStreamedSlides([]);
+      setInterviewSummary(null);
+      setShowInterviewSummary(false);
+
+      let createGenerationSucceeded = false;
 
       try {
         const res = await fetch('/api/generate', {
@@ -407,11 +445,22 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           const errData = await res.json().catch(() => ({}));
           if (res.status === 403 && errData.error === 'LIMIT_REACHED') {
             setShowUpgradeModal(true);
-            setEditorState({ isGenerating: false });
+            setEditorState({
+              isGenerating: false,
+              generationBlockingOverlay: false,
+              deckGenerationLifecycle: 'idle',
+              generationTargetSlides: 0,
+              generationPendingImages: 0,
+              generationImageJobsTotal: 0,
+              generationImageJobsCompleted: 0,
+              orchestrationPhase: '',
+              activeModelLabel: '',
+            });
             return;
           }
           throw new Error(errData.error || errData.message || 'Generation failed');
         }
+        setEditorState({ deckGenerationLifecycle: 'streaming' });
         if (!res.body) throw new Error('No response body');
 
         const reader = res.body.getReader();
@@ -446,6 +495,27 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                     activeModelLabel: '',
                     reasoning: typeof orb.message === 'string' ? orb.message : '',
                   });
+                  if (orb.phase === 'preflight_complete') {
+                    const summary: InterviewSummary = {
+                      detectedIntent:
+                        typeof orb.intent === 'string' ? orb.intent : undefined,
+                      presentationType:
+                        typeof orb.presentationType === 'string'
+                          ? orb.presentationType
+                          : undefined,
+                      recommendedStyle:
+                        typeof orb.recommendedStyle === 'string'
+                          ? orb.recommendedStyle
+                          : undefined,
+                      interviewAnswers:
+                        typeof orb.interviewAnswers === 'object' && orb.interviewAnswers
+                          ? (orb.interviewAnswers as InterviewSummary['interviewAnswers'])
+                          : undefined,
+                    };
+                    setInterviewSummary(summary);
+                    setShowInterviewSummary(true);
+                    window.setTimeout(() => setShowInterviewSummary(false), 6000);
+                  }
                   continue;
                 }
 
@@ -471,6 +541,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                     try {
                       const slideObj = JSON.parse(matches[i]);
                       if (slideObj.type && slideObj.title) {
+                        // Unblock canvas once slides start streaming so users see live build.
+                        setEditorState({ generationBlockingOverlay: false });
                         streamSlide(slideObj);
                         setStreamedSlides(prev => [...prev, { id: slideObj.id || `s-${i}`, title: slideObj.title }]);
                         processedSlideCount++;
@@ -505,6 +577,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           }
         }
 
+        setEditorState({ deckGenerationLifecycle: 'building' });
+
         // Final attempt to parse full JSON — balanced-brace extraction (nested slides safe)
         try {
           let parsedRaw = extractDeckJsonFromModelOutput(accumulatedText);
@@ -534,6 +608,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
           let finalData = normalizePresentationPayload(parsedRaw);
 
+<<<<<<< HEAD
           setEditorState({ orchestrationPhase: 'finishing' });
           try {
             const pr = await fetch('/api/generate/polish', {
@@ -544,21 +619,50 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             if (pr.ok) {
               const polished = await pr.json();
               finalData = normalizePresentationPayload(polished as Record<string, unknown>);
+=======
+          if (mode === 'premium') {
+            setEditorState({ orchestrationPhase: 'elite_polish', deckGenerationLifecycle: 'polishing' });
+            try {
+              const pr = await fetch('/api/generate/polish', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ presentation: finalData }),
+              });
+              if (pr.ok) {
+                const polished = await pr.json();
+                finalData = normalizePresentationPayload(polished as Record<string, unknown>);
+              }
+            } catch (polishErr) {
+              console.warn('Elite polish skipped:', polishErr);
+>>>>>>> cursor/pollinations-api-voice-protocol
             }
           } catch (polishErr) {
             console.warn('Polish pass skipped:', polishErr);
           }
 
           if (finalData.slides?.length) {
+            const commitEpoch = usePresentationStore.getState().editor.generationEpoch + 1;
+            setEditorState({
+              generationEpoch: commitEpoch,
+              generationPendingImages: 0,
+              generationImageJobsTotal: 0,
+              generationImageJobsCompleted: 0,
+            });
             if (appendMode === 'append') {
               const existingSlides = usePresentationStore.getState().presentation?.slides || [];
               storeSetPresentation({ ...finalData, slides: [...existingSlides, ...finalData.slides] });
             } else {
               storeSetPresentation(finalData);
             }
+            const imgJobs = usePresentationStore.getState().editor.generationImageJobsTotal;
+            setEditorState({
+              deckGenerationLifecycle: 'images',
+              ...(imgJobs > 0 ? { generationBlockingOverlay: false } : {}),
+            });
           } else {
             throw new Error('JSON parsed but no slides array found.');
           }
+          createGenerationSucceeded = true;
         } catch (e) {
           console.error('Final JSON parse failed:', e, accumulatedText?.slice?.(-4000));
           throw new Error(
@@ -570,16 +674,28 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
       } finally {
-        setEditorState({
-          isGenerating: false,
-          orchestrationPhase: '',
-          activeModelLabel: '',
-        });
+        if (activeTab === 'create') {
+          if (createGenerationSucceeded) {
+            await waitForPendingDeckImages(usePresentationStore.getState().editor.generationEpoch);
+          }
+          setEditorState({
+            isGenerating: false,
+            generationBlockingOverlay: false,
+            deckGenerationLifecycle: 'idle',
+            generationTargetSlides: 0,
+            generationPendingImages: 0,
+            generationImageJobsTotal: 0,
+            generationImageJobsCompleted: 0,
+            orchestrationPhase: '',
+            activeModelLabel: '',
+          });
+        }
+        setShowInterviewSummary(false);
       }
     } else {
       // Enhance Mode
       if (!selectedFile || isLoading) return;
-      setEditorState({ isGenerating: true });
+      setEditorState({ isGenerating: true, generationBlockingOverlay: true, deckGenerationLifecycle: 'building' });
       setError('');
 
       try {
@@ -603,7 +719,11 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Upload failed. Please check your Cloudflare R2 settings or file format.');
       } finally {
-        setEditorState({ isGenerating: false });
+        setEditorState({
+          isGenerating: false,
+          generationBlockingOverlay: false,
+          deckGenerationLifecycle: 'idle',
+        });
       }
     }
   };
@@ -738,6 +858,58 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-5 py-3 pb-24 space-y-2.5 min-h-0">
+<<<<<<< HEAD
+=======
+        <CollapsibleSection
+          title="Intelligence"
+          summary={
+            !isPaid
+              ? 'Standard · Ideal for most decks'
+              : mode === 'standard'
+              ? 'Standard'
+              : mode === 'fast'
+              ? 'Fast'
+              : 'Elite'
+          }
+          expanded={expandIntel}
+          onToggle={() => setExpandIntel((v) => !v)}
+        >
+          <div className="grid grid-cols-3 gap-1.5">
+            {[
+              { value: 'standard', label: 'Standard', short: 'Std', icon: Zap, free: true },
+              { value: 'fast', label: 'Fast', short: 'Fast', icon: Gauge, free: false },
+              { value: 'premium', label: 'Elite', short: 'Elite', icon: Crown, free: false },
+            ]
+              .filter((m) => isPaid || m.free)
+              .map((m) => {
+                const Icon = m.icon;
+                const isActive = mode === m.value;
+                return (
+                  <button
+                    type="button"
+                    key={m.value}
+                    onClick={() => setMode(m.value as 'standard' | 'fast' | 'premium')}
+                    title={m.label}
+                    className={`relative flex flex-row items-center gap-1.5 px-2 py-2 rounded-xl text-left transition-all border ${
+                      isActive
+                        ? 'bg-white border-primary/25 text-neutral-900 shadow-[0_2px_10px_-4px_rgba(59,130,246,0.35)]'
+                        : 'bg-white border-black/[0.06] text-neutral-600 hover:border-black/10'
+                    }`}
+                  >
+                    <div
+                      className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
+                        isActive ? 'bg-primary/10 text-primary' : 'bg-neutral-100 text-neutral-500'
+                      }`}
+                    >
+                      <Icon size={12} strokeWidth={1.75} />
+                    </div>
+                    <span className="text-[9px] font-semibold uppercase tracking-wide">{m.short}</span>
+                  </button>
+                );
+              })}
+          </div>
+        </CollapsibleSection>
+>>>>>>> cursor/pollinations-api-voice-protocol
         {activeTab === 'create' ? (
           <>
             {/* Prompt Area */}
@@ -977,6 +1149,48 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-2xl bg-red-50 border border-red-100 text-[12px] text-red-600 font-medium">
             {error}
           </motion.div>
+        )}
+        <AnimatePresence>
+          {showInterviewSummary && interviewSummary && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="p-3 rounded-2xl border border-sky-500/25 bg-sky-50/70 text-[11px] text-slate-700 space-y-1.5"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-sky-700">Auto interview summary</p>
+              {interviewSummary.detectedIntent && (
+                <p><span className="font-semibold">Intent:</span> {interviewSummary.detectedIntent}</p>
+              )}
+              <p className="flex flex-wrap gap-x-3 gap-y-1">
+                {interviewSummary.presentationType && (
+                  <span><span className="font-semibold">Type:</span> {interviewSummary.presentationType}</span>
+                )}
+                {interviewSummary.recommendedStyle && (
+                  <span><span className="font-semibold">Theme:</span> {interviewSummary.recommendedStyle}</span>
+                )}
+              </p>
+              {interviewSummary.interviewAnswers && (
+                <p className="text-slate-600">
+                  {interviewSummary.interviewAnswers.primaryAudience && (
+                    <>Audience: {interviewSummary.interviewAnswers.primaryAudience}. </>
+                  )}
+                  {interviewSummary.interviewAnswers.primaryOutcome && (
+                    <>Outcome: {interviewSummary.interviewAnswers.primaryOutcome}. </>
+                  )}
+                  {interviewSummary.interviewAnswers.contentDepth && (
+                    <>Depth: {interviewSummary.interviewAnswers.contentDepth}.</>
+                  )}
+                </p>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {isLoading && streamedSlides.length > 0 && (
+          <div className="p-3 rounded-2xl border border-black/[0.08] bg-white text-[11px] text-neutral-700">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-500 mb-1.5">Live slide streaming</p>
+            <p className="font-medium">Generated {streamedSlides.length} slide{streamedSlides.length > 1 ? 's' : ''} so far.</p>
+          </div>
         )}
       </div>
 

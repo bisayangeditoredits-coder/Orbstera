@@ -5,8 +5,10 @@ import crypto from 'crypto';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import JSZip from 'jszip';
 import { v4 as uuidv4 } from 'uuid';
+import { extractJsonObject } from '@/lib/ai/openrouter';
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
+const OPENROUTER_API_KEY = (process.env.OPENROUTER_API_KEY || '').trim();
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 async function extractTextFromPptx(buffer: Buffer): Promise<string> {
   const zip = await JSZip.loadAsync(buffer);
@@ -151,12 +153,10 @@ export async function POST(req: Request) {
     if (redis) {
       try {
         const cachedResult = await redis.get(cacheKey);
-        if (cachedResult) {
+        if (cachedResult && typeof cachedResult === 'object' && !Array.isArray(cachedResult)) {
           console.log('Serving ENHANCED PPT from Redis cache:', cacheKey);
-          // Ensure fileUrl is still attached if it was newly uploaded
-          const result = cachedResult as any;
-          if (fileUrl) result.originalFileUrl = fileUrl;
-          return NextResponse.json(result);
+          const base = { ...(cachedResult as Record<string, unknown>) };
+          return NextResponse.json(fileUrl ? { ...base, originalFileUrl: fileUrl } : base);
         }
       } catch (cacheError) {
         console.error('Redis cache check error:', cacheError);
@@ -164,11 +164,27 @@ export async function POST(req: Request) {
     }
     // -------------------
 
+<<<<<<< HEAD
     // 3. Send to OpenRouter — same automatic composer stack as create.
     const { primary: composerPrimary, fallback: composerFallback } = getDeckComposerModels();
     let model = composerPrimary;
     if (extractedText.split(/\s+/).length > 2000) {
       model = composerFallback;
+=======
+    if (!OPENROUTER_API_KEY) {
+      return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured.' }, { status: 500 });
+    }
+
+    // 3. Send to OpenRouter for Enhancement
+    let model = 'deepseek/deepseek-chat';
+    if (mode === 'premium') {
+      model = 'anthropic/claude-sonnet-latest';
+    } else if (mode === 'fast') {
+      model = 'google/gemini-2.5-flash';
+    } else if (extractedText.split(' ').length > 2000) {
+      // If the PPT is very long, force a stronger/larger context model
+      model = 'anthropic/claude-sonnet-latest';
+>>>>>>> cursor/pollinations-api-voice-protocol
     }
 
     const userMessage = `Here is the raw text extracted from the user's old presentation:\n\n---\n${extractedText}\n---\n\nPlease enhance this into a stunning modern presentation. Return the JSON.`;
@@ -177,8 +193,8 @@ export async function POST(req: Request) {
       return await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-          'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          'HTTP-Referer': APP_URL,
           'X-Title': 'Orbstera AI Enhancer',
           'Content-Type': 'application/json',
         },
@@ -196,9 +212,16 @@ export async function POST(req: Request) {
 
     let response = await callOpenRouter(model);
 
+<<<<<<< HEAD
     if (!response.ok && (response.status === 402 || response.status === 400) && model !== composerFallback) {
       console.warn(`[Enhance] ${model} failed, trying configured fallback composer…`);
       response = await callOpenRouter(composerFallback);
+=======
+    // Fallback if the selected model fails (e.g. out of credits)
+    if (!response.ok && (response.status === 402 || response.status === 400)) {
+      console.warn(`[Enhance] ${model} failed, trying free fallback...`);
+      response = await callOpenRouter('google/gemini-2.5-flash');
+>>>>>>> cursor/pollinations-api-voice-protocol
     }
 
     if (!response.ok) {
@@ -208,33 +231,33 @@ export async function POST(req: Request) {
     }
 
     const data = await response.json();
-    let content: string = data.choices?.[0]?.message?.content;
+    const content: string | undefined = data.choices?.[0]?.message?.content;
 
     if (!content) {
       return NextResponse.json({ error: 'Empty response from AI' }, { status: 500 });
     }
 
-    content = content.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
-    const parsedJson = JSON.parse(content);
+    const parsedObj = extractJsonObject(content);
+    if (!parsedObj || !Array.isArray(parsedObj.slides) || parsedObj.slides.length === 0) {
+      return NextResponse.json({ error: 'AI returned invalid JSON. Please try again.' }, { status: 502 });
+    }
 
-    // Provide the original file URL just in case we need it later
+    const parsedJson: Record<string, unknown> = { ...parsedObj };
     parsedJson.originalFileUrl = fileUrl;
 
-    if (parsedJson.slides) {
-      parsedJson.slides = parsedJson.slides.map((slide: Record<string, unknown>, i: number) => ({
-        id: slide.id || `slide-${String(i + 1).padStart(3, '0')}`,
-        type: slide.type || 'content',
-        title: slide.title || '',
-        subtitle: slide.subtitle || '',
-        bullets: slide.bullets || [],
-        imagePrompt: slide.imagePrompt || '',
-        visualDirection: slide.visualDirection || '',
-        backgroundStyle: slide.backgroundStyle || 'animated-gradient-dark',
-        animation: slide.animation || { entrance: 'fadeSlideUp', duration: 600 },
-        speakerNotes: slide.speakerNotes || '',
-        elements: [],
-      }));
-    }
+    parsedJson.slides = (parsedObj.slides as Record<string, unknown>[]).map((slide, i) => ({
+      id: slide.id || `slide-${String(i + 1).padStart(3, '0')}`,
+      type: slide.type || 'content',
+      title: slide.title || '',
+      subtitle: slide.subtitle || '',
+      bullets: slide.bullets || [],
+      imagePrompt: slide.imagePrompt || '',
+      visualDirection: slide.visualDirection || '',
+      backgroundStyle: slide.backgroundStyle || 'animated-gradient-dark',
+      animation: slide.animation || { entrance: 'fadeSlideUp', duration: 600 },
+      speakerNotes: slide.speakerNotes || '',
+      elements: [],
+    }));
 
     // --- STORE IN CACHE ---
     if (redis) {
@@ -249,21 +272,24 @@ export async function POST(req: Request) {
 
     return NextResponse.json(parsedJson);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Enhancement Error:', error);
-    
-    // Better error messages for the user
+
     let errorMessage = 'Internal server error';
-    if (error.name === 'NoSuchBucket') {
-      errorMessage = 'Bucket "orbstera-storage" not found. Please create it in your Cloudflare R2 dashboard.';
-    } else if (error.name === 'AccessDenied') {
-      errorMessage = 'Access denied to Cloudflare R2. Please check your API token permissions.';
-    } else if (error.code === 'ECONNREFUSED' || error.name === 'EndpointConnectionError') {
-      errorMessage = 'Could not connect to Cloudflare R2. Please check your Endpoint URL.';
-    } else if (error instanceof SyntaxError) {
+    if (error instanceof SyntaxError) {
       errorMessage = 'AI returned invalid JSON. Please try again.';
-    } else if (error.message) {
-      errorMessage = error.message;
+    } else if (error && typeof error === 'object') {
+      const e = error as { name?: string; code?: string; message?: string };
+      if (e.name === 'NoSuchBucket') {
+        errorMessage =
+          'Bucket "orbstera-storage" not found. Please create it in your Cloudflare R2 dashboard.';
+      } else if (e.name === 'AccessDenied') {
+        errorMessage = 'Access denied to Cloudflare R2. Please check your API token permissions.';
+      } else if (e.code === 'ECONNREFUSED' || e.name === 'EndpointConnectionError') {
+        errorMessage = 'Could not connect to Cloudflare R2. Please check your Endpoint URL.';
+      } else if (typeof e.message === 'string' && e.message) {
+        errorMessage = e.message;
+      }
     }
 
     return NextResponse.json({ error: errorMessage }, { status: 500 });

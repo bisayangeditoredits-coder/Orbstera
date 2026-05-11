@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+function adminClientOrNull() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
+
 export async function POST(req: Request) {
   try {
     const { targetUserId, newPlan } = await req.json();
@@ -9,6 +16,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
+<<<<<<< HEAD
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
     if (!url || !serviceKey) {
@@ -16,6 +24,15 @@ export async function POST(req: Request) {
     }
 
     const supabaseAdmin = createClient(url, serviceKey);
+=======
+    const supabaseAdmin = adminClientOrNull();
+    if (!supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Admin API is disabled: set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.' },
+        { status: 503 },
+      );
+    }
+>>>>>>> cursor/pollinations-api-voice-protocol
 
     // 1. Update the specific user's user_metadata in the auth system
     const { data: user, error: authError } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
@@ -38,7 +55,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, user });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Admin Update API Error:', error);
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
   }

@@ -1,18 +1,8 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Sparkles, Clock, Grid2X2, List, Plus, Trash2,
-  Crown, Presentation, MoreVertical, ExternalLink,
-  Folder, AlertTriangle, X, ChevronRight, Zap
-} from 'lucide-react';
-import { Navbar } from '@/components/layout/Navbar';
-import { createClient } from '@/lib/supabase';
-import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+type Search = { [key: string]: string | string[] | undefined };
 
+<<<<<<< HEAD
 interface DeckMeta {
   id: string;
   title: string;
@@ -447,4 +437,16 @@ function DeckCard({ deck, index, onDelete, openMenu, setOpenMenu }: {
       </div>
     </motion.div>
   );
+=======
+/** Old workspace URL — default entry is the presentation library. Preserves query string (e.g. legacy links). */
+export default function DashboardRedirectPage({ searchParams }: { searchParams: Search }) {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (value === undefined) continue;
+    if (Array.isArray(value)) value.forEach((v) => qs.append(key, v));
+    else qs.set(key, value);
+  }
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  redirect(`/my-presentations${suffix}`);
+>>>>>>> cursor/pollinations-api-voice-protocol
 }

@@ -2,46 +2,140 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Cpu } from 'lucide-react';
+import { ImageIcon } from 'lucide-react';
 import { usePresentationStore } from '@/store/usePresentationStore';
+import type { DeckGenerationLifecycle } from '@/types';
 import { KonvaCanvas } from './KonvaCanvas';
 
-// ─── Generation Loader (World-Class SaaS Orchestration) ───────────────────
+// ─── Generation Loader (deterministic milestones — no faux random %) ───────────────────
+
+function deriveGenerationUi(
+  life: DeckGenerationLifecycle,
+  slideLen: number,
+  targetSlides: number,
+  imgTot: number,
+  imgCompleted: number,
+  _imgPending: number,
+): { pct: number; label: string; stepIndex: number } {
+  const target = Math.max(targetSlides || 5, 1);
+  switch (life) {
+    case 'idle':
+      return { pct: 0, label: 'Ready', stepIndex: 0 };
+    case 'streaming': {
+      const ratio = Math.min(1, slideLen / target);
+      const pct = Math.round(Math.min(66, ratio * 60 + 6));
+      return {
+        pct,
+        label: 'Composing slides',
+        stepIndex: Math.min(4, Math.max(0, Math.floor(ratio * 4))),
+      };
+    }
+    case 'building':
+      return { pct: 71, label: 'Parsing deck JSON', stepIndex: 2 };
+    case 'polishing':
+      return { pct: 78, label: 'Elite polish pass', stepIndex: 3 };
+    case 'images': {
+      if (imgTot <= 0) {
+        return { pct: Math.min(99, 96), label: 'Finalizing deck', stepIndex: 4 };
+      }
+      const frac = Math.max(0, Math.min(1, imgCompleted / imgTot));
+      const pct = Math.round(78 + frac * 21);
+      return {
+        pct: Math.min(99, pct),
+        label: 'AI visuals',
+        stepIndex: 4,
+      };
+    }
+    case 'connecting':
+    default:
+      return { pct: 4, label: 'Connecting to model', stepIndex: 0 };
+  }
+}
+
+function GenerationAssetsBanner() {
+  const editor = usePresentationStore((s) => s.editor);
+  const total = editor.generationImageJobsTotal;
+  const done = Math.min(editor.generationImageJobsCompleted, total);
+  if (total <= 0 || editor.generationPendingImages <= 0) return null;
+
+  const pct = Math.round((done / total) * 100);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 12 }}
+      className="pointer-events-none absolute bottom-[max(5.5rem,env(safe-area-inset-bottom))] left-1/2 z-[92] flex -translate-x-1/2 items-center gap-2.5 rounded-full border border-black/[0.08] bg-white/90 px-4 py-2.5 text-black shadow-xl backdrop-blur-xl"
+      role="status"
+      aria-live="polite"
+    >
+      <ImageIcon size={14} strokeWidth={1.85} className="shrink-0 text-primary" aria-hidden />
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <span className="text-[10px] font-black uppercase tracking-widest text-black/55">Live AI visuals</span>
+        <span className="text-[12px] font-semibold tracking-tight whitespace-nowrap">
+          {done}/{total} rendered · streaming to canvas ({pct}%)
+        </span>
+      </div>
+      <span className="relative h-1.5 w-24 overflow-hidden rounded-full bg-black/[0.07] shrink-0">
+        <motion.span className="absolute inset-y-0 left-0 rounded-full bg-primary" initial={{ width: '0%' }} animate={{ width: `${pct}%` }} transition={{ duration: 0.35 }} />
+      </span>
+    </motion.div>
+  );
+}
 
 function GenerationLoader() {
-  const { editor } = usePresentationStore();
-  const [percent, setPercent] = useState(0);
+  const editor = usePresentationStore((s) => s.editor);
+  const slideLen = usePresentationStore((s) => s.presentation?.slides?.length ?? 0);
+  const {
+    deckGenerationLifecycle,
+    generationTargetSlides,
+    generationImageJobsTotal,
+    generationImageJobsCompleted,
+    generationPendingImages,
+  } = editor;
+
+  const { pct, label, stepIndex } = deriveGenerationUi(
+    deckGenerationLifecycle,
+    slideLen,
+    generationTargetSlides,
+    generationImageJobsTotal,
+    generationImageJobsCompleted,
+    generationPendingImages,
+  );
+
   const steps = [
-    { label: "Core Analysis", min: 0 },
-    { label: "Structural Synthesis", min: 20 },
-    { label: "Visual Orchestration", min: 45 },
-    { label: "Neural Refinement", min: 70 },
-    { label: "Final Deployment", min: 92 }
+    { label: 'Connect', min: 0 },
+    { label: 'Compose slides', min: 1 },
+    { label: 'Parse JSON', min: 2 },
+    { label: 'Polish', min: 3 },
+    { label: 'AI visuals', min: 4 },
   ];
 
   const reasoningSteps = [
+<<<<<<< HEAD
     'Reading intent and emotional arc from your brief…',
     'Shaping narrative rhythm and slide flow…',
     'Applying layout, typography, and motion intelligence…',
     'Tuning transitions for a keynote feel…',
     'Locking cinematic polish before you edit…',
+=======
+    'Handshaking with the orchestration layer…',
+    'Streaming slide objects as the model writes them…',
+    'Validating structure and slide graph…',
+    'Optional elite polish improving tone and clarity…',
+    'Rendering visuals as each completes (live on canvas below)…',
+>>>>>>> cursor/pollinations-api-voice-protocol
   ];
 
-  const currentStepIndex = steps.findIndex((s, i) => {
-    const nextStep = steps[i + 1];
-    return percent >= s.min && (!nextStep || percent < nextStep.min);
-  });
+  const currentStepIndex =
+    deckGenerationLifecycle === 'idle' ? 0 : Math.min(stepIndex, steps.length - 1);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPercent((p) => {
-        if (p >= 100) return 100;
-        const inc = Math.random() * 1.8;
-        return Math.min(100, p + inc);
-      });
-    }, 100);
-    return () => clearInterval(interval);
-  }, []);
+  const vizLine =
+    deckGenerationLifecycle === 'images' && generationImageJobsTotal > 0
+      ? `AI visuals ${Math.min(generationImageJobsCompleted, generationImageJobsTotal)}/${generationImageJobsTotal}`
+      : deckGenerationLifecycle === 'streaming'
+        ? `Slides streamed ${slideLen} / ~${generationTargetSlides || '?'}`
+        : null;
 
   return (
     <motion.div
@@ -155,7 +249,7 @@ function GenerationLoader() {
              className="absolute bottom-4 px-6 py-2.5 rounded-full bg-black text-white text-[12px] font-black tracking-widest uppercase shadow-2xl flex items-center gap-3 border border-white/10"
            >
              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-             {Math.round(percent)}% Complete
+             {Math.round(pct)}% Complete
            </motion.div>
         </div>
 
@@ -170,7 +264,7 @@ function GenerationLoader() {
                 Orchestrating Narrative
               </motion.div>
               <h2 className="text-[clamp(1.35rem,5vw,2.25rem)] font-semibold text-black tracking-[-0.04em] leading-[1.15] text-balance px-1">
-                {steps[currentStepIndex]?.label}
+                {label}
               </h2>
            </div>
 
@@ -202,6 +296,11 @@ function GenerationLoader() {
                   exit={{ opacity: 0, y: -8 }}
                   className="flex flex-col items-center max-w-lg"
                 >
+                  {vizLine && (
+                    <p className="text-[11px] font-semibold text-primary/85 tracking-tight mb-2">
+                      {vizLine}
+                    </p>
+                  )}
                   <p className="text-[12px] font-medium text-black/40 italic tracking-tight leading-relaxed text-center">
                     {editor.reasoning 
                       ? editor.reasoning.slice(-120) 
@@ -215,6 +314,7 @@ function GenerationLoader() {
 
            <div className="grid grid-cols-1 xs:grid-cols-3 gap-4 xs:gap-8 pt-6 border-t border-black/[0.03] w-full max-w-xl mx-auto">
               {[
+<<<<<<< HEAD
                 { label: 'Progress', value: `${Math.round(((currentStepIndex + 1) / steps.length) * 100)}%` },
                 {
                   label: 'Engine',
@@ -224,6 +324,10 @@ function GenerationLoader() {
                         .replace(/^\w/, (c) => c.toUpperCase())
                     : 'Orbstera',
                 },
+=======
+                { label: 'Progress', value: `${pct}%` },
+                { label: 'Model', value: editor.activeModelLabel ? editor.activeModelLabel.split('/').pop() || 'Orchestra' : 'Orchestra' },
+>>>>>>> cursor/pollinations-api-voice-protocol
                 { label: 'Status', value: 'ACTIVE', color: 'text-emerald-500' },
               ].map((stat, i) => (
                 <div key={i} className="flex flex-col gap-1">
@@ -252,7 +356,7 @@ export function CanvasArea() {
   const [dims, setDims] = useState({ width: 900, height: 600 });
   const [canvasPad, setCanvasPad] = useState(48);
   const { editor, setEditorState } = usePresentationStore();
-  const { zoom, showGrid, isGenerating } = editor;
+  const { zoom, showGrid, isGenerating, generationBlockingOverlay } = editor;
 
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
@@ -373,7 +477,8 @@ export function CanvasArea() {
       onContextMenu={(e) => isSpacePressed && e.preventDefault()}
     >
       <AnimatePresence>
-        {isGenerating && <GenerationLoader />}
+        {isGenerating && generationBlockingOverlay && <GenerationLoader />}
+        {isGenerating && !generationBlockingOverlay && <GenerationAssetsBanner key="asset-banner" />}
       </AnimatePresence>
 
       {/* Cinematic studio backdrop — optional subtle grid (no purple dots) */}

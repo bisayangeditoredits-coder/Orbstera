@@ -53,11 +53,18 @@ export function buildComposerMessages(args: {
   language: string;
   styleMode?: string;
 }): { system: string; user: string } {
+<<<<<<< HEAD
   const system = buildComposerSystemPrompt(args.preflightSummary);
   const style =
     args.styleMode && args.styleMode !== 'auto'
       ? `\n- Style hint (optional): ${args.styleMode} — adapt layouts + typography if it helps; otherwise infer from orchestration context.`
       : '';
+=======
+  const system = buildComposerSystemPrompt(args.tier, args.preflightSummary);
+  const style = args.styleMode
+    ? `\n- Requested style mode: ${args.styleMode} (adapt layouts + typography accordingly).`
+    : '';
+>>>>>>> cursor/pollinations-api-voice-protocol
   const user = `Construct the full presentation JSON.
 
 Original user request:
@@ -70,6 +77,10 @@ Parameters:
 - Exactly ${args.slideCount} slides in the "slides" array.
 - Tone: ${args.tone}
 - Language: ${args.language}${style}
+- First slide should usually be type "hero" unless user requests otherwise.
+- Last slide should usually be type "closing" unless user requests otherwise.
+- Keep visual rhythm dynamic: alternate structures across adjacent slides.
+- Do not generate a deck where most slides are the same type.
 
 Final instruction: Return ONLY the JSON object for the full deck. No preamble.`;
 
@@ -139,6 +150,49 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
       content: obj.content as Slide['content'],
     };
   });
+
+  // If the model returns low variety, rebalance slide types for a less template-like deck.
+  const typeSet = new Set(slides.map((s) => s.type));
+  const runsTooLong = (() => {
+    let run = 1;
+    for (let i = 1; i < slides.length; i++) {
+      if (slides[i].type === slides[i - 1].type) {
+        run += 1;
+        if (run >= 3) return true;
+      } else {
+        run = 1;
+      }
+    }
+    return false;
+  })();
+  const lowVariety = slides.length >= 6 && typeSet.size <= 3;
+  if (slides.length >= 4 && (runsTooLong || lowVariety)) {
+    const rhythm: SlideLayoutType[] = [
+      'hero',
+      'content',
+      'split',
+      'quote',
+      'comparison',
+      'chart',
+      'timeline',
+      'stats',
+      'media',
+      'bullets',
+    ];
+    const lastIndex = slides.length - 1;
+    slides.forEach((slide, i) => {
+      if (i === 0) {
+        slide.type = 'hero';
+        return;
+      }
+      if (i === lastIndex) {
+        slide.type = 'closing';
+        return;
+      }
+      const mapped = rhythm[Math.min(i, rhythm.length - 1)];
+      slide.type = mapped;
+    });
+  }
 
   return {
     id: (input.id as string) || undefined,

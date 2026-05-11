@@ -1,11 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { LogOut, ArrowRight, Settings, Command, Menu, X } from 'lucide-react';
+import { LogOut, ArrowRight, Settings, Command, Menu, X, LayoutGrid } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
+
+const NAV_LINKS = [
+  { href: '/#features', label: 'Features' },
+  { href: '/#templates', label: 'Templates' },
+  { href: '/pricing', label: 'Pricing' },
+  { href: '/about', label: 'About' },
+  { href: '/blog', label: 'Journal' },
+] as const;
 
 export function Navbar() {
   const [user, setUser] = useState<any>(null);
@@ -22,9 +30,9 @@ export function Navbar() {
       }
     }
     if (dropdownOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
     }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [dropdownOpen]);
 
   useEffect(() => {
@@ -38,12 +46,16 @@ export function Navbar() {
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       setUser(user);
     };
     getUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
 
@@ -58,34 +70,55 @@ export function Navbar() {
   const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-[100] backdrop-blur-xl bg-white/70 border-b border-blue-100/50 pt-[env(safe-area-inset-top,0px)]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-3 sm:py-4 flex items-center justify-between w-full min-w-0 gap-2">
-        <Link href="/" className="flex items-center group shrink-0 min-w-0" onClick={() => setMobileNavOpen(false)}>
-          <div className="relative">
-            <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <img src="/logo.png.png" alt="Orbstera Logo" className="h-8 sm:h-9 w-auto max-w-[44vw] object-contain relative z-10 transition-transform group-hover:scale-110 duration-300" />
+    <nav className="fixed top-0 left-0 right-0 z-[100] border-b border-primary/10 bg-white/95 backdrop-blur-md pt-[env(safe-area-inset-top,0px)] shadow-[0_1px_0_rgba(59,130,246,0.06)]">
+      <div className="mx-auto flex h-[52px] w-full max-w-[100vw] min-w-0 items-center justify-between gap-2 px-3 sm:h-14 sm:gap-3 sm:px-5 md:px-8">
+        {/* Logo */}
+        <Link
+          href="/"
+          className="group flex shrink-0 items-center min-w-0"
+          onClick={() => setMobileNavOpen(false)}
+        >
+          <div className="relative shrink-0">
+            <div className="absolute inset-0 rounded-full bg-primary/15 opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-100" />
+            <img
+              src="/logo.png.png"
+              alt="Orbstera"
+              className="relative z-10 h-7 w-auto max-h-8 object-contain transition-transform duration-300 sm:h-8"
+            />
           </div>
         </Link>
-        
-        <div className="hidden md:flex items-center gap-10 text-[12px] font-bold text-textSecondary uppercase tracking-[0.2em] ml-12">
-          <Link href="#features" className="hover:text-primary transition-all relative group">
-            <span>Features</span>
-            <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
-          </Link>
-          <Link href="#templates" className="hover:text-primary transition-all relative group">
-            <span>Templates</span>
-            <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
-          </Link>
-          <Link href="#pricing" className="hover:text-primary transition-all relative group">
-            <span>Pricing</span>
-            <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
-          </Link>
+
+        {/* Center: single horizontal strip — scroll on narrow desktop, never wrap */}
+        <div className="mx-1 hidden min-h-0 min-w-0 flex-1 justify-center overflow-hidden md:flex md:px-1">
+          <div
+            className="flex max-w-full flex-nowrap items-center justify-center gap-x-3 overflow-x-auto overscroll-x-contain whitespace-nowrap py-0.5 font-montserrat text-[10px] font-semibold uppercase tracking-[0.11em] text-textSecondary scrollbar-none sm:gap-x-4 sm:text-[11px] sm:tracking-[0.14em] lg:gap-x-5"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
+            {NAV_LINKS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="shrink-0 text-textSecondary transition-colors hover:text-primary"
+              >
+                {item.label}
+              </Link>
+            ))}
+            {user && (
+              <Link
+                href="/my-presentations"
+                className="shrink-0 border-l border-primary/15 pl-3 text-primary transition-colors hover:text-primaryHover sm:pl-4"
+              >
+                My decks
+              </Link>
+            )}
+          </div>
         </div>
-        
-        <div className="flex items-center gap-2 sm:gap-4 md:gap-6 shrink-0 min-w-0">
+
+        {/* Right */}
+        <div className="flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-2">
           <button
             type="button"
-            className="md:hidden flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200/80 bg-white/80 text-gray-800 hover:bg-white transition-colors touch-manipulation"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/10 bg-white text-gray-800 transition-colors hover:bg-accentBlue touch-manipulation md:hidden"
             aria-label="Open navigation menu"
             aria-expanded={mobileNavOpen}
             onClick={() => setMobileNavOpen(true)}
@@ -93,92 +126,126 @@ export function Navbar() {
             <Menu size={20} strokeWidth={2} />
           </button>
 
-          <Link href="/editor" className="group relative h-9 sm:h-11 px-4 sm:px-7 rounded-full text-[10px] sm:text-[12px] font-bold uppercase tracking-wider sm:tracking-widest text-white transition-all flex items-center justify-center gap-1.5 sm:gap-2 overflow-hidden bg-primary shadow-[0_12px_24px_-8px_rgba(59,130,246,0.4)] hover:shadow-[0_15px_30px_-10px_rgba(59,130,246,0.5)] active:scale-95 touch-manipulation whitespace-nowrap max-w-[42vw] sm:max-w-none">
-            <span className="relative z-10 truncate"><span className="hidden xs:inline">Start Creating</span><span className="xs:hidden">Create</span></span>
-            <ArrowRight size={14} className="relative z-10 shrink-0 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform" />
-            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <Link
+            href="/editor"
+            className="group relative flex h-9 shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-full bg-primary px-3 text-[10px] font-bold uppercase tracking-wide text-white shadow-[0_8px_20px_-6px_rgba(59,130,246,0.45)] transition-all hover:bg-primaryHover active:scale-[0.98] touch-manipulation sm:h-10 sm:gap-2 sm:px-5 sm:text-[11px] sm:tracking-wider"
+          >
+            <span className="relative z-10 truncate whitespace-nowrap">
+              <span className="hidden xs:inline">Start Creating</span>
+              <span className="xs:hidden">Create</span>
+            </span>
+            <ArrowRight
+              size={14}
+              className="relative z-10 shrink-0 transition-transform group-hover:translate-x-0.5 sm:w-4 sm:h-4"
+            />
+            <div className="absolute inset-0 bg-white/10 opacity-0 transition-opacity group-hover:opacity-100" />
           </Link>
 
           {user ? (
-            <div className="relative" ref={dropdownRef}>
-              {/* Trigger Pill */}
-              <button 
+            <div className="relative shrink-0" ref={dropdownRef}>
+              <button
+                type="button"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className={`hidden sm:flex items-center gap-2.5 pl-1.5 pr-4 py-1.5 rounded-full bg-white/60 backdrop-blur-md border shadow-[0_4px_12px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_20px_-4px_rgba(123,97,255,0.25)] hover:bg-white transition-all duration-300 cursor-pointer ${dropdownOpen ? 'border-primary/50 bg-white ring-2 ring-primary/20' : 'border-gray-200/60 hover:border-primary/40'}`}
+                className={`hidden h-9 items-center gap-2 rounded-full border bg-white/90 pl-1 pr-2.5 shadow-sm transition-all sm:flex sm:h-10 sm:pr-3 ${
+                  dropdownOpen
+                    ? 'border-primary/40 ring-2 ring-primary/15'
+                    : 'border-gray-200/80 hover:border-primary/25'
+                }`}
               >
-                <div className="relative w-7 h-7 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-primary via-indigo-500 to-purple-600 shadow-inner group-hover:scale-105 transition-transform duration-300">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary via-indigo-500 to-indigo-600">
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover relative z-10" referrerPolicy="no-referrer" />
+                    <img
+                      src={avatarUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
                   ) : (
-                    <span className="text-[13px] font-black text-white uppercase tracking-wider relative z-10 shadow-sm">
+                    <span className="text-[12px] font-bold uppercase text-white">
                       {user.email?.[0]}
                     </span>
                   )}
                 </div>
-                <div className="flex flex-col justify-center text-left">
-                  <span className="text-[11px] font-bold text-gray-900 leading-[1.1] truncate max-w-[120px]">
-                    {user.email?.split('@')[0]}
-                  </span>
-                  <span className="text-[8.5px] font-bold text-gray-400 uppercase tracking-[0.2em] leading-[1.1] mt-0.5">
-                    Creator
-                  </span>
+                <div className="hidden max-w-[7rem] flex-col text-left text-[10px] leading-tight min-[1100px]:flex">
+                  <span className="truncate font-semibold text-gray-900">{user.email?.split('@')[0]}</span>
+                  <span className="text-[8px] font-bold uppercase tracking-widest text-gray-400">Creator</span>
                 </div>
               </button>
 
-              {/* Framer Motion Dropdown Menu */}
               <AnimatePresence>
                 {dropdownOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    initial={{ opacity: 0, y: -8, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    className="absolute right-0 top-full mt-3 w-56 bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] border border-gray-100/80 overflow-hidden flex flex-col p-1.5 z-[120] origin-top-right ring-1 ring-black/5"
+                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                    className="absolute right-0 top-full z-[120] mt-2 w-56 origin-top-right rounded-2xl border border-gray-100/90 bg-white/98 p-1.5 shadow-xl ring-1 ring-black/5 backdrop-blur-md"
                   >
-                    <div className="px-3 py-2.5 mb-1 bg-gray-50/50 rounded-xl">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Signed in as</p>
-                      <p className="text-[12px] font-bold text-gray-900 truncate">{user.email}</p>
+                    <div className="mb-1 rounded-xl bg-gray-50/80 px-3 py-2">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Signed in as</p>
+                      <p className="truncate text-[12px] font-semibold text-gray-900">{user.email}</p>
                     </div>
-                    
-                    <Link href="/dashboard" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-[13px] font-semibold text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl transition-all group">
-                      <Command size={16} className="text-gray-400 group-hover:text-primary transition-colors" />
-                      My Dashboard
-                    </Link>
-                    
-                    <Link href="/settings" onClick={() => setDropdownOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-[13px] font-semibold text-gray-700 hover:text-primary hover:bg-primary/5 rounded-xl transition-all group">
-                      <Settings size={16} className="text-gray-400 group-hover:text-primary transition-colors" />
-                      User Settings
-                    </Link>
-                    
-                    <div className="h-px bg-gray-100 my-1.5 mx-2" />
-                    
-                    <button 
-                      onClick={handleLogout}
-                      className="flex items-center gap-3 px-3 py-2.5 text-[13px] font-semibold text-red-600 hover:bg-red-50 rounded-xl transition-all w-full text-left group"
+
+                    <Link
+                      href="/my-presentations"
+                      onClick={() => setDropdownOpen(false)}
+                      className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-gray-700 transition-colors hover:bg-primary/5 hover:text-primary"
                     >
-                      <LogOut size={16} className="text-red-400 group-hover:text-red-600 transition-colors" />
-                      Log Out
+                      <LayoutGrid size={16} className="text-gray-400 group-hover:text-primary" />
+                      My presentations
+                    </Link>
+
+                    <Link
+                      href="/account"
+                      onClick={() => setDropdownOpen(false)}
+                      className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-gray-700 transition-colors hover:bg-primary/5 hover:text-primary"
+                    >
+                      <Command size={16} className="text-gray-400 group-hover:text-primary" />
+                      Account &amp; usage
+                    </Link>
+
+                    <Link
+                      href="/settings"
+                      onClick={() => setDropdownOpen(false)}
+                      className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-gray-700 transition-colors hover:bg-primary/5 hover:text-primary"
+                    >
+                      <Settings size={16} className="text-gray-400 group-hover:text-primary" />
+                      Settings
+                    </Link>
+
+                    <div className="mx-2 my-1.5 h-px bg-gray-100" />
+
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-red-600 transition-colors hover:bg-red-50"
+                    >
+                      <LogOut size={16} className="text-red-400 group-hover:text-red-600" />
+                      Log out
                     </button>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
           ) : (
-            <Link href="/login" className="text-[11px] sm:text-[12px] font-bold uppercase tracking-widest hover:text-primary transition-colors text-textSecondary whitespace-nowrap">
+            <Link
+              href="/login"
+              className="hidden shrink-0 whitespace-nowrap px-2 text-[11px] font-bold uppercase tracking-widest text-textSecondary transition-colors hover:text-primary sm:inline sm:px-3"
+            >
               Sign In
             </Link>
           )}
 
           {user && (
             <Link
-              href="/dashboard"
-              className="sm:hidden flex w-10 h-10 rounded-full overflow-hidden items-center justify-center bg-gradient-to-br from-primary via-indigo-500 to-purple-600 border border-gray-200/60 touch-manipulation shrink-0"
-              aria-label="My Dashboard"
+              href="/my-presentations"
+              className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-200/80 bg-gradient-to-br from-primary to-indigo-600 touch-manipulation sm:hidden"
+              aria-label="My presentations"
             >
               {avatarUrl ? (
-                <img src={avatarUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                <img src={avatarUrl} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
               ) : (
-                <span className="text-[12px] font-black text-white uppercase">{user.email?.[0]}</span>
+                <span className="text-[11px] font-bold uppercase text-white">{user.email?.[0]}</span>
               )}
             </Link>
           )}
@@ -193,7 +260,7 @@ export function Navbar() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[180] bg-black/50 backdrop-blur-sm md:hidden"
+              className="fixed inset-0 z-[180] bg-black/40 backdrop-blur-sm md:hidden"
               aria-label="Close menu"
               onClick={() => setMobileNavOpen(false)}
             />
@@ -202,37 +269,51 @@ export function Navbar() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-              className="fixed top-0 right-0 bottom-0 z-[190] w-[min(100%,20rem)] max-w-[100vw] bg-white shadow-2xl flex flex-col md:hidden pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] px-4 overflow-y-auto overscroll-contain isolate"
+              className="fixed bottom-0 right-0 top-0 z-[190] flex w-[min(100%,20rem)] max-w-[100vw] flex-col overflow-y-auto overscroll-contain bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] shadow-2xl md:hidden"
             >
-              <div className="flex items-center justify-between mb-6">
-                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-textSecondary">Navigate</span>
+              <div className="mb-6 flex items-center justify-between">
+                <span className="font-montserrat text-[11px] font-semibold uppercase tracking-[0.2em] text-textSecondary">
+                  Navigate
+                </span>
                 <button
                   type="button"
-                  className="p-2 rounded-xl hover:bg-gray-100 text-gray-600 touch-manipulation"
+                  className="touch-manipulation rounded-xl p-2 text-gray-600 hover:bg-gray-100"
                   aria-label="Close menu"
                   onClick={() => setMobileNavOpen(false)}
                 >
                   <X size={20} />
                 </button>
               </div>
-              <nav className="flex flex-col gap-1">
-                {[
-                  { href: '#features', label: 'Features' },
-                  { href: '#templates', label: 'Templates' },
-                  { href: '#pricing', label: 'Pricing' },
-                ].map((item) => (
+              <nav className="flex flex-col gap-1 font-montserrat">
+                {NAV_LINKS.map((item) => (
                   <Link
-                    key={item.href}
+                    key={item.href + item.label}
                     href={item.href}
-                    className="py-3 px-3 rounded-xl text-[13px] font-bold text-gray-800 hover:bg-primary/5 hover:text-primary transition-colors"
+                    className="rounded-xl px-3 py-3 text-[14px] font-semibold text-gray-800 transition-colors hover:bg-primary/5 hover:text-primary"
                     onClick={() => setMobileNavOpen(false)}
                   >
                     {item.label}
                   </Link>
                 ))}
                 <Link
+                  href="/contact"
+                  className="rounded-xl px-3 py-3 text-[14px] font-semibold text-gray-800 transition-colors hover:bg-primary/5 hover:text-primary"
+                  onClick={() => setMobileNavOpen(false)}
+                >
+                  Contact
+                </Link>
+                {user && (
+                  <Link
+                    href="/my-presentations"
+                    className="rounded-xl px-3 py-3 text-[14px] font-semibold text-gray-800 transition-colors hover:bg-primary/5 hover:text-primary"
+                    onClick={() => setMobileNavOpen(false)}
+                  >
+                    My presentations
+                  </Link>
+                )}
+                <Link
                   href="/editor"
-                  className="mt-4 py-3.5 px-3 rounded-2xl text-center text-[12px] font-black uppercase tracking-widest text-white bg-primary shadow-lg"
+                  className="mt-4 rounded-2xl bg-primary py-3.5 text-center text-[12px] font-bold uppercase tracking-widest text-white shadow-md"
                   onClick={() => setMobileNavOpen(false)}
                 >
                   Start Creating

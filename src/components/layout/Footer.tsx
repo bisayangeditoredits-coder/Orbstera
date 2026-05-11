@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { Sparkles } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -19,9 +18,9 @@ export function Footer() {
           <div className="space-y-6">
             <h4 className="font-bold text-textMain text-sm uppercase tracking-widest">Product</h4>
             <div className="flex flex-col gap-3 text-[14px] font-medium text-textSecondary">
-              <Link href="#features" className="hover:text-primary transition-colors">Features</Link>
-              <Link href="#templates" className="hover:text-primary transition-colors">Templates</Link>
-              <Link href="#pricing" className="hover:text-primary transition-colors">Pricing</Link>
+              <Link href="/#features" className="hover:text-primary transition-colors">Features</Link>
+              <Link href="/#templates" className="hover:text-primary transition-colors">Templates</Link>
+              <Link href="/pricing" className="hover:text-primary transition-colors">Pricing</Link>
             </div>
           </div>
           <div className="space-y-6">

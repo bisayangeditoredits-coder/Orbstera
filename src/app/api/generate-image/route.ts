@@ -69,7 +69,7 @@ export async function POST(req: Request) {
     const seed = Math.floor(Math.random() * 1_000_000);
 
     const url = hasClaid
-      ? await generateClaidImageUrl({ prompt: text, polish: polishBool })
+      ? await generateClaidImageUrl({ prompt: text, polish: polishBool, width: w, height: h })
       : await generatePollinationsImageUrl({
           prompt: text,
           width: w,

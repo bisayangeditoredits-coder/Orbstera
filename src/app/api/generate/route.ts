@@ -89,6 +89,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Prompt is required.' }, { status: 400 });
     }
 
+<<<<<<< HEAD
+=======
+    const preflight = await runPreflight({
+      appUrl: APP_URL,
+      tier,
+      userPrompt,
+      slideCount: finalSlideCount,
+      tone: String(tone),
+      language: String(language),
+    });
+
+    const preflightRecommendedStyle =
+      typeof preflight.raw?.recommendedStyle === 'string' && preflight.raw.recommendedStyle.trim()
+        ? preflight.raw.recommendedStyle.trim()
+        : undefined;
+    const effectiveStyleMode =
+      styleMode && String(styleMode).trim() && String(styleMode) !== 'auto'
+        ? String(styleMode).trim()
+        : preflightRecommendedStyle;
+
+    const { system, user: userMessage } = buildComposerMessages({
+      tier,
+      preflightSummary: preflight.summaryForPrompt,
+      userPrompt,
+      slideCount: finalSlideCount,
+      tone: String(tone),
+      language: String(language),
+      styleMode: effectiveStyleMode,
+    });
+
+>>>>>>> cursor/pollinations-api-voice-protocol
     const { error: updateError } = await supabase
       .from('profiles')
       .update({ generations_used: usedGenerations + 1 })
@@ -106,6 +137,69 @@ export async function POST(req: Request) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
         };
 
+<<<<<<< HEAD
+=======
+        sendOrb({
+          orb: {
+            phase: 'preflight_complete',
+            tier,
+            models: { outline: outlineModel, composer: primaryModel, fallback: fallbackModel },
+            intent:
+              typeof preflight.raw.detectedIntent === 'string'
+                ? preflight.raw.detectedIntent
+                : undefined,
+            presentationType:
+              typeof preflight.raw.presentationType === 'string'
+                ? preflight.raw.presentationType
+                : undefined,
+            recommendedStyle: preflightRecommendedStyle,
+            interviewAnswers:
+              typeof preflight.raw.interviewAnswers === 'object' && preflight.raw.interviewAnswers
+                ? preflight.raw.interviewAnswers
+                : undefined,
+          },
+        });
+
+        if (preflightRecommendedStyle) {
+          sendOrb({
+            orb: {
+              phase: 'theme_auto_selected',
+              message: `Auto-selected theme style: ${preflightRecommendedStyle}`,
+            },
+          });
+        }
+
+        sendOrb({
+          orb: {
+            phase: 'streaming',
+            model: primaryModel,
+            message: 'Composing structured presentation JSON…',
+          },
+        });
+
+        async function tryStream(model: string): Promise<boolean> {
+          const res = await openRouterStream(APP_URL, {
+            model,
+            messages: [
+              { role: 'system', content: system },
+              { role: 'user', content: userMessage },
+            ],
+          });
+          if (!res.ok || !res.body) {
+            const errText = await res.text().catch(() => '');
+            console.error(`[Generate] ${model} failed:`, res.status, errText);
+            return false;
+          }
+          const reader = res.body.getReader();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) controller.enqueue(value);
+          }
+          return true;
+        }
+
+>>>>>>> cursor/pollinations-api-voice-protocol
         try {
           sendOrb({
             orb: {

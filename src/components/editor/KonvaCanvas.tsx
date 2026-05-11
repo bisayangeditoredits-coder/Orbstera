@@ -22,12 +22,14 @@ function ElementNode({
   onSelect,
   onChange,
   stageRef,
+  activeTool,
 }: {
   el: SlideElement;
   isSelected: boolean;
   onSelect: () => void;
   onChange: (updates: Partial<SlideElement>) => void;
   stageRef: React.RefObject<Konva.Stage>;
+  activeTool: string;
 }) {
   const shapeRef = useRef<Konva.Node>(null);
   const trRef    = useRef<Konva.Transformer>(null);
@@ -107,6 +109,10 @@ function ElementNode({
 
   if (el.visible === false) return null;
 
+  // When generative fill tool is active, make all elements non-interactive
+  // so mouse events pass through to the Stage for rectangle drawing.
+  const isDrawingTool = activeTool === 'gen-fill';
+
   const commonProps = {
     x: el.x,
     y: el.y,
@@ -114,7 +120,8 @@ function ElementNode({
     height:   el.height,
     rotation: el.rotation || 0,
     opacity:  el.opacity ?? 1,
-    draggable: !el.locked,
+    draggable: isDrawingTool ? false : !el.locked,
+    listening: !isDrawingTool,
     onClick: onSelect,
     onTap:   onSelect,
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -159,31 +166,34 @@ function ElementNode({
     }
 
     if (el.type === 'image') {
-      // Calculate crop to achieve 'cover' effect without warping
-      const crop = img ? (() => {
-        const aspectRatio = img.width / img.height;
-        const targetRatio = el.width / el.height;
-        let x = 0, y = 0, width = img.width, height = img.height;
-        if (aspectRatio > targetRatio) {
-          width = img.height * targetRatio;
-          x = (img.width - width) / 2;
-        } else {
-          height = img.width / targetRatio;
-          y = (img.height - height) / 2;
-        }
-        return { x, y, width, height };
-      })() : undefined;
-
       const awaitingPrompt = !el.src?.trim();
-      const statusTitle = awaitingPrompt ? 'Generative fill' : 'Rendering';
+      const aiSlot = !!(awaitingPrompt && el.aiImagePending);
+      const statusTitle = awaitingPrompt ? (aiSlot ? 'AI visuals' : 'Generative fill') : 'Rendering';
       const statusSub = awaitingPrompt
-        ? 'Describe content in the panel below'
+        ? aiSlot
+          ? 'Rendering with AI — updates live'
+          : 'Describe content in the panel below'
         : 'Loading image…';
 
       return (
-        <Group {...commonProps}>
+        <Group
+          ref={shapeRef as React.RefObject<Konva.Group>}
+          x={commonProps.x}
+          y={commonProps.y}
+          width={commonProps.width}
+          height={commonProps.height}
+          rotation={commonProps.rotation}
+          opacity={commonProps.opacity}
+          draggable={commonProps.draggable}
+          listening={commonProps.listening}
+          onClick={commonProps.onClick}
+          onTap={commonProps.onTap}
+          onDragEnd={commonProps.onDragEnd}
+          onTransformEnd={commonProps.onTransformEnd}
+        >
+          {/* Placeholder — only when image hasn't loaded yet */}
           {!img && (
-            <Group>
+            <Group listening={false}>
               <Rect
                 x={0} y={0} width={el.width} height={el.height}
                 fillLinearGradientStartPoint={{ x: 0, y: 0 }}
@@ -233,12 +243,14 @@ function ElementNode({
               />
             </Group>
           )}
+          {/* Loaded image — fills the exact rectangle dimensions */}
           {img && (
             <KonvaImage
-              ref={shapeRef as React.RefObject<Konva.Image>}
               image={img}
               x={0} y={0} width={el.width} height={el.height}
-              crop={crop}
+              // Keep image itself non-listening so the draggable parent Group
+              // consistently receives pointer events (select/drag/transform).
+              listening={false}
             />
           )}
         </Group>
@@ -576,6 +588,7 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
           borderRadius:    4,
           overflow:        'hidden',
           backgroundColor: '#000',
+          cursor:          editor.activeTool === 'gen-fill' ? 'crosshair' : 'default',
           pointerEvents:   'auto',
         }}
       >
@@ -599,10 +612,11 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
               <ElementNode
                 key={el.id}
                 el={el}
-                isSelected={editor.selectedElementId === el.id}
+                isSelected={editor.activeTool === 'gen-fill' ? false : editor.selectedElementId === el.id}
                 onSelect={() => selectElement(el.id)}
                 onChange={(updates) => updateElement(slide.id, el.id, updates)}
                 stageRef={stageRef}
+                activeTool={editor.activeTool}
               />
             ))}
             {drawingRect && (() => {

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { deriveDeckIndexThumbFields } from '@/lib/deck-index-meta';
 
 let s3Client: S3Client | null = null;
 if (
@@ -158,6 +159,8 @@ export async function POST(req: Request) {
           if (e.name !== 'NoSuchKey') throw e;
         }
 
+        const thumb = deriveDeckIndexThumbFields(presentation as { slides?: unknown[] });
+
         const metadata = {
           id:          presentation.id,
           title:       presentation.title || 'Untitled Presentation',
@@ -167,6 +170,7 @@ export async function POST(req: Request) {
           theme:       presentation.theme || 'dark',
           colorPalette: presentation.colorPalette || ['#05050A', '#7B61FF', '#FFFFFF', '#A390FF'],
           subtitle:    presentation.slides?.[0]?.subtitle || '',
+          ...thumb,
         };
 
         const existingIndex = index.findIndex((p: any) => p.id === presentation.id);

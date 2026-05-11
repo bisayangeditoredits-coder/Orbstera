@@ -148,7 +148,7 @@ function SlideStats() {
   const readMin = Math.max(1, Math.round(wordCount / 130));
 
   return (
-    <div className="hidden lg:flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-neutral-100/80 border border-black/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+    <div className="hidden shrink-0 items-center gap-2.5 rounded-full border border-black/[0.05] bg-neutral-100/80 px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] xl:flex">
       <Stat icon={LayoutTemplate} value={slides.length} label="slides" />
       <div className="w-px h-3.5 bg-black/[0.08]" />
       <Stat icon={AlignLeft}      value={wordCount}     label="words"  />
@@ -569,9 +569,9 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
       </AnimatePresence>
 
       <header className="border-b border-black/[0.06] bg-[#FAFAFA]/95 backdrop-blur-md z-50 shrink-0 shadow-[0_1px_0_rgba(255,255,255,0.8)_inset] pt-[env(safe-area-inset-top,0px)]">
-        <div className="grid grid-cols-1 gap-y-2 py-2 px-2 sm:px-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center lg:gap-x-4 lg:gap-y-0 lg:py-0 lg:h-[52px] lg:px-5">
-        {/* Left */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 min-w-0 lg:flex-nowrap">
+        <div className="grid grid-cols-1 gap-y-2 py-2 px-2 sm:px-3 xl:grid-cols-[minmax(180px,1fr)_auto_minmax(180px,1fr)] xl:items-center xl:gap-x-3 xl:gap-y-0 xl:py-0 xl:h-[52px] xl:px-4 2xl:gap-x-4 2xl:px-5">
+        {/* Left — single scroll row on md–lg to avoid overlap with center */}
+        <div className="flex min-h-[44px] min-w-0 flex-nowrap items-center gap-2 overflow-x-auto overflow-y-visible overscroll-x-contain scrollbar-none sm:gap-2.5 xl:min-h-0">
           {showMobileGalleryTrigger && onOpenMobileGallery && (
             <button
               type="button"
@@ -583,9 +583,9 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
             </button>
           )}
           <Link
-            href="/dashboard"
+            href="/my-presentations"
             className="shrink-0 w-8 h-8 flex items-center justify-center text-neutral-500 hover:text-neutral-900 hover:bg-white border border-black/[0.06] bg-white/60 rounded-xl transition-all touch-manipulation shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-            aria-label="Back to dashboard"
+            aria-label="Back to my presentations"
           >
             <ArrowLeft size={16} strokeWidth={1.75} />
           </Link>
@@ -593,14 +593,14 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
             <img src="/logo.png.png" alt="Orbstera" className="h-[1.35rem] w-auto max-h-7 object-contain" />
           </Link>
 
-          <div className="min-w-0 flex-1 basis-[8rem] sm:basis-auto sm:flex-initial">
+          <div className="min-w-[6rem] max-w-[min(100%,14rem)] shrink-0 flex-initial sm:max-w-[min(100%,18rem)]">
             <EditableTitle />
           </div>
 
           {/* Cloud sync status */}
           {presentation && (
-            <div className="flex flex-1 min-w-0 basis-full sm:basis-auto items-center gap-1.5 overflow-x-clip sm:max-w-[min(100%,240px)] lg:max-w-[220px]">
-              <div className="flex w-full min-w-0 flex-wrap items-center gap-1.5">
+            <div className="flex min-w-0 max-w-[min(100%,280px)] shrink-0 flex-nowrap items-center gap-1.5 overflow-x-auto scrollbar-none sm:max-w-[min(100%,320px)]">
+              <div className="flex min-w-0 flex-nowrap items-center gap-1.5">
               <input
                 ref={importInputRef}
                 type="file"
@@ -645,7 +645,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
                 </div>
               )}
               {cloudSync === 'conflict' && (
-                <div className="flex flex-col gap-1.5 basis-full w-full min-w-0 rounded-xl bg-white border border-black/[0.08] px-2.5 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                <div className="flex min-w-[12rem] max-w-[14rem] shrink-0 flex-col gap-1.5 rounded-xl border border-black/[0.08] bg-white px-2.5 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
                   <div className="flex items-start gap-1.5 min-w-0 text-neutral-700 text-[10px] font-medium leading-snug">
                     <AlertCircle size={11} className="shrink-0 text-amber-600 mt-0.5" strokeWidth={1.75} />
                     <span title={cloudMsg || 'This deck was updated in the cloud (e.g. another tab). Reload to load that version.'}>
@@ -679,10 +679,10 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
         </div>
 
         {/* Center — panel toggles */}
-        <div className="flex justify-center min-w-0 w-full lg:w-auto lg:max-w-[min(520px,42vw)] overflow-hidden">
+        <div className="flex w-full min-w-0 justify-center overflow-hidden xl:w-auto xl:max-w-[min(520px,38vw)]">
           <div
             id="tour-panel-tabs"
-            className="inline-flex max-w-full items-center gap-0.5 p-1 rounded-2xl bg-neutral-100/85 border border-black/[0.06] shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] overflow-x-auto scrollbar-none touch-pan-x"
+            className="inline-flex max-w-full flex-nowrap items-center gap-0.5 overflow-x-auto overscroll-x-contain rounded-2xl border border-black/[0.06] bg-neutral-100/85 p-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] scrollbar-none touch-pan-x"
           >
           {PANEL_BUTTONS.map((btn) => {
             const isActive = activePanel === btn.id && isPanelOpen;
@@ -706,7 +706,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
         </div>
 
         {/* Right */}
-        <div id="tour-actions" className="flex flex-wrap items-center justify-end gap-2 min-w-0 shrink-0">
+        <div id="tour-actions" className="flex min-h-[44px] min-w-0 flex-nowrap items-center justify-end gap-1.5 overflow-x-auto overflow-y-visible overscroll-x-contain scrollbar-none sm:gap-2 xl:min-h-0">
           <div className="hidden xl:flex items-center gap-1.5 text-[10px] text-neutral-400 font-medium mr-0.5">
             <span className="px-1.5 py-0.5 rounded-md bg-white border border-black/[0.06] text-neutral-500 tabular-nums">⌘P</span>
             <span className="text-neutral-400">Present</span>

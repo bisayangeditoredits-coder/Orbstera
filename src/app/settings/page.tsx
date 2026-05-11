@@ -135,11 +135,11 @@ export default function SettingsPage() {
             </p>
           </div>
           <Link
-            href="/dashboard"
+            href="/my-presentations"
             className="inline-flex items-center gap-2 self-start sm:self-auto px-4 py-2.5 rounded-full text-[13px] font-semibold text-neutral-700 bg-white border border-neutral-200/90 shadow-sm hover:border-neutral-300 hover:bg-neutral-50 transition-colors"
           >
             <LayoutDashboard size={16} strokeWidth={1.75} className="text-neutral-500" />
-            Dashboard
+            My presentations
             <ChevronRight size={16} className="text-neutral-400 -mr-0.5" strokeWidth={1.75} />
           </Link>
         </div>
