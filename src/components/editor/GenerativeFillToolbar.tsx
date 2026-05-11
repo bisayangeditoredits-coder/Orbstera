@@ -6,13 +6,33 @@ import { usePresentationStore } from '@/store/usePresentationStore';
 import { Sparkles, Loader2, X, Wand2, Trash2 } from 'lucide-react';
 
 function regionToImagePixels(regionW: number, regionH: number, maxEdge = 1024, minEdge = 320) {
-  const rw = Math.max(1, regionW);
-  const rh = Math.max(1, regionH);
-  const scale = Math.min(maxEdge / rw, maxEdge / rh);
-  let w = Math.round(rw * scale);
-  let h = Math.round(rh * scale);
-  w = Math.max(minEdge, Math.min(maxEdge, w));
-  h = Math.max(minEdge, Math.min(maxEdge, h));
+  const rw = Math.max(1, Math.round(regionW));
+  const rh = Math.max(1, Math.round(regionH));
+  const aspect = rw / rh;
+
+  // Start by fitting the longer edge to maxEdge (preserves aspect ratio).
+  let w = rw >= rh ? maxEdge : Math.round(maxEdge * aspect);
+  let h = rw >= rh ? Math.round(maxEdge / aspect) : maxEdge;
+
+  // If the short edge is too small, scale up uniformly (still preserve aspect).
+  const short = Math.min(w, h);
+  if (short < minEdge) {
+    const scaleUp = minEdge / short;
+    w = Math.round(w * scaleUp);
+    h = Math.round(h * scaleUp);
+  }
+
+  // Clamp to maxEdge on the long side (best-effort while preserving aspect).
+  const long = Math.max(w, h);
+  if (long > maxEdge) {
+    const scaleDown = maxEdge / long;
+    w = Math.max(256, Math.round(w * scaleDown));
+    h = Math.max(256, Math.round(h * scaleDown));
+  }
+
+  // Final hard clamps.
+  w = Math.max(256, Math.min(1536, w));
+  h = Math.max(256, Math.min(1536, h));
   return { width: w, height: h };
 }
 
@@ -112,6 +132,7 @@ export function GenerativeFillToolbar() {
           prompt: finalPrompt,
           width,
           height,
+          format: 'png',
           // Optional override: set OPENROUTER_IMAGE_MODEL in env or pass `model` here.
         }),
       });
@@ -125,9 +146,20 @@ export function GenerativeFillToolbar() {
       });
       setEditorState({
         generativeFillTarget: null,
+        activeTool: 'select',
         previewElementId: el.id,
       });
       setPrompt('');
+
+      // Fire-and-forget usage log for dashboard cost tracking (if backend supports it).
+      fetch('/api/usage/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'genfill_image',
+          meta: { width, height, enhanced: enhance, polished: polish },
+        }),
+      }).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
     } finally {

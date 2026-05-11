@@ -19,12 +19,14 @@ export async function POST(req: Request) {
       width,
       height,
       model,
+      format,
     }: {
       prompt?: string;
       size?: string;
       width?: number;
       height?: number;
       model?: string;
+      format?: 'png' | 'jpeg' | 'webp';
     } = body || {};
 
     if (!prompt) {
@@ -36,6 +38,7 @@ export async function POST(req: Request) {
     const resolvedSize =
       typeof size === 'string' && size.includes('x') ? size : `${w}x${h}`;
     const resolvedModel = (typeof model === 'string' && model.trim()) ? model.trim() : DEFAULT_IMAGE_MODEL;
+    const resolvedFormat = (format === 'png' || format === 'jpeg' || format === 'webp') ? format : undefined;
 
     const response = await fetch('https://openrouter.ai/api/v1/images/generations', {
       method: 'POST',
@@ -50,6 +53,7 @@ export async function POST(req: Request) {
         prompt,
         size: resolvedSize,
         response_format: 'url',
+        ...(resolvedFormat ? { output_format: resolvedFormat, image_format: resolvedFormat } : {}),
       }),
     });
 

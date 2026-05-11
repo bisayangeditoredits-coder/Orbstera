@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { SlideElement } from '@/types';
 import { generateClaidImageUrl } from '@/lib/claid-image';
 import { generatePollinationsImageUrl } from '@/lib/pollinations-image';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
@@ -59,6 +61,23 @@ export async function POST(req: Request) {
     if (!prompt || !element) {
       return NextResponse.json({ error: 'Prompt and element data are required' }, { status: 400 });
     }
+
+    // Basic plan-gate for Magic Edit on free users (best-effort; does not break if profiles table missing fields).
+    const cookieStore = cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } },
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id;
+    if (!userId) {
+      return NextResponse.json({ error: 'Please sign in to use Magic Edit.' }, { status: 401 });
+    }
+
+    const { data: profile } = await supabase.from('profiles').select('plan').eq('id', userId).maybeSingle();
+    const plan = profile?.plan?.toLowerCase() || user?.user_metadata?.plan?.toLowerCase() || 'free';
+    const isPaid = plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro';
 
     const ctx =
       slideContext && typeof slideContext === 'object'
@@ -139,6 +158,12 @@ Return the modified element JSON only.`;
     const updatedElement = { ...element, ...parsed } as SlideElement;
 
     if (updatedElement.type === 'image' && updatedElement.src?.startsWith('PROMPT:')) {
+      if (!isPaid) {
+        return NextResponse.json(
+          { error: 'Magic Edit images are Pro-only. Upgrade to unlock image edits.' },
+          { status: 403 },
+        );
+      }
       const promptText = updatedElement.src.replace(/^PROMPT:\s*/i, '').trim();
       const { width, height } = toPollinationPixels(
         Number(updatedElement.width) || Number(element.width) || 1024,
@@ -165,6 +190,13 @@ Return the modified element JSON only.`;
               height,
               polish: true,
             });
+
+        // Best-effort usage log for dashboard cost tracking.
+        supabase.from('ai_usage_events').insert({
+          user_id: userId,
+          kind: 'magic_edit_image',
+          meta: { width, height },
+        }).catch(() => {});
       } catch (e) {
         console.error('[MagicEdit] Image generation:', e);
         return NextResponse.json(
