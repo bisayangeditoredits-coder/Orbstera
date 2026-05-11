@@ -1,5 +1,3 @@
-import type { IntelligenceTier } from './models';
-
 /** Strict structured deck schema — NEVER HTML; frontend renders everything. */
 export const DECK_JSON_RULES = `
 OUTPUT: VALID RAW JSON ONLY. No markdown fences, no HTML, no explanations.
@@ -42,29 +40,23 @@ RULES:
 - Keep bullets ≤5 per slide; prefer whitespace over clutter.
 - imagePrompt must stay on-brand across slides (consistent lighting/mood).
 - Vary slide types for narrative rhythm (hook → tension → proof → vision → close).
+- Prefer defaultSlideTransition + slideTransition choices that feel cinematic (blurReveal, parallaxFlow, keynote, glassSwipe) where appropriate.
+- Choose animation.entrance per element gravity: hero reveals use cinematicImageZoom or blurIn; lists use staggerLines or verticalRise.
 `;
 
-export function buildComposerSystemPrompt(
-  tier: IntelligenceTier,
-  preflightBlock: string
-): string {
-  const tierHint =
-    tier === 'elite'
-      ? 'You are in ELITE mode: investor-stage prose, zero generic filler, museum-grade hierarchy.'
-      : tier === 'fast'
-        ? 'You are in FAST mode: crisp structure, high signal, rapid scan-friendly slides.'
-        : 'You are in STANDARD mode: professional, cinematic, still premium — no clichés.';
-
+export function buildComposerSystemPrompt(preflightBlock: string): string {
   return `You are Orbstera's Principal Presentation Architect — world-class narrative, typography rhythm, and spatial hierarchy.
 
-${tierHint}
+You are the final JSON composer in a hidden multi-agent OpenRouter pipeline. The user does not pick templates, themes, or animation packs — YOU infer palette, typography, layout vocabulary, slide transitions, and per-slide animation from intent, audience, and emotional tone. Output must feel keynote / investor-ready: cinematic spacing, confident hierarchy, zero “AI slop” clichés.
+
+Never output HTML. Never output markdown. Only the structured JSON the Orbstera rendering engine consumes.
 
 ${DECK_JSON_RULES}
 
-ORCHESTRATION CONTEXT (from multi-model pre-analysis — MUST inform themes, arc, and layouts):
+ORCHESTRATION CONTEXT (multi-agent dossier + pre-analysis — obey absolutely):
 ${preflightBlock}
 
-Remember: JSON ONLY. Slides must feel handcrafted, not template-stuffed.`;
+Remember: JSON ONLY. Every slide needs a deliberate animation.entrance and coherent imagePrompt for the image pipeline.`;
 }
 
 export const PREFLIGHT_SYSTEM = `You are a strategic analyst. Output ONE raw JSON object only.

@@ -1,35 +1,25 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { pickComposerModel, type IntelligenceTier, OR_MODELS } from '@/lib/ai/models';
-import {
-  runPreflight,
-  buildComposerMessages,
-} from '@/lib/ai/orchestration';
+import { pickComposerModel, PIPELINE_TIER, OR_MODELS } from '@/lib/ai/models';
+import { runPreflight, buildComposerMessages } from '@/lib/ai/orchestration';
+import { runOpenRouterOrchestration } from '@/lib/ai/prompt-chain';
 import { openRouterStream } from '@/lib/ai/openrouter';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-
-function modeToTier(mode: string): IntelligenceTier {
-  if (mode === 'fast') return 'fast';
-  if (mode === 'premium') return 'elite';
-  return 'free';
-}
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const {
       prompt,
-      mode = 'standard',
       slideCount = 10,
       tone = 'professional',
       language = 'English',
       styleMode,
     } = body as {
       prompt?: string;
-      mode?: string;
       slideCount?: number;
       tone?: string;
       language?: string;
@@ -59,7 +49,6 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     const plan = profile?.plan?.toLowerCase() || user.user_metadata?.plan?.toLowerCase() || 'free';
-    const isPaid = plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro';
     const usedGenerations = profile?.generations_used || 0;
 
     const LIMITS: Record<string, number> = {
@@ -90,38 +79,14 @@ export async function POST(req: Request) {
       }, { status: 403 });
     }
 
-    let secureMode = mode;
-    if (!isPaid && (mode === 'fast' || mode === 'premium')) {
-      secureMode = 'standard';
-    }
-
-    const tier = modeToTier(secureMode);
+    const tier = PIPELINE_TIER;
     const { primary: primaryModel, fallback: fallbackModel } = pickComposerModel(tier);
-    const outlineModel = tier === 'free' ? OR_MODELS.outlineFree : tier === 'fast' ? OR_MODELS.outlineFast : OR_MODELS.outlineElite;
+    const outlineModel = OR_MODELS.outlineElite;
 
     const userPrompt = String(prompt || '').trim();
     if (!userPrompt) {
       return NextResponse.json({ error: 'Prompt is required.' }, { status: 400 });
     }
-
-    const preflight = await runPreflight({
-      appUrl: APP_URL,
-      tier,
-      userPrompt,
-      slideCount: finalSlideCount,
-      tone: String(tone),
-      language: String(language),
-    });
-
-    const { system, user: userMessage } = buildComposerMessages({
-      tier,
-      preflightSummary: preflight.summaryForPrompt,
-      userPrompt,
-      slideCount: finalSlideCount,
-      tone: String(tone),
-      language: String(language),
-      styleMode: styleMode ? String(styleMode) : undefined,
-    });
 
     const { error: updateError } = await supabase
       .from('profiles')
@@ -140,53 +105,109 @@ export async function POST(req: Request) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
         };
 
-        sendOrb({
-          orb: {
-            phase: 'preflight_complete',
-            tier,
-            models: { outline: outlineModel, composer: primaryModel, fallback: fallbackModel },
-            intent:
-              typeof preflight.raw.detectedIntent === 'string'
-                ? preflight.raw.detectedIntent
-                : undefined,
-            presentationType:
-              typeof preflight.raw.presentationType === 'string'
-                ? preflight.raw.presentationType
-                : undefined,
-          },
-        });
-
-        sendOrb({
-          orb: {
-            phase: 'streaming',
-            model: primaryModel,
-            message: 'Composing structured presentation JSON…',
-          },
-        });
-
-        async function tryStream(model: string): Promise<boolean> {
-          const res = await openRouterStream(APP_URL, {
-            model,
-            messages: [
-              { role: 'system', content: system },
-              { role: 'user', content: userMessage },
-            ],
-          });
-          if (!res.ok || !res.body) {
-            const errText = await res.text().catch(() => '');
-            console.error(`[Generate] ${model} failed:`, res.status, errText);
-            return false;
-          }
-          const reader = res.body.getReader();
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            if (value) controller.enqueue(value);
-          }
-          return true;
-        }
-
         try {
+          sendOrb({
+            orb: {
+              phase: 'orchestration_chain',
+              pipeline: 'multi-agent',
+              message: 'Running multi-model prompt orchestration…',
+            },
+          });
+
+          const { dossierText, refinedBrief } = await runOpenRouterOrchestration(
+            APP_URL,
+            userPrompt,
+            {
+              slideCount: finalSlideCount,
+              tone: String(tone),
+              language: String(language),
+            },
+            (phase, model) => {
+              sendOrb({
+                orb: {
+                  phase: `orchestrate_${phase}`,
+                  pipeline: 'multi-agent',
+                  model,
+                  message: `Agent pass: ${phase}`,
+                },
+              });
+            }
+          );
+
+          sendOrb({
+            orb: {
+              phase: 'analyzing_intent',
+              pipeline: 'multi-agent',
+              message: 'Synthesizing narrative arc and slide plan…',
+            },
+          });
+
+          const preflight = await runPreflight({
+            appUrl: APP_URL,
+            tier,
+            userPrompt: `${dossierText}\n\nOriginal request (verbatim, for grounding):\n${userPrompt}`,
+            slideCount: finalSlideCount,
+            tone: String(tone),
+            language: String(language),
+          });
+
+          const { system, user: userMessage } = buildComposerMessages({
+            preflightSummary: preflight.summaryForPrompt,
+            userPrompt,
+            refinedBrief,
+            slideCount: finalSlideCount,
+            tone: String(tone),
+            language: String(language),
+            styleMode: styleMode ? String(styleMode) : undefined,
+          });
+
+          sendOrb({
+            orb: {
+              phase: 'preflight_complete',
+              pipeline: 'multi-agent',
+              tier,
+              models: { outline: outlineModel, composer: primaryModel, fallback: fallbackModel },
+              intent:
+                typeof preflight.raw.detectedIntent === 'string'
+                  ? preflight.raw.detectedIntent
+                  : undefined,
+              presentationType:
+                typeof preflight.raw.presentationType === 'string'
+                  ? preflight.raw.presentationType
+                  : undefined,
+            },
+          });
+
+          sendOrb({
+            orb: {
+              phase: 'streaming',
+              model: primaryModel,
+              message: 'Composing structured presentation JSON…',
+            },
+          });
+
+          async function tryStream(model: string): Promise<boolean> {
+            const res = await openRouterStream(APP_URL, {
+              model,
+              messages: [
+                { role: 'system', content: system },
+                { role: 'user', content: userMessage },
+              ],
+            });
+            if (!res.ok || !res.body) {
+              const errText = await res.text().catch(() => '');
+              console.error(`[Generate] ${model} failed:`, res.status, errText);
+              return false;
+            }
+            const reader = res.body.getReader();
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              if (value) controller.enqueue(value);
+            }
+            return true;
+          }
+
           let ok = await tryStream(primaryModel);
           if (!ok && fallbackModel) {
             sendOrb({

@@ -75,7 +75,14 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     const headingFont = data.fontPairing?.heading || 'Space Grotesk';
     const bodyFont    = data.fontPairing?.body    || 'Inter';
 
-    const imageTasks: { slideId: string; elementId: string; prompt: string; w: number; h: number }[] = [];
+    const imageTasks: {
+      slideId: string;
+      elementId: string;
+      prompt: string;
+      w: number;
+      h: number;
+      visualProfile: 'cinematic' | 'typography';
+    }[] = [];
 
     const motionCtx = {
       animationStyle: data.animationStyle,
@@ -113,7 +120,14 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
             id: bgId, type: 'image', src: '', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: 0, visible: true, opacity: 0.35,
             animation: { entrance: 'fadeIn', duration: 1500, delay: 0 },
           });
-          imageTasks.push({ slideId: slide.id, elementId: bgId, prompt: slide.imagePrompt, w: 1280, h: 720 });
+          imageTasks.push({
+            slideId: slide.id,
+            elementId: bgId,
+            prompt: slide.imagePrompt,
+            w: 1280,
+            h: 720,
+            visualProfile: 'typography',
+          });
         }
         
         // Add a sleek dark gradient overlay for text readability
@@ -182,7 +196,14 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         });
         elements.push({ id: imgId, type: 'image', src: '', x: 700, y: 60, width: 520, height: CANVAS_H - 120, zIndex: currentZ++, visible: true, animation: { entrance: 'zoomIn', duration: 800, delay: 400 } });
         if (slide.imagePrompt) {
-          imageTasks.push({ slideId: slide.id, elementId: imgId, prompt: slide.imagePrompt, w: 800, h: 900 });
+          imageTasks.push({
+            slideId: slide.id,
+            elementId: imgId,
+            prompt: slide.imagePrompt,
+            w: 800,
+            h: 900,
+            visualProfile: 'cinematic',
+          });
         }
       } else if (isQuote) {
         // High-end editorial quote layout
@@ -291,7 +312,12 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
           fetch('/api/generate-image', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ prompt: task.prompt, width: task.w, height: task.h }),
+            body: JSON.stringify({
+              prompt: task.prompt,
+              width: task.w,
+              height: task.h,
+              visualProfile: task.visualProfile,
+            }),
           })
           .then(res => res.json())
           .then(json => {
@@ -549,7 +575,16 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
           elements.unshift({ id: bgId, type: 'image', src: '', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: 0, visible: true, opacity: 0.35, animation: { entrance: 'fadeIn', duration: 1500, delay: 0 } });
           (async () => {
             try {
-              const res = await fetch('/api/generate-image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: slideData.imagePrompt, width: 1280, height: 720 }) });
+              const res = await fetch('/api/generate-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  prompt: slideData.imagePrompt,
+                  width: 1280,
+                  height: 720,
+                  visualProfile: 'typography',
+                }),
+              });
               const json = await res.json();
               if (json.url) get().updateElement(slideData.id, bgId, { src: json.url });
             } catch (e) {}
@@ -574,7 +609,16 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       if (slideData.imagePrompt) {
         (async () => {
           try {
-            const res = await fetch('/api/generate-image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: slideData.imagePrompt, width: 800, height: 900 }) });
+            const res = await fetch('/api/generate-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                prompt: slideData.imagePrompt,
+                width: 800,
+                height: 900,
+                visualProfile: 'cinematic',
+              }),
+            });
             const json = await res.json();
             if (json.url) get().updateElement(slideData.id, imgId, { src: json.url });
           } catch (e) {}
@@ -631,7 +675,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   onboarding: {
     isActive: false,
     step: 0,
-    hasSeenTour: false,
+    hasSeenTour: typeof window !== 'undefined' ? localStorage.getItem('orbstera_tour_seen') === 'true' : false,
   },
 
   startOnboarding: () => set({ onboarding: { isActive: true, step: 0, hasSeenTour: false } }),
@@ -643,11 +687,16 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     } 
   })),
 
-  skipOnboarding: () => set((state) => ({ 
-    onboarding: { 
-      ...state.onboarding, 
-      isActive: false, 
-      hasSeenTour: true 
-    } 
-  })),
+  skipOnboarding: () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('orbstera_tour_seen', 'true');
+    }
+    set((state) => ({ 
+      onboarding: { 
+        ...state.onboarding, 
+        isActive: false, 
+        hasSeenTour: true 
+      } 
+    }));
+  },
 }));

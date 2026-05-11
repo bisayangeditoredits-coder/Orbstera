@@ -5,6 +5,12 @@
 
 export type IntelligenceTier = 'free' | 'fast' | 'elite';
 
+/**
+ * Single automatic deck pipeline: best configured models per stage.
+ * User-facing “Standard / Fast / Elite” modes are removed — orchestration picks this tier.
+ */
+export const PIPELINE_TIER: IntelligenceTier = 'elite';
+
 export const OR_MODELS = {
   /** Intent detection, outline, cheap structured JSON */
   outlineFree: process.env.OPENROUTER_OUTLINE_FREE ?? 'deepseek/deepseek-chat',

@@ -111,6 +111,7 @@ export function GenerativeFillToolbar() {
           width,
           height,
           polish,
+          visualProfile: 'cinematic',
         }),
       });
       const data = await res.json();

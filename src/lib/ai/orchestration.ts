@@ -44,23 +44,26 @@ export async function runPreflight(args: {
 }
 
 export function buildComposerMessages(args: {
-  tier: IntelligenceTier;
   preflightSummary: string;
   userPrompt: string;
+  refinedBrief: string;
   slideCount: number;
   tone: string;
   language: string;
   styleMode?: string;
 }): { system: string; user: string } {
-  const system = buildComposerSystemPrompt(args.tier, args.preflightSummary);
+  const system = buildComposerSystemPrompt(args.preflightSummary);
   const style =
     args.styleMode && args.styleMode !== 'auto'
       ? `\n- Requested style mode: ${args.styleMode} (adapt layouts + typography accordingly).`
       : '';
   const user = `Construct the full presentation JSON.
 
-User brief:
+Original user request:
 ${args.userPrompt}
+
+Refined orchestration brief (prioritize this):
+${args.refinedBrief}
 
 Parameters:
 - Exactly ${args.slideCount} slides in the "slides" array.

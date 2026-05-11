@@ -237,7 +237,6 @@ export type PanelTab = 'generate' | 'layers' | 'design' | 'notes';
 
 export interface GenerateOptions {
   prompt: string;
-  mode: 'standard' | 'fast' | 'premium';
   slideCount: number;
   tone: 'professional' | 'creative' | 'casual' | 'bold' | 'minimal';
   language: string;

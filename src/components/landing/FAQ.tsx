@@ -15,7 +15,7 @@ const faqs = [
   },
   {
     q: "Which AI models do you use?",
-    a: "We route intelligently. DeepSeek V3 is our primary model for fast, structured generation. Claude 3.5 Sonnet handles premium, highly complex narrative tasks."
+    a: "A multi-agent pipeline runs automatically: your prompt is refined, analyzed, and composed with the best OpenRouter models for each step—no manual mode selection."
   },
   {
     q: "Do you offer team billing?",

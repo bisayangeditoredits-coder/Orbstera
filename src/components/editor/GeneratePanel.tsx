@@ -18,7 +18,7 @@ import { explainGetUserMediaError, explainRecognitionStartError } from '@/lib/mi
 import { VoiceOrb } from '@/components/editor/VoiceOrb';
 import {
   Sparkles, X, ChevronDown, Loader2, Wand2,
-  Zap, Gauge, Crown, Globe, ArrowRight,
+  Crown, Globe, ArrowRight,
   Save, Trash2, Download, AlertCircle, Plus, Mic, MicOff
 } from 'lucide-react';
 
@@ -103,7 +103,6 @@ function CollapsibleSection({
 
 export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const [prompt, setPrompt] = useState('');
-  const [mode, setMode] = useState<'standard' | 'fast' | 'premium'>('standard');
   const [tone, setTone] = useState('professional');
   const [slideCount, setSlideCount] = useState(5);
   const [language, setLanguage] = useState('English');
@@ -247,7 +246,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   };
 
   const [activeTab, setActiveTab] = useState<'create' | 'enhance'>('create');
-  const [expandIntel, setExpandIntel] = useState(true);
   const [expandTone, setExpandTone] = useState(false);
   const [expandStyle, setExpandStyle] = useState(false);
   const [expandDensity, setExpandDensity] = useState(true);
@@ -390,7 +388,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prompt: trimmed,
-            mode,
             slideCount,
             tone,
             language,
@@ -528,21 +525,19 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
           let finalData = normalizePresentationPayload(parsedRaw);
 
-          if (mode === 'premium') {
-            setEditorState({ orchestrationPhase: 'elite_polish' });
-            try {
-              const pr = await fetch('/api/generate/polish', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ presentation: finalData }),
-              });
-              if (pr.ok) {
-                const polished = await pr.json();
-                finalData = normalizePresentationPayload(polished as Record<string, unknown>);
-              }
-            } catch (polishErr) {
-              console.warn('Elite polish skipped:', polishErr);
+          setEditorState({ orchestrationPhase: 'elite_polish' });
+          try {
+            const pr = await fetch('/api/generate/polish', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ presentation: finalData }),
+            });
+            if (pr.ok) {
+              const polished = await pr.json();
+              finalData = normalizePresentationPayload(polished as Record<string, unknown>);
             }
+          } catch (polishErr) {
+            console.warn('Polish pass skipped:', polishErr);
           }
 
           if (finalData.slides?.length) {
@@ -558,7 +553,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         } catch (e) {
           console.error('Final JSON parse failed:', e, accumulatedText?.slice?.(-4000));
           throw new Error(
-            'Could not parse the AI response into a deck. Try again, shorten the prompt, or switch intelligence mode.'
+            'Could not parse the AI response into a deck. Try again or shorten your prompt.'
           );
         }
 
@@ -581,7 +576,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       try {
         const formData = new FormData();
         formData.append('file', selectedFile);
-        formData.append('mode', mode);
 
         const res = await fetch('/api/enhance-ppt', {
           method: 'POST',
@@ -657,7 +651,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               </div>
               <h2 className="text-2xl font-black font-space-grotesk mb-2">Limit Reached</h2>
               <p className="text-white/60 text-sm mb-8 leading-relaxed">
-                You've used all 3 of your free monthly AI presentations. To continue building amazing decks and unlock elite models like Claude 3.5 Sonnet, please upgrade your account.
+                You've used all 3 of your free monthly AI presentations. Upgrade to keep generating decks with full multi-agent orchestration.
               </p>
               <div className="flex flex-col gap-3">
                 <a href="/pricing" className="w-full py-3.5 bg-amber-500 text-black font-bold rounded-xl hover:bg-amber-400 transition-colors flex items-center justify-center gap-2">
@@ -690,7 +684,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             <div className="min-w-0 pt-0.5">
               <h2 className="text-[16px] font-semibold text-neutral-900 tracking-tight truncate leading-tight">AI Generation</h2>
               <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-[0.14em] mt-1 leading-snug">
-                Powered by Orbstera Quantum Engine <span className="text-neutral-500">(v4.7)</span>
+                Multi-agent orchestration · OpenRouter
               </p>
             </div>
           </div>
@@ -735,51 +729,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-5 py-3 pb-24 space-y-2.5 min-h-0">
-        <CollapsibleSection
-          title="Intelligence"
-          summary={
-            mode === 'standard' ? 'Standard' : mode === 'fast' ? 'Fast' : 'Elite'
-          }
-          expanded={expandIntel}
-          onToggle={() => setExpandIntel((v) => !v)}
-        >
-          <div className="grid grid-cols-3 gap-1.5">
-            {[
-              { value: 'standard', label: 'Standard', short: 'Std', icon: Zap, free: true },
-              { value: 'fast', label: 'Fast', short: 'Fast', icon: Gauge, free: false },
-              { value: 'premium', label: 'Elite', short: 'Elite', icon: Crown, free: false },
-            ].map((m) => {
-              const Icon = m.icon;
-              const isLocked = !isPaid && !m.free;
-              const isActive = mode === m.value;
-              return (
-                <button
-                  type="button"
-                  key={m.value}
-                  onClick={() => !isLocked && setMode(m.value as 'standard' | 'fast' | 'premium')}
-                  title={isLocked ? 'Upgrade to Pro to unlock' : m.label}
-                  className={`relative flex flex-row items-center gap-1.5 px-2 py-2 rounded-xl text-left transition-all border ${
-                    isLocked
-                      ? 'bg-neutral-100/50 border-black/[0.04] text-neutral-400 cursor-not-allowed'
-                      : isActive
-                      ? 'bg-white border-primary/25 text-neutral-900 shadow-[0_2px_10px_-4px_rgba(59,130,246,0.35)]'
-                      : 'bg-white border-black/[0.06] text-neutral-600 hover:border-black/10'
-                  }`}
-                >
-                  <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
-                    isActive ? 'bg-primary/10 text-primary' : 'bg-neutral-100 text-neutral-500'
-                  }`}>
-                    <Icon size={12} strokeWidth={1.75} />
-                  </div>
-                  <span className="text-[9px] font-semibold uppercase tracking-wide">{m.short}</span>
-                  {isLocked && (
-                    <Crown size={9} className="absolute top-1 right-1 text-amber-500/90" strokeWidth={1.75} />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </CollapsibleSection>
         {activeTab === 'create' ? (
           <>
             {/* Prompt Area */}
@@ -850,7 +799,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                     </div>
 
                     <div className="text-[9px] font-semibold text-neutral-300 uppercase tracking-[0.18em]">
-                      Neural Prompt v4
+                      Auto pipeline
                     </div>
                   </div>
                 </div>

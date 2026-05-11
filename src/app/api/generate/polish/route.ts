@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { AGENT_MODELS } from '@/lib/ai/agent-models';
 import { OR_MODELS } from '@/lib/ai/models';
 import { openRouterComplete, extractJsonObject } from '@/lib/ai/openrouter';
 import { normalizePresentationPayload } from '@/lib/ai/orchestration';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-const POLISH_SYSTEM = `You are an elite presentation editor. You receive structured presentation JSON (no HTML).
+const POLISH_SYSTEM = `You are the final cinematic polish agent (GPT‑5 class). You receive structured presentation JSON (no HTML).
 
-Return ONE raw JSON object only — same schema as input — with improved headlines, subtitles, bullets, visualDirection, imagePrompt consistency, and speakerNotes.
+Return ONE raw JSON object only — same schema as input — with improved headlines, subtitles, bullets, visualDirection, imagePrompt consistency, speakerNotes, and motion (animation + slideTransition) where it elevates storytelling.
 Preserve slide count, ids, types, and chart data structurally.
 Do not add HTML. Do not wrap in markdown.`;
 
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
     };
 
     try {
-      const polished = await runPolish(OR_MODELS.refineElite);
+      const polished = await runPolish(AGENT_MODELS.gptOrchestrator);
       return NextResponse.json(polished);
     } catch (e) {
       console.warn('[Polish] primary failed, fallback:', e);

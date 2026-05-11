@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
+import { OR_MODELS } from '@/lib/ai/models';
 import crypto from 'crypto';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import JSZip from 'jszip';
@@ -98,7 +99,6 @@ export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File;
-    const mode = (formData.get('mode') as string) || 'standard';
 
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
@@ -145,7 +145,7 @@ export async function POST(req: Request) {
     // --- CACHE LAYER ---
     const cacheKey = `enhance:${crypto
       .createHash('md5')
-      .update(JSON.stringify({ text: extractedText.trim(), mode }))
+      .update(JSON.stringify({ text: extractedText.trim() }))
       .digest('hex')}`;
 
     if (redis) {
@@ -164,15 +164,10 @@ export async function POST(req: Request) {
     }
     // -------------------
 
-    // 3. Send to OpenRouter for Enhancement
-    let model = 'deepseek/deepseek-chat';
-    if (mode === 'premium') {
-      model = 'anthropic/claude-3.5-sonnet';
-    } else if (mode === 'fast') {
-      model = 'google/gemini-2.0-flash-exp:free';
-    } else if (extractedText.split(' ').length > 2000) {
-      // If the PPT is very long, force a stronger/larger context model
-      model = 'anthropic/claude-3.5-sonnet';
+    // 3. Send to OpenRouter — same automatic pipeline as create (best configured composer).
+    let model = OR_MODELS.composerElite;
+    if (extractedText.split(/\s+/).length > 2000) {
+      model = OR_MODELS.composerEliteFallback;
     }
 
     const userMessage = `Here is the raw text extracted from the user's old presentation:\n\n---\n${extractedText}\n---\n\nPlease enhance this into a stunning modern presentation. Return the JSON.`;
