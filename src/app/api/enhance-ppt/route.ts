@@ -174,7 +174,6 @@ export async function POST(req: Request) {
     if (extractedText.split(/\s+/).length > 2000) {
       model = composerFallback;
     }
-    }
 
     const userMessage = `Here is the raw text extracted from the user's old presentation:\n\n---\n${extractedText}\n---\n\nPlease enhance this into a stunning modern presentation. Return the JSON.`;
 
@@ -205,7 +204,6 @@ export async function POST(req: Request) {
     if (!response.ok && (response.status === 402 || response.status === 400) && model !== composerFallback) {
       console.warn(`[Enhance] ${model} failed, trying configured fallback composer…`);
       response = await callOpenRouter(composerFallback);
-    }
     }
 
     if (!response.ok) {
