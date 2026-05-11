@@ -91,7 +91,7 @@ export function Navbar() {
         </div>
 
         {/* Center: single horizontal strip — scroll on narrow desktop, never wrap */}
-        <div className="mx-1 hidden min-h-0 min-w-0 shrink-0 justify-center overflow-hidden md:flex md:px-1">
+        <div className="mx-1 hidden min-h-0 min-w-0 flex-shrink justify-center overflow-hidden lg:flex lg:px-1">
           <div
             className="flex max-w-full flex-nowrap items-center justify-center gap-x-4 overflow-x-auto overscroll-x-contain whitespace-nowrap py-0.5 font-montserrat text-[11px] font-bold uppercase tracking-[0.12em] text-textSecondary scrollbar-none sm:gap-x-5 sm:text-[13px] sm:tracking-[0.15em] lg:gap-x-6"
             style={{ WebkitOverflowScrolling: 'touch' }}
@@ -117,10 +117,10 @@ export function Navbar() {
         </div>
 
         {/* Right */}
-        <div className="flex flex-1 shrink-0 flex-nowrap items-center justify-end gap-1.5 sm:gap-2 min-w-0">
+        <div className="flex flex-1 flex-nowrap items-center justify-end gap-1.5 sm:gap-2">
           <button
             type="button"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/10 bg-white text-gray-800 transition-colors hover:bg-accentBlue touch-manipulation md:hidden"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/10 bg-white text-gray-800 transition-colors hover:bg-accentBlue touch-manipulation lg:hidden"
             aria-label="Open navigation menu"
             aria-expanded={mobileNavOpen}
             onClick={() => setMobileNavOpen(true)}
