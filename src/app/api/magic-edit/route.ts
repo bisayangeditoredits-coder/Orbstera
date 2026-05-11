@@ -158,7 +158,7 @@ Return the modified element JSON only.`;
       }
       try {
         updatedElement.src = hasClaid
-          ? await generateClaidImageUrl({ prompt: promptText, polish: true })
+          ? await generateClaidImageUrl({ prompt: promptText, polish: true, width, height })
           : await generatePollinationsImageUrl({
               prompt: promptText,
               width,

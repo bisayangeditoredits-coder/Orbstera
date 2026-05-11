@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     const polishBool = Boolean(polish);
 
     const url = hasClaid
-      ? await generateClaidImageUrl({ prompt: text, polish: polishBool })
+      ? await generateClaidImageUrl({ prompt: text, polish: polishBool, width: w, height: h })
       : await generatePollinationsImageUrl({
           prompt: text,
           width: w,

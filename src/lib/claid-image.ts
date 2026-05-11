@@ -15,6 +15,8 @@ type ClaidGenerateResponse = {
 export async function generateClaidImageUrl(params: {
   prompt: string;
   polish?: boolean;
+  width?: number;
+  height?: number;
 }): Promise<string> {
   const apiKey = process.env.CLAID_API_KEY?.trim();
   if (!apiKey) {
@@ -42,6 +44,7 @@ export async function generateClaidImageUrl(params: {
       options: {
         number_of_images: 1,
         guidance_scale,
+        ...(params.width && params.height ? { width: params.width, height: params.height } : {}),
       },
     }),
   });
