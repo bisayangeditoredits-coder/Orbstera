@@ -37,7 +37,8 @@ const TOUR_STEPS = [
   {
     targetId: 'tour-generate',
     title: 'AI Generation',
-    description: 'Describe your presentation idea and let the AI build it for you in seconds — complete with layouts, content, and AI-generated background images.',
+    description:
+      'Type a short brief into “Your Vision”, choose tone and slide count, then click Generate Presentation. The AI streams slides in realtime and auto-fills cinematic backgrounds for you.',
     icon: Play,
     position: 'left' as const,
   },

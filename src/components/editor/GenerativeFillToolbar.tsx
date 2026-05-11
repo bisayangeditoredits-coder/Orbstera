@@ -17,10 +17,10 @@ function regionToImagePixels(regionW: number, regionH: number, maxEdge = 1024, m
 }
 
 const QUICK_PROMPTS = [
-  'Minimal abstract gradient, soft studio lighting',
-  'Premium product hero on neutral backdrop',
-  'Diverse professional team, candid office',
-  'Futuristic data visualization, deep blue palette',
+  'Cinematic glassmorphism card with subtle brand gradient',
+  'Premium SaaS dashboard hero with floating analytics tiles',
+  'Diverse leadership team portrait on soft studio backdrop',
+  'Futuristic data tunnel with neon blues and clean grid',
 ];
 
 export function GenerativeFillToolbar() {
@@ -202,31 +202,39 @@ export function GenerativeFillToolbar() {
               ))}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                ref={inputRef}
-                type="text"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !busy) {
-                    e.preventDefault();
-                    runFill();
-                  }
-                }}
-                disabled={busy}
-                placeholder="e.g. soft glass morphism chart backdrop, teal accents…"
-                className="flex-1 min-w-0 h-10 rounded-xl border border-black/[0.08] bg-white px-3 text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500/40"
-              />
-              <button
-                type="button"
-                onClick={runFill}
-                disabled={!prompt.trim() || busy}
-                className="shrink-0 h-10 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-[12px] font-bold flex items-center justify-center gap-2 disabled:opacity-35 transition-colors"
-              >
-                {busy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={15} />}
-                {busy ? 'Working…' : 'Fill region'}
-              </button>
+            <div className="animated-border shadow-[0_18px_38px_-18px_rgba(15,23,42,0.45)]">
+              <div className="flex flex-col sm:flex-row gap-2 items-stretch bg-gradient-to-r from-white via-white to-sky-50/40">
+                <div className="relative flex-1 min-w-0">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !busy) {
+                        e.preventDefault();
+                        runFill();
+                      }
+                    }}
+                    disabled={busy}
+                    placeholder="Describe the missing content — lighting, subject, mood…"
+                    className="w-full h-11 rounded-2xl border border-transparent bg-transparent px-3 pr-20 text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                  />
+                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[9px] font-semibold uppercase tracking-[0.16em] text-sky-500/75">
+                    Region prompt
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={runFill}
+                  disabled={!prompt.trim() || busy}
+                  className="shrink-0 h-11 px-4 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white text-[12px] font-bold flex items-center justify-center gap-2 disabled:opacity-35 transition-colors shadow-[0_14px_30px_-18px_rgba(56,189,248,0.85)]"
+                >
+                  {busy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={15} />}
+                  {busy ? 'Working…' : 'Fill region'}
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-500 font-medium">

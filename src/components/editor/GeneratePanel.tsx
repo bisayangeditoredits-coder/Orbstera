@@ -801,7 +801,13 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         <CollapsibleSection
           title="Intelligence"
           summary={
-            mode === 'standard' ? 'Standard' : mode === 'fast' ? 'Fast' : 'Elite'
+            !isPaid
+              ? 'Standard · Ideal for most decks'
+              : mode === 'standard'
+              ? 'Standard'
+              : mode === 'fast'
+              ? 'Fast'
+              : 'Elite'
           }
           expanded={expandIntel}
           onToggle={() => setExpandIntel((v) => !v)}
@@ -811,36 +817,34 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               { value: 'standard', label: 'Standard', short: 'Std', icon: Zap, free: true },
               { value: 'fast', label: 'Fast', short: 'Fast', icon: Gauge, free: false },
               { value: 'premium', label: 'Elite', short: 'Elite', icon: Crown, free: false },
-            ].map((m) => {
-              const Icon = m.icon;
-              const isLocked = !isPaid && !m.free;
-              const isActive = mode === m.value;
-              return (
-                <button
-                  type="button"
-                  key={m.value}
-                  onClick={() => !isLocked && setMode(m.value as 'standard' | 'fast' | 'premium')}
-                  title={isLocked ? 'Upgrade to Pro to unlock' : m.label}
-                  className={`relative flex flex-row items-center gap-1.5 px-2 py-2 rounded-xl text-left transition-all border ${
-                    isLocked
-                      ? 'bg-neutral-100/50 border-black/[0.04] text-neutral-400 cursor-not-allowed'
-                      : isActive
-                      ? 'bg-white border-primary/25 text-neutral-900 shadow-[0_2px_10px_-4px_rgba(59,130,246,0.35)]'
-                      : 'bg-white border-black/[0.06] text-neutral-600 hover:border-black/10'
-                  }`}
-                >
-                  <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
-                    isActive ? 'bg-primary/10 text-primary' : 'bg-neutral-100 text-neutral-500'
-                  }`}>
-                    <Icon size={12} strokeWidth={1.75} />
-                  </div>
-                  <span className="text-[9px] font-semibold uppercase tracking-wide">{m.short}</span>
-                  {isLocked && (
-                    <Crown size={9} className="absolute top-1 right-1 text-amber-500/90" strokeWidth={1.75} />
-                  )}
-                </button>
-              );
-            })}
+            ]
+              .filter((m) => isPaid || m.free)
+              .map((m) => {
+                const Icon = m.icon;
+                const isActive = mode === m.value;
+                return (
+                  <button
+                    type="button"
+                    key={m.value}
+                    onClick={() => setMode(m.value as 'standard' | 'fast' | 'premium')}
+                    title={m.label}
+                    className={`relative flex flex-row items-center gap-1.5 px-2 py-2 rounded-xl text-left transition-all border ${
+                      isActive
+                        ? 'bg-white border-primary/25 text-neutral-900 shadow-[0_2px_10px_-4px_rgba(59,130,246,0.35)]'
+                        : 'bg-white border-black/[0.06] text-neutral-600 hover:border-black/10'
+                    }`}
+                  >
+                    <div
+                      className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
+                        isActive ? 'bg-primary/10 text-primary' : 'bg-neutral-100 text-neutral-500'
+                      }`}
+                    >
+                      <Icon size={12} strokeWidth={1.75} />
+                    </div>
+                    <span className="text-[9px] font-semibold uppercase tracking-wide">{m.short}</span>
+                  </button>
+                );
+              })}
           </div>
         </CollapsibleSection>
         {activeTab === 'create' ? (
