@@ -91,7 +91,7 @@ export function Navbar() {
         {/* Center: single horizontal strip — scroll on narrow desktop, never wrap */}
         <div className="mx-1 hidden min-h-0 min-w-0 flex-1 justify-center overflow-hidden md:flex md:px-1">
           <div
-            className="flex max-w-full flex-nowrap items-center justify-center gap-x-3 overflow-x-auto overscroll-x-contain whitespace-nowrap py-0.5 font-serif text-[10px] font-semibold uppercase tracking-[0.11em] text-textSecondary scrollbar-none sm:gap-x-4 sm:text-[11px] sm:tracking-[0.14em] lg:gap-x-5"
+            className="flex max-w-full flex-nowrap items-center justify-center gap-x-3 overflow-x-auto overscroll-x-contain whitespace-nowrap py-0.5 font-montserrat text-[10px] font-semibold uppercase tracking-[0.11em] text-textSecondary scrollbar-none sm:gap-x-4 sm:text-[11px] sm:tracking-[0.14em] lg:gap-x-5"
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
             {NAV_LINKS.map((item) => (
@@ -272,7 +272,7 @@ export function Navbar() {
               className="fixed bottom-0 right-0 top-0 z-[190] flex w-[min(100%,20rem)] max-w-[100vw] flex-col overflow-y-auto overscroll-contain bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] shadow-2xl md:hidden"
             >
               <div className="mb-6 flex items-center justify-between">
-                <span className="font-serif text-[11px] font-semibold uppercase tracking-[0.2em] text-textSecondary">
+                <span className="font-montserrat text-[11px] font-semibold uppercase tracking-[0.2em] text-textSecondary">
                   Navigate
                 </span>
                 <button
@@ -284,7 +284,7 @@ export function Navbar() {
                   <X size={20} />
                 </button>
               </div>
-              <nav className="flex flex-col gap-1 font-serif">
+              <nav className="flex flex-col gap-1 font-montserrat">
                 {NAV_LINKS.map((item) => (
                   <Link
                     key={item.href + item.label}

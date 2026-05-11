@@ -59,7 +59,7 @@ export default function MyPresentationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F7FC] text-neutral-900">
+    <div className="min-h-screen bg-gradient-to-b from-[#CDE4FF] via-white to-white text-neutral-900">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_90%_60%_at_50%_-10%,rgba(59,130,246,0.08),transparent)]" />
       <Navbar />
 
@@ -72,10 +72,10 @@ export default function MyPresentationsPage() {
             className="w-full max-w-md border border-neutral-200 bg-white p-8 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="font-serif text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/80">
+            <p className="font-montserrat text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/80">
               Remove deck
             </p>
-            <h2 className="mt-2 font-serif text-xl font-semibold tracking-tight text-neutral-950">
+            <h2 className="mt-2 font-montserrat text-xl font-semibold tracking-tight text-neutral-950">
               Delete this presentation?
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-neutral-600">
@@ -105,13 +105,13 @@ export default function MyPresentationsPage() {
       )}
 
       <main className="relative mx-auto max-w-6xl min-w-0 px-5 pb-24 pt-28 sm:px-8 sm:pt-32">
-        <header className="mb-14 border-b border-primary/10 bg-white/80 pb-12 shadow-sm backdrop-blur-sm">
-          <p className="font-serif text-[11px] font-semibold uppercase tracking-[0.22em] text-primary/90">
+        <header className="mb-14 rounded-2xl border border-primary/10 bg-white/80 px-8 pb-8 pt-8 shadow-sm backdrop-blur-sm">
+          <p className="font-montserrat text-[11px] font-semibold uppercase tracking-[0.22em] text-primary/90">
             Studio library
           </p>
           <div className="mt-4 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
-              <h1 className="font-serif text-3xl font-semibold tracking-tight text-neutral-950 sm:text-4xl">
+              <h1 className="font-montserrat text-3xl font-bold tracking-tight text-neutral-950 sm:text-4xl">
                 My presentations
               </h1>
               <p className="mt-3 max-w-xl text-sm leading-relaxed text-neutral-600">
@@ -143,7 +143,7 @@ export default function MyPresentationsPage() {
           </div>
         ) : presentations.length === 0 ? (
           <div className="border border-dashed border-primary/20 bg-white/90 px-8 py-20 text-center shadow-sm">
-            <h2 className="font-serif text-lg font-semibold text-neutral-950">No presentations yet</h2>
+            <h2 className="font-montserrat text-lg font-semibold text-neutral-950">No presentations yet</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-neutral-600">
               Generate a deck in the editor and save it—your work will show up here automatically.
             </p>
@@ -158,10 +158,10 @@ export default function MyPresentationsPage() {
           <>
             <section className="mb-20">
               <div className="mb-6">
-                <p className="font-serif text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/80">
+                <p className="font-montserrat text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/80">
                   Continue
                 </p>
-                <h2 className="mt-1 font-serif text-lg font-semibold text-neutral-950">Recently edited</h2>
+                <h2 className="mt-1 font-montserrat text-lg font-semibold text-neutral-950">Recently edited</h2>
                 <p className="mt-1 text-xs text-neutral-500">The decks you opened or saved most recently</p>
               </div>
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -181,10 +181,10 @@ export default function MyPresentationsPage() {
             <section>
               <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="font-serif text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/80">
+                  <p className="font-montserrat text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/80">
                     Library
                   </p>
-                  <h2 className="mt-1 font-serif text-lg font-semibold text-neutral-950">All saved presentations</h2>
+                  <h2 className="mt-1 font-montserrat text-lg font-semibold text-neutral-950">All saved presentations</h2>
                   <p className="mt-1 text-xs text-neutral-500">{sorted.length} total</p>
                 </div>
                 <label className="block w-full sm:max-w-xs">

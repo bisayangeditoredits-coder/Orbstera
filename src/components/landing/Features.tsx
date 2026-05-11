@@ -51,7 +51,7 @@ export function Features() {
           >
             Capabilities
           </motion.span>
-          <h2 className="text-4xl md:text-5xl font-space-grotesk font-bold mb-6 text-textMain">Uncompromising Capability</h2>
+          <h2 className="text-4xl md:text-5xl font-montserrat font-bold mb-6 text-textMain">Uncompromising Capability</h2>
           <p className="text-textSecondary text-lg max-w-2xl mx-auto text-balance leading-relaxed">
             Everything you need to produce Series-A quality pitch decks, wrapped in an interface that feels like the future.
           </p>

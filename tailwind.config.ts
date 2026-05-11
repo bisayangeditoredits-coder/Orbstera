@@ -18,7 +18,8 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ['var(--font-inter)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-montserrat)', 'var(--font-inter)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        montserrat: ['var(--font-montserrat)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         'space-grotesk': ['var(--font-space-grotesk)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         serif: ['var(--font-lora)', 'Georgia', 'Cambria', 'Times New Roman', 'serif'],
       },
