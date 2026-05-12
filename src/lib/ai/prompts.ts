@@ -7,6 +7,7 @@ Root object MUST match:
   "title": "Deck title",
   "theme": "glass-dark | industrial-minimal | tech-luxury | apple-keynote | editorial-magazine | startup-pitch | cinematic",
   "presentationType": "startup_pitch | investor_deck | business_proposal | education | product_showcase | marketing | corporate | storytelling | futuristic | timeline | portfolio | data_story",
+  "presentationDNA": "tech_startup | corporate_premium | creative_agency | education_clear | marketing_cinematic | data_story",
   "styleMode": "apple_keynote | startup_pitch | minimal_dark | corporate | futuristic | luxury | glassmorphism | bento | editorial | creative | cinematic",
   "colorPalette": ["#Background","#PrimaryText","#Accent","#SecondaryText"],
   "fontPairing": {"heading":"Font Name","body":"Font Name"},
@@ -20,34 +21,36 @@ Each slide:
 {
   "id": "unique-id",
   "type": "hero | split | media | quote | chart | stats | timeline | bullets | comparison | closing",
+  "archetype": "hero_open | problem_solution | feature_showcase | comparison | statistics | timeline | quote | image_focus | team | process_flow | vision | closing_cta | education_structure | content_support",
   "layout": "full-bleed | split-image-left | split-image-right | bento | timeline | minimal | cinematic | keynote-title | magazine",
   "title": "Short powerful headline",
   "subtitle": "Optional supporting line",
-  "bullets": ["max 5 concise points unless stats slide"],
+  "bullets": ["≤5 concise points (respect archetype density)"],
   "content": { "bullets": ["optional nested — merged with bullets"] },
   "visualStyle": "cinematic | glass | minimal | editorial",
-  "imagePrompt": "REQUIRED FOR EVERY SINGLE SLIDE. Detailed cinematic prompt for image models — mood-aligned. Cannot be empty.",
+  "imagePrompt": "ONLY when the slide benefits from AI imagery (hero pivots, emotional beats, team, selective split/media). OMIT for chart/stats/data slides and minimalist education slides.",
   "visualDirection": "composition notes",
   "backgroundStyle": "mesh-gradient | frosted-glass | radial-glow | pure-dark",
   "slideTransition": "optional per-slide; same vocabulary as defaultSlideTransition",
-  "animation": {"entrance":"fadeSlideUp|fadeSlideLeft|slideRight|zoomIn|reveal|blurIn|parallaxDrift|verticalRise|glassBlur|depthRise|typewriterWords|staggerLines|cinematicImageZoom","duration":800},
+  "animation": {"entrance":"fadeSlideUp|fadeSlideLeft|slideRight|zoomIn|reveal|blurIn|parallaxDrift|verticalRise|glassBlur|depthRise|typewriterWords|staggerLines|cinematicImageZoom|scaleSoft|fadeIn","duration":720},
   "speakerNotes": "Delivery notes",
   "chart": null
 }
 
 RULES:
+- ACT AS PREMIUM DIRECTOR: choose archetypes deliberately from storytelling phase (hook → conflict → proof → vision → close). Never random templates.
 - Never repeat the same layout 3 times in a row.
 - Never repeat the same slide "type" 3 times in a row.
-- Keep bullets ≤5 per slide; prefer whitespace over clutter.
-- CRITICAL: EVERY SINGLE SLIDE MUST HAVE AN 'imagePrompt'. Never leave it empty or null.
-- imagePrompt must stay on-brand across slides (consistent lighting/mood).
+- Keep bullets sparse; respect archetype limits (hero ≤0 bullets unless exceptional).
+- VISUAL INTELLIGENCE: chart/stats slides rely on chart + typography — no decorative imagePrompt. Quote slides are typography-first. Comparisons/timelines use imagery only when it amplifies the story.
+- NEVER use gimmicky motion in animation.entrance: NO bounceIn, glitch, flipIn, elasticScale.
 - Vary slide types for narrative rhythm (hook → tension → proof → vision → close).
-- Prefer defaultSlideTransition + slideTransition choices that feel cinematic (blurReveal, parallaxFlow, keynote, glassSwipe) where appropriate.
-- Choose animation.entrance per element gravity: hero reveals use cinematicImageZoom or blurIn; lists use staggerLines or verticalRise.
+- Prefer cinematic transitions (blurReveal, parallaxFlow, keynote, glassSwipe, crossDissolve) matched to presentationDNA — corporate/education stay subtler.
+- Choose animation.entrance: hero/blur moments → cinematicImageZoom or blurIn; lists → staggerLines or verticalRise; charts → depthRise.
 - For decks with 6+ slides, include at least 5 distinct slide types.
 - For decks with 10+ slides, include at least 7 distinct slide types.
-- Use this narrative rhythm by default unless user says otherwise:
-  1) hero/opening, 2) context/problem, 3) framework, 4) evidence/data, 5) comparison/options, 6) timeline/plan, 7) CTA/closing.
+- Default narrative spine unless user overrides:
+  1) hero_open, 2) problem_solution or education_structure, 3) feature_showcase or process_flow, 4) statistics/chart, 5) comparison, 6) timeline, 7) closing_cta.
 `;
 
 export function buildComposerSystemPrompt(preflightBlock: string): string {
@@ -62,7 +65,7 @@ ${DECK_JSON_RULES}
 ORCHESTRATION CONTEXT (automatic brief + analysis — obey absolutely):
 ${preflightBlock}
 
-Remember: JSON ONLY. Every slide needs a deliberate animation.entrance and coherent imagePrompt for the image pipeline.`;
+Remember: JSON ONLY. Every slide needs a deliberate slide-level animation.entrance. Only include imagePrompt where a cinematic visual genuinely elevates the beat — the pipeline charges per render.`;
 }
 
 export const PREFLIGHT_SYSTEM = `You are a strategic analyst. Output ONE raw JSON object only.

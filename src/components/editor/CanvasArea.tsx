@@ -27,29 +27,29 @@ function deriveGenerationUi(
       const pct = Math.round(Math.min(66, ratio * 60 + 6));
       return {
         pct,
-        label: 'Composing slides',
+        label: 'Composing slide narratives',
         stepIndex: Math.min(4, Math.max(0, Math.floor(ratio * 4))),
       };
     }
     case 'building':
-      return { pct: 71, label: 'Parsing deck JSON', stepIndex: 2 };
+      return { pct: 71, label: 'Validating presentation quality', stepIndex: 2 };
     case 'polishing':
-      return { pct: 78, label: 'Elite polish pass', stepIndex: 3 };
+      return { pct: 78, label: 'Applying cinematic polish', stepIndex: 3 };
     case 'images': {
       if (imgTot <= 0) {
-        return { pct: Math.min(99, 96), label: 'Finalizing deck', stepIndex: 4 };
+        return { pct: Math.min(99, 96), label: 'Finalizing presentation', stepIndex: 4 };
       }
       const frac = Math.max(0, Math.min(1, imgCompleted / imgTot));
       const pct = Math.round(78 + frac * 21);
       return {
         pct: Math.min(99, pct),
-        label: 'AI visuals',
+        label: 'Rendering selective visuals',
         stepIndex: 4,
       };
     }
     case 'connecting':
     default:
-      return { pct: 4, label: 'Connecting to model', stepIndex: 0 };
+      return { pct: 4, label: 'Understanding topic & strategy', stepIndex: 0 };
   }
 }
 
@@ -105,19 +105,19 @@ function GenerationLoader() {
   );
 
   const steps = [
-    { label: 'Connect', min: 0 },
-    { label: 'Compose slides', min: 1 },
-    { label: 'Parse JSON', min: 2 },
-    { label: 'Polish', min: 3 },
-    { label: 'AI visuals', min: 4 },
+    { label: 'Understand', min: 0 },
+    { label: 'Strategy', min: 1 },
+    { label: 'Structure', min: 2 },
+    { label: 'Motion polish', min: 3 },
+    { label: 'Visuals', min: 4 },
   ];
 
   const reasoningSteps = [
-    'Reading intent and emotional arc from your brief…',
-    'Shaping narrative rhythm and slide flow…',
-    'Applying layout, typography, and motion intelligence…',
-    'Tuning transitions for a keynote feel…',
-    'Locking cinematic polish before you edit…',
+    'Understanding topic and locking storytelling intent…',
+    'Building presentation strategy with pacing and DNA…',
+    'Designing slide structure from archetypes, not templates…',
+    'Applying cinematic motion and quality gates…',
+    'Rendering visuals only where they amplify the narrative…',
   ];
 
   const currentStepIndex =

@@ -138,7 +138,7 @@ export async function POST(req: Request) {
           sendOrb({
             orb: {
               phase: 'starting',
-              message: 'Preparing your presentation…',
+              message: 'Preparing narrative intelligence…',
             },
           });
 
@@ -164,7 +164,7 @@ export async function POST(req: Request) {
           sendOrb({
             orb: {
               phase: 'composing',
-              message: 'Translating the brief into slide structure and motion…',
+              message: 'Generating visuals & layouts…',
             },
           });
 
@@ -181,7 +181,7 @@ export async function POST(req: Request) {
           sendOrb({
             orb: {
               phase: 'streaming',
-              message: 'Rendering your deck…',
+              message: 'Finalizing premium presentation…',
             },
           });
 

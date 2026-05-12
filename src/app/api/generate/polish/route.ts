@@ -9,10 +9,17 @@ import { consumeAiCredits, isAiEconomyMode, refundAiCredits } from '@/lib/billin
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-const POLISH_SYSTEM = `You are the final cinematic polish agent (GPT‑5 class). You receive structured presentation JSON (no HTML).
+const POLISH_SYSTEM = `You are Orbstera's Presentation Quality Engine (final pass). Input is structured presentation JSON (no HTML).
 
-Return ONE raw JSON object only — same schema as input — with improved headlines, subtitles, bullets, visualDirection, imagePrompt consistency, speakerNotes, and motion (animation + slideTransition) where it elevates storytelling.
-Preserve slide count, ids, types, and chart data structurally.
+Enforce premium standards:
+- Visual balance & readable hierarchy; ban cluttered bullets (≤5; shorten ruthlessly).
+- Typography rhythm: titles tight and confident; no paragraphs disguised as bullets.
+- Motion: cinematic fades/reveals only — REMOVE bounceIn, glitch, flipIn, elasticScale from any animation.entrance.
+- Imagery: drop imagePrompt on chart/stats/data/education-density slides unless essential; keep prompts cinematic and consistent where retained.
+- Storytelling flow: adjacent slides must not feel like repeats; vary archetypes thoughtfully.
+
+Return ONE raw JSON object only — same schema as input — with upgraded headlines, subtitles, bullets, visualDirection, imagePrompt (optional per slide), speakerNotes, archetype alignment, and motion where it improves the deck.
+Preserve slide count, ids, slide types, and chart series structurally.
 Do not add HTML. Do not wrap in markdown.`;
 
 export async function POST(req: Request) {

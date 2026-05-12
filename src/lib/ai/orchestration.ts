@@ -1,5 +1,12 @@
 import type { PresentationData, Slide, SlideLayoutType } from '@/types';
 import { coerceSlideTransition } from '@/lib/presentationMotion';
+import { applyVisualIntelligenceToPresentation } from '@/lib/presentation/visual-intelligence';
+import { repairPresentationQuality } from '@/lib/presentation/quality-engine';
+import {
+  inferPresentationDnaId,
+  PRESENTATION_DNA_PROFILES,
+  type PresentationDnaId,
+} from '@/lib/presentation/presentation-dna';
 import { openRouterComplete, extractJsonObject } from './openrouter';
 import { PREFLIGHT_SYSTEM, buildComposerSystemPrompt } from './prompts';
 import { AGENT_MODELS } from './agent-models';
@@ -125,6 +132,7 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
     return {
       id: (obj.id as string) || `slide-${i}-${Date.now()}`,
       type,
+      archetype: typeof obj.archetype === 'string' ? obj.archetype : undefined,
       title: (obj.title as string) || '',
       subtitle: obj.subtitle as string | undefined,
       bullets: bullets.length ? bullets : undefined,
@@ -187,7 +195,23 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
     });
   }
 
-  return {
+  const rawDna = typeof input.presentationDNA === 'string' ? input.presentationDNA.trim() : '';
+  const dnaFromModel =
+    rawDna && rawDna in PRESENTATION_DNA_PROFILES ? rawDna : undefined;
+  const presentationDNA =
+    dnaFromModel ||
+    inferPresentationDnaId({
+      presentationType: String(input.presentationType || ''),
+      emotionalTone: String((input as { emotionalTone?: string }).emotionalTone || ''),
+      presentationCategory: String((input as { presentationCategory?: string }).presentationCategory || ''),
+    });
+
+  const dnaProfile =
+    presentationDNA in PRESENTATION_DNA_PROFILES
+      ? PRESENTATION_DNA_PROFILES[presentationDNA as PresentationDnaId]
+      : undefined;
+
+  let normalized: PresentationData = {
     id: (input.id as string) || undefined,
     title,
     theme: (input.theme as string) || 'industrial-minimal',
@@ -198,14 +222,15 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
       heading: (input.fontPairing as { heading?: string })?.heading || 'Space Grotesk',
       body: (input.fontPairing as { body?: string })?.body || 'Inter',
     },
-    animationStyle: (input.animationStyle as string) || 'cinematic-reveal',
+    animationStyle: (input.animationStyle as string) || dnaProfile?.defaultAnimationStyle || 'cinematic-reveal',
     defaultSlideTransition: coerceSlideTransition(input.defaultSlideTransition),
     cinematicPresenterEffects:
       typeof input.cinematicPresenterEffects === 'boolean'
         ? input.cinematicPresenterEffects
-        : undefined,
+        : dnaProfile?.cinematicPresenterEffectsDefault,
     slides,
     presentationType: input.presentationType as string | undefined,
+    presentationDNA,
     styleMode: input.styleMode as string | undefined,
     intentSummary: input.intentSummary as string | undefined,
     saveVersion: typeof (input as { saveVersion?: unknown }).saveVersion === 'number'
@@ -214,4 +239,8 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
     source: (input as { source?: PresentationData['source'] }).source,
     importMeta: (input as { importMeta?: PresentationData['importMeta'] }).importMeta,
   };
+
+  normalized = applyVisualIntelligenceToPresentation(normalized);
+  normalized = repairPresentationQuality(normalized);
+  return normalized;
 }

@@ -267,20 +267,20 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
           shapeStyle: { fill: 'rgba(255, 255, 255, 0.02)', stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 1, cornerRadius: 24 },
           animation: { entrance: 'fadeSlideRight', duration: 600, delay: 0 }
         });
-        elements.push({
-          id: imgId,
-          type: 'image',
-          src: '',
-          aiImagePending: true,
-          x: flipSplit ? 60 : 700,
-          y: 60,
-          width: 520,
-          height: CANVAS_H - 120,
-          zIndex: currentZ++,
-          visible: true,
-          animation: { entrance: 'zoomIn', duration: 800, delay: 400 },
-        });
         if (slide.imagePrompt) {
+          elements.push({
+            id: imgId,
+            type: 'image',
+            src: '',
+            aiImagePending: true,
+            x: flipSplit ? 60 : 700,
+            y: 60,
+            width: 520,
+            height: CANVAS_H - 120,
+            zIndex: currentZ++,
+            visible: true,
+            animation: { entrance: 'scaleSoft', duration: 820, delay: 400 },
+          });
           imageTasks.push({
             slideId: slide.id,
             elementId: imgId,
@@ -788,20 +788,20 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       });
       elements.push({ id: uid('el-split-bg-right'), type: 'shape', shapeType: 'rect', x: 680, y: 40, width: 560, height: CANVAS_H - 80, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.02)', stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 1, cornerRadius: 24 }, animation: { entrance: 'fadeSlideRight', duration: 600 } });
       const imgId = uid('el-image');
-      elements.push({
-        id: imgId,
-        type: 'image',
-        src: '',
-        aiImagePending: true,
-        x: 700,
-        y: 60,
-        width: 520,
-        height: CANVAS_H - 120,
-        zIndex: currentZ++,
-        visible: true,
-        animation: { entrance: 'zoomIn', duration: 800, delay: 400 },
-      });
       if (slideData.imagePrompt) {
+        elements.push({
+          id: imgId,
+          type: 'image',
+          src: '',
+          aiImagePending: true,
+          x: 700,
+          y: 60,
+          width: 520,
+          height: CANVAS_H - 120,
+          zIndex: currentZ++,
+          visible: true,
+          animation: { entrance: 'scaleSoft', duration: 820, delay: 400 },
+        });
         (async () => {
           try {
             const res = await fetch('/api/generate-image', {

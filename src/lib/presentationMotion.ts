@@ -120,6 +120,13 @@ export function coerceAnimationEntrance(raw: unknown): AnimationEntrance {
   return raw as AnimationEntrance;
 }
 
+const HARSH_ENTRANCES = new Set<AnimationEntrance>(['bounceIn', 'glitch', 'flipIn', 'elasticScale']);
+
+/** Prefer keynote-grade motion — never gimmicky entrances from legacy decks or sloppy JSON. */
+export function sanitizePremiumEntrance(entrance: AnimationEntrance): AnimationEntrance {
+  return HARSH_ENTRANCES.has(entrance) ? 'fadeSlideUp' : entrance;
+}
+
 const easeOut = [0.22, 1, 0.36, 1] as const;
 const easeInOut = [0.45, 0, 0.55, 1] as const;
 
@@ -507,9 +514,9 @@ export function finalizeSlideMotion(slide: Slide, ctx: MotionContext): Slide {
       el.animation.entrance !== undefined &&
       el.animation.entrance !== null &&
       String(el.animation.entrance).length > 0;
-    const entrance: AnimationEntrance = hasEntrance
-      ? coerceAnimationEntrance(el.animation!.entrance)
-      : suggestElementEntrance(el, slide, i, ctx);
+    const entrance: AnimationEntrance = sanitizePremiumEntrance(
+      hasEntrance ? coerceAnimationEntrance(el.animation!.entrance) : suggestElementEntrance(el, slide, i, ctx),
+    );
     const baseDur =
       el.type === 'image' && isFullBleedBackground(el)
         ? 1400

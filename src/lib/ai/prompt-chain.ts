@@ -30,7 +30,7 @@ async function step(
   }
 }
 
-const S_INTENT = `You are the lead strategist for an automatic presentation engine.
+const S_INTENT = `You are Orbstera's AI Presentation Director — creative director before any slides exist.
 
 Output ONE raw JSON object only (no markdown):
 {
@@ -39,12 +39,20 @@ Output ONE raw JSON object only (no markdown):
   "presentationCategory": "short string e.g. sales, classroom, boardroom, demo_day",
   "inferredAudience": "who will watch",
   "emotionalTone": "e.g. confident, urgent, warm, analytical",
+  "presentationDNA": "tech_startup | corporate_premium | creative_agency | education_clear | marketing_cinematic | data_story",
+  "cinematicIntensity": "low | medium | high",
+  "typographyPersonality": "one line: e.g. geometric sans + editorial restraint",
+  "pacingProfile": "fast | balanced | deliberate",
+  "storytellingStructure": "one paragraph: acts, tension/release, how the deck should feel start→finish",
+  "visualStyleDirective": "how color, imagery density, and whitespace should behave — user does NOT pick themes manually",
   "needsDeepReasoning": false,
   "promptEnhancement": "single rich paragraph: infer missing context, sharpen storytelling, pacing, and emotional arc. Same language as the user. Under 1200 characters.",
   "recommendedStyle": "apple_keynote | startup_pitch | minimal_dark | corporate | futuristic | luxury | glassmorphism | bento | editorial | creative | cinematic",
-  "visualMood": "short phrase for consistent imagery across slides",
+  "visualMood": "short phrase for consistent imagery WHEN imagery is used (many slides should have none)",
   "successCriteria": ["2-5 bullets the final deck must satisfy"]
 }
+
+Match DNA to brief (examples): startup pitch → tech_startup; enterprise/board → corporate_premium; classroom → education_clear; GTM/marketing → marketing_cinematic; KPI-heavy → data_story; agency/portfolio → creative_agency.
 
 Set needsDeepReasoning to true ONLY if the deck needs heavy technical, mathematical, analytics, startup strategy, scientific, or legal-style argumentation. Otherwise false (most decks).
 
@@ -52,19 +60,27 @@ promptEnhancement must feel like the user is deeply understood — do not merely
 
 const S_STRUCTURE = `You architect slide-by-slide narrative structure for a premium deck.
 
-You receive: the user's ask, parameters, and analyst JSON from a prior step.
+You receive: the user's ask, parameters, and Presentation Director JSON from a prior step.
 
 Output ONE raw JSON only (no markdown):
 {
   "acts": [{"name": "act label", "beats": ["beat strings"]}],
   "slideSpine": [
-    { "index": 1, "typeHint": "hero|split|content|quote|stats|closing|...", "headlineAngle": "what this slide must convey", "supportingPoints": ["up to 4 short notes"] }
+    {
+      "index": 1,
+      "typeHint": "hero|split|content|quote|stats|chart|timeline|comparison|closing|...",
+      "archetype": "hero_open | problem_solution | feature_showcase | comparison | statistics | timeline | quote | image_focus | team | process_flow | vision | closing_cta | education_structure | content_support",
+      "headlineAngle": "what this slide must convey",
+      "supportingPoints": ["up to 4 short notes"],
+      "visualIntent": "none | hero_visual | supporting_photo | chart_only | diagram"
+    }
   ],
-  "flowNotes": "how tension and release should move across the deck",
-  "toneGuardrails": "what to avoid / voice consistency"
+  "flowNotes": "how tension, pacingProfile, and cinematicIntensity land across slides",
+  "toneGuardrails": "what to avoid / voice consistency / clutter bans"
 }
 
-The slideSpine array MUST have exactly as many objects as the requested slide count (indices 1..N). Same language as the user.`;
+The slideSpine array MUST have exactly as many objects as the requested slide count (indices 1..N). Same language as the user.
+Every slide MUST include a deliberate archetype aligned to storytelling phase — no random layouts.`;
 
 const S_REASON = `You are a strategic reasoning engine for a high-stakes deck.
 Output plain text (max 700 words): angles, proof, risks, persuasion logic, and how slides should land. No JSON, no markdown fences.`;
@@ -102,6 +118,12 @@ function buildPreflightSummary(
     presentationType: intent.presentationType,
     detectedIntent: intent.intentSummary,
     recommendedStyle: intent.recommendedStyle,
+    presentationDNA: intent.presentationDNA,
+    cinematicIntensity: intent.cinematicIntensity,
+    typographyPersonality: intent.typographyPersonality,
+    pacingProfile: intent.pacingProfile,
+    storytellingStructure: intent.storytellingStructure,
+    visualStyleDirective: intent.visualStyleDirective,
     inferredAudience: intent.inferredAudience,
     emotionalTone: intent.emotionalTone,
     visualMood: intent.visualMood,
@@ -128,7 +150,7 @@ export async function runOpenRouterOrchestration(
 ): Promise<{ dossierText: string; refinedBrief: string; preflightSummary: string }> {
   const baseCtx = `Original user request:\n${rawUserPrompt}\n\nParameters: exactly ${meta.slideCount} slides, tone=${meta.tone}, language=${meta.language}.`;
 
-  onProgress?.('understanding', 'Understanding your vision…');
+  onProgress?.('understanding', 'Understanding topic…');
   const intentOut = await step(
     appUrl,
     routing.intentModel,
@@ -146,7 +168,7 @@ export async function runOpenRouterOrchestration(
 
   let reasonOut = '';
   if (routing.allowDeepSeek && intentWantsDeep) {
-    onProgress?.('reasoning', 'Adding strategic depth…');
+    onProgress?.('reasoning', 'Building presentation strategy…');
     reasonOut = await step(
       appUrl,
       AGENT_MODELS.deepseekReason,
@@ -156,10 +178,10 @@ export async function runOpenRouterOrchestration(
       0.35
     );
   } else {
-    onProgress?.('reasoning', 'Skipping deep reasoning — fast path.');
+    onProgress?.('reasoning', 'Strategy locked — fast path.');
   }
 
-  onProgress?.('structure', 'Structuring slides and flow…');
+  onProgress?.('structure', 'Designing slide structure…');
   const structOut = await step(
     appUrl,
     routing.structureModel,
@@ -191,7 +213,7 @@ export async function runOpenRouterOrchestration(
     `MASTER_BRIEF_FOR_COMPOSER:\n${refinedBrief}`,
   ].join('\n\n');
 
-  onProgress?.('synthesis', 'Brief locked — composing deck…');
+  onProgress?.('synthesis', 'Applying cinematic motion rules…');
 
   return { dossierText, refinedBrief, preflightSummary };
 }

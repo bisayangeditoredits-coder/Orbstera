@@ -142,6 +142,8 @@ export interface SlideContentBlock {
 export interface Slide {
   id: string;
   type: SlideLayoutType;
+  /** Premium structure id from Slide Archetype System (composer-chosen). */
+  archetype?: string;
   title: string;
   subtitle?: string;
   bullets?: string[];
@@ -190,6 +192,8 @@ export interface PresentationData {
   updatedAt?: string;
   /** AI-detected deck archetype */
   presentationType?: string;
+  /** Automatic typography / motion / spacing identity (Presentation DNA). */
+  presentationDNA?: string;
   /** UI / export style preset */
   styleMode?: string;
   intentSummary?: string;
