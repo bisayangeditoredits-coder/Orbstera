@@ -29,15 +29,30 @@ const THEMES = [
   { name: 'Arctic',    palette: ['#F8FAFC', '#0F172A', '#0EA5E9', '#E0F2FE'], preview: ['#F8FAFC', '#0EA5E9'] },
 ];
 
-// ── Font pairings ─────────────────────────────────────────────────────────────
-const FONT_PAIRINGS = [
-  { name: 'Modern',    heading: 'Space Grotesk', body: 'Inter'       },
-  { name: 'Editorial', heading: 'Playfair Display', body: 'Lato'     },
-  { name: 'Tech',      heading: 'JetBrains Mono', body: 'Inter'      },
-  { name: 'Classic',   heading: 'Georgia', body: 'Palatino Linotype' },
-  { name: 'Bold',      heading: 'Outfit', body: 'Roboto'             },
-  { name: 'Minimal',   heading: 'DM Sans', body: 'DM Sans'           },
-];
+// ── Massive Google Fonts Library ──────────────────────────────────────────────
+const GOOGLE_FONTS = [
+  'Inter', 'Space Grotesk', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Oswald', 'Source Sans Pro', 'Raleway', 'PT Sans',
+  'Merriweather', 'Roboto Condensed', 'Lora', 'Ubuntu', 'Playfair Display', 'Nunito', 'Poppins', 'Arimo', 'Titillium Web',
+  'Muli', 'PT Serif', 'Nunito Sans', 'Fira Sans', 'Noto Sans', 'Dosis', 'Quicksand', 'Inconsolata', 'Crimson Text', 'Karla',
+  'Rubik', 'Mukta', 'Work Sans', 'Varela Round', 'Cabin', 'Oxygen', 'Anton', 'Bitter', 'Abel', 'Fjalla One', 'Hind',
+  'Josefin Sans', 'Libre Baskerville', 'Signika', 'Arvo', 'Asap', 'Dancing Script', 'Pacifico', 'Teko', 'Bebas Neue',
+  'Caveat', 'Indie Flower', 'Righteous', 'Permanent Marker', 'Cinzel', 'Alfa Slab One', 'Courgette', 'Fredoka One',
+  'Lobster', 'Amatic SC', 'Kalam', 'Great Vibes', 'Questrial', 'Rokkitt', 'Vollkorn', 'Yeseva One', 'Zilla Slab',
+  'Alegreya', 'Barlow', 'Cairo', 'Cormorant Garamond', 'Exo 2', 'Heebo', 'IBM Plex Sans', 'Jura', 'Kanit', 'Noto Serif',
+  'Orbitron', 'Prompt', 'Saira', 'JetBrains Mono', 'Outfit', 'DM Sans', 'Manrope', 'Plus Jakarta Sans', 'Syne',
+  'Lora', 'Noto Sans JP', 'Noto Sans KR', 'Mukta', 'Hind Siliguri', 'Hind Madurai'
+].sort();
+
+// Component to dynamically load Google Fonts
+function FontLoader({ fonts }: { fonts: string[] }) {
+  const uniqueFonts = Array.from(new Set(fonts.filter(Boolean)));
+  if (uniqueFonts.length === 0) return null;
+  
+  const familyString = uniqueFonts.map(f => `family=${f.replace(/ /g, '+')}:wght@300;400;500;600;700;800`).join('&');
+  const url = `https://fonts.googleapis.com/css2?${familyString}&display=swap`;
+  
+  return <link href={url} rel="stylesheet" />;
+}
 
 // ── Color swatch editor ───────────────────────────────────────────────────────
 const PALETTE_LABELS = ['Background', 'Text', 'Accent', 'Secondary'];
@@ -71,12 +86,18 @@ export function DesignPanel() {
     updatePresentation({ colorPalette: theme.palette });
   };
 
-  const applyFont = (pair: typeof FONT_PAIRINGS[0]) => {
-    updatePresentation({ fontPairing: { heading: pair.heading, body: pair.body } });
+  const updateFont = (type: 'heading' | 'body', font: string) => {
+    updatePresentation({ 
+      fontPairing: { 
+        ...fontPairing, 
+        [type]: font 
+      } 
+    });
   };
 
   return (
     <div className="flex flex-col h-full min-h-0 min-w-0 overflow-hidden">
+      <FontLoader fonts={[fontPairing.heading, fontPairing.body]} />
       {/* Header */}
       <div className="shrink-0 px-6 pt-6 pb-4 border-b border-black/[0.06]">
         <div className="flex items-center gap-2 mb-1">
@@ -236,39 +257,55 @@ export function DesignPanel() {
           </div>
         )}
 
-        {/* ── Font pairings ─────────────────────────────────────────── */}
+        {/* ── Typography & Fonts ─────────────────────────────────────────── */}
         {activeTab === 'fonts' && (
-          <div className="space-y-2 pt-2">
-            <p className="text-[10px] font-bold text-black/30 uppercase tracking-widest mb-3">Font Pairings</p>
-            {FONT_PAIRINGS.map((pair) => {
-              const active =
-                fontPairing.heading === pair.heading && fontPairing.body === pair.body;
-              return (
-                <button
-                  key={pair.name}
-                  onClick={() => applyFont(pair)}
-                  className={`w-full flex items-center justify-between gap-3 p-3 rounded-xl border-2 transition-all text-left ${
-                    active
-                      ? 'border-primary bg-primary/[0.03]'
-                      : 'border-black/[0.05] hover:border-black/10'
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <p className={`text-[13px] font-bold truncate ${active ? 'text-primary' : 'text-black/80'}`}>
-                      {pair.name}
-                    </p>
-                    <p className="text-[10px] text-black/35 mt-0.5 truncate">
-                      {pair.heading} / {pair.body}
-                    </p>
-                  </div>
-                  {active && <Check size={15} className="text-primary shrink-0" />}
-                </button>
-              );
-            })}
+          <div className="space-y-4 pt-2">
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 mb-2 flex items-start gap-2">
+              <Sparkles size={14} className="text-primary shrink-0 mt-0.5" />
+              <p className="text-[10px] text-primary/80 font-semibold leading-relaxed">
+                Unlock thousands of free Google Fonts. Changes apply instantly to your canvas.
+              </p>
+            </div>
 
+            <div>
+              <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest block mb-2">
+                Heading Font
+              </label>
+              <select
+                value={fontPairing.heading}
+                onChange={(e) => updateFont('heading', e.target.value)}
+                className="w-full bg-white border border-black/10 rounded-xl px-3 py-2.5 text-[12px] font-semibold text-black/80 shadow-sm focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all cursor-pointer"
+                style={{ fontFamily: fontPairing.heading }}
+              >
+                {GOOGLE_FONTS.map(font => (
+                  <option key={font} value={font} style={{ fontFamily: font }}>
+                    {font}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold text-black/40 uppercase tracking-widest block mb-2">
+                Body Font
+              </label>
+              <select
+                value={fontPairing.body}
+                onChange={(e) => updateFont('body', e.target.value)}
+                className="w-full bg-white border border-black/10 rounded-xl px-3 py-2.5 text-[12px] font-semibold text-black/80 shadow-sm focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all cursor-pointer"
+                style={{ fontFamily: fontPairing.body }}
+              >
+                {GOOGLE_FONTS.map(font => (
+                  <option key={font} value={font} style={{ fontFamily: font }}>
+                    {font}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
             <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-100">
               <p className="text-[10px] text-amber-700 font-semibold leading-relaxed">
-                Font changes affect new AI-generated elements. Apply via <span className="font-black">Regenerate</span> to update all slides.
+                Font changes affect new AI-generated elements automatically.
               </p>
             </div>
           </div>

@@ -26,10 +26,11 @@ function ElementNode({
 }: {
   el: SlideElement;
   isSelected: boolean;
-  onSelect: () => void;
   onChange: (updates: Partial<SlideElement>) => void;
   stageRef: React.RefObject<Konva.Stage>;
   activeTool: string;
+  isEditingText: boolean;
+  onDblClickText: () => void;
 }) {
   const shapeRef = useRef<Konva.Node>(null);
   const trRef    = useRef<Konva.Transformer>(null);
@@ -121,9 +122,14 @@ function ElementNode({
     rotation: el.rotation || 0,
     opacity:  el.opacity ?? 1,
     draggable: isDrawingTool ? false : !el.locked,
-    listening: !isDrawingTool,
     onClick: onSelect,
     onTap:   onSelect,
+    onDblClick: () => {
+      if (el.type === 'text' && !el.locked && !isDrawingTool) onDblClickText();
+    },
+    onDblTap: () => {
+      if (el.type === 'text' && !el.locked && !isDrawingTool) onDblClickText();
+    },
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
       onChange({ x: e.target.x(), y: e.target.y() });
     },
@@ -144,11 +150,11 @@ function ElementNode({
   };
 
   const renderShape = () => {
-    if (el.type === 'text') {
       return (
         <Text
           ref={shapeRef as React.RefObject<Konva.Text>}
           {...commonProps}
+          opacity={isEditingText ? 0 : (el.opacity ?? 1)}
           text={el.content || ''}
           fontFamily={el.textStyle?.fontFamily || 'Inter'}
           fontSize={el.textStyle?.fontSize || 24}
@@ -481,6 +487,7 @@ function SlideBackground({ colors, bgImageUrl }: { colors: string[], bgImageUrl?
 export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
   const stageRef = useRef<Konva.Stage>(null);
   const [drawingRect, setDrawingRect] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
   
   const {
     presentation,
@@ -497,8 +504,12 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') selectElement(null);
+      if (e.key === 'Escape') {
+        selectElement(null);
+        setEditingTextId(null);
+      }
       if ((e.key === 'Delete' || e.key === 'Backspace') && editor.selectedElementId && slide) {
+        if (editingTextId) return; // Do not delete node if editing text
         if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
         removeElement(slide.id, editor.selectedElementId);
         selectElement(null);
@@ -506,7 +517,7 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [editor.selectedElementId, slide, selectElement, removeElement]);
+  }, [editor.selectedElementId, slide, selectElement, removeElement, editingTextId]);
 
   const handleStageClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     if (editor.activeTool !== 'select') return;
@@ -590,6 +601,7 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
           backgroundColor: '#000',
           cursor:          editor.activeTool === 'gen-fill' ? 'crosshair' : 'default',
           pointerEvents:   'auto',
+          position:        'relative',
         }}
       >
         <Stage
@@ -608,7 +620,6 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
               colors={presentation.colorPalette || ['#05050A', '#38BDF8']}
               bgImageUrl={bgEl?.src}
             />
-            {elements.map((el) => (
               <ElementNode
                 key={el.id}
                 el={el}
@@ -617,6 +628,8 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
                 onChange={(updates) => updateElement(slide.id, el.id, updates)}
                 stageRef={stageRef}
                 activeTool={editor.activeTool}
+                isEditingText={editingTextId === el.id}
+                onDblClickText={() => setEditingTextId(el.id)}
               />
             ))}
             {drawingRect && (() => {
@@ -664,6 +677,45 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
             })()}
           </Layer>
         </Stage>
+
+        {/* Text Editing Overlay */}
+        {editingTextId && slide.elements?.map(el => {
+          if (el.id !== editingTextId || el.type !== 'text') return null;
+          return (
+            <textarea
+              key="text-editor"
+              autoFocus
+              value={el.content || ''}
+              onChange={(e) => updateElement(slide.id, el.id, { content: e.target.value })}
+              onBlur={() => setEditingTextId(null)}
+              style={{
+                position: 'absolute',
+                top: el.y,
+                left: el.x,
+                width: Math.max(el.width, 100),
+                height: Math.max(el.height, 50),
+                fontSize: `${el.textStyle?.fontSize || 24}px`,
+                fontFamily: el.textStyle?.fontFamily || 'Inter',
+                fontWeight: el.textStyle?.fontWeight || 'normal',
+                fontStyle: el.textStyle?.fontStyle || 'normal',
+                color: el.textStyle?.color || '#fff',
+                textAlign: (el.textStyle?.textAlign as any) || 'left',
+                lineHeight: el.textStyle?.lineHeight || 1.4,
+                letterSpacing: `${el.textStyle?.letterSpacing || 0}px`,
+                background: 'transparent',
+                border: '1px dashed #38BDF8',
+                outline: 'none',
+                resize: 'none',
+                padding: 0,
+                margin: 0,
+                overflow: 'visible',
+                transform: `rotate(${el.rotation || 0}deg)`,
+                transformOrigin: 'top left',
+                zIndex: 1000,
+              }}
+            />
+          );
+        })}
       </div>
     </div>
   );

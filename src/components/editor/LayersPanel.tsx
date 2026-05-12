@@ -11,6 +11,20 @@ import {
 import { SlideElement } from '@/types';
 import { ColorPicker } from './ColorPicker';
 
+// ── Massive Google Fonts Library ──────────────────────────────────────────────
+const GOOGLE_FONTS = [
+  'Inter', 'Space Grotesk', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Oswald', 'Source Sans Pro', 'Raleway', 'PT Sans',
+  'Merriweather', 'Roboto Condensed', 'Lora', 'Ubuntu', 'Playfair Display', 'Nunito', 'Poppins', 'Arimo', 'Titillium Web',
+  'Muli', 'PT Serif', 'Nunito Sans', 'Fira Sans', 'Noto Sans', 'Dosis', 'Quicksand', 'Inconsolata', 'Crimson Text', 'Karla',
+  'Rubik', 'Mukta', 'Work Sans', 'Varela Round', 'Cabin', 'Oxygen', 'Anton', 'Bitter', 'Abel', 'Fjalla One', 'Hind',
+  'Josefin Sans', 'Libre Baskerville', 'Signika', 'Arvo', 'Asap', 'Dancing Script', 'Pacifico', 'Teko', 'Bebas Neue',
+  'Caveat', 'Indie Flower', 'Righteous', 'Permanent Marker', 'Cinzel', 'Alfa Slab One', 'Courgette', 'Fredoka One',
+  'Lobster', 'Amatic SC', 'Kalam', 'Great Vibes', 'Questrial', 'Rokkitt', 'Vollkorn', 'Yeseva One', 'Zilla Slab',
+  'Alegreya', 'Barlow', 'Cairo', 'Cormorant Garamond', 'Exo 2', 'Heebo', 'IBM Plex Sans', 'Jura', 'Kanit', 'Noto Serif',
+  'Orbitron', 'Prompt', 'Saira', 'JetBrains Mono', 'Outfit', 'DM Sans', 'Manrope', 'Plus Jakarta Sans', 'Syne',
+  'Lora', 'Noto Sans JP', 'Noto Sans KR', 'Mukta', 'Hind Siliguri', 'Hind Madurai'
+].sort();
+
 function ElementIcon({ type }: { type: SlideElement['type'] }) {
   switch (type) {
     case 'text':  return <Type      size={11} className="text-primary" />;
@@ -69,6 +83,23 @@ function PropertyEditor({ element, slideId }: { element: SlideElement; slideId: 
             rows={2}
             placeholder="Text content..."
           />
+
+          {/* Font Selector */}
+          <div className="bg-white px-3 py-2 rounded-2xl border border-black/[0.05] shadow-[0_1px_0_rgba(255,255,255,0.9)_inset]">
+            <label className="text-[7px] font-black text-black/25 uppercase tracking-[0.2em] mb-1 block">Font Family</label>
+            <select
+              value={ts.fontFamily || 'Inter'}
+              onChange={(e) => upd({ textStyle: { ...ts, fontFamily: e.target.value } })}
+              className="w-full bg-transparent text-[12px] font-semibold text-black focus:outline-none cursor-pointer"
+              style={{ fontFamily: ts.fontFamily || 'Inter' }}
+            >
+              {GOOGLE_FONTS.map(font => (
+                <option key={font} value={font} style={{ fontFamily: font }}>
+                  {font}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* Size + Align */}
           <div className="grid grid-cols-2 gap-2">

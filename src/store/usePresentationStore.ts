@@ -570,7 +570,19 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     set((state) => ({ editor: { ...state.editor, ...updates } })),
 
   selectElement: (id) =>
-    set((state) => ({ editor: { ...state.editor, selectedElementId: id } })),
+    set((state) => {
+      const updates: Partial<PresentationStore> = { 
+        editor: { ...state.editor, selectedElementId: id } 
+      };
+      // Auto-open layers panel to show properties when an element is selected
+      if (id !== null) {
+        updates.isPanelOpen = true;
+        if (state.activePanel !== 'layers') {
+          updates.activePanel = 'layers';
+        }
+      }
+      return updates;
+    }),
 
   history: [],
   historyIndex: -1,
