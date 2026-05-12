@@ -621,6 +621,7 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
               colors={presentation.colorPalette || ['#05050A', '#38BDF8']}
               bgImageUrl={bgEl?.src}
             />
+            {elements.map((el) => (
               <ElementNode
                 key={el.id}
                 el={el}
