@@ -493,7 +493,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
                   onClick={handleCheckout}
                   className="w-full min-h-12 py-3 rounded-xl bg-primary text-white font-bold text-[15px] hover:bg-primary/90 transition-all active:scale-[0.97] flex items-center justify-center gap-2 touch-manipulation"
                 >
-                  Pay $1.49 once
+                  Pay ₱30 once
                 </button>
                 <button
                   onClick={startExport}

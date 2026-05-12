@@ -1,13 +1,14 @@
 "use client";
 
-import { Check, X, Crown, Zap, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
-import { useState } from 'react';
+import { Check, X, Crown, Zap, Sparkles, ArrowRight, ShieldCheck, Globe } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { createClient } from '@/lib/supabase';
 
 const tiers = [
   {
     name: 'Free',
-    price: '$0',
+    prices: { USD: '$0', PHP: '₱0' },
     period: null,
     description: 'Start building presentations instantly — no credit card required.',
     badge: null,
@@ -23,14 +24,13 @@ const tiers = [
       { text: 'Higher monthly generation limits', included: false },
       { text: 'Longer decks (25+ slides)', included: false },
     ],
-    buttonText: 'Get Started Free',
     href: '/login',
     popular: false,
     planId: 'free',
   },
   {
     name: 'Student Pro',
-    price: '$5',
+    prices: { USD: '$5', PHP: '₱285' },
     period: '/month',
     description: 'The best value for students, freelancers & emerging creators who need real power.',
     badge: 'Most Popular',
@@ -45,14 +45,13 @@ const tiers = [
       { text: 'Cinematic slide imagery generated in the background', included: true },
       { text: 'Priority generation speed', included: true },
     ],
-    buttonText: 'Upgrade Now',
     href: '#',
     popular: true,
     planId: 'student_pro',
   },
   {
     name: 'Creator Pro',
-    price: '$19',
+    prices: { USD: '$19', PHP: '₱1,080' },
     period: '/month',
     description: 'Built for agencies, teachers & power users who live and breathe presentations.',
     badge: 'Best Value',
@@ -67,7 +66,6 @@ const tiers = [
       { text: 'Highest priority rendering queue', included: true },
       { text: 'Priority support', included: true },
     ],
-    buttonText: 'Upgrade Now',
     href: '#',
     popular: false,
     planId: 'creator_pro',
@@ -76,11 +74,30 @@ const tiers = [
 
 export function Pricing() {
   const [loading, setLoading] = useState<string | null>(null);
+  const [currency, setCurrency] = useState<'USD' | 'PHP'>('USD');
+  const [currentPlan, setCurrentPlan] = useState<string>('free');
+
+  useEffect(() => {
+    async function fetchUserPlan() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single();
+          if (profile?.plan) {
+            setCurrentPlan(profile.plan.toLowerCase());
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching plan', err);
+      }
+    }
+    fetchUserPlan();
+  }, []);
 
   const handleCheckout = async (tier: any) => {
     if (tier.planId === 'free') return;
     
-    // Check if user is logged in (you can also pass user as a prop to this component)
     setLoading(tier.planId);
     try {
       const res = await fetch('/api/dodo/checkout', {
@@ -110,7 +127,7 @@ export function Pricing() {
 
   return (
     <section id="pricing" className="w-full py-16 sm:py-24 md:py-32 px-4 sm:px-6 bg-[#F8FAFC] text-slate-900 relative overflow-x-clip">
-      {/* Background: static on mobile, Lottie on md+ */}
+      {/* Background */}
       <div 
         className="absolute top-0 left-0 right-0 h-full z-0 pointer-events-none overflow-hidden"
         style={{ 
@@ -135,30 +152,79 @@ export function Pricing() {
       <div className="max-w-7xl mx-auto relative z-10 w-full min-w-0">
         <div className="text-center mb-12 sm:mb-20 px-1">
           <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-4 sm:mb-6 text-slate-900 text-balance">Fair Pricing, Real Power.</h2>
-          <p className="text-slate-500 text-base sm:text-lg">Choose the plan that fits your vision.</p>
+          <p className="text-slate-500 text-base sm:text-lg mb-8">Choose the plan that fits your vision.</p>
+          
+          {/* Currency Toggle */}
+          <div className="inline-flex items-center gap-1 bg-white border border-slate-200 p-1.5 rounded-full shadow-sm">
+            <button
+              onClick={() => setCurrency('USD')}
+              className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${currency === 'USD' ? 'bg-primary text-white shadow-md' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+            >
+              USD ($)
+            </button>
+            <button
+              onClick={() => setCurrency('PHP')}
+              className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${currency === 'PHP' ? 'bg-primary text-white shadow-md' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+            >
+              PHP (₱)
+            </button>
+          </div>
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-8">
-          {tiers.map((tier, i) => (
-            <div key={i} className="bg-white p-6 sm:p-8 rounded-[24px] sm:rounded-[32px] border border-slate-200 shadow-sm flex flex-col min-w-0">
-              <h3 className="text-xl font-bold mb-4">{tier.name}</h3>
-              <div className="text-4xl font-black mb-6">{tier.price}<span className="text-sm text-slate-400">{tier.period}</span></div>
-              <ul className="space-y-4 mb-8 flex-1">
-                {tier.features.map((f, j) => (
-                  <li key={j} className="flex items-center gap-2 text-sm text-slate-600">
-                    {f.included ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-slate-300" />}
-                    {f.text}
-                  </li>
-                ))}
-              </ul>
-              <button 
-                onClick={() => tier.planId === 'free' ? window.location.href = tier.href : handleCheckout(tier)}
-                disabled={loading === tier.planId}
-                className="w-full py-4 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-colors"
-              >
-                {loading === tier.planId ? 'Loading...' : tier.buttonText}
-              </button>
-            </div>
-          ))}
+          {tiers.map((tier, i) => {
+            const isCurrentPlan = currentPlan === tier.planId;
+            const displayPrice = tier.prices[currency];
+
+            return (
+              <div key={i} className={`bg-white p-6 sm:p-8 rounded-[24px] sm:rounded-[32px] border ${isCurrentPlan ? 'border-primary ring-2 ring-primary/20' : 'border-slate-200'} shadow-sm flex flex-col min-w-0 relative overflow-hidden`}>
+                
+                {isCurrentPlan && (
+                  <div className="absolute top-0 inset-x-0 h-1.5 bg-primary" />
+                )}
+
+                <h3 className="text-xl font-bold mb-4 flex items-center justify-between">
+                  {tier.name}
+                  {tier.badge && !isCurrentPlan && (
+                    <span className="text-[10px] uppercase tracking-widest font-bold bg-amber-100 text-amber-700 px-3 py-1 rounded-full">
+                      {tier.badge}
+                    </span>
+                  )}
+                </h3>
+                
+                <div className="text-4xl font-black mb-6">
+                  {displayPrice}<span className="text-sm text-slate-400">{tier.period}</span>
+                </div>
+                
+                <ul className="space-y-4 mb-8 flex-1">
+                  {tier.features.map((f, j) => (
+                    <li key={j} className="flex items-center gap-2 text-sm text-slate-600">
+                      {f.included ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-slate-300" />}
+                      {f.text}
+                    </li>
+                  ))}
+                </ul>
+                
+                {isCurrentPlan ? (
+                  <button 
+                    disabled
+                    className="w-full py-4 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-2xl font-bold flex items-center justify-center gap-2"
+                  >
+                    <ShieldCheck size={18} />
+                    Your Current Plan
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => tier.planId === 'free' ? window.location.href = tier.href : handleCheckout(tier)}
+                    disabled={loading === tier.planId}
+                    className="w-full py-4 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-colors"
+                  >
+                    {loading === tier.planId ? 'Loading...' : tier.planId === 'free' ? 'Get Started Free' : 'Upgrade Now'}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>

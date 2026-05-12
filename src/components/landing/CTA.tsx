@@ -3,23 +3,38 @@ import { ArrowRight } from 'lucide-react';
 
 export function CTA() {
   return (
-    <section className="w-full py-32 px-6 relative overflow-hidden flex items-center justify-center min-h-[60vh]">
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-surface to-background z-0" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl aspect-square bg-primary/20 rounded-full blur-[200px] z-0" />
-      
-      <div className="relative z-10 w-full max-w-4xl mx-auto text-center glass-panel p-12 md:p-20 rounded-3xl border border-white/10 shadow-2xl">
-        <h2 className="text-4xl md:text-6xl font-space-grotesk font-bold mb-6 text-balance">
-          Ready to build your best presentation?
+    <section className="w-full relative overflow-hidden bg-[#0A0A0A] text-white py-32 px-6 mt-10 rounded-t-[3rem] shadow-[0_-20px_60px_rgba(0,0,0,0.05)] border-t border-white/5">
+      {/* Background Decor */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(71,59,240,0.15)_0%,transparent_70%)] pointer-events-none" />
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-50" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:32px_32px]" />
+
+      <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center text-center">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 mb-8 backdrop-blur-md">
+          <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
+          <span className="text-xs font-bold tracking-widest uppercase text-white/80">System Ready</span>
+        </div>
+        
+        <h2 className="text-5xl md:text-7xl font-extrabold mb-8 tracking-tighter leading-[1.1]">
+          Stop building slides.<br />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-primary to-indigo-400">
+            Start directing them.
+          </span>
         </h2>
-        <p className="text-xl text-textMuted mb-10 max-w-2xl mx-auto">
-          Join thousands of professionals who have upgraded their workflow with Orbstera AI.
+        
+        <p className="text-xl md:text-2xl text-white/50 mb-12 max-w-2xl font-medium tracking-tight">
+          Join the next generation of creative professionals using Orbstera AI to generate cinematic, investor-grade presentations in seconds.
         </p>
         
-        <div className="flex flex-col md:flex-row justify-center gap-4 w-full max-w-md mx-auto">
-          <Link href="/editor" className="group relative flex items-center justify-center gap-3 px-12 py-5 bg-accent-gradient text-white rounded-full font-bold overflow-hidden transition-all shadow-[0_15px_45px_-10px_rgba(71,59,240,0.5)] hover:shadow-[0_25px_60px_-10px_rgba(71,59,240,0.6)] hover:-translate-y-1 active:scale-95">
-            <span className="relative z-10 text-lg">Start Creating</span>
-            <ArrowRight size={22} className="relative z-10 group-hover:translate-x-1.5 transition-transform" />
-            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+          <Link href="/editor" className="group relative flex items-center justify-center gap-3 px-10 py-5 bg-white text-black rounded-full font-bold overflow-hidden transition-all hover:scale-105 active:scale-95 w-full sm:w-auto">
+            <span className="relative z-10 text-lg tracking-tight">Generate Free Presentation</span>
+            <ArrowRight size={20} className="relative z-10 group-hover:translate-x-1 transition-transform" />
+            <div className="absolute inset-0 bg-neutral-200 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </Link>
+          
+          <Link href="/templates" className="group flex items-center justify-center gap-3 px-10 py-5 bg-white/5 text-white border border-white/10 rounded-full font-bold transition-all hover:bg-white/10 w-full sm:w-auto">
+            <span className="text-lg tracking-tight">Browse Templates</span>
           </Link>
         </div>
       </div>
