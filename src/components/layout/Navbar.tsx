@@ -124,13 +124,12 @@ export function Navbar() {
             </Link>
           </div>
 
-          {/* Center: shrinks first — pill scrolls horizontally instead of crushing the right cluster */}
+          {/* Center: shrinks first — pill clips overflow (no horizontal scrollbar) */}
           <div className="relative z-10 hidden min-w-0 max-w-full justify-center md:flex md:justify-self-center">
             <div
               role="navigation"
               aria-label="Site sections"
-              className="flex w-full max-w-full items-center justify-center gap-x-0.5 overflow-x-auto rounded-full border border-slate-200/70 bg-slate-50/90 px-1 py-1 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] sm:gap-x-1 sm:px-2 sm:py-1.5 md:max-w-[min(100%,52rem)] md:gap-x-1.5 md:justify-start lg:justify-center lg:gap-x-2"
-              style={{ WebkitOverflowScrolling: 'touch' }}
+              className="flex w-full max-w-full min-w-0 items-center justify-center gap-x-0.5 overflow-x-hidden rounded-full border border-slate-200/70 bg-slate-50/90 px-1 py-1 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] sm:gap-x-1 sm:px-2 sm:py-1.5 md:max-w-[min(100%,52rem)] md:gap-x-1.5 md:justify-start lg:justify-center lg:gap-x-2"
             >
               {NAV_LINKS.map((item) => (
                 <Link key={item.href} href={item.href} className={linkClass}>
