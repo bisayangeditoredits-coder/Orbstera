@@ -4,6 +4,7 @@ import { Check, X, Crown, Zap, Sparkles, ArrowRight, ShieldCheck, Globe } from '
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { createClient } from '@/lib/supabase';
+import { SpotlightCard } from '@/components/ui/SpotlightCard';
 
 const tiers = [
   {
@@ -177,7 +178,7 @@ export function Pricing() {
             const displayPrice = tier.prices[currency];
 
             return (
-              <div key={i} className={`bg-white p-6 sm:p-8 rounded-[24px] sm:rounded-[32px] border ${isCurrentPlan ? 'border-primary ring-2 ring-primary/20' : 'border-slate-200'} shadow-sm flex flex-col min-w-0 relative overflow-hidden`}>
+              <SpotlightCard key={i} className={`bg-white p-6 sm:p-8 rounded-[24px] sm:rounded-[32px] border ${isCurrentPlan ? 'border-primary ring-2 ring-primary/20' : 'border-slate-200'} shadow-sm flex flex-col min-w-0`}>
                 
                 {isCurrentPlan && (
                   <div className="absolute top-0 inset-x-0 h-1.5 bg-primary" />
@@ -222,7 +223,7 @@ export function Pricing() {
                     {loading === tier.planId ? 'Loading...' : tier.planId === 'free' ? 'Get Started Free' : 'Upgrade Now'}
                   </button>
                 )}
-              </div>
+              </SpotlightCard>
             );
           })}
         </div>

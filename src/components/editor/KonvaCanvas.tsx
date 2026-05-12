@@ -96,6 +96,8 @@ function ElementNode({
     const anim = new Konva.Animation((frame) => {
       const t = frame?.time ?? 0;
       node.dashOffset((t / 24) % 32);
+      // Cinematic glowing pulse effect
+      node.shadowBlur(15 + Math.sin(t / 150) * 10);
     }, layer);
     anim.start();
     return () => {
@@ -237,10 +239,13 @@ function ElementNode({
                 ref={genFillBorderRef}
                 x={0} y={0} width={el.width} height={el.height}
                 fill="transparent"
-                stroke="rgba(56,189,248,0.65)"
-                strokeWidth={1.5}
+                stroke="rgba(56,189,248,0.85)"
+                strokeWidth={2}
                 cornerRadius={12}
                 dash={[10, 7]}
+                shadowColor="#38BDF8"
+                shadowOpacity={0.8}
+                shadowBlur={15}
               />
               <Text
                 x={0} y={el.height / 2 - 26} width={el.width}

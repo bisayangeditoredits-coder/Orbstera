@@ -240,7 +240,7 @@ export default function EditorClient() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 16 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="border-l-2 border-black/[0.08] bg-panel shrink-0 flex flex-col overflow-hidden min-h-0 w-full max-w-[100vw] xs:max-w-[min(100vw,360px)] md:w-[min(92vw,320px)] lg:w-[320px] shadow-[-1px_0_10px_rgba(0,0,0,0.02)] max-md:fixed max-md:z-[128] max-md:right-0 max-md:top-[var(--editor-topbar-h,104px)] max-md:bottom-0 max-md:h-[calc(100dvh-var(--editor-topbar-h,104px)-env(safe-area-inset-bottom,0px))] md:relative md:top-auto md:bottom-auto md:h-full md:max-h-full"
+              className="border-l border-white/40 bg-white/60 backdrop-blur-3xl shrink-0 flex flex-col overflow-hidden min-h-0 w-full max-w-[100vw] xs:max-w-[min(100vw,360px)] md:w-[min(92vw,320px)] lg:w-[320px] shadow-[-15px_0_40px_rgba(0,0,0,0.06)] max-md:fixed max-md:z-[128] max-md:right-0 max-md:top-[var(--editor-topbar-h,104px)] max-md:bottom-0 max-md:h-[calc(100dvh-var(--editor-topbar-h,104px)-env(safe-area-inset-bottom,0px))] md:relative md:top-auto md:bottom-auto md:h-full md:max-h-full"
             >
               {activePanel === 'generate' && (
                 <GeneratePanel onClose={() => setPanelOpen(false)} />

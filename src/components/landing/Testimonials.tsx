@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { BadgeCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ReviewModal } from './ReviewModal';
+import { SpotlightCard } from '@/components/ui/SpotlightCard';
 
 const REVIEWS = [
   {
@@ -103,11 +104,14 @@ const ROW_3 = REVIEWS.slice(7, 11);
 
 const ReviewCard = ({ review }: { review: typeof REVIEWS[0] }) => {
   return (
-    <div className="relative group w-[350px] shrink-0 rounded-2xl border border-white/10 bg-white/[0.02] p-6 backdrop-blur-md transition-all duration-300 hover:bg-white/[0.04] hover:border-primary/50 overflow-hidden">
+    <SpotlightCard 
+      className="group w-[350px] shrink-0 rounded-2xl border border-white/10 bg-white/[0.02] p-6 backdrop-blur-md transition-all duration-300 hover:bg-white/[0.04] hover:border-primary/50"
+      spotlightColor="rgba(56, 189, 248, 0.12)"
+    >
       {/* Subtle hover glow */}
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-primary/10 via-transparent to-transparent pointer-events-none" />
       
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex items-center gap-4 mb-4 relative z-10">
         {/* Profile Image */}
         <div className="w-12 h-12 rounded-full overflow-hidden border border-white/20 bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-[0_0_15px_rgba(var(--primary),0.3)]">
           {review.image ? (
@@ -134,7 +138,7 @@ const ReviewCard = ({ review }: { review: typeof REVIEWS[0] }) => {
       </div>
 
       {/* Stars */}
-      <div className="flex gap-1 mb-3">
+      <div className="flex gap-1 mb-3 relative z-10">
         {[...Array(review.rating)].map((_, i) => (
           <motion.svg 
             key={i}
@@ -149,10 +153,10 @@ const ReviewCard = ({ review }: { review: typeof REVIEWS[0] }) => {
         ))}
       </div>
 
-      <p className="text-white/70 text-sm leading-relaxed">
+      <p className="text-white/70 text-sm leading-relaxed relative z-10">
         "{review.body}"
       </p>
-    </div>
+    </SpotlightCard>
   );
 };
 
