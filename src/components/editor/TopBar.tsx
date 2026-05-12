@@ -459,7 +459,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('You must be logged in to share.');
 
-      const publicUrl = `${window.location.origin}/p/${user.id}/${presentation.id}`;
+      const publicUrl = `${window.location.origin}/share/${user.id}/${presentation.id}`;
       await navigator.clipboard.writeText(publicUrl);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
