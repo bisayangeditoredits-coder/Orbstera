@@ -10,6 +10,7 @@ import type { DeckMeta } from '@/types/deck-meta';
 import { cn } from '@/lib/cn';
 import { DeckThumbnail } from '@/components/workspace/DeckThumbnail';
 import { DeckCard } from '@/components/workspace/DeckCard';
+import { FREE_LIFETIME_DECK_CAP } from '@/lib/billing/credits-policy';
 
 function AccountContent() {
   const searchParams = useSearchParams();
@@ -22,6 +23,12 @@ function AccountContent() {
   const [userPlan, setUserPlan] = useState('free');
   const [userName, setUserName] = useState('Creator');
   const [generationsUsed, setGenerationsUsed] = useState(0);
+  const [creditWallet, setCreditWallet] = useState<{
+    remaining: number;
+    allowance: number;
+    usedThisPeriod: number;
+    freeLifetimeDecksRemaining?: number;
+  } | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
@@ -51,6 +58,21 @@ function AccountContent() {
             setGenerationsUsed(profile.generations_used || 0);
           } else if (retryCount < 3 && searchParams.get('payment') === 'success') {
             setTimeout(() => init(retryCount + 1), 2000);
+          }
+
+          try {
+            const wr = await fetch('/api/me/ai-wallet');
+            if (wr.ok) {
+              const w = await wr.json();
+              setCreditWallet({
+                remaining: w.remaining,
+                allowance: w.allowance,
+                usedThisPeriod: w.usedThisPeriod,
+                freeLifetimeDecksRemaining: w.freeLifetimeDecksRemaining,
+              });
+            }
+          } catch {
+            /* ignore */
           }
         }
         const res = await fetch('/api/presentations');
@@ -130,11 +152,13 @@ function AccountContent() {
       : userPlan === 'student_pro' || userPlan === 'pro'
         ? 'Student Pro'
         : 'Free';
-  const genLimit =
-    userPlan === 'creator_pro' ? 100 : userPlan === 'student_pro' || userPlan === 'pro' ? 30 : 3;
-  const genLeft = Math.max(0, genLimit - generationsUsed);
   const isPaid =
     userPlan === 'student_pro' || userPlan === 'pro' || userPlan === 'creator_pro';
+  const freeDecksUsed = generationsUsed;
+  const freeDecksRemaining = Math.max(0, FREE_LIFETIME_DECK_CAP - freeDecksUsed);
+  const creditAllowance = creditWallet?.allowance ?? 0;
+  const creditUsed = creditWallet?.usedThisPeriod ?? 0;
+  const creditRemaining = creditWallet?.remaining ?? 0;
 
   const recentDecks = useMemo(() => presentations.slice(0, 4), [presentations]);
 
@@ -155,7 +179,8 @@ function AccountContent() {
     else setSelectedIds(new Set(presentations.map((p) => p.id)));
   };
 
-  const usagePct = Math.min(100, (generationsUsed / genLimit) * 100);
+  const usagePct =
+    creditAllowance > 0 ? Math.min(100, Math.round((creditUsed / creditAllowance) * 100)) : 0;
 
   return (
     <div className="min-h-screen bg-[#F4F3F1] text-neutral-900">
@@ -251,7 +276,20 @@ function AccountContent() {
               <span className="text-[11px] font-medium text-neutral-500">
                 {planLabel}
                 <span className="text-neutral-400"> · </span>
-                {genLeft} generation{genLeft === 1 ? '' : 's'} remaining
+                {creditWallet ? (
+                  <>
+                    {creditRemaining} credits left
+                    {!isPaid && (
+                      <>
+                        <span className="text-neutral-400"> · </span>
+                        {freeDecksRemaining} lifetime deck{freeDecksRemaining === 1 ? '' : 's'} left (max{' '}
+                        {FREE_LIFETIME_DECK_CAP})
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>Loading credits…</>
+                )}
               </span>
             </div>
             <h1
@@ -288,34 +326,42 @@ function AccountContent() {
 
         <section
           className="mb-14 border border-neutral-200/90 bg-white p-6 sm:p-8"
-          aria-label="Monthly usage"
+          aria-label="Monthly AI credits"
         >
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
-                Monthly generations
+                Monthly AI credits
               </p>
               <p className="mt-2 text-2xl font-semibold tabular-nums tracking-tight text-neutral-950">
-                {generationsUsed}
-                <span className="text-base font-medium text-neutral-400"> / {genLimit}</span>
+                {creditWallet ? creditUsed : '—'}
+                <span className="text-base font-medium text-neutral-400">
+                  {' '}
+                  / {creditWallet ? creditAllowance : '—'}
+                </span>
               </p>
+              {!isPaid && (
+                <p className="mt-3 text-[13px] text-neutral-600">
+                  Free AI decks consumed (lifetime): {freeDecksUsed} / {FREE_LIFETIME_DECK_CAP}
+                </p>
+              )}
             </div>
-            {!isPaid && (
-              <Link href="/pricing" className="text-sm font-medium text-neutral-900 underline-offset-4 hover:underline">
-                Increase limit
-              </Link>
-            )}
+            <Link href="/pricing" className="text-sm font-medium text-neutral-900 underline-offset-4 hover:underline">
+              View plans &amp; pricing
+            </Link>
           </div>
           <div className="mt-6 h-px w-full bg-neutral-200" />
           <div className="mt-6 h-1.5 w-full bg-neutral-100">
             <div
               className={cn(
                 'h-full transition-[width] duration-700 ease-out',
-                generationsUsed >= genLimit
-                  ? 'bg-red-600'
-                  : generationsUsed >= genLimit * 0.85
-                    ? 'bg-amber-600'
-                    : 'bg-neutral-900',
+                !creditWallet
+                  ? 'bg-neutral-400'
+                  : creditUsed >= creditAllowance
+                    ? 'bg-red-600'
+                    : creditUsed >= creditAllowance * 0.85
+                      ? 'bg-amber-600'
+                      : 'bg-neutral-900',
               )}
               style={{ width: `${usagePct}%` }}
             />

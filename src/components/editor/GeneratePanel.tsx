@@ -16,6 +16,7 @@ import {
 } from '@/lib/editor-speech';
 import { explainGetUserMediaError, explainRecognitionStartError } from '@/lib/mic-access';
 import { VoiceOrb } from '@/components/editor/VoiceOrb';
+import { creditsForPresentation } from '@/lib/billing/credits-policy';
 import {
   Sparkles, X, ChevronDown, Loader2, Wand2,
   Crown, Globe, ArrowRight,
@@ -151,6 +152,18 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const isCreatorPro = userPlan === 'creator_pro';
   // Plan-based max slides (mirrors server MAX_SLIDES)
   const maxSlidesForPlan = isCreatorPro ? 40 : isPaid ? 25 : 5;
+
+  const [aiWallet, setAiWallet] = useState<{ remaining: number; allowance: number } | null>(null);
+  const refreshAiWallet = async () => {
+    try {
+      const wr = await fetch('/api/me/ai-wallet');
+      if (!wr.ok) return;
+      const w = await wr.json();
+      setAiWallet({ remaining: w.remaining, allowance: w.allowance });
+    } catch {
+      /* ignore */
+    }
+  };
 
   // ── Voice Protocol (Web Speech API — same robustness as homepage) ──
   const [isListening, setIsListening] = useState(false);
@@ -333,6 +346,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             // If payment was successful but profile isn't updated yet, retry after a short delay
             setTimeout(() => fetchUser(retryCount + 1), 2000);
           }
+          await refreshAiWallet();
         }
       } catch (err) {
         console.error('Error fetching user profile:', err);
@@ -450,8 +464,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          if (res.status === 403 && errData.error === 'LIMIT_REACHED') {
-            setShowUpgradeModal(true);
+          const quotaResetEditor = () =>
             setEditorState({
               isGenerating: false,
               generationBlockingOverlay: false,
@@ -463,6 +476,30 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               orchestrationPhase: '',
               activeModelLabel: '',
             });
+
+          if (
+            res.status === 403 &&
+            (errData.error === 'LIMIT_REACHED' || errData.error === 'LIFETIME_DECK_CAP')
+          ) {
+            setShowUpgradeModal(true);
+            quotaResetEditor();
+            return;
+          }
+          if (res.status === 403 && errData.error === 'INSUFFICIENT_CREDITS') {
+            void refreshAiWallet();
+            setError(
+              typeof errData.message === 'string'
+                ? errData.message
+                : `You need ${errData.creditsRequired ?? ''} credits (remaining ${errData.creditsRemaining ?? 0}).`,
+            );
+            quotaResetEditor();
+            return;
+          }
+          if (errData.error === 'CREDITS_NOT_CONFIGURED') {
+            setError(
+              'AI credits are not configured on the server yet. Ask the workspace admin to run scripts/supabase-ai-credits.sql.',
+            );
+            quotaResetEditor();
             return;
           }
           throw new Error(errData.error || errData.message || 'Generation failed');
@@ -624,6 +661,13 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             if (pr.ok) {
               const polished = await pr.json();
               finalData = normalizePresentationPayload(polished as Record<string, unknown>);
+            } else {
+              const pj = await pr.json().catch(() => ({}));
+              if (pj?.error === 'INSUFFICIENT_CREDITS') {
+                console.warn('Polish skipped (insufficient credits):', pj);
+              } else {
+                console.warn('Polish pass skipped:', pr.status);
+              }
             }
           } catch (polishErr) {
             console.warn('Polish pass skipped:', polishErr);
@@ -666,6 +710,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         if (activeTab === 'create') {
           if (createGenerationSucceeded) {
             await waitForPendingDeckImages(usePresentationStore.getState().editor.generationEpoch);
+            void refreshAiWallet();
           }
           setEditorState({
             isGenerating: false,
@@ -697,13 +742,22 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         });
 
         if (!res.ok) {
-          const errData = await res.json();
+          const errData = await res.json().catch(() => ({}));
+          if (res.status === 403 && errData.error === 'INSUFFICIENT_CREDITS') {
+            void refreshAiWallet();
+            throw new Error(
+              typeof errData.message === 'string'
+                ? errData.message
+                : `Enhance needs ${errData.creditsRequired ?? '?'} credits (you have ${errData.creditsRemaining ?? 0}).`,
+            );
+          }
           throw new Error(errData.error || 'Enhancement failed');
         }
 
         const data: PresentationData = await res.json();
         setPresentation(data);
         setActivePanel('layers');
+        void refreshAiWallet();
         // Don't call onClose so the layers panel stays open
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Upload failed. Please check your Cloudflare R2 settings or file format.');
@@ -929,7 +983,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               title="Density (Slides)"
               summary={
                 `${slideCount} slide${slideCount !== 1 ? 's' : ''}` +
-                (!isPaid ? ' · Free max 5' : ` · max ${maxSlidesForPlan}`)
+                (!isPaid ? ' · Free max 5' : ` · max ${maxSlidesForPlan}`) +
+                (aiWallet ? ` · ${creditsForPresentation(slideCount)} cr · ${aiWallet.remaining} left` : '')
               }
               expanded={expandDensity}
               onToggle={() => setExpandDensity((v) => !v)}

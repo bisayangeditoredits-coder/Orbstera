@@ -1,3 +1,6 @@
+import type { BillingPlan } from '@/lib/billing/credits-policy';
+import { GEMINI_FLASH_FAST } from '@/lib/ai/smart-routing';
+
 /**
  * OpenRouter model IDs for deck generation and auxiliary routes.
  * Override via env without code changes.
@@ -27,4 +30,20 @@ export function getDeckComposerModels(): { primary: string; fallback: string } {
     primary: OR_MODELS.composerPrimary,
     fallback: OR_MODELS.composerFallback,
   };
+}
+
+/** Streaming JSON composer — tier-aware to protect COGS while keeping Creator output premium. */
+export function getDeckComposerModelsForPlan(
+  plan: BillingPlan,
+  economyMode: boolean,
+): { primary: string; fallback: string } {
+  if (economyMode || plan === 'free') {
+    return { primary: GEMINI_FLASH_FAST, fallback: GEMINI_FLASH_FAST };
+  }
+  if (plan === 'student_pro') {
+    const fallback =
+      process.env.OPENROUTER_STUDENT_COMPOSER_FALLBACK?.trim() || 'openai/gpt-4.1-mini';
+    return { primary: GEMINI_FLASH_FAST, fallback };
+  }
+  return getDeckComposerModels();
 }

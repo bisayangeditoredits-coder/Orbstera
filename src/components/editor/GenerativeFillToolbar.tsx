@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { Sparkles, Loader2, X, Wand2, Trash2 } from 'lucide-react';
+import { creditsForGenerativeFill } from '@/lib/billing/credits-policy';
 
 function regionToImagePixels(regionW: number, regionH: number) {
   // Keep generation dimensions aligned to the exact rectangle the user drew.
@@ -43,6 +44,11 @@ export function GenerativeFillToolbar() {
   const el =
     target && slide ? slide.elements?.find((e) => e.id === target.elementId) : undefined;
   const isGenFillRegion = !!el && el.type === 'image' && !el.src?.trim();
+  const fillCreditEstimate = creditsForGenerativeFill({
+    enhancePrompt: enhance,
+    polish,
+    visualProfile: 'cinematic',
+  });
 
   useEffect(() => {
     if (!target) {
@@ -95,6 +101,15 @@ export function GenerativeFillToolbar() {
           if (typeof data.enhancedPrompt === 'string' && data.enhancedPrompt.trim()) {
             finalPrompt = data.enhancedPrompt.trim();
           }
+        } else {
+          const ed = await er.json().catch(() => ({}));
+          const msg =
+            ed.error === 'INSUFFICIENT_CREDITS' && typeof ed.message === 'string'
+              ? ed.message
+              : typeof ed.error === 'string'
+                ? ed.error
+                : 'Prompt refine failed';
+          throw new Error(msg);
         }
       }
 
@@ -115,7 +130,12 @@ export function GenerativeFillToolbar() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Image generation failed');
+      if (!res.ok)
+        throw new Error(
+          data?.error === 'INSUFFICIENT_CREDITS' && typeof data.message === 'string'
+            ? data.message
+            : data.error || 'Image generation failed',
+        );
       if (!data.url) throw new Error('No image URL returned');
       const cacheBustedUrl =
         typeof data.url === 'string' && data.url.trim()
@@ -252,6 +272,9 @@ export function GenerativeFillToolbar() {
             </div>
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-500 font-medium">
+              <span className="w-full text-slate-600/90">
+                Uses ~{fillCreditEstimate} AI credits this run (tracked on the server).
+              </span>
               <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
                 <input
                   type="checkbox"

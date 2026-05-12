@@ -99,15 +99,38 @@ export default function SettingsPage() {
   const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
   const fullName = user?.user_metadata?.full_name || 'Creator';
 
-  const used = profile?.generations_used || 0;
-  const max =
-    profile?.plan === 'creator_pro'
-      ? 100
-      : profile?.plan === 'student_pro'
-        ? 30
-        : 3;
-  const remaining = Math.max(0, max - used);
-  const percentUsed = Math.min(100, Math.round((used / max) * 100));
+  const [creditHud, setCreditHud] = useState<{
+    remaining: number;
+    allowance: number;
+    usedThisPeriod: number;
+    freeLifetimeDecksRemaining?: number;
+    cycleKey?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const wr = await fetch('/api/me/ai-wallet');
+        if (!wr.ok) return;
+        const w = await wr.json();
+        setCreditHud({
+          remaining: w.remaining,
+          allowance: w.allowance,
+          usedThisPeriod: w.usedThisPeriod,
+          freeLifetimeDecksRemaining: w.freeLifetimeDecksRemaining,
+          cycleKey: w.cycleKey,
+        });
+      } catch (_) {
+        /* ignore */
+      }
+    })();
+  }, [user, profile?.plan]);
+
+  const usedCredits = creditHud?.usedThisPeriod ?? 0;
+  const maxCredits = creditHud?.allowance ?? 1;
+  const remainingCredits = creditHud?.remaining ?? 0;
+  const percentUsed = Math.min(100, Math.round((usedCredits / maxCredits) * 100));
 
   const tabClass = (tab: 'profile' | 'billing') =>
     `flex items-center gap-3 w-full px-4 py-3 rounded-xl text-[13px] font-semibold transition-all duration-200 ${
@@ -272,11 +295,23 @@ export default function SettingsPage() {
                     <div className="rounded-xl bg-neutral-50/80 border border-neutral-200/60 p-5 sm:p-6">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                         <div>
-                          <h4 className="font-semibold text-neutral-900 text-[15px]">Monthly generations</h4>
-                          <p className="text-[13px] text-neutral-500 mt-1">Credits refresh each billing period.</p>
+                          <h4 className="font-semibold text-neutral-900 text-[15px]">Monthly AI credits</h4>
+                          <p className="text-[13px] text-neutral-500 mt-1">
+                            Every routed model call consumes credits in real time; paid renewals reset allowances via
+                            Dodo while Free follows UTC month buckets (current key {creditHud?.cycleKey ?? '—'}).
+                          </p>
+                          {!isPro && typeof creditHud?.freeLifetimeDecksRemaining === 'number' && (
+                            <p className="text-[12px] text-neutral-600 mt-2 font-medium">
+                              Free lifetime decks left:{' '}
+                              <span className="tabular-nums">{creditHud.freeLifetimeDecksRemaining}</span> · max 5 slides
+                              each
+                            </p>
+                          )}
                         </div>
                         <div className="text-left sm:text-right">
-                          <span className="text-3xl font-bold tabular-nums text-neutral-900">{remaining}</span>
+                          <span className="text-3xl font-bold tabular-nums text-neutral-900">
+                            {creditHud ? remainingCredits : '—'}
+                          </span>
                           <span className="text-sm font-medium text-neutral-500 ml-1.5">left</span>
                         </div>
                       </div>
@@ -286,12 +321,12 @@ export default function SettingsPage() {
                           className={`h-full rounded-full transition-all duration-500 ${
                             percentUsed > 90 ? 'bg-red-500' : 'bg-primary'
                           }`}
-                          style={{ width: `${percentUsed}%` }}
+                          style={{ width: `${creditHud ? `${percentUsed}%` : '0%'}` }}
                         />
                       </div>
                       <div className="flex justify-between mt-3 text-[12px] font-medium text-neutral-500">
-                        <span>{used} used</span>
-                        <span>{max} included</span>
+                        <span>{creditHud ? `${usedCredits} used` : '—'}</span>
+                        <span>{creditHud ? `${maxCredits} included` : 'Loading…'}</span>
                       </div>
                     </div>
                   </div>

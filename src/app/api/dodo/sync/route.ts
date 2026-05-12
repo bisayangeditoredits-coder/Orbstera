@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { paidSubscriptionCreditsResetPatch } from '@/lib/billing/sync-subscription-profile';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,11 +49,14 @@ export async function GET(req: Request) {
       // 1. Upsert public.profiles (For regular subscriptions)
       await supabaseAdmin
         .from('profiles')
-        .upsert({ 
-          id: userId,
-          plan: planId,
-          updated_at: new Date().toISOString() 
-        }, { onConflict: 'id' });
+        .upsert(
+          {
+            id: userId,
+            plan: planId,
+            ...paidSubscriptionCreditsResetPatch(),
+          },
+          { onConflict: 'id' },
+        );
 
       // 2. Update auth.user_metadata
       await supabaseAdmin.auth.admin.updateUserById(userId, {

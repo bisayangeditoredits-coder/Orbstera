@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { paidSubscriptionCreditsResetPatch } from '@/lib/billing/sync-subscription-profile';
 
 // Ensure the route is treated as dynamic
 export const dynamic = 'force-dynamic';
@@ -54,11 +55,14 @@ export async function POST(req: Request) {
         // Using upsert ensures that if the profile doesn't exist yet, it gets created.
         const { error: profileError } = await supabaseAdmin
           .from('profiles')
-          .upsert({ 
-            id: userId,
-            plan: planId,
-            updated_at: new Date().toISOString() 
-          }, { onConflict: 'id' });
+          .upsert(
+            {
+              id: userId,
+              plan: planId,
+              ...paidSubscriptionCreditsResetPatch(),
+            },
+            { onConflict: 'id' },
+          );
 
         if (profileError) {
           console.error('[Dodo Webhook] Profiles Update Error:', profileError);

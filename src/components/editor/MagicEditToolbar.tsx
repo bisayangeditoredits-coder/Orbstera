@@ -137,7 +137,13 @@ export function MagicEditToolbar() {
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(typeof payload.error === 'string' ? payload.error : 'Magic Edit failed');
+        const msg =
+          payload?.error === 'INSUFFICIENT_CREDITS' && typeof payload.message === 'string'
+            ? payload.message
+            : typeof payload.error === 'string'
+              ? payload.error
+              : 'Magic Edit failed';
+        throw new Error(msg);
       }
       setPhaseLabel('Applying to canvas…');
       updateElement(slide.id, elementToEdit!.id, payload);

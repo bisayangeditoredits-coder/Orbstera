@@ -1,5 +1,6 @@
 import { openRouterComplete, extractJsonObject } from '@/lib/ai/openrouter';
 import { AGENT_MODELS } from '@/lib/ai/agent-models';
+import type { OrchestrationRouting } from '@/lib/ai/smart-routing';
 
 /** Human-readable progress only — never model IDs (shown in UI). */
 export type OrchestrationProgress = (phase: string, message: string) => void;
@@ -115,13 +116,14 @@ function buildPreflightSummary(
 }
 
 /**
- * Lightweight pipeline: GPT intent → Claude spine → optional DeepSeek → brief for composer.
- * Does not run every model; DeepSeek only when intent.needsDeepReasoning is true.
+ * Lightweight pipeline: tier-routed intent → structure → optional DeepSeek → brief for composer.
+ * DeepSeek activates only when `routing.allowDeepSeek` and intent.needsDeepReasoning are true.
  */
 export async function runOpenRouterOrchestration(
   appUrl: string,
   rawUserPrompt: string,
   meta: { slideCount: number; tone: string; language: string },
+  routing: OrchestrationRouting,
   onProgress?: OrchestrationProgress
 ): Promise<{ dossierText: string; refinedBrief: string; preflightSummary: string }> {
   const baseCtx = `Original user request:\n${rawUserPrompt}\n\nParameters: exactly ${meta.slideCount} slides, tone=${meta.tone}, language=${meta.language}.`;
@@ -129,7 +131,7 @@ export async function runOpenRouterOrchestration(
   onProgress?.('understanding', 'Understanding your vision…');
   const intentOut = await step(
     appUrl,
-    AGENT_MODELS.gptOrchestrator,
+    routing.intentModel,
     S_INTENT,
     baseCtx,
     2000,
@@ -137,13 +139,13 @@ export async function runOpenRouterOrchestration(
   );
   const intent = extractJsonObject(intentOut) ?? {};
 
-  const needsDeep =
+  const intentWantsDeep =
     intent.needsDeepReasoning === true ||
     intent.needsDeepReasoning === 'true' ||
     String(intent.needsDeepReasoning).toLowerCase() === 'true';
 
   let reasonOut = '';
-  if (needsDeep) {
+  if (routing.allowDeepSeek && intentWantsDeep) {
     onProgress?.('reasoning', 'Adding strategic depth…');
     reasonOut = await step(
       appUrl,
@@ -160,7 +162,7 @@ export async function runOpenRouterOrchestration(
   onProgress?.('structure', 'Structuring slides and flow…');
   const structOut = await step(
     appUrl,
-    AGENT_MODELS.claudeStructure,
+    routing.structureModel,
     S_STRUCTURE,
     `${baseCtx}\n\nAnalyst JSON:\n${intentOut || '{}'}${
       reasonOut ? `\n\nStrategy memo:\n${reasonOut}` : ''
@@ -183,7 +185,9 @@ export async function runOpenRouterOrchestration(
     '=== ORCHESTRATION CONTEXT (internal) ===',
     `INTENT_JSON:\n${intentOut || '{}'}`,
     `STRUCTURE_JSON:\n${structOut || '{}'}`,
-    needsDeep ? `STRATEGY_MEMO:\n${reasonOut}` : 'STRATEGY_MEMO: (not required)',
+    routing.allowDeepSeek && intentWantsDeep
+      ? `STRATEGY_MEMO:\n${reasonOut}`
+      : 'STRATEGY_MEMO: (not required)',
     `MASTER_BRIEF_FOR_COMPOSER:\n${refinedBrief}`,
   ].join('\n\n');
 

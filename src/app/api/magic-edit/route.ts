@@ -4,6 +4,10 @@ import { generateClaidImageUrl } from '@/lib/claid-image';
 import { generatePollinationsImageUrl } from '@/lib/pollinations-image';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import type { BillingPlan } from '@/lib/billing/credits-policy';
+import { CREDIT_COSTS, normalizeBillingPlan } from '@/lib/billing/credits-policy';
+import { consumeAiCredits, isAiEconomyMode, refundAiCredits } from '@/lib/billing/credits-server';
+import { GEMINI_FLASH_FAST } from '@/lib/ai/smart-routing';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
@@ -42,6 +46,18 @@ function parseElementJson(raw: string): Record<string, unknown> {
   }
 }
 
+function magicEditModelFallbacks(plan: BillingPlan, economyMode: boolean): string[] {
+  if (economyMode) return [GEMINI_FLASH_FAST];
+  if (plan === 'creator_pro') {
+    return [
+      GEMINI_FLASH_FAST,
+      'anthropic/claude-sonnet-latest',
+      process.env.OPENROUTER_MAGIC_EDIT_FALLBACK?.trim() || 'openai/gpt-4.1-mini',
+    ];
+  }
+  return [GEMINI_FLASH_FAST, process.env.OPENROUTER_MAGIC_EDIT_FALLBACK?.trim() || 'openai/gpt-4.1-mini'];
+}
+
 function toPollinationPixels(w: number, h: number) {
   const ew = Math.max(32, w || 1024);
   const eh = Math.max(32, h || 1024);
@@ -55,6 +71,8 @@ function toPollinationPixels(w: number, h: number) {
 }
 
 export async function POST(req: Request) {
+  /** Ensures refunds if an unexpected exception happens post-charge. */
+  let magicCreditsOutstanding = false;
   try {
     const { prompt, element, slideContext } = await req.json();
 
@@ -79,9 +97,44 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Please sign in to use Magic Edit.' }, { status: 401 });
     }
 
-    const { data: profile } = await supabase.from('profiles').select('plan').eq('id', userId).maybeSingle();
-    const plan = profile?.plan?.toLowerCase() || user?.user_metadata?.plan?.toLowerCase() || 'free';
-    const isPaid = plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro';
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('plan, monthly_ai_credits_used, credits_cycle_key')
+      .eq('id', userId)
+      .maybeSingle();
+    const billingPlan = normalizeBillingPlan(profile?.plan || user?.user_metadata?.plan);
+    /** Only paid workspaces may use Magic Edit (server-enforced; UI already gates). */
+    if (billingPlan === 'free') {
+      return NextResponse.json(
+        { error: 'Magic Edit is available on Student Pro and Creator Pro.' },
+        { status: 403 },
+      );
+    }
+
+    const spend = await consumeAiCredits(supabase, userId, CREDIT_COSTS.magicEdit, billingPlan);
+    if (!spend.ok) {
+      if (spend.code === 'CONFIG_ERROR') {
+        return NextResponse.json(
+          {
+            error: 'CREDITS_NOT_CONFIGURED',
+            message:
+              'AI credits tracking is not set up yet. Run scripts/supabase-ai-credits.sql on your Supabase project.',
+          },
+          { status: 503 },
+        );
+      }
+      return NextResponse.json(
+        {
+          error: 'INSUFFICIENT_CREDITS',
+          message: `Magic Edit uses ${CREDIT_COSTS.magicEdit} credits.`,
+          creditsRequired: CREDIT_COSTS.magicEdit,
+          creditsRemaining: spend.remaining,
+          allowance: spend.allowance,
+        },
+        { status: 403 },
+      );
+    }
+    magicCreditsOutstanding = true;
 
     const ctx =
       slideContext && typeof slideContext === 'object'
@@ -100,12 +153,7 @@ User request: "${String(prompt).trim()}"
 
 Return the modified element JSON only.`;
 
-    const models = [
-      'google/gemini-2.5-flash',
-      'anthropic/claude-sonnet-latest',
-      'openai/gpt-4.1-mini',
-      'deepseek/deepseek-chat',
-    ];
+    const models = magicEditModelFallbacks(billingPlan, isAiEconomyMode());
 
     let response: Response | null = null;
 
@@ -141,6 +189,8 @@ Return the modified element JSON only.`;
     }
 
     if (!response) {
+      await refundAiCredits(supabase, userId, CREDIT_COSTS.magicEdit);
+      magicCreditsOutstanding = false;
       return NextResponse.json({ error: 'All AI models failed to process magic edit' }, { status: 502 });
     }
 
@@ -148,6 +198,8 @@ Return the modified element JSON only.`;
     const content: string | undefined = data.choices?.[0]?.message?.content;
 
     if (!content) {
+      await refundAiCredits(supabase, userId, CREDIT_COSTS.magicEdit);
+      magicCreditsOutstanding = false;
       return NextResponse.json({ error: 'Empty response from AI' }, { status: 500 });
     }
 
@@ -156,18 +208,14 @@ Return the modified element JSON only.`;
       parsed = parseElementJson(content);
     } catch (e) {
       console.error('[MagicEdit] JSON parse:', e);
+      await refundAiCredits(supabase, userId, CREDIT_COSTS.magicEdit);
+      magicCreditsOutstanding = false;
       return NextResponse.json({ error: 'AI returned invalid JSON' }, { status: 502 });
     }
 
     const updatedElement = { ...element, ...parsed } as SlideElement;
 
     if (updatedElement.type === 'image' && updatedElement.src?.startsWith('PROMPT:')) {
-      if (!isPaid) {
-        return NextResponse.json(
-          { error: 'Magic Edit images are Pro-only. Upgrade to unlock image edits.' },
-          { status: 403 },
-        );
-      }
       const promptText = updatedElement.src.replace(/^PROMPT:\s*/i, '').trim();
       const { width, height } = toPollinationPixels(
         Number(updatedElement.width) || Number(element.width) || 1024,
@@ -177,6 +225,8 @@ Return the modified element JSON only.`;
       const hasPollinations = Boolean(process.env.POLLINATIONS_API_KEY?.trim());
 
       if (!hasClaid && !hasPollinations) {
+        await refundAiCredits(supabase, userId, CREDIT_COSTS.magicEdit);
+        magicCreditsOutstanding = false;
         return NextResponse.json(
           {
             error:
@@ -203,6 +253,8 @@ Return the modified element JSON only.`;
         }).catch(() => {});
       } catch (e) {
         console.error('[MagicEdit] Image generation:', e);
+        await refundAiCredits(supabase, userId, CREDIT_COSTS.magicEdit);
+        magicCreditsOutstanding = false;
         return NextResponse.json(
           { error: e instanceof Error ? e.message : 'Failed to generate image for Magic Edit' },
           { status: 502 }
@@ -210,9 +262,24 @@ Return the modified element JSON only.`;
       }
     }
 
+    magicCreditsOutstanding = false;
     return NextResponse.json(updatedElement);
   } catch (error) {
     console.error('Magic Edit Error:', error);
+    if (magicCreditsOutstanding) {
+      try {
+        const cookieStore = cookies();
+        const supabaseRefund = createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } },
+        );
+        const { data: { user: refundUser } } = await supabaseRefund.auth.getUser();
+        if (refundUser?.id) await refundAiCredits(supabaseRefund, refundUser.id, CREDIT_COSTS.magicEdit);
+      } catch (_) {
+        /* noop */
+      }
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

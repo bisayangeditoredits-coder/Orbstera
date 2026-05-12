@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { createServerClient } from '@supabase/ssr';
 import { redis } from '@/lib/redis';
-import { getDeckComposerModels } from '@/lib/ai/models';
+import { getDeckComposerModelsForPlan } from '@/lib/ai/models';
 import crypto from 'crypto';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import JSZip from 'jszip';
 import { v4 as uuidv4 } from 'uuid';
 import { extractJsonObject } from '@/lib/ai/openrouter';
+import { CREDIT_COSTS, normalizeBillingPlan } from '@/lib/billing/credits-policy';
+import { consumeAiCredits, isAiEconomyMode, refundAiCredits } from '@/lib/billing/credits-server';
 
 const OPENROUTER_API_KEY = (process.env.OPENROUTER_API_KEY || '').trim();
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -98,6 +102,8 @@ if (
 }
 
 export async function POST(req: Request) {
+  let enhanceCreditsOutstanding = false;
+  let chargeUserId: string | null = null;
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File;
@@ -105,6 +111,23 @@ export async function POST(req: Request) {
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
+
+    const cookieStore = cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } },
+    );
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Please sign in to enhance a presentation.' }, { status: 401 });
+    }
+    chargeUserId = user.id;
+
+    const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).maybeSingle();
+    const billingPlan = normalizeBillingPlan(profile?.plan ?? user.user_metadata?.plan);
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -168,8 +191,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured.' }, { status: 500 });
     }
 
-    // 3. Send to OpenRouter — same automatic composer stack as create.
-    const { primary: composerPrimary, fallback: composerFallback } = getDeckComposerModels();
+    const spend = await consumeAiCredits(supabase, user.id, CREDIT_COSTS.enhancePpt, billingPlan);
+    if (!spend.ok) {
+      if (spend.code === 'CONFIG_ERROR') {
+        return NextResponse.json({ error: 'CREDITS_NOT_CONFIGURED', detail: spend.detail }, { status: 503 });
+      }
+      return NextResponse.json(
+        {
+          error: 'INSUFFICIENT_CREDITS',
+          creditsRequired: CREDIT_COSTS.enhancePpt,
+          creditsRemaining: spend.remaining,
+        },
+        { status: 403 },
+      );
+    }
+    enhanceCreditsOutstanding = true;
+
+    // 3. Send to OpenRouter — tier-aligned composer routing (parity with `/api/generate`).
+    const { primary: composerPrimary, fallback: composerFallback } = getDeckComposerModelsForPlan(
+      billingPlan,
+      isAiEconomyMode(),
+    );
     let model = composerPrimary;
     if (extractedText.split(/\s+/).length > 2000) {
       model = composerFallback;
@@ -209,6 +251,8 @@ export async function POST(req: Request) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('OpenRouter API Error:', response.status, errorText);
+      await refundAiCredits(supabase, user.id, CREDIT_COSTS.enhancePpt);
+      enhanceCreditsOutstanding = false;
       return NextResponse.json({ error: `AI service error: ${response.status}` }, { status: 502 });
     }
 
@@ -216,11 +260,15 @@ export async function POST(req: Request) {
     const content: string | undefined = data.choices?.[0]?.message?.content;
 
     if (!content) {
+      await refundAiCredits(supabase, user.id, CREDIT_COSTS.enhancePpt);
+      enhanceCreditsOutstanding = false;
       return NextResponse.json({ error: 'Empty response from AI' }, { status: 500 });
     }
 
     const parsedObj = extractJsonObject(content);
     if (!parsedObj || !Array.isArray(parsedObj.slides) || parsedObj.slides.length === 0) {
+      await refundAiCredits(supabase, user.id, CREDIT_COSTS.enhancePpt);
+      enhanceCreditsOutstanding = false;
       return NextResponse.json({ error: 'AI returned invalid JSON. Please try again.' }, { status: 502 });
     }
 
@@ -252,10 +300,25 @@ export async function POST(req: Request) {
     }
     // ---------------------
 
+    enhanceCreditsOutstanding = false;
     return NextResponse.json(parsedJson);
 
   } catch (error: unknown) {
     console.error('Enhancement Error:', error);
+
+    if (enhanceCreditsOutstanding && chargeUserId) {
+      try {
+        const cookieStore = cookies();
+        const sb = createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } },
+        );
+        await refundAiCredits(sb, chargeUserId, CREDIT_COSTS.enhancePpt);
+      } catch (_) {
+        /* noop */
+      }
+    }
 
     let errorMessage = 'Internal server error';
     if (error instanceof SyntaxError) {
