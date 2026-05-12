@@ -30,7 +30,6 @@ function ElementNode({
   isSelected: boolean;
   onSelect: () => void;
   onChange: (updates: Partial<SlideElement>) => void;
-  stageRef: React.RefObject<Konva.Stage>;
   activeTool: string;
   isEditingText: boolean;
   onDblClickText: () => void;
@@ -116,6 +115,7 @@ function ElementNode({
   // When generative fill tool is active, make all elements non-interactive
   // so mouse events pass through to the Stage for rectangle drawing.
   const isDrawingTool = activeTool === 'gen-fill';
+  const isCentered = el.shapeType === 'circle' || el.shapeType === 'triangle' || el.shapeType === 'star';
 
   const commonProps = {
     x: el.x,
@@ -125,6 +125,7 @@ function ElementNode({
     rotation: el.rotation || 0,
     opacity:  el.opacity ?? 1,
     draggable: isDrawingTool ? false : !el.locked,
+    listening: !isDrawingTool,
     onClick: onSelect,
     onTap:   onSelect,
     onDblClick: () => {
@@ -134,7 +135,13 @@ function ElementNode({
       if (el.type === 'text' && !el.locked && !isDrawingTool) onDblClickText();
     },
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
-      onChange({ x: e.target.x(), y: e.target.y() });
+      let newX = e.target.x();
+      let newY = e.target.y();
+      if (isCentered) {
+        newX -= el.width / 2;
+        newY -= el.height / 2;
+      }
+      onChange({ x: newX, y: newY });
     },
     onTransformEnd: () => {
       const node   = shapeRef.current!;
@@ -142,11 +149,22 @@ function ElementNode({
       const scaleY = node.scaleY();
       node.scaleX(1);
       node.scaleY(1);
+
+      const newWidth = Math.max(20, node.width()  * scaleX);
+      const newHeight = Math.max(20, node.height() * scaleY);
+      let newX = node.x();
+      let newY = node.y();
+
+      if (isCentered) {
+        newX -= newWidth / 2;
+        newY -= newHeight / 2;
+      }
+
       onChange({
-        x:        node.x(),
-        y:        node.y(),
-        width:    Math.max(20, node.width()  * scaleX),
-        height:   Math.max(20, node.height() * scaleY),
+        x:        newX,
+        y:        newY,
+        width:    newWidth,
+        height:   newHeight,
         rotation: node.rotation(),
       });
     },
@@ -638,7 +656,6 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
                 isSelected={editor.activeTool === 'gen-fill' ? false : editor.selectedElementId === el.id}
                 onSelect={() => selectElement(el.id)}
                 onChange={(updates) => updateElement(slide.id, el.id, updates)}
-                stageRef={stageRef}
                 activeTool={editor.activeTool}
                 isEditingText={editingTextId === el.id}
                 onDblClickText={() => setEditingTextId(el.id)}
