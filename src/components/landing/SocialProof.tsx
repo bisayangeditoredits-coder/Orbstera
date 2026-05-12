@@ -11,34 +11,45 @@ export function SocialProof() {
         Trusted by the world&apos;s most innovative teams
       </p>
       
-      <div className="relative w-full">
+      <div className="relative w-full max-w-full overflow-hidden">
         {/* Gradient Overlays for smooth fading */}
-        <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-white to-transparent z-10" />
-        <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-white to-transparent z-10" />
+        <div className="absolute left-0 top-0 bottom-0 w-24 sm:w-40 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-24 sm:w-40 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
         
         {/* Infinite Scrolling Container with Framer Motion */}
-        <div className="flex w-fit">
+        <div className="flex w-max">
           <motion.div 
-            animate={{
-              x: [0, -1032], // Adjust based on width
-            }}
-            transition={{
-              duration: 30,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-            className="flex gap-x-24 px-12"
+            animate={{ x: ["0%", "-50%"] }}
+            transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+            className="flex hover:[animation-play-state:paused]"
           >
-            {[...brands, ...brands, ...brands, ...brands].map((brand, i) => (
-              <div key={i} className="flex items-center gap-3 opacity-30 hover:opacity-100 transition-all cursor-pointer grayscale hover:grayscale-0">
-                 <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-primary/40 rounded-full" />
-                 </div>
-                 <span className="text-xl font-extrabold text-textMain tracking-tighter uppercase italic whitespace-nowrap">
-                   {brand}
-                 </span>
-              </div>
-            ))}
+            {/* First Set */}
+            <div className="flex gap-x-12 sm:gap-x-20 pr-12 sm:pr-20 w-max items-center">
+              {[...brands, ...brands].map((brand, i) => (
+                <div key={`set1-${i}`} className="flex items-center gap-2.5 sm:gap-3 opacity-[0.35] hover:opacity-100 transition-all duration-300 cursor-pointer grayscale hover:grayscale-0 shrink-0 group">
+                   <div className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-black/[0.04] group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-black/20 group-hover:bg-primary/60 rounded-full transition-colors" />
+                   </div>
+                   <span className="text-lg sm:text-xl font-extrabold text-neutral-800 tracking-tighter uppercase italic whitespace-nowrap">
+                     {brand}
+                   </span>
+                </div>
+              ))}
+            </div>
+            
+            {/* Second Set (Perfect Duplicate for seamless looping) */}
+            <div className="flex gap-x-12 sm:gap-x-20 pr-12 sm:pr-20 w-max items-center">
+              {[...brands, ...brands].map((brand, i) => (
+                <div key={`set2-${i}`} className="flex items-center gap-2.5 sm:gap-3 opacity-[0.35] hover:opacity-100 transition-all duration-300 cursor-pointer grayscale hover:grayscale-0 shrink-0 group">
+                   <div className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-black/[0.04] group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-black/20 group-hover:bg-primary/60 rounded-full transition-colors" />
+                   </div>
+                   <span className="text-lg sm:text-xl font-extrabold text-neutral-800 tracking-tighter uppercase italic whitespace-nowrap">
+                     {brand}
+                   </span>
+                </div>
+              ))}
+            </div>
           </motion.div>
         </div>
       </div>

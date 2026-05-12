@@ -16,127 +16,143 @@ export function Showcase() {
   return (
     <section id="showcase" className="w-full py-24 px-6 bg-white relative overflow-hidden">
       {/* Background Decor */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_50%_0%,rgba(71,59,240,0.03)_0%,transparent_50%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(71,59,240,0.05)_0%,transparent_70%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
       
       <div className="max-w-7xl mx-auto relative z-10">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-6xl font-bold mb-6 text-[#1A1A1A] tracking-tight">
-            Prompt to <span className="text-primary italic">Presentation</span>
+        <div className="text-center mb-16 sm:mb-24">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold mb-6 text-neutral-900 tracking-tighter">
+            Prompt to <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-600">Presentation</span>
           </h2>
-          <p className="text-textSecondary text-lg md:text-xl max-w-2xl mx-auto text-balance font-medium opacity-70">
+          <p className="text-neutral-500 text-lg md:text-xl max-w-2xl mx-auto text-balance font-medium tracking-tight">
             Type your concept. Our AI orchestrates the narrative, sources imagery, and builds a cinematic deck in real-time.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          {/* Left: Prompt input mock (Enhanced Glassmorphism) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+          {/* Left: Prompt input mock (Sleek SaaS Card) */}
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-white border border-blue-100 rounded-3xl p-8 shadow-[0_30px_60px_-15px_rgba(71,59,240,0.08)] relative overflow-hidden"
+            className="bg-white rounded-3xl p-2 shadow-[0_8px_30px_rgb(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.02)] border border-black/[0.04] relative overflow-hidden"
           >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/40 to-primary" />
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-8 h-8 rounded-lg bg-primary/5 flex items-center justify-center text-primary">
-                <Terminal size={18} />
+            <div className="bg-neutral-50/50 rounded-[22px] p-6 sm:p-8 h-full border border-black/[0.02]">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-white shadow-sm border border-black/[0.04] flex items-center justify-center text-primary">
+                    <Terminal size={16} strokeWidth={2.5} />
+                  </div>
+                  <span className="font-semibold text-neutral-800 text-sm tracking-tight">GENERATION PROMPT</span>
+                </div>
+                <div className="text-[10px] font-bold bg-primary/10 text-primary px-3 py-1.5 rounded-full uppercase tracking-widest border border-primary/20">
+                  GPT-5.5
+                </div>
               </div>
-              <span className="font-bold text-textMain text-sm uppercase tracking-wider">Generation Prompt</span>
-              <span className="ml-auto text-[10px] font-bold bg-primary text-white px-3 py-1 rounded-full uppercase tracking-tighter">GPT-5.5</span>
-            </div>
 
-            <div className="bg-[#F8FAFC] rounded-2xl p-6 font-mono text-sm leading-relaxed border border-blue-50 relative group">
-              <div className="flex gap-2 mb-4">
-                <span className="text-primary font-bold">/generate</span>
-                <span className="text-textMain font-medium">presentation</span>
+              {/* The Dark Terminal */}
+              <div className="bg-[#0A0A0A] rounded-2xl p-6 font-mono text-[13px] leading-relaxed border border-white/10 relative overflow-hidden shadow-2xl">
+                {/* Glow inside terminal */}
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
+                
+                <div className="flex gap-2 mb-5 relative z-10">
+                  <span className="text-blue-400 font-semibold">/generate</span>
+                  <span className="text-white/90">presentation</span>
+                </div>
+                <div className="space-y-3 relative z-10">
+                  <div className="flex flex-col sm:flex-row sm:gap-2">
+                    <span className="text-white/40 w-24 shrink-0">Topic:</span>
+                    <span className="text-white/90 font-medium">Future of Quantum Computing</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:gap-2">
+                    <span className="text-white/40 w-24 shrink-0">Style:</span>
+                    <span className="text-blue-300 font-medium">Cyber-dark, neon accents</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:gap-2">
+                    <span className="text-white/40 w-24 shrink-0">Audience:</span>
+                    <span className="text-white/90 font-medium">Tech investors</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:gap-2">
+                    <span className="text-white/40 w-24 shrink-0">Slides:</span>
+                    <span className="text-white/90 font-medium">12</span>
+                  </div>
+                </div>
+                <motion.div
+                  animate={{ opacity: [1, 0] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                  className="w-2 h-4 bg-blue-500 mt-5 rounded-sm shadow-[0_0_8px_rgba(59,130,246,0.8)]"
+                />
               </div>
-              <div className="space-y-2 opacity-80">
-                <div className="flex gap-2">
-                  <span className="text-textMuted w-20">Topic:</span>
-                  <span className="text-textMain font-semibold">Future of Quantum Computing</span>
-                </div>
-                <div className="flex gap-2">
-                  <span className="text-textMuted w-20">Style:</span>
-                  <span className="text-textMain font-semibold italic text-primary">Cyber-dark, neon accents</span>
-                </div>
-                <div className="flex gap-2">
-                  <span className="text-textMuted w-20">Audience:</span>
-                  <span className="text-textMain font-semibold">Tech investors</span>
-                </div>
-                <div className="flex gap-2">
-                  <span className="text-textMuted w-20">Slides:</span>
-                  <span className="text-textMain font-semibold">12</span>
-                </div>
-              </div>
-              <motion.div
-                animate={{ opacity: [1, 0] }}
-                transition={{ duration: 1, repeat: Infinity }}
-                className="w-2.5 h-5 bg-primary mt-4 rounded-sm"
-              />
-            </div>
 
-            {/* Slide type pills (Bottom) */}
-            <div className="mt-8 flex flex-wrap gap-2.5">
-              {MOCK_SLIDES.map((s, i) => (
-                <motion.span
-                  key={s.type}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.05 }}
-                  className="text-[11px] font-bold px-4 py-1.5 rounded-full bg-white border border-blue-50 text-textSecondary shadow-sm hover:border-primary/30 transition-colors cursor-default"
-                >
-                  {s.label}
-                </motion.span>
-              ))}
+              {/* Slide type pills */}
+              <div className="mt-8 flex flex-wrap gap-2">
+                {MOCK_SLIDES.map((s, i) => (
+                  <motion.span
+                    key={s.type}
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.05 + 0.2 }}
+                    className="text-[11px] font-semibold px-4 py-1.5 rounded-full bg-white border border-black/[0.06] text-neutral-600 shadow-sm hover:border-black/[0.15] hover:text-neutral-900 transition-all cursor-default"
+                  >
+                    {s.label}
+                  </motion.span>
+                ))}
+              </div>
             </div>
           </motion.div>
 
-          {/* Right: Generated slide preview (Premium Glassmorphism) */}
+          {/* Right: Generated slide preview (Premium Floating Slide) */}
           <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
             className="relative"
           >
             {/* Glow Background */}
-            <div className="absolute -inset-10 bg-primary/10 rounded-full blur-[80px] opacity-90" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-primary/15 via-indigo-500/10 to-transparent rounded-[3rem] blur-2xl transform scale-90" />
             
-            <div className="relative aspect-[16/11] bg-white/40 backdrop-blur-3xl rounded-[2.5rem] border border-white p-1 shadow-[0_50px_100px_-20px_rgba(71,59,240,0.15)] overflow-hidden group">
-               <div className="absolute inset-0 bg-gradient-to-br from-white/80 via-white/40 to-transparent" />
-               
-               {/* Internal Content */}
-               <div className="relative h-full w-full rounded-[2.3rem] bg-white/10 flex flex-col items-center justify-center p-12 text-center">
+            <div className="relative aspect-[16/10] bg-white rounded-[2rem] border border-black/[0.04] p-2 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden group">
+               <div className="relative h-full w-full rounded-[1.75rem] bg-gradient-to-br from-neutral-50 to-white flex flex-col items-center justify-center p-8 sm:p-12 text-center border border-black/[0.02] shadow-[inset_0_0_20px_rgba(0,0,0,0.01)] overflow-hidden">
+                  
+                  {/* Grid overlay for scale */}
+                  <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:32px_32px]" />
+                  
+                  {/* Decorative Elements */}
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
+                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2" />
+
                   <motion.div 
-                    animate={{ y: [0, -10, 0] }}
+                    animate={{ y: [0, -6, 0] }}
                     transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                    className="w-16 h-16 rounded-2xl bg-white shadow-2xl flex items-center justify-center mb-8 border border-white"
+                    className="relative w-14 h-14 rounded-2xl bg-white shadow-[0_8px_16px_-4px_rgba(0,0,0,0.1),0_0_0_1px_rgba(0,0,0,0.04)] flex items-center justify-center mb-8"
                   >
-                     <Sparkles className="w-8 h-8 text-primary" />
+                     <Sparkles className="w-6 h-6 text-primary" strokeWidth={2} />
                   </motion.div>
 
-                  <h3 className="text-4xl md:text-5xl font-bold text-[#1A1A1A] mb-4 tracking-tight leading-tight">
-                    Quantum <br /> <span className="text-primary italic">Advantage</span>
+                  <h3 className="relative text-3xl sm:text-4xl md:text-5xl font-extrabold text-neutral-900 mb-4 tracking-tighter leading-tight">
+                    Quantum <br />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-500">Advantage</span>
                   </h3>
                   
-                  <p className="text-textSecondary font-medium opacity-60 mb-8 max-w-xs">
+                  <p className="relative text-neutral-500 font-medium tracking-tight mb-8 max-w-xs text-sm sm:text-base">
                     Redefining Computational Limits by 2030
                   </p>
 
-                  <div className="w-24 h-1 bg-gradient-to-r from-primary/5 to-primary to-primary/5 rounded-full mb-10" />
+                  <div className="relative w-16 h-1 bg-gradient-to-r from-transparent via-black/10 to-transparent rounded-full mb-10" />
 
-                  <div className="flex items-center gap-8 text-[11px] font-bold text-textSecondary tracking-wider uppercase opacity-40">
+                  <div className="relative flex items-center justify-center flex-wrap gap-4 sm:gap-6 text-[10px] font-bold text-neutral-400 tracking-[0.15em] uppercase">
                     <span>12 slides</span>
-                    <div className="w-1 h-1 rounded-full bg-textSecondary" />
+                    <div className="w-1 h-1 rounded-full bg-neutral-300" />
                     <span>Cyber Dark</span>
-                    <div className="w-1 h-1 rounded-full bg-textSecondary" />
+                    <div className="w-1 h-1 rounded-full bg-neutral-300" />
                     <span>Space Grotesk</span>
                   </div>
-               </div>
 
-               {/* Decorative floating elements */}
-               <div className="absolute top-10 right-10 w-20 h-20 bg-primary/5 rounded-full blur-2xl" />
-               <div className="absolute bottom-10 left-10 w-32 h-32 bg-blue-400/5 rounded-full blur-3xl" />
+                  {/* Glass Shimmer on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none transform -translate-x-full group-hover:translate-x-full ease-in-out" />
+               </div>
             </div>
           </motion.div>
         </div>

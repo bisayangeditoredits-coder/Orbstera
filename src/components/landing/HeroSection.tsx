@@ -974,36 +974,61 @@ export function HeroSection() {
           className="hidden md:block w-full max-w-[1400px] rounded-2xl border border-borderSubtle bg-white p-2 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.12)] group overflow-hidden"
         >
           <div className="w-full rounded-xl bg-panel border border-borderSubtle overflow-hidden relative flex flex-col">
-            {/* 1. Top Navigation Bar (High-Fidelity) */}
-            <div className="h-12 border-b border-borderSubtle bg-white flex items-center justify-between px-4 z-30">
-              <div className="flex items-center gap-4">
-                <div className="flex gap-1.5">
-                  {['bg-red-400', 'bg-yellow-400', 'bg-green-400'].map(c => (
-                    <div key={c} className={`w-2.5 h-2.5 rounded-full ${c}`} />
+            {/* 1. Top Navigation Bar (High-Fidelity Match of TopBar) */}
+            <div className="h-[52px] border-b border-black/[0.06] bg-[#FAFAFA]/95 flex items-center justify-between px-4 z-30 shadow-[0_1px_0_rgba(255,255,255,0.8)_inset]">
+              
+              {/* Left Side: Window Controls, Logo, Title, Stats */}
+              <div className="flex items-center gap-3">
+                <div className="flex gap-1.5 mr-1">
+                  {['bg-[#FF5F56]', 'bg-[#FFBD2E]', 'bg-[#27C93F]'].map(c => (
+                    <div key={c} className={`w-2.5 h-2.5 rounded-full ${c} border border-black/10`} />
                   ))}
                 </div>
-                <div className="h-4 w-[1px] bg-borderSubtle mx-2" />
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
-                    <Sparkles size={14} className="text-white" />
+                
+                <img src="/logo.png.png" alt="Orbstera" className="h-5 w-auto object-contain" />
+                
+                <div className="font-semibold text-[13px] leading-tight text-neutral-800 ml-1">
+                  The Future of AI...
+                </div>
+
+                <div className="hidden lg:flex items-center gap-2.5 rounded-full border border-black/[0.05] bg-neutral-100/80 px-3 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ml-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-semibold tabular-nums text-neutral-700">12</span>
+                    <span className="text-[9px] text-neutral-400 uppercase tracking-[0.12em] font-medium">slides</span>
                   </div>
-                  <span className="text-sm font-bold text-textMain">Orbstera</span>
-                  <span className="text-xs text-textMuted font-medium ml-2 border-l border-borderSubtle pl-2">The Future of AI...</span>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="flex bg-panel rounded-lg p-1 gap-1">
-                  <div className="px-3 py-1 text-[11px] font-bold text-textMain bg-white rounded-md shadow-sm">Generate</div>
-                  <div className="px-3 py-1 text-[11px] font-medium text-textMuted">Layers</div>
+
+              {/* Center Side: Panel Tabs */}
+              <div className="hidden md:flex items-center absolute left-1/2 -translate-x-1/2">
+                <div className="inline-flex items-center gap-0.5 rounded-2xl border border-black/[0.06] bg-neutral-100/85 p-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]">
+                  <div className="flex items-center gap-2 px-3.5 h-[34px] rounded-[10px] text-[12px] font-semibold bg-white text-neutral-900 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)]">
+                    <Wand2 size={14} className="text-primary" strokeWidth={2} />
+                    <span>Generate</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3.5 h-[34px] rounded-[10px] text-[12px] font-semibold text-neutral-500">
+                    <span>Layers</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3.5 h-[34px] rounded-[10px] text-[12px] font-semibold text-neutral-500">
+                    <span>Design</span>
+                  </div>
                 </div>
-                <div className="h-8 w-20 bg-panel rounded-full" />
-                <div className="flex items-center gap-2 ml-4">
-                  <div className="h-8 px-4 border border-borderSubtle rounded-full flex items-center text-[11px] font-bold text-textMain gap-2">
-                    <span>Share</span>
-                  </div>
-                  <div className="h-8 px-4 bg-primary text-white rounded-full flex items-center text-[11px] font-bold gap-2">
-                    <span>Export .pptx</span>
-                  </div>
+              </div>
+
+              {/* Right Side: Actions */}
+              <div className="flex items-center gap-2">
+                <div className="h-[36px] px-3.5 text-neutral-800 bg-white border border-black/[0.08] rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.04)] flex items-center text-[13px] font-semibold">
+                  Share
+                </div>
+                <div className="h-[36px] px-3.5 text-neutral-800 bg-white border border-black/[0.08] rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.04)] flex items-center gap-2 text-[13px] font-semibold">
+                  <div className="w-0.5 h-3 bg-primary rounded-full"></div>
+                  Present
+                </div>
+                
+                <div className="w-px h-[22px] bg-black/[0.06] mx-0.5" />
+                
+                <div className="h-[36px] px-4 flex items-center gap-2 text-[13px] font-semibold text-white bg-gradient-to-b from-[#5B7CFF] to-primary rounded-full shadow-[0_4px_14px_-4px_rgba(59,130,246,0.55),0_0_0_1px_rgba(255,255,255,0.12)_inset]">
+                  Export .pptx
                 </div>
               </div>
             </div>
