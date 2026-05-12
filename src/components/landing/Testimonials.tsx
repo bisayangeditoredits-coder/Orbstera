@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { BadgeCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { ReviewModal } from './ReviewModal';
 
 const REVIEWS = [
   {
@@ -180,12 +181,32 @@ const MarqueeRow = ({ items, direction = "left", speed = 40 }: { items: typeof R
 
 export function Testimonials() {
   const [mounted, setMounted] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [dynamicReviews, setDynamicReviews] = useState<typeof REVIEWS>([]);
 
   useEffect(() => {
     setMounted(true);
+    fetchReviews();
   }, []);
 
+  const fetchReviews = async () => {
+    try {
+      const res = await fetch('/api/reviews');
+      const data = await res.json();
+      if (data.reviews) {
+        setDynamicReviews(data.reviews);
+      }
+    } catch (error) {
+      console.error('Failed to fetch reviews:', error);
+    }
+  };
+
   if (!mounted) return null;
+
+  const allReviews = [...dynamicReviews, ...REVIEWS];
+  const row1 = allReviews.slice(0, Math.ceil(allReviews.length / 3));
+  const row2 = allReviews.slice(Math.ceil(allReviews.length / 3), Math.ceil(allReviews.length * 2 / 3));
+  const row3 = allReviews.slice(Math.ceil(allReviews.length * 2 / 3));
 
   return (
     <section className="relative w-full py-32 overflow-hidden bg-[#010104]">
@@ -234,20 +255,22 @@ export function Testimonials() {
           whileTap={{ scale: 0.95 }}
           viewport={{ once: true }}
           className="px-8 py-4 rounded-full bg-primary text-white font-bold text-lg shadow-[0_0_20px_rgba(var(--primary),0.4)] hover:shadow-[0_0_30px_rgba(var(--primary),0.6)] transition-all duration-300"
-          onClick={() => {
-            // This would trigger the review submission modal
-            alert("Share your story! (R2 integration ready)");
-          }}
+          onClick={() => setIsModalOpen(true)}
         >
           Share Your Story
         </motion.button>
       </div>
 
+      <ReviewModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+      />
+
       {/* Infinite Scrolling Marquees */}
       <div className="relative z-10 flex flex-col gap-6 -mx-4 md:-mx-20 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
-        <MarqueeRow items={ROW_1} direction="left" speed={60} />
-        <MarqueeRow items={ROW_2} direction="right" speed={55} />
-        <MarqueeRow items={ROW_3} direction="left" speed={65} />
+        <MarqueeRow items={row1} direction="left" speed={60} />
+        <MarqueeRow items={row2} direction="right" speed={55} />
+        <MarqueeRow items={row3} direction="left" speed={65} />
       </div>
 
       <div className="absolute bottom-0 w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
