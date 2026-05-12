@@ -1,3 +1,5 @@
+'use client';
+
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useEffect, useState, useCallback } from 'react';
@@ -14,8 +16,7 @@ import { useSearchParams } from 'next/navigation';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { usePresentationCloudSync } from '@/hooks/usePresentationCloudSync';
-
-'use client';
+import type { PresentationData } from '@/types';
 
 const EditorCanvasLoading = () => (
   <div className="flex-1 min-h-0 flex items-center justify-center bg-background text-textMuted">
@@ -54,6 +55,10 @@ export default function EditorClient() {
   const [deckLoadStatus, setDeckLoadStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [deckLoadMessage, setDeckLoadMessage] = useState<string | null>(null);
 
+  const validatePresentationPayload = (data: any): data is PresentationData => {
+    return !!data && typeof data === 'object' && typeof data.id === 'string' && Array.isArray((data as any).slides);
+  };
+
   // Handle auto-generation or loading from URL (abort in-flight fetch if params change)
   useEffect(() => {
     const prompt = searchParams.get('prompt');
@@ -84,6 +89,12 @@ export default function EditorClient() {
             setDeckLoadMessage('Deck not found (or you no longer have access).');
             return;
           }
+          if (!validatePresentationPayload(data) || data.slides.length === 0) {
+            setDeckLoadStatus('error');
+            setDeckLoadMessage('This deck data is invalid (missing slides).');
+            return;
+          }
+
           usePresentationStore.getState().setPresentation(data);
           setDeckLoadStatus('idle');
         })

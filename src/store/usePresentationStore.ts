@@ -68,14 +68,83 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   presentation: null,
 
   setPresentation: (data) => {
-    if (!data || !data.slides || !Array.isArray(data.slides)) {
-      console.error('Invalid presentation data received:', data);
+    const makeId = (prefix: string) => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
+
+    const safeNumber = (v: unknown, fallback: number) => {
+      const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
+      return Number.isFinite(n) ? n : fallback;
+    };
+
+    const safeString = (v: unknown, fallback: string) => (typeof v === 'string' ? v : fallback);
+
+    const normalize = (raw: any) => {
+      const slidesRaw = Array.isArray(raw?.slides) ? raw.slides : [];
+      const paletteRaw = Array.isArray(raw?.colorPalette) ? raw.colorPalette.filter((c: any) => typeof c === 'string' && c.trim()) : [];
+      const colorPalette =
+        paletteRaw.length >= 2 ? paletteRaw : ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'];
+
+      const fontPairingRaw = raw?.fontPairing && typeof raw.fontPairing === 'object' ? raw.fontPairing : {};
+      const fontPairing = {
+        heading: safeString(fontPairingRaw.heading, 'Space Grotesk'),
+        body: safeString(fontPairingRaw.body, 'Inter'),
+      };
+
+      const id = safeString(raw?.id, '').trim() || makeId('deck');
+
+      const slides = slidesRaw.map((s: any, idx: number) => {
+        const sid = safeString(s?.id, '').trim() || makeId(`slide-${idx}`);
+        const elementsRaw = Array.isArray(s?.elements) ? s.elements : [];
+        const elements: SlideElement[] = elementsRaw
+          .filter((el: any) => el && typeof el === 'object' && typeof el.id === 'string' && typeof el.type === 'string')
+          .map((el: any) => ({
+            ...el,
+            id: safeString(el.id, makeId(`el-${idx}`)),
+            x: safeNumber(el.x, 0),
+            y: safeNumber(el.y, 0),
+            width: Math.max(1, safeNumber(el.width, 100)),
+            height: Math.max(1, safeNumber(el.height, 60)),
+            rotation: safeNumber(el.rotation, 0),
+            opacity: Math.min(1, Math.max(0, safeNumber(el.opacity, 1))),
+            visible: typeof el.visible === 'boolean' ? el.visible : true,
+            locked: typeof el.locked === 'boolean' ? el.locked : false,
+            zIndex: safeNumber(el.zIndex, undefined as any),
+            src: typeof el.src === 'string' ? el.src : '',
+            content: typeof el.content === 'string' ? el.content : el.content == null ? '' : String(el.content),
+          }));
+
+        return {
+          ...s,
+          id: sid,
+          type: safeString(s?.type, 'content'),
+          title: safeString(s?.title, ''),
+          subtitle: typeof s?.subtitle === 'string' ? s.subtitle : undefined,
+          bullets: Array.isArray(s?.bullets) ? s.bullets.filter((b: any) => typeof b === 'string') : undefined,
+          elements,
+        };
+      });
+
+      return {
+        ...raw,
+        id,
+        title: safeString(raw?.title, 'Untitled Presentation'),
+        theme: safeString(raw?.theme, 'dark'),
+        colorPalette,
+        fontPairing,
+        animationStyle: safeString(raw?.animationStyle, 'cinematic-reveal'),
+        slides,
+      };
+    };
+
+    const normalized = normalize(data);
+    if (!Array.isArray(normalized.slides) || normalized.slides.length === 0) {
+      console.error('Invalid presentation data received (no slides):', data);
+      set({ presentation: null, currentSlideIndex: 0, history: [], historyIndex: -1 });
       return;
     }
 
-    const palette     = data.colorPalette || ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'];
-    const headingFont = data.fontPairing?.heading || 'Space Grotesk';
-    const bodyFont    = data.fontPairing?.body    || 'Inter';
+    const palette     = normalized.colorPalette || ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'];
+    const headingFont = normalized.fontPairing?.heading || 'Space Grotesk';
+    const bodyFont    = normalized.fontPairing?.body    || 'Inter';
 
     const imageTasks: {
       slideId: string;
@@ -87,15 +156,15 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     }[] = [];
 
     const motionCtx = {
-      animationStyle: data.animationStyle,
-      presentationType: data.presentationType,
-      styleMode: data.styleMode,
-      defaultSlideTransition: data.defaultSlideTransition,
+      animationStyle: normalized.animationStyle,
+      presentationType: normalized.presentationType,
+      styleMode: normalized.styleMode,
+      defaultSlideTransition: normalized.defaultSlideTransition,
     };
 
     // ── Convert static AI slide content into canvas-accurate elements ──────
-    const slides = data.slides.map((slide, sIdx) => {
-      if (data.source === 'import' && (slide.elements?.length || 0) > 0) {
+    const slides = normalized.slides.map((slide, sIdx) => {
+      if (normalized.source === 'import' && (slide.elements?.length || 0) > 0) {
         return finalizeSlideMotion(
           { ...slide, title: '', subtitle: '', bullets: [] },
           motionCtx,
@@ -347,7 +416,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     const deckId =
       existingId || (isGenerationReset ? fallbackRandom : prevId || fallbackRandom);
 
-    const newPresentation = { ...data, id: deckId, slides };
+    const newPresentation = { ...normalized, id: deckId, slides };
     set({ presentation: newPresentation, currentSlideIndex: 0, history: [], historyIndex: -1 });
     get().pushHistory();
 

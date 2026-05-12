@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ImageIcon } from 'lucide-react';
 import { usePresentationStore } from '@/store/usePresentationStore';
@@ -129,6 +129,25 @@ function GenerationLoader() {
         ? `Slides streamed ${slideLen} / ~${generationTargetSlides || '?'}`
         : null;
 
+  const reduceMotion =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 12 }, () => ({
+        w: Math.random() * 40 + 10,
+        h: Math.random() * 40 + 10,
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        x2: Math.random() * 50 - 25,
+        duration: 8 + Math.random() * 10,
+        delay: Math.random() * 5,
+      })),
+    []
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -147,42 +166,44 @@ function GenerationLoader() {
         />
         
         {/* Floating Shapes / Particles */}
-        {[...Array(12)].map((_, i) => (
+        {particles.map((p, i) => (
           <motion.div
             key={`particle-${i}`}
             className="absolute bg-primary/10 rounded-full blur-[1px]"
             style={{
-              width: Math.random() * 40 + 10,
-              height: Math.random() * 40 + 10,
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              width: p.w,
+              height: p.h,
+              left: p.left,
+              top: p.top,
             }}
             animate={{
               y: [0, -100, 0],
-              x: [0, Math.random() * 50 - 25, 0],
+              x: [0, p.x2, 0],
               opacity: [0, 0.4, 0],
               scale: [1, 1.5, 1],
             }}
             transition={{
-              duration: 8 + Math.random() * 10,
+              duration: p.duration,
               repeat: Infinity,
-              delay: Math.random() * 5,
+              delay: p.delay,
             }}
           />
         ))}
 
         {/* Visionary AI Backdrop (VR Man) */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-[0.07] grayscale pointer-events-none mix-blend-overlay">
-           {/* @ts-ignore */}
-           <lottie-player
-             src="/A Man with VR headset touches a holographic screen.json"
-             background="transparent"
-             speed="0.8"
-             style={{ width: '100%', height: '100%' }}
-             loop
-             autoplay
-           />
-        </div>
+        {!reduceMotion && (
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.07] grayscale pointer-events-none mix-blend-overlay">
+            {/* @ts-ignore */}
+            <lottie-player
+              src="/A Man with VR headset touches a holographic screen.json"
+              background="transparent"
+              speed="0.8"
+              style={{ width: '100%', height: '100%' }}
+              loop
+              autoplay
+            />
+          </div>
+        )}
 
         <motion.div
           animate={{
@@ -211,28 +232,32 @@ function GenerationLoader() {
              className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none drop-shadow-[0_0_40px_rgba(255,255,255,0.4)]"
            >
               <div className="w-[180px] h-[180px]">
-                {/* @ts-ignore */}
-                <lottie-player
-                  src="/robo (2).json"
-                  background="transparent"
-                  speed="1"
-                  style={{ width: '100%', height: '100%' }}
-                  loop
-                  autoplay
-                />
+                {!reduceMotion && (
+                  // @ts-ignore
+                  <lottie-player
+                    src="/robo (2).json"
+                    background="transparent"
+                    speed="1"
+                    style={{ width: '100%', height: '100%' }}
+                    loop
+                    autoplay
+                  />
+                )}
               </div>
            </motion.div>
 
            {/* Main Intelligence Orb */}
-           {/* @ts-ignore */}
-           <lottie-player
-             src="/ai animation Flow 1.json"
-             background="transparent"
-             speed="1"
-             style={{ width: '100%', height: '100%' }}
-             loop
-             autoplay
-           />
+           {!reduceMotion && (
+            // @ts-ignore
+            <lottie-player
+              src="/ai animation Flow 1.json"
+              background="transparent"
+              speed="1"
+              style={{ width: '100%', height: '100%' }}
+              loop
+              autoplay
+            />
+           )}
 
            {/* Floating Progress Pill */}
            <motion.div 
@@ -348,6 +373,18 @@ export function CanvasArea() {
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const startPanPos = useRef({ x: 0, y: 0 });
+  const zoomRef = useRef(zoom);
+  const panRef = useRef(editor.pan);
+  const rafWheelRef = useRef<number | null>(null);
+  const wheelAccumRef = useRef({ dx: 0, dy: 0, zoomDelta: 0, didZoom: false });
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
+  useEffect(() => {
+    panRef.current = editor.pan;
+  }, [editor.pan]);
 
   // Measure container dimensions
   useEffect(() => {
@@ -394,24 +431,36 @@ export function CanvasArea() {
     };
 
     const handleWheel = (e: WheelEvent) => {
-      // Zoom with Ctrl + Wheel or just Wheel if it's the primary way
-      // We'll allow both but prioritize Ctrl for precision if needed
-      e.preventDefault();
-      
-      const isZoom = e.ctrlKey || e.metaKey || true; // Always allow for now
-      if (isZoom) {
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        const newZoom = Math.min(2, Math.max(0.1, zoom + delta));
-        setEditorState({ zoom: newZoom });
-      } else {
-        // Pan with wheel (if not zooming)
-        setEditorState({ 
-          pan: { 
-            x: editor.pan.x - e.deltaX, 
-            y: editor.pan.y - e.deltaY 
-          } 
-        });
+      // Only treat wheel as zoom when user is doing ctrl/meta wheel (trackpad pinch-zoom).
+      // Otherwise use wheel to pan the canvas, and don't unnecessarily block native scrolling.
+      const isZoomGesture = e.ctrlKey || e.metaKey;
+      if (isZoomGesture) e.preventDefault();
+
+      const acc = wheelAccumRef.current;
+      acc.dx += e.deltaX;
+      acc.dy += e.deltaY;
+      if (isZoomGesture) {
+        acc.didZoom = true;
+        acc.zoomDelta += e.deltaY;
       }
+
+      if (rafWheelRef.current != null) return;
+      rafWheelRef.current = window.requestAnimationFrame(() => {
+        rafWheelRef.current = null;
+        const { dx, dy, zoomDelta, didZoom } = wheelAccumRef.current;
+        wheelAccumRef.current = { dx: 0, dy: 0, zoomDelta: 0, didZoom: false };
+
+        if (didZoom) {
+          const deltaStep = zoomDelta > 0 ? -0.1 : 0.1;
+          const nextZoom = Math.min(2, Math.max(0.1, zoomRef.current + deltaStep));
+          if (nextZoom !== zoomRef.current) setEditorState({ zoom: nextZoom });
+          return;
+        }
+
+        const p = panRef.current;
+        const nextPan = { x: p.x - dx, y: p.y - dy };
+        if (nextPan.x !== p.x || nextPan.y !== p.y) setEditorState({ pan: nextPan });
+      });
     };
 
     const container = containerRef.current;
@@ -428,7 +477,7 @@ export function CanvasArea() {
         container.removeEventListener('wheel', handleWheel);
       }
     };
-  }, [zoom, isSpacePressed, setEditorState, editor.pan]);
+  }, [isSpacePressed, setEditorState]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // Pan with Middle Mouse Button (1) or Space + Left Click (0)
