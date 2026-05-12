@@ -370,7 +370,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   }, [isProfileLoading, urlPrompt, urlFileName, urlMode]);
 
   const handleGenerateClick = (overridePrompt?: string) => {
-    const targetPrompt = overridePrompt || prompt;
+    const targetPrompt = typeof overridePrompt === 'string' ? overridePrompt : prompt;
     // ── AUTH GATE ──
     if (!user) {
       // Encode prompt to pass it through login
@@ -1139,7 +1139,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       <div className="shrink-0 px-4 sm:px-5 py-3.5 border-t border-black/[0.06] bg-white relative z-50">
         <button
           type="button"
-          onClick={handleGenerateClick}
+          onClick={() => handleGenerateClick()}
           disabled={(activeTab === 'create' ? !prompt.trim() : !selectedFile) || isLoading}
           className="group relative w-full h-[3.25rem] rounded-full bg-gradient-to-b from-[#5B7CFF] to-primary hover:from-primary hover:to-[#3d5ef0] text-white shadow-[0_8px_24px_-6px_rgba(59,130,246,0.55),0_0_0_1px_rgba(255,255,255,0.12)_inset] disabled:opacity-35 disabled:shadow-none disabled:from-neutral-200 disabled:to-neutral-300 transition-all duration-200 active:scale-[0.98] overflow-hidden"
         >
