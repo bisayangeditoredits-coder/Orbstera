@@ -1,56 +1,47 @@
-"use client";
+'use client';
 
-import { motion } from 'framer-motion';
+import type { CSSProperties } from 'react';
+
+const brands = ['Foresight', 'Goodwell', 'Luminary', 'Magnolia', 'Norse Star', 'Mastermind'];
 
 export function SocialProof() {
-  const brands = ['Foresight', 'Goodwell', 'Luminary', 'Magnolia', 'Norse Star', 'Mastermind'];
-  
+  /** Exactly two identical halves → translateX(-50%) loops seamlessly. */
+  const loopItems = [...brands, ...brands];
+
   return (
-    <section className="w-full py-16 bg-white flex flex-col items-center overflow-hidden border-y border-blue-50/50">
-      <p className="text-[10px] font-bold text-textMuted uppercase tracking-[0.3em] mb-12 opacity-60">
+    <section className="flex w-full flex-col items-center overflow-hidden border-y border-blue-50/50 bg-white py-16">
+      <p className="mb-12 text-[10px] font-bold uppercase tracking-[0.3em] text-textMuted opacity-60">
         Trusted by the world&apos;s most innovative teams
       </p>
-      
+
       <div className="relative w-full max-w-full overflow-hidden">
-        {/* Gradient Overlays for smooth fading */}
-        <div className="absolute left-0 top-0 bottom-0 w-24 sm:w-40 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
-        <div className="absolute right-0 top-0 bottom-0 w-24 sm:w-40 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
-        
-        {/* Infinite Scrolling Container with Framer Motion */}
-        <div className="flex w-max">
-          <motion.div 
-            animate={{ x: ["0%", "-50%"] }}
-            transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-            className="flex hover:[animation-play-state:paused]"
+        <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-24 bg-gradient-to-r from-white to-transparent sm:w-40" />
+        <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-24 bg-gradient-to-l from-white to-transparent sm:w-40" />
+
+        <div className="group flex w-full overflow-hidden">
+          <div
+            className="flex w-max will-change-transform motion-safe:animate-marquee-left motion-reduce:animate-none hover:[animation-play-state:paused]"
+            style={
+              {
+                ['--marquee-duration' as string]: '50s',
+              } as CSSProperties
+            }
           >
-            {/* First Set */}
-            <div className="flex gap-x-12 sm:gap-x-20 pr-12 sm:pr-20 w-max items-center">
-              {[...brands, ...brands].map((brand, i) => (
-                <div key={`set1-${i}`} className="flex items-center gap-2.5 sm:gap-3 opacity-[0.35] hover:opacity-100 transition-all duration-300 cursor-pointer grayscale hover:grayscale-0 shrink-0 group">
-                   <div className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-black/[0.04] group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-black/20 group-hover:bg-primary/60 rounded-full transition-colors" />
-                   </div>
-                   <span className="text-lg sm:text-xl font-extrabold text-neutral-800 tracking-tighter uppercase italic whitespace-nowrap">
-                     {brand}
-                   </span>
+            {loopItems.map((brand, i) => (
+              <div
+                key={`${brand}-${i}`}
+                className="group/item flex shrink-0 cursor-pointer items-center gap-2.5 pr-12 opacity-[0.35] transition-all duration-300 sm:gap-3 sm:pr-20 grayscale hover:opacity-100 hover:grayscale-0"
+                aria-hidden={i >= brands.length}
+              >
+                <div className="flex h-5 w-5 items-center justify-center rounded bg-black/[0.04] transition-colors group-hover/item:bg-primary/10 sm:h-6 sm:w-6">
+                  <div className="h-1.5 w-1.5 rounded-full bg-black/20 transition-colors group-hover/item:bg-primary/60 sm:h-2 sm:w-2" />
                 </div>
-              ))}
-            </div>
-            
-            {/* Second Set (Perfect Duplicate for seamless looping) */}
-            <div className="flex gap-x-12 sm:gap-x-20 pr-12 sm:pr-20 w-max items-center">
-              {[...brands, ...brands].map((brand, i) => (
-                <div key={`set2-${i}`} className="flex items-center gap-2.5 sm:gap-3 opacity-[0.35] hover:opacity-100 transition-all duration-300 cursor-pointer grayscale hover:grayscale-0 shrink-0 group">
-                   <div className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-black/[0.04] group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-black/20 group-hover:bg-primary/60 rounded-full transition-colors" />
-                   </div>
-                   <span className="text-lg sm:text-xl font-extrabold text-neutral-800 tracking-tighter uppercase italic whitespace-nowrap">
-                     {brand}
-                   </span>
-                </div>
-              ))}
-            </div>
-          </motion.div>
+                <span className="whitespace-nowrap text-lg font-extrabold uppercase italic tracking-tighter text-neutral-800 sm:text-xl">
+                  {brand}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

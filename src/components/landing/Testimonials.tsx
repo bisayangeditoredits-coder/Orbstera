@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { BadgeCheck } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { ReviewModal } from './ReviewModal';
 import { SpotlightCard } from '@/components/ui/SpotlightCard';
 
@@ -97,12 +97,7 @@ const REVIEWS = [
   },
 ];
 
-// Split reviews into 3 rows for the marquee
-const ROW_1 = REVIEWS.slice(0, 4);
-const ROW_2 = REVIEWS.slice(4, 8);
-const ROW_3 = REVIEWS.slice(7, 11);
-
-const ReviewCard = ({ review }: { review: typeof REVIEWS[0] }) => {
+const ReviewCard = ({ review }: { review: (typeof REVIEWS)[0] }) => {
   return (
     <SpotlightCard 
       className="group w-[350px] shrink-0 rounded-2xl border border-white/10 bg-white/[0.02] p-6 backdrop-blur-md transition-all duration-300 hover:bg-white/[0.04] hover:border-primary/50"
@@ -160,38 +155,48 @@ const ReviewCard = ({ review }: { review: typeof REVIEWS[0] }) => {
   );
 };
 
-const MarqueeRow = ({ items, direction = "left", speed = 40 }: { items: typeof REVIEWS, direction?: "left" | "right", speed?: number }) => {
+function MarqueeRow({
+  items,
+  direction = 'left',
+  speed = 40,
+}: {
+  items: typeof REVIEWS;
+  direction?: 'left' | 'right';
+  speed?: number;
+}) {
+  if (items.length === 0) return null;
+
+  /** Exactly two copies — CSS translateX(±50%) matches one full cycle (realtime, no Framer % quirks). */
+  const loopItems = [...items, ...items];
+  const anim =
+    direction === 'left'
+      ? 'motion-safe:animate-marquee-left motion-reduce:animate-none'
+      : 'motion-safe:animate-marquee-right motion-reduce:animate-none';
+
   return (
-    <div className="flex w-full overflow-hidden group">
-      <motion.div
-        key={items.length}
-        className="flex gap-6 pr-6 w-max"
-        animate={{
-          x: direction === "left" ? ["0%", "-50%"] : ["-50%", "0%"],
-        }}
-        transition={{
-          duration: speed,
-          repeat: Infinity,
-          ease: "linear",
-        }}
+    <div className="group flex w-full overflow-hidden">
+      <div
+        className={`flex w-max gap-6 pr-6 will-change-transform hover:[animation-play-state:paused] ${anim}`}
+        style={
+          {
+            ['--marquee-duration' as string]: `${speed}s`,
+          } as CSSProperties
+        }
       >
-        {/* Duplicate the items to create a seamless infinite loop */}
-        {[...items, ...items, ...items].map((review, i) => (
-          <ReviewCard key={i} review={review} />
+        {loopItems.map((review, i) => (
+          <ReviewCard key={`${review.handle}-${i}`} review={review} />
         ))}
-      </motion.div>
+      </div>
     </div>
   );
-};
+}
 
 export function Testimonials() {
-  const [mounted, setMounted] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [dynamicReviews, setDynamicReviews] = useState<typeof REVIEWS>([]);
 
   useEffect(() => {
-    setMounted(true);
-    fetchReviews();
+    void fetchReviews();
   }, []);
 
   const fetchReviews = async () => {
@@ -205,8 +210,6 @@ export function Testimonials() {
       console.error('Failed to fetch reviews:', error);
     }
   };
-
-  if (!mounted) return null;
 
   const allReviews = [...dynamicReviews, ...REVIEWS];
   const row1 = allReviews.slice(0, Math.ceil(allReviews.length / 3));

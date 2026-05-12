@@ -105,7 +105,7 @@ export function Navbar() {
         className="border-b border-slate-200/70 bg-white/85 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur-2xl supports-[backdrop-filter]:bg-white/75"
         aria-label="Primary"
       >
-        <div className="mx-auto flex h-[52px] w-full max-w-[1400px] min-w-0 items-center justify-between gap-3 px-3 sm:h-[60px] sm:gap-x-4 sm:px-5 md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:justify-between md:gap-x-6 md:px-8">
+        <div className="mx-auto flex h-[52px] w-full max-w-[1400px] min-w-0 items-center justify-between gap-3 px-3 sm:h-[60px] sm:gap-x-4 sm:px-5 md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:justify-between md:gap-x-7 md:px-8 lg:gap-x-10">
           {/* Left: logo */}
           <div className="flex min-w-0 items-center md:justify-self-start">
             <Link
@@ -125,7 +125,7 @@ export function Navbar() {
           </div>
 
           {/* Center: readable spacing — never use gap-0; links have their own padding */}
-          <div className="relative z-20 hidden min-w-0 justify-center md:flex md:justify-self-center">
+          <div className="relative z-10 mr-1 hidden min-w-0 justify-center md:flex md:justify-self-center md:mr-2 lg:mr-3">
             <div
               role="navigation"
               aria-label="Site sections"
@@ -151,8 +151,8 @@ export function Navbar() {
             </div>
           </div>
 
-          {/* Right: command hint + CTA + auth (no collision with Features) */}
-          <div className="flex min-w-0 flex-nowrap items-center justify-end gap-1.5 sm:gap-2 md:justify-self-end">
+          {/* Right: isolated stacking so CTA glow/shadow never bleeds over center nav */}
+          <div className="relative z-20 flex min-w-0 flex-nowrap items-center justify-end gap-1.5 pl-1 sm:gap-2 sm:pl-2 md:justify-self-end md:pl-4 lg:pl-5">
             <button
               type="button"
               className="hidden h-9 shrink-0 items-center gap-1.5 rounded-full border border-slate-200/90 bg-white/90 px-2.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500 shadow-sm transition hover:border-primary/25 hover:bg-white hover:text-slate-700 min-[1080px]:flex"
@@ -178,17 +178,17 @@ export function Navbar() {
 
             <Link
               href="/editor"
-              className="group relative flex h-9 shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-full bg-gradient-to-b from-primary to-primaryHover px-4 text-[10px] font-bold uppercase tracking-[0.14em] text-white shadow-[0_10px_28px_-8px_rgba(37,99,235,0.55)] ring-1 ring-white/25 transition hover:brightness-[1.05] hover:shadow-[0_12px_36px_-10px_rgba(37,99,235,0.65)] active:scale-[0.98] touch-manipulation sm:h-10 sm:gap-2 sm:px-6 sm:text-[11px]"
+              className="group relative isolate flex h-9 shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-full bg-gradient-to-b from-primary to-primaryHover px-4 text-[10px] font-bold uppercase tracking-[0.14em] text-white shadow-[4px_10px_22px_-6px_rgba(37,99,235,0.5)] ring-1 ring-white/20 transition hover:brightness-[1.05] hover:shadow-[6px_12px_26px_-6px_rgba(37,99,235,0.55)] active:scale-[0.98] touch-manipulation sm:h-10 sm:gap-2 sm:px-6 sm:text-[11px]"
             >
-              <span className="relative z-10 truncate whitespace-nowrap">
+              <span className="relative z-[1] truncate whitespace-nowrap">
                 <span className="hidden xs:inline">Start Creating</span>
                 <span className="xs:hidden">Create</span>
               </span>
               <ArrowRight
                 size={14}
-                className="relative z-10 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 sm:h-4 sm:w-4"
+                className="relative z-[1] shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 sm:h-4 sm:w-4"
               />
-              <span className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/25 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+              <span className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-full bg-gradient-to-tr from-white/20 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
             </Link>
 
             {isLoading ? (

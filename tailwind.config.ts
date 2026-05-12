@@ -49,8 +49,11 @@ const config: Config = {
         'slide-frame': '0 30px 60px -12px rgba(0, 0, 0, 0.08), 0 18px 36px -18px rgba(0, 0, 0, 0.1)',
       },
       animation: {
-        'shimmer': 'shimmer 2.5s linear infinite',
-        'float': 'float 6s ease-in-out infinite',
+        shimmer: 'shimmer 2.5s linear infinite',
+        float: 'float 6s ease-in-out infinite',
+        /** Seamless loop: inner track is exactly two copies → translate -50% */
+        'marquee-left': 'marquee-left var(--marquee-duration, 40s) linear infinite',
+        'marquee-right': 'marquee-right var(--marquee-duration, 40s) linear infinite',
       },
       keyframes: {
         shimmer: {
@@ -60,8 +63,16 @@ const config: Config = {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-20px)' },
-        }
-      }
+        },
+        'marquee-left': {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
+        'marquee-right': {
+          '0%': { transform: 'translateX(-50%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+      },
     },
   },
   plugins: [],
