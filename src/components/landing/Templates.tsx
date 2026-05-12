@@ -1,52 +1,142 @@
 "use client";
 
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
+import { ArrowRight, Lock, Layout, Briefcase, Palette, TrendingUp, Link as LinkIcon, Rocket, Sparkles } from 'lucide-react';
+import * as Icons from 'lucide-react';
 
-const templates = [
-  { name: 'Pitch Deck V1', category: 'Startup', gradient: 'from-blue-500/20 to-purple-500/20' },
-  { name: 'Quarterly Review', category: 'Corporate', gradient: 'from-emerald-500/20 to-teal-500/20' },
-  { name: 'Creative Portfolio', category: 'Agency', gradient: 'from-orange-500/20 to-pink-500/20' },
-  { name: 'Product Launch', category: 'Marketing', gradient: 'from-primary/20 to-secondary/20' },
-  { name: 'Series A Master', category: 'Startup', gradient: 'from-indigo-500/20 to-cyan-500/20' },
-  { name: 'Brand Guidelines', category: 'Design', gradient: 'from-rose-500/20 to-red-500/20' },
+const FALLBACK_TEMPLATES = [
+  {
+    id: "seq-pitch",
+    slug: "seq-pitch",
+    title: "Series A Pitch Deck",
+    category: "Frameworks",
+    color_gradient: "from-blue-500 to-indigo-600",
+    text_color: "text-white",
+    icon_name: "Briefcase",
+    is_premium: false,
+  },
+  {
+    id: "obsidian-cyber",
+    slug: "obsidian-cyber",
+    title: "Obsidian Cyber",
+    category: "Aesthetics",
+    color_gradient: "from-zinc-900 to-black",
+    text_color: "text-white",
+    icon_name: "Palette",
+    is_premium: true,
+  },
+  {
+    id: "b2b-sales",
+    slug: "b2b-sales",
+    title: "Enterprise Sales Playbook",
+    category: "Frameworks",
+    color_gradient: "from-sky-400 to-blue-600",
+    text_color: "text-white",
+    icon_name: "TrendingUp",
+    is_premium: false,
+  }
 ];
 
 export function Templates() {
+  const [templates, setTemplates] = useState<any[]>(FALLBACK_TEMPLATES);
+
+  useEffect(() => {
+    async function fetchTemplates() {
+      try {
+        const res = await fetch('/api/templates');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            setTemplates(data.slice(0, 3));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch templates:", err);
+      }
+    }
+    fetchTemplates();
+  }, []);
+
   return (
-    <section id="templates" className="w-full py-32 px-6 bg-surface border-y border-white/5">
-      <div className="max-w-7xl mx-auto">
+    <section id="templates" className="w-full py-32 px-6 bg-[#FAFAFA] border-y border-black/[0.05] relative overflow-hidden">
+      {/* Background Decor */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(71,59,240,0.03)_0%,transparent_70%)] pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto relative z-10">
         <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
           <div>
-            <h2 className="text-4xl md:text-5xl font-space-grotesk font-bold mb-4">Curated Starting Points</h2>
-            <p className="text-textMuted text-lg max-w-xl">
-              Don&apos;t want to start with a prompt? Choose from our library of handcrafted, responsive templates.
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-black/[0.05] shadow-sm mb-4">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <span className="text-[10px] font-bold tracking-widest uppercase text-neutral-600">Starting Points</span>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-extrabold mb-4 text-neutral-900 tracking-tighter">
+              The Prompt <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-600">Library</span>
+            </h2>
+            <p className="text-neutral-500 text-lg max-w-xl tracking-tight font-medium">
+              Don&apos;t want to start with a blank prompt? Choose from our library of handcrafted, responsive AI frameworks.
             </p>
           </div>
-          <button className="px-6 py-2 rounded-full border border-white/10 hover:bg-white/5 transition-colors">
-            View All Templates
-          </button>
+          <Link href="/templates" className="px-6 py-3 rounded-full bg-neutral-900 text-white font-bold text-sm hover:bg-black transition-colors flex items-center gap-2 shadow-lg">
+            View Full Library <ArrowRight size={16} />
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {templates.map((tpl, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className="group cursor-pointer"
-            >
-              <div className={`aspect-video rounded-xl bg-gradient-to-br ${tpl.gradient} border border-white/10 mb-4 overflow-hidden relative`}>
-                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors" />
-                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent" />
-                <div className="absolute bottom-4 left-4">
-                  <div className="text-xs text-white/70 mb-1">{tpl.category}</div>
-                  <h3 className="font-semibold text-white">{tpl.name}</h3>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+          {templates.map((tpl, i) => {
+            const IconComponent = (Icons as any)[tpl.icon_name] || Icons.Layout;
+            
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+              >
+                <Link href={`/templates/${tpl.slug || tpl.id}`} className="group block relative bg-white rounded-[2rem] border border-black/[0.04] p-2 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_-10px_rgba(71,59,240,0.15)] transition-all duration-500 overflow-hidden">
+                  
+                  {/* Top Preview Area */}
+                  <div className={`relative h-48 rounded-[1.5rem] bg-gradient-to-br ${tpl.color_gradient || 'from-gray-100 to-gray-200'} flex flex-col items-center justify-center p-6 overflow-hidden`}>
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff15_1px,transparent_1px),linear-gradient(to_bottom,#ffffff15_1px,transparent_1px)] bg-[size:16px_16px]" />
+                    
+                    <motion.div 
+                      whileHover={{ scale: 1.05 }}
+                      className="relative w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 flex items-center justify-center shadow-xl mb-4 group-hover:-translate-y-1 transition-transform duration-300"
+                    >
+                      <IconComponent className={`w-8 h-8 ${tpl.text_color || 'text-white'}`} strokeWidth={1.5} />
+                    </motion.div>
+                    
+                    <div className={`text-center relative z-10 ${tpl.text_color || 'text-white'}`}>
+                      <span className="text-[10px] font-bold tracking-widest uppercase opacity-80">{tpl.category}</span>
+                    </div>
+
+                    {/* Hover Overlay */}
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                      <span className="translate-y-4 group-hover:translate-y-0 transition-all duration-300 bg-white text-neutral-900 px-6 py-3 rounded-full font-bold text-sm flex items-center gap-2">
+                        Use Prompt <ArrowRight size={16} />
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Content Area */}
+                  <div className="p-5">
+                    <div className="flex items-center justify-between gap-4">
+                      <h3 className="text-lg font-bold text-neutral-900 tracking-tight leading-tight group-hover:text-primary transition-colors">
+                        {tpl.title}
+                      </h3>
+                      {tpl.is_premium && (
+                        <div className="shrink-0 w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 border border-amber-200">
+                          <Lock size={10} strokeWidth={2.5} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     </section>
