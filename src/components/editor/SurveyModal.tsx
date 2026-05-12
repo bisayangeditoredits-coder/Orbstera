@@ -52,6 +52,18 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
             purpose: selectedPurpose,
             updated_at: new Date().toISOString()
           });
+        // Persist completion on the session so the editor + generate flow skip the survey
+        await supabase.auth.updateUser({
+          data: {
+            ...user.user_metadata,
+            survey_completed: true,
+          },
+        });
+        try {
+          localStorage.setItem(`survey_done_${user.id}`, 'true');
+        } catch {
+          /* storage may be blocked */
+        }
       }
       onComplete();
     } catch (err) {

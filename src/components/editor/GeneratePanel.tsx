@@ -377,7 +377,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
     
     if (user && !isProfileLoading) {
       const isDoneInDB = profileData?.survey_completed;
-      if (!isDoneInDB && !hasCompletedInSession) {
+      const isDoneAuth = Boolean(user.user_metadata?.survey_completed);
+      if (!isDoneInDB && !hasCompletedInSession && !isDoneAuth) {
         setShowSurvey(true);
         return;
       }

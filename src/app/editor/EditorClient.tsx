@@ -2,12 +2,13 @@
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Sidebar } from '@/components/editor/Sidebar';
 import { Toolbar } from '@/components/editor/Toolbar';
 import { LayersPanel } from '@/components/editor/LayersPanel';
 import { TopBar } from '@/components/editor/TopBar';
 import { GeneratePanel } from '@/components/editor/GeneratePanel';
+import { SurveyModal } from '@/components/editor/SurveyModal';
 import { MagicEditToolbar } from '@/components/editor/MagicEditToolbar';
 import { GenerativeFillToolbar } from '@/components/editor/GenerativeFillToolbar';
 import { DesignPanel } from '@/components/editor/DesignPanel';
@@ -47,6 +48,9 @@ export default function EditorClient() {
     activePanel, isPanelOpen, setPanelOpen, setActivePanel, 
     undo, redo, onboarding, startOnboarding 
   } = usePresentationStore();
+  const suppressAutoTourOnceRef = useRef(false);
+  const [welcomeGate, setWelcomeGate] = useState<'checking' | 'ready'>('checking');
+  const [needsSurveyModal, setNeedsSurveyModal] = useState(false);
   const presentation = usePresentationStore((s) => s.presentation);
   const searchParams = useSearchParams();
 
@@ -115,15 +119,63 @@ export default function EditorClient() {
     return () => ac.abort();
   }, [searchParams, setActivePanel, setPanelOpen]);
 
-  // Auto-trigger onboarding tour
+  // First editor visit: optional quick survey (new accounts), then spotlight tour once
   useEffect(() => {
-    if (!onboarding.hasSeenTour) {
-      const timer = setTimeout(() => {
-        startOnboarding();
-      }, 2000);
-      return () => clearTimeout(timer);
+    let cancelled = false;
+    const skipWelcome = Boolean(
+      searchParams.get('prompt') || searchParams.get('id') || searchParams.get('mode'),
+    );
+    if (skipWelcome) {
+      setWelcomeGate('ready');
+      setNeedsSurveyModal(false);
+      return;
     }
-  }, [onboarding.hasSeenTour, startOnboarding]);
+
+    (async () => {
+      const { createClient } = await import('@/lib/supabase');
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (cancelled) return;
+      if (!user) {
+        setNeedsSurveyModal(false);
+        setWelcomeGate('ready');
+        return;
+      }
+      let sessionDone = false;
+      try {
+        sessionDone = localStorage.getItem(`survey_done_${user.id}`) === 'true';
+      } catch {
+        /* ignore */
+      }
+      const metaDone = Boolean(user.user_metadata?.survey_completed);
+      setNeedsSurveyModal(!(sessionDone || metaDone));
+      setWelcomeGate('ready');
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (welcomeGate !== 'ready') return;
+    if (onboarding.hasSeenTour || onboarding.isActive) return;
+    if (needsSurveyModal) return;
+    if (suppressAutoTourOnceRef.current) return;
+
+    const timer = setTimeout(() => {
+      startOnboarding();
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [
+    welcomeGate,
+    needsSurveyModal,
+    onboarding.hasSeenTour,
+    onboarding.isActive,
+    startOnboarding,
+  ]);
 
   const [isMdUp, setIsMdUp] = useState(true);
   const [mobileGalleryOpen, setMobileGalleryOpen] = useState(false);
@@ -191,6 +243,20 @@ export default function EditorClient() {
 
   return (
     <div className="editor-shell h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-background text-textMain flex flex-col select-none">
+      {welcomeGate === 'ready' && needsSurveyModal && (
+        <SurveyModal
+          onComplete={() => {
+            suppressAutoTourOnceRef.current = true;
+            setNeedsSurveyModal(false);
+            window.setTimeout(() => {
+              startOnboarding();
+              window.setTimeout(() => {
+                suppressAutoTourOnceRef.current = false;
+              }, 900);
+            }, 450);
+          }}
+        />
+      )}
       <OnboardingTour />
       <PresentMode />
       <TopBar

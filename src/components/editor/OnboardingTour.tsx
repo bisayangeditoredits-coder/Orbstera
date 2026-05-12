@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { ChevronRight, X, Sparkles, Layout, Layers, Download, Play } from 'lucide-react';
+import { ChevronRight, X, Sparkles, Layout, Layers, Download, Play, Volume2, VolumeX } from 'lucide-react';
 
 const TOUR_STEPS = [
   {
@@ -38,7 +38,7 @@ const TOUR_STEPS = [
     targetId: 'tour-generate',
     title: 'AI Generation',
     description:
-      'Type a short brief into “Your Vision”, choose tone and slide count, then click Generate Presentation. The AI streams slides in realtime and auto-fills cinematic backgrounds for you.',
+      'Describe your topic in “Your vision”, pick how many slides you want, then tap Generate. The AI streams your deck in real time and can add cinematic backgrounds. Credits and costs are shown in the panel before you run.',
     icon: Play,
     position: 'left' as const,
   },
@@ -68,9 +68,11 @@ const TOUR_STEPS = [
 export function OnboardingTour() {
   const { onboarding, nextOnboardingStep, skipOnboarding, setActivePanel, setPanelOpen } = usePresentationStore();
   const [coords, setCoords] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [voiceOn, setVoiceOn] = useState(false);
   
   const currentStep = TOUR_STEPS[onboarding.step];
   const isLastStep = onboarding.step === TOUR_STEPS.length - 1;
+  const maskId = `orbstera-spotlight-${onboarding.step}`;
 
   useEffect(() => {
     if (!onboarding.isActive || !currentStep) return;
@@ -86,11 +88,12 @@ export function OnboardingTour() {
       setPanelOpen(true);
     }
 
-    let speechTimeout: NodeJS.Timeout;
+    let speechTimeout: ReturnType<typeof setTimeout>;
 
-    // --- TTS Logic: Smart Voice Scorer for Best Energetic Male AI Voice ---
+    // --- Optional TTS (off by default; user opts in) ---
     const speakStep = () => {
       window.speechSynthesis.cancel();
+      if (!voiceOn) return;
 
       const welcomePrefix = onboarding.step === 0 ? 'Hello! Welcome to Orbstera. ' : '';
       const text = `${welcomePrefix}${currentStep.title}. ${currentStep.description}`;
@@ -143,10 +146,12 @@ export function OnboardingTour() {
     };
 
     // Handle asynchronous voices loading
-    if (window.speechSynthesis.getVoices().length === 0) {
-      window.speechSynthesis.onvoiceschanged = speakStep;
-    } else {
-      speechTimeout = setTimeout(speakStep, 600);
+    if (voiceOn) {
+      if (window.speechSynthesis.getVoices().length === 0) {
+        window.speechSynthesis.onvoiceschanged = speakStep;
+      } else {
+        speechTimeout = setTimeout(speakStep, 600);
+      }
     }
 
     const updateCoords = () => {
@@ -173,7 +178,7 @@ export function OnboardingTour() {
       window.removeEventListener('resize', updateCoords);
       observer.disconnect();
     };
-  }, [onboarding.isActive, onboarding.step, currentStep]);
+  }, [onboarding.isActive, onboarding.step, currentStep, voiceOn, setActivePanel, setPanelOpen]);
 
   const handleFinish = () => {
     skipOnboarding();
@@ -183,21 +188,23 @@ export function OnboardingTour() {
 
   if (!onboarding.isActive || !coords || !currentStep) return null;
 
+  const holePad = 10;
+
   return (
     <div className="fixed inset-0 z-[9999] pointer-events-none">
-      {/* Dimmed Overlay with Hole */}
-      <svg className="absolute inset-0 w-full h-full">
+      {/* Dimmed overlay + spotlight cutout (click does not dismiss — use Skip or ✕) */}
+      <svg className="absolute inset-0 w-full h-full" aria-hidden>
         <defs>
-          <mask id="spotlight-mask">
+          <mask id={maskId}>
             <rect x="0" y="0" width="100%" height="100%" fill="white" />
             <motion.rect
               initial={false}
               animate={{
-                x: coords.left - 8,
-                y: coords.top - 8,
-                width: coords.width + 16,
-                height: coords.height + 16,
-                rx: 12,
+                x: coords.left - holePad,
+                y: coords.top - holePad,
+                width: coords.width + holePad * 2,
+                height: coords.height + holePad * 2,
+                rx: 14,
               }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               fill="black"
@@ -209,10 +216,24 @@ export function OnboardingTour() {
           y="0"
           width="100%"
           height="100%"
-          fill="rgba(0,0,0,0.7)"
-          mask="url(#spotlight-mask)"
+          fill="rgba(15,23,42,0.72)"
+          mask={`url(#${maskId})`}
           className="pointer-events-auto"
-          onClick={handleFinish}
+        />
+        <motion.rect
+          initial={false}
+          animate={{
+            x: coords.left - holePad,
+            y: coords.top - holePad,
+            width: coords.width + holePad * 2,
+            height: coords.height + holePad * 2,
+            rx: 14,
+          }}
+          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          fill="none"
+          stroke="rgba(59,130,246,0.95)"
+          strokeWidth={3}
+          className="pointer-events-none drop-shadow-[0_0_20px_rgba(59,130,246,0.45)]"
         />
       </svg>
 
@@ -234,12 +255,28 @@ export function OnboardingTour() {
         transition={{ type: 'spring', damping: 20, stiffness: 200 }}
         className="absolute w-[320px] bg-white rounded-3xl shadow-2xl p-6 pointer-events-auto border border-black/[0.05]"
       >
-        <button
-          onClick={handleFinish}
-          className="absolute top-4 right-4 text-black/20 hover:text-black transition-colors"
-        >
-          <X size={18} />
-        </button>
+        <div className="absolute top-4 right-4 flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              setVoiceOn((v) => !v);
+              window.speechSynthesis.cancel();
+            }}
+            className="p-2 rounded-xl text-black/35 hover:text-primary hover:bg-primary/5 transition-colors"
+            title={voiceOn ? 'Turn off voice narration' : 'Play voice narration'}
+            aria-pressed={voiceOn}
+          >
+            {voiceOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          </button>
+          <button
+            type="button"
+            onClick={handleFinish}
+            className="p-2 rounded-xl text-black/25 hover:text-black transition-colors"
+            aria-label="Close tour"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
         <div className="flex flex-col gap-4 relative">
           {/* AI Guide Robot mascot (Relocated to the right) */}
@@ -275,23 +312,32 @@ export function OnboardingTour() {
             </p>
           </div>
 
-          <div className="flex items-center justify-between mt-2">
-            <div className="flex gap-1.5">
-              {TOUR_STEPS.map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                    i === onboarding.step ? 'w-4 bg-primary' : 'bg-black/10'
-                  }`}
-                />
-              ))}
+          <div className="flex flex-col gap-3 mt-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex gap-1.5 flex-wrap">
+                {TOUR_STEPS.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      i === onboarding.step ? 'w-4 bg-primary' : 'w-1.5 bg-black/10'
+                    }`}
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={handleFinish}
+                className="text-[11px] font-semibold text-neutral-400 hover:text-neutral-700 underline-offset-2 hover:underline shrink-0"
+              >
+                Skip tour
+              </button>
             </div>
-
             <button
+              type="button"
               onClick={isLastStep ? handleFinish : nextOnboardingStep}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-95 transition-all"
+              className="w-full sm:w-auto sm:ml-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-95 transition-all"
             >
-              <span>{isLastStep ? 'Got it!' : 'Next'}</span>
+              <span>{isLastStep ? 'Done' : 'Next'}</span>
               {!isLastStep && <ChevronRight size={16} />}
             </button>
           </div>
