@@ -212,7 +212,6 @@ export async function POST(req: Request) {
     }
 
     const palette  = colorPalette || ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'];
-    const bgColor  = hex(palette[0]);
     const accent   = hex(palette[2] || palette[1]);
 
     const pptx = new PptxGenJS();
@@ -253,8 +252,14 @@ export async function POST(req: Request) {
       const slide    = slides[si];
       const pptSlide = pptx.addSlide();
 
+      const slideBgHex = hex(
+        typeof slide.backgroundColor === 'string' && slide.backgroundColor.trim()
+          ? slide.backgroundColor
+          : palette[0],
+      );
+
       // ── 1. Solid background color ──────────────────────────────────────────
-      pptSlide.background = { color: bgColor };
+      pptSlide.background = { color: slideBgHex };
 
       // ── 2. Gradient overlay to match Konva canvas gradient ─────────────────
       // Canvas renders: accent+'33' at corner 0, transparent at 50%, accent+'22' at corner 1
@@ -291,7 +296,7 @@ export async function POST(req: Request) {
           // Overlay to match ~18% image opacity on canvas
           pptSlide.addShape(pptx.ShapeType.rect, {
             x: 0, y: 0, w: PPTX_W, h: PPTX_H,
-            fill: { type: 'solid', color: bgColor, transparency: 18 } as any,
+            fill: { type: 'solid', color: slideBgHex, transparency: 18 } as any,
             line: { type: 'none' },
           });
         }

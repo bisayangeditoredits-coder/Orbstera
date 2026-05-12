@@ -155,6 +155,14 @@ function PropertyEditor({ element, slideId }: { element: SlideElement; slideId: 
             </button>
           </div>
 
+          <button
+            type="button"
+            onClick={() => upd({ textFrameMode: 'auto' })}
+            className="w-full rounded-xl border border-black/[0.08] bg-white py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-black/50 transition hover:border-primary/25 hover:text-primary"
+          >
+            Auto-fit frame to text
+          </button>
+
           {/* Line height slider */}
           <Slider
             label="Line Height"

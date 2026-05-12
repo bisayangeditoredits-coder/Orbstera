@@ -13,8 +13,11 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
   // Scale factor: 1280×720 → thumbnail width (fill container)
   const scale = 160 / 1280;
 
-  // Match KonvaCanvas SlideBackground exactly
-  const bg     = colors[0] || '#05050A';
+  // Match KonvaCanvas SlideBackground (per-slide override optional)
+  const bg =
+    (typeof slide.backgroundColor === 'string' && slide.backgroundColor.trim()
+      ? slide.backgroundColor
+      : colors[0]) || '#05050A';
   const accent = colors[2] || '#7B61FF'; // index 2 = accent (same as canvas)
 
   // Find background image element (zIndex 0, full-slide)

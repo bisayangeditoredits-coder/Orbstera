@@ -109,8 +109,12 @@ export function Toolbar() {
 
     if (toolId === 'text') {
       el = {
-        ...base, type: 'text', width: 400, height: 100,
-        content: 'Edit your text',
+        ...base,
+        type: 'text',
+        width: 280,
+        height: 56,
+        textFrameMode: 'auto',
+        content: 'Type something',
         textStyle: {
           fontFamily: presentation?.fontPairing?.heading || 'Inter',
           fontSize:   42, fontWeight: 'bold',

@@ -243,7 +243,10 @@ function PresentSlideView({
   palette: string[];
   animationsOn: boolean;
 }) {
-  const bg     = palette[0] || '#05050A';
+  const bg =
+    (typeof slide.backgroundColor === 'string' && slide.backgroundColor.trim()
+      ? slide.backgroundColor
+      : palette[0]) || '#05050A';
   const accent = palette[2] || '#7B61FF';
 
   const bgEl = slide.elements?.find(

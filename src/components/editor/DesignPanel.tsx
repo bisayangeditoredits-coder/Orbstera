@@ -265,6 +265,30 @@ export function DesignPanel() {
                 onChange={(c) => updateColor(i, c)}
               />
             ))}
+
+            {currentSlide && (
+              <div className="pt-4 mt-2 border-t border-black/[0.06] space-y-2">
+                <p className="text-[10px] font-bold text-black/30 uppercase tracking-widest">This slide</p>
+                <ColorPicker
+                  label="Slide background"
+                  color={typeof currentSlide.backgroundColor === 'string' ? currentSlide.backgroundColor : palette[0] || '#05050A'}
+                  onChange={(c) => updateSlide(currentSlide.id, { backgroundColor: c })}
+                />
+                {typeof currentSlide.backgroundColor === 'string' && (
+                  <button
+                    type="button"
+                    onClick={() => updateSlide(currentSlide.id, { backgroundColor: undefined })}
+                    className="w-full rounded-xl border border-black/[0.08] bg-white py-2 text-[11px] font-semibold text-black/60 transition hover:border-primary/25 hover:text-primary"
+                  >
+                    Use deck background color
+                  </button>
+                )}
+                <p className="text-[10px] text-black/35 leading-relaxed">
+                  Deck &quot;Background&quot; sets the default for all slides; here you override only the current slide.
+                </p>
+              </div>
+            )}
+
             <p className="text-[10px] text-black/30 mt-4 leading-relaxed">
               Changes apply instantly to the canvas preview.
             </p>

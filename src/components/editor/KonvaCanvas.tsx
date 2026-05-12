@@ -2,7 +2,7 @@
 
 import { Stage, Layer, Rect, Text, Transformer, Group, Circle, RegularPolygon, Image as KonvaImage, Star as KonvaStar, Line as KonvaLine, Arrow as KonvaArrow } from 'react-konva';
 import useImage from 'use-image';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import Konva from 'konva';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { SlideElement } from '@/types';
@@ -110,7 +110,65 @@ function ElementNode({
       trRef.current.nodes([shapeRef.current]);
       trRef.current.getLayer()?.batchDraw();
     }
-  }, [isSelected, el.visible]);
+  }, [isSelected, el.visible, el.width, el.height, el.rotation, el.type]);
+
+  // Tighten text bounding box to measured glyphs (auto) until user manually transforms the frame.
+  useLayoutEffect(() => {
+    if (el.type !== 'text' || isEditingText) return;
+    if (el.textFrameMode === 'fixed') return;
+    const node = shapeRef.current as Konva.Text | null;
+    if (!node) return;
+
+    const padX = 6;
+    const padY = 4;
+    const maxCanvasW = Math.max(24, CANVAS_WIDTH - el.x - 4);
+    const maxCanvasH = Math.max(16, CANVAS_HEIGHT - el.y - 4);
+    const fontSize = el.textStyle?.fontSize || 24;
+    const lineHeight = el.textStyle?.lineHeight || 1.4;
+    const minH = Math.max(fontSize * lineHeight * 0.85 + padY, 20);
+
+    // Unwrapped width (very wide box → single-line measure)
+    node.width(8000);
+    const unwrappedW = node.getTextWidth();
+    const singleLineH = node.height();
+    const hasHardBreak = (el.content || '').includes('\n');
+    const wrapCandidate = Math.min(Math.max(el.width, 40), maxCanvasW);
+    const mustWrap = hasHardBreak || unwrappedW + padX * 2 > wrapCandidate + 1;
+
+    let fitW: number;
+    let fitH: number;
+
+    if (!mustWrap) {
+      fitW = Math.min(Math.max(unwrappedW + padX * 2, 24), maxCanvasW);
+      node.width(fitW);
+      fitH = Math.min(Math.max(node.height() + padY * 2, minH), maxCanvasH);
+    } else {
+      fitW = wrapCandidate;
+      node.width(fitW);
+      fitH = Math.min(Math.max(node.height() + padY * 2, minH), maxCanvasH);
+    }
+
+    if (Math.abs(fitW - el.width) > 0.5 || Math.abs(fitH - el.height) > 0.5) {
+      onChange({ width: fitW, height: fitH });
+    }
+  }, [
+    el.type,
+    el.id,
+    el.content,
+    el.textStyle?.fontSize,
+    el.textStyle?.fontFamily,
+    el.textStyle?.fontWeight,
+    el.textStyle?.fontStyle,
+    el.textStyle?.lineHeight,
+    el.textStyle?.letterSpacing,
+    el.textStyle?.textAlign,
+    el.width,
+    el.height,
+    el.x,
+    el.y,
+    el.textFrameMode,
+    isEditingText,
+  ]);
 
   if (el.visible === false) return null;
 
@@ -162,13 +220,18 @@ function ElementNode({
         newY -= newHeight / 2;
       }
 
-      onChange({
+      const base = {
         x:        newX,
         y:        newY,
         width:    newWidth,
         height:   newHeight,
         rotation: node.rotation(),
-      });
+      };
+      if (el.type === 'text') {
+        onChange({ ...base, textFrameMode: 'fixed' });
+      } else {
+        onChange(base);
+      }
     },
   };
 
@@ -429,12 +492,12 @@ function ElementNode({
           anchorFill="#0EA5E9"
           anchorStroke="#fff"
           anchorStrokeWidth={1.5}
-          anchorSize={7}
+          anchorSize={el.type === 'text' ? 6 : 7}
           anchorCornerRadius={1.5}
           borderStroke="#38BDF8"
           borderStrokeWidth={1.2}
-          padding={8}
-          keepRatio={true}
+          padding={el.type === 'text' ? 2 : 6}
+          keepRatio={el.type !== 'text'}
         />
       )}
     </>
@@ -442,9 +505,17 @@ function ElementNode({
 }
 
 // ─── Slide Background ────────────────────────────────────────────────────────
-function SlideBackground({ colors, bgImageUrl }: { colors: string[], bgImageUrl?: string }) {
-  const { editor } = usePresentationStore();
-  const bg     = colors[0] || '#05050A';
+function SlideBackground({
+  colors,
+  bgImageUrl,
+  slideBaseColor,
+}: {
+  colors: string[];
+  bgImageUrl?: string;
+  /** Per-slide solid base under the accent gradient (optional). */
+  slideBaseColor?: string;
+}) {
+  const bg     = slideBaseColor || colors[0] || '#05050A';
   const accent = colors[2] || '#38BDF8';
   const [bgImg] = useImage(bgImageUrl || '');
 
@@ -654,6 +725,7 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
             <SlideBackground
               colors={presentation.colorPalette || ['#05050A', '#38BDF8']}
               bgImageUrl={bgEl?.src}
+              slideBaseColor={slide.backgroundColor}
             />
             {elements.map((el) => (
               <ElementNode

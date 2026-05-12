@@ -120,6 +120,8 @@ export interface SlideElement {
   // Text element
   content?: string;
   textStyle?: TextStyle;
+  /** Auto-shrink frame to text until user manually resizes the box (Canva-style). */
+  textFrameMode?: 'auto' | 'fixed';
   // Image element
   src?: string;
   /** True while this slot is waiting on deck-level /api/generate-image (UI placeholder). */
