@@ -92,12 +92,12 @@ export function Navbar() {
   const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
   const linkClass =
-    'relative shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600 transition-colors duration-200 hover:text-slate-900 sm:text-[12px] sm:tracking-[0.13em] ' +
-    'after:absolute after:-bottom-1 after:left-1/2 after:h-[2px] after:w-0 after:-translate-x-1/2 after:rounded-full after:bg-primary after:transition-all after:duration-200 hover:after:w-4';
+    'relative inline-flex shrink-0 items-center whitespace-nowrap rounded-lg px-2.5 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600 transition-colors duration-200 hover:bg-white/80 hover:text-slate-900 sm:px-3 sm:text-[11.5px] sm:tracking-[0.13em] md:px-3.5 md:text-[12px] ' +
+    'after:pointer-events-none after:absolute after:-bottom-0.5 after:left-1/2 after:h-[2px] after:w-0 after:-translate-x-1/2 after:rounded-full after:bg-primary after:transition-all after:duration-200 hover:after:w-5';
 
   const linkAccentClass =
-    'relative shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary transition-colors duration-200 hover:text-primaryHover sm:text-[12px] sm:tracking-[0.13em] ' +
-    'after:absolute after:-bottom-1 after:left-1/2 after:h-[2px] after:w-4 after:-translate-x-1/2 after:rounded-full after:bg-primary';
+    'relative inline-flex shrink-0 items-center whitespace-nowrap rounded-lg px-2.5 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary transition-colors duration-200 hover:bg-primary/[0.06] hover:text-primaryHover sm:px-3 sm:text-[11.5px] md:px-3.5 md:text-[12px] ' +
+    'after:pointer-events-none after:absolute after:-bottom-0.5 after:left-1/2 after:h-[2px] after:w-5 after:-translate-x-1/2 after:rounded-full after:bg-primary';
 
   return (
     <header className="fixed top-0 left-0 right-0 z-[100] pt-[env(safe-area-inset-top,0px)]">
@@ -105,9 +105,9 @@ export function Navbar() {
         className="border-b border-slate-200/70 bg-white/85 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur-2xl supports-[backdrop-filter]:bg-white/75"
         aria-label="Primary"
       >
-        <div className="mx-auto grid h-[52px] w-full max-w-[1400px] min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-2 px-3 sm:h-[60px] sm:gap-x-4 sm:px-5 md:px-8">
-          {/* Left: logo only — keeps center nav truly centered and prevents chip overlap */}
-          <div className="flex min-w-0 items-center justify-self-start">
+        <div className="mx-auto flex h-[52px] w-full max-w-[1400px] min-w-0 items-center justify-between gap-3 px-3 sm:h-[60px] sm:gap-x-4 sm:px-5 md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:justify-between md:gap-x-6 md:px-8">
+          {/* Left: logo */}
+          <div className="flex min-w-0 items-center md:justify-self-start">
             <Link
               href="/"
               className="group flex min-w-0 shrink-0 items-center"
@@ -124,10 +124,12 @@ export function Navbar() {
             </Link>
           </div>
 
-          {/* Center: isolated nav strip — always above lateral overflow */}
-          <div className="relative z-20 hidden min-w-0 justify-center lg:flex">
+          {/* Center: readable spacing — never use gap-0; links have their own padding */}
+          <div className="relative z-20 hidden min-w-0 justify-center md:flex md:justify-self-center">
             <div
-              className="flex max-w-[min(100vw-28rem,52rem)] items-center justify-center gap-x-1 overflow-x-auto whitespace-nowrap rounded-full border border-slate-200/60 bg-slate-50/50 px-2 py-1 shadow-inner shadow-slate-200/30 sm:gap-x-0 sm:px-3 sm:py-1.5"
+              role="navigation"
+              aria-label="Site sections"
+              className="flex max-w-[min(100vw-16rem,42rem)] items-center justify-center gap-x-0.5 overflow-x-auto rounded-full border border-slate-200/70 bg-slate-50/90 px-1 py-1 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] sm:max-w-[min(100vw-22rem,48rem)] sm:gap-x-1 sm:px-2 sm:py-1.5 md:max-w-[min(100vw-26rem,52rem)] md:gap-x-1.5 lg:gap-x-2"
               style={{ WebkitOverflowScrolling: 'touch' }}
             >
               {NAV_LINKS.map((item) => (
@@ -138,10 +140,10 @@ export function Navbar() {
               {user && (
                 <>
                   <span
-                    className="mx-1.5 hidden h-4 w-px shrink-0 bg-slate-200 sm:block"
+                    className="mx-0.5 h-5 w-px shrink-0 bg-slate-200/90 md:mx-1"
                     aria-hidden
                   />
-                  <Link href="/my-presentations" className={`${linkAccentClass} pl-1 sm:pl-0`}>
+                  <Link href="/my-presentations" className={linkAccentClass}>
                     My decks
                   </Link>
                 </>
@@ -150,7 +152,7 @@ export function Navbar() {
           </div>
 
           {/* Right: command hint + CTA + auth (no collision with Features) */}
-          <div className="flex min-w-0 flex-nowrap items-center justify-end justify-self-end gap-1.5 sm:gap-2">
+          <div className="flex min-w-0 flex-nowrap items-center justify-end gap-1.5 sm:gap-2 md:justify-self-end">
             <button
               type="button"
               className="hidden h-9 shrink-0 items-center gap-1.5 rounded-full border border-slate-200/90 bg-white/90 px-2.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500 shadow-sm transition hover:border-primary/25 hover:bg-white hover:text-slate-700 min-[1080px]:flex"
@@ -166,7 +168,7 @@ export function Navbar() {
 
             <button
               type="button"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200/90 bg-white text-slate-800 shadow-sm transition hover:border-primary/20 hover:bg-slate-50 touch-manipulation lg:hidden"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200/90 bg-white text-slate-800 shadow-sm transition hover:border-primary/20 hover:bg-slate-50 touch-manipulation md:hidden"
               aria-label="Open navigation menu"
               aria-expanded={mobileNavOpen}
               onClick={() => setMobileNavOpen(true)}
