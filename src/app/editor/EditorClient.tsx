@@ -1,6 +1,5 @@
-'use client';
-
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useEffect, useState, useCallback } from 'react';
 import { Sidebar } from '@/components/editor/Sidebar';
 import { Toolbar } from '@/components/editor/Toolbar';
@@ -15,6 +14,8 @@ import { useSearchParams } from 'next/navigation';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { usePresentationCloudSync } from '@/hooks/usePresentationCloudSync';
+
+'use client';
 
 const EditorCanvasLoading = () => (
   <div className="flex-1 min-h-0 flex items-center justify-center bg-background text-textMuted">
@@ -45,9 +46,13 @@ export default function EditorClient() {
     activePanel, isPanelOpen, setPanelOpen, setActivePanel, 
     undo, redo, onboarding, startOnboarding 
   } = usePresentationStore();
+  const presentation = usePresentationStore((s) => s.presentation);
   const searchParams = useSearchParams();
 
   usePresentationCloudSync();
+
+  const [deckLoadStatus, setDeckLoadStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [deckLoadMessage, setDeckLoadMessage] = useState<string | null>(null);
 
   // Handle auto-generation or loading from URL (abort in-flight fetch if params change)
   useEffect(() => {
@@ -57,21 +62,43 @@ export default function EditorClient() {
     const ac = new AbortController();
 
     if (id) {
+      setDeckLoadStatus('loading');
+      setDeckLoadMessage(null);
       fetch(`/api/presentations?id=${encodeURIComponent(id)}`, { signal: ac.signal, cache: 'no-store' })
-        .then((res) => res.json())
-        .then((data) => {
+        .then(async (res) => {
+          const data = await res.json().catch(() => null);
           if (ac.signal.aborted) return;
-          if (data && data.id) {
-            usePresentationStore.getState().setPresentation(data);
+
+          if (res.status === 401) {
+            setDeckLoadStatus('error');
+            setDeckLoadMessage('You’re signed out. Please sign in again to open this deck.');
+            return;
           }
+          if (!res.ok) {
+            setDeckLoadStatus('error');
+            setDeckLoadMessage(typeof data?.error === 'string' ? data.error : `Failed to load deck (${res.status}).`);
+            return;
+          }
+          if (!data || !data.id) {
+            setDeckLoadStatus('error');
+            setDeckLoadMessage('Deck not found (or you no longer have access).');
+            return;
+          }
+          usePresentationStore.getState().setPresentation(data);
+          setDeckLoadStatus('idle');
         })
         .catch((err) => {
+          if (ac.signal.aborted) return;
           if ((err as Error).name === 'AbortError') return;
           console.error('Failed to load presentation:', err);
+          setDeckLoadStatus('error');
+          setDeckLoadMessage('Failed to load deck. Please refresh and try again.');
         });
     } else if (prompt || mode) {
       setActivePanel('generate');
       setPanelOpen(true);
+      setDeckLoadStatus('idle');
+      setDeckLoadMessage(null);
     }
 
     return () => ac.abort();
@@ -113,6 +140,43 @@ export default function EditorClient() {
     setActivePanel('generate');
     setPanelOpen(true);
   }, [setActivePanel, setPanelOpen]);
+
+  const requestedId = searchParams.get('id');
+  if (requestedId && !presentation) {
+    return (
+      <div className="min-h-dvh max-h-dvh w-full max-w-[100vw] overflow-hidden bg-background flex items-center justify-center px-4 safe-pad-y">
+        <div className="w-full max-w-md border border-borderSubtle bg-white p-6 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-textMuted">
+            Editor
+          </p>
+          <h1 className="mt-2 text-lg font-semibold text-textMain">
+            {deckLoadStatus === 'error' ? 'Couldn’t open this deck' : 'Opening your deck…'}
+          </h1>
+          <p className="mt-2 text-sm text-textSecondary">
+            {deckLoadStatus === 'error'
+              ? (deckLoadMessage ?? 'Something went wrong while loading this presentation.')
+              : 'Loading slides and preparing the canvas.'}
+          </p>
+
+          <div className="mt-6 flex gap-3">
+            <Link
+              href="/my-presentations"
+              className="flex-1 border border-neutral-200 bg-white py-2.5 text-sm font-semibold text-neutral-800 transition hover:border-primary/25 hover:bg-accentBlue text-center"
+            >
+              Back to library
+            </Link>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="flex-1 border border-primary bg-primary py-2.5 text-sm font-semibold text-white transition hover:bg-primaryHover"
+            >
+              Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="editor-shell h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-background text-textMain flex flex-col select-none">

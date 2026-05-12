@@ -801,7 +801,15 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   onboarding: {
     isActive: false,
     step: 0,
-    hasSeenTour: typeof window !== 'undefined' ? localStorage.getItem('orbstera_tour_seen') === 'true' : false,
+    hasSeenTour: (() => {
+      if (typeof window === 'undefined') return false;
+      try {
+        return window.localStorage.getItem('orbstera_tour_seen') === 'true';
+      } catch {
+        // Some browsers/environments can throw on localStorage access (privacy mode / blocked storage).
+        return false;
+      }
+    })(),
   },
 
   startOnboarding: () => set({ onboarding: { isActive: true, step: 0, hasSeenTour: false } }),
