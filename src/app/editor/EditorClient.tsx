@@ -100,6 +100,10 @@ export default function EditorClient() {
           }
 
           usePresentationStore.getState().setPresentation(data);
+          if (data.source === 'manual') {
+            setActivePanel('layers');
+            setPanelOpen(true);
+          }
           setDeckLoadStatus('idle');
         })
         .catch((err) => {

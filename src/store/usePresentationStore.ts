@@ -12,6 +12,8 @@ interface PresentationStore {
   // ─── Presentation Data ─────────────────────────────────────────────────────
   presentation: PresentationData | null;
   setPresentation: (data: PresentationData) => void;
+  /** Clear deck from memory (e.g. before starting a new document wizard). */
+  clearPresentation: () => void;
   updatePresentation: (updates: Partial<PresentationData>) => void;
 
   // ─── Slide Management ─────────────────────────────────────────────────────
@@ -456,6 +458,14 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       void Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, () => worker()));
     }
   },
+
+  clearPresentation: () =>
+    set({
+      presentation: null,
+      currentSlideIndex: 0,
+      history: [],
+      historyIndex: -1,
+    }),
 
   updatePresentation: (updates) =>
     set((state) => ({

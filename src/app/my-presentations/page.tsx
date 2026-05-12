@@ -123,10 +123,16 @@ export default function MyPresentationsPage() {
             </div>
             <div className="flex shrink-0 flex-wrap gap-3">
               <Link
-                href="/editor"
-                className="inline-flex items-center justify-center border border-primary bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-[0_4px_14px_-4px_rgba(59,130,246,0.45)] transition hover:bg-primaryHover"
+                href="/editor/new"
+                className="inline-flex items-center justify-center border border-neutral-900 bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-800"
               >
-                New deck
+                New blank deck
+              </Link>
+              <Link
+                href="/editor"
+                className="inline-flex items-center justify-center border border-neutral-200 bg-white px-5 py-2.5 text-sm font-semibold text-neutral-800 transition hover:border-primary/25 hover:bg-accentBlue"
+              >
+                AI workspace
               </Link>
               <Link
                 href="/account"
@@ -147,14 +153,23 @@ export default function MyPresentationsPage() {
           <div className="border border-dashed border-primary/20 bg-white/90 px-8 py-20 text-center shadow-sm">
             <h2 className="font-montserrat text-lg font-semibold text-neutral-950">No presentations yet</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-neutral-600">
-              Generate a deck in the editor and save it—your work will show up here automatically.
+              Create a <Link href="/editor/new" className="font-medium text-primary underline-offset-4 hover:underline">blank presentation</Link> (saved to the cloud), or use the{' '}
+              <Link href="/editor" className="font-medium text-primary underline-offset-4 hover:underline">AI workspace</Link> to generate a deck.
             </p>
-            <Link
-              href="/editor"
-              className="mt-8 inline-block border border-primary bg-primary px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primaryHover"
-            >
-              Open editor
-            </Link>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <Link
+                href="/editor/new"
+                className="inline-block border border-neutral-900 bg-neutral-900 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
+              >
+                New blank deck
+              </Link>
+              <Link
+                href="/editor"
+                className="inline-block border border-neutral-200 bg-white px-6 py-2.5 text-sm font-semibold text-neutral-800 transition hover:border-primary/30"
+              >
+                AI workspace
+              </Link>
+            </div>
           </div>
         ) : (
           <>

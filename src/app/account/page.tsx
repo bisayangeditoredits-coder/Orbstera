@@ -316,10 +316,16 @@ function AccountContent() {
               </Link>
             )}
             <Link
-              href="/editor"
+              href="/editor/new"
               className="inline-flex justify-center bg-neutral-900 px-6 py-2.5 text-center text-sm font-medium text-white transition hover:bg-neutral-800"
             >
-              New presentation
+              New blank deck
+            </Link>
+            <Link
+              href="/editor"
+              className="inline-flex justify-center border border-neutral-300 bg-white px-6 py-2.5 text-center text-sm font-medium text-neutral-900 transition hover:border-neutral-900"
+            >
+              AI workspace
             </Link>
           </div>
         </header>
@@ -476,15 +482,23 @@ function AccountContent() {
                 <div className="border border-dashed border-neutral-300 bg-white/60 px-8 py-20 text-center">
                   <h3 className="text-base font-semibold text-neutral-950">No presentations yet</h3>
                   <p className="mx-auto mt-2 max-w-sm text-sm text-neutral-600">
-                    When you generate or save a deck, it appears here with a thumbnail from the
-                    first slide.
+                    Start with a blank deck (saved to the cloud) or use the AI workspace—your decks
+                    appear here with a thumbnail from the first slide.
                   </p>
-                  <Link
-                    href="/editor"
-                    className="mt-8 inline-block border border-neutral-900 bg-neutral-900 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800"
-                  >
-                    Create presentation
-                  </Link>
+                  <div className="mt-8 flex flex-wrap justify-center gap-3">
+                    <Link
+                      href="/editor/new"
+                      className="inline-block border border-neutral-900 bg-neutral-900 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800"
+                    >
+                      New blank deck
+                    </Link>
+                    <Link
+                      href="/editor"
+                      className="inline-block border border-neutral-300 bg-white px-6 py-2.5 text-sm font-medium text-neutral-900 transition hover:border-neutral-900"
+                    >
+                      AI workspace
+                    </Link>
+                  </div>
                 </div>
               ) : view === 'grid' ? (
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

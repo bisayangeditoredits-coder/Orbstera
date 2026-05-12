@@ -10,6 +10,7 @@ import {
   X,
   LayoutGrid,
   Search,
+  FilePlus2,
 } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase';
@@ -253,6 +254,15 @@ export function Navbar() {
                       </Link>
 
                       <Link
+                        href="/editor/new"
+                        onClick={() => setDropdownOpen(false)}
+                        className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-slate-700 transition-colors hover:bg-primary/5 hover:text-primary"
+                      >
+                        <FilePlus2 size={16} className="text-slate-400 group-hover:text-primary" />
+                        New blank deck
+                      </Link>
+
+                      <Link
                         href="/account"
                         onClick={() => setDropdownOpen(false)}
                         className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-slate-700 transition-colors hover:bg-primary/5 hover:text-primary"
@@ -371,6 +381,15 @@ export function Navbar() {
                     onClick={() => setMobileNavOpen(false)}
                   >
                     My presentations
+                  </Link>
+                )}
+                {user && (
+                  <Link
+                    href="/editor/new"
+                    className="rounded-xl px-3 py-3 text-[14px] font-semibold text-slate-800 transition-colors hover:bg-primary/6 hover:text-primary"
+                    onClick={() => setMobileNavOpen(false)}
+                  >
+                    New blank deck
                   </Link>
                 )}
                 <button
