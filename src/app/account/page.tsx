@@ -484,7 +484,10 @@ function AccountContent() {
                           <p className="mt-1 text-xs text-neutral-500">
                             {deck.slidesCount} slide{deck.slidesCount === 1 ? '' : 's'}
                             <span className="text-neutral-300"> · </span>
-                            Updated {new Date(deck.date).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                            Updated{' '}
+                            {Number.isFinite(Date.parse((deck as any)?.date ?? ''))
+                              ? new Date(deck.date).toLocaleDateString(undefined, { dateStyle: 'medium' })
+                              : '—'}
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-4 text-xs font-medium sm:justify-end">

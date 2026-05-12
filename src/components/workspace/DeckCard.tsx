@@ -18,6 +18,16 @@ export function DeckCard({
   onToggleSelect: () => void;
   onDelete: () => void;
 }) {
+  const dateLabel = (() => {
+    const ts = Number.isFinite(Date.parse(deck?.date ?? '')) ? Date.parse(deck.date) : NaN;
+    if (!Number.isFinite(ts)) return '—';
+    try {
+      return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+      return '—';
+    }
+  })();
+
   return (
     <article
       className={cn(
@@ -52,13 +62,7 @@ export function DeckCard({
               {deck.title}
             </h3>
           </Link>
-          <p className="mt-1 text-[11px] text-neutral-500">
-            {new Date(deck.date).toLocaleDateString(undefined, {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })}
-          </p>
+          <p className="mt-1 text-[11px] text-neutral-500">{dateLabel}</p>
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-neutral-100 pt-3 text-[11px] font-medium">
           <Link href={`/editor?id=${deck.id}`} className="text-neutral-900 underline-offset-4 hover:underline">

@@ -7,7 +7,9 @@ import type { DeckMeta } from '@/types/deck-meta';
 import { DeckCard } from '@/components/workspace/DeckCard';
 
 function sortByUpdated(a: DeckMeta, b: DeckMeta) {
-  return new Date(b.date).getTime() - new Date(a.date).getTime();
+  const tb = Number.isFinite(Date.parse(b?.date ?? '')) ? Date.parse(b.date) : 0;
+  const ta = Number.isFinite(Date.parse(a?.date ?? '')) ? Date.parse(a.date) : 0;
+  return tb - ta;
 }
 
 export default function MyPresentationsPage() {
@@ -41,7 +43,7 @@ export default function MyPresentationsPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return sorted;
-    return sorted.filter((p) => p.title.toLowerCase().includes(q));
+    return sorted.filter((p) => (p.title ?? '').toLowerCase().includes(q));
   }, [sorted, query]);
 
   const handleDelete = async () => {
