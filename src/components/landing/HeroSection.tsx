@@ -718,7 +718,7 @@ export function HeroSection() {
           transition={{ duration: 0.7, delay: 0.1 }}
           className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-[80px] font-bold tracking-tighter leading-[1.1] mb-6 text-[#1A1A1A] text-balance max-w-4xl mx-auto px-4"
         >
-          The Future of <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-indigo-600 to-primary bg-[length:200%_auto] animate-gradient-x">AI Presentations</span> is Here.
+          The Future of <span className="text-primary">AI</span> <span className="italic font-light">Presentations</span> is Here.
         </motion.h1>
 
         {/* Subhead (Compact) */}
