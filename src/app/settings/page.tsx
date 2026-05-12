@@ -27,6 +27,13 @@ export default function SettingsPage() {
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'billing'>('profile');
+  const [creditHud, setCreditHud] = useState<{
+    remaining: number;
+    allowance: number;
+    usedThisPeriod: number;
+    freeLifetimeDecksRemaining?: number;
+    cycleKey?: string;
+  } | null>(null);
 
   const isPro =
     profile?.plan === 'creator_pro' ||
@@ -62,6 +69,27 @@ export default function SettingsPage() {
     getUser();
   }, [supabase, router]);
 
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const wr = await fetch('/api/me/ai-wallet');
+        if (!wr.ok) return;
+        const w = await wr.json();
+        setCreditHud({
+          remaining: Number(w.remaining) || 0,
+          allowance: Number(w.allowance) || 0,
+          usedThisPeriod: Number(w.usedThisPeriod) || 0,
+          freeLifetimeDecksRemaining:
+            typeof w.freeLifetimeDecksRemaining === 'number' ? w.freeLifetimeDecksRemaining : undefined,
+          cycleKey: typeof w.cycleKey === 'string' ? w.cycleKey : undefined,
+        });
+      } catch (_) {
+        /* ignore */
+      }
+    })();
+  }, [user, profile?.plan]);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/');
@@ -96,41 +124,23 @@ export default function SettingsPage() {
     );
   }
 
+  if (!user) {
+    return (
+      <div className="min-h-dvh bg-[#F7F7F5] flex items-center justify-center px-4">
+        <p className="text-sm font-medium text-neutral-500">Redirecting to sign in…</p>
+      </div>
+    );
+  }
+
   const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
   const fullName = user?.user_metadata?.full_name || 'Creator';
 
-  const [creditHud, setCreditHud] = useState<{
-    remaining: number;
-    allowance: number;
-    usedThisPeriod: number;
-    freeLifetimeDecksRemaining?: number;
-    cycleKey?: string;
-  } | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      try {
-        const wr = await fetch('/api/me/ai-wallet');
-        if (!wr.ok) return;
-        const w = await wr.json();
-        setCreditHud({
-          remaining: w.remaining,
-          allowance: w.allowance,
-          usedThisPeriod: w.usedThisPeriod,
-          freeLifetimeDecksRemaining: w.freeLifetimeDecksRemaining,
-          cycleKey: w.cycleKey,
-        });
-      } catch (_) {
-        /* ignore */
-      }
-    })();
-  }, [user, profile?.plan]);
-
   const usedCredits = creditHud?.usedThisPeriod ?? 0;
-  const maxCredits = creditHud?.allowance ?? 1;
+  /** Display allowance (may be 0 if misconfigured — avoid divide-by-zero). */
+  const allowanceDisplay = creditHud?.allowance ?? 0;
+  const maxCreditsDenom = Math.max(1, allowanceDisplay);
   const remainingCredits = creditHud?.remaining ?? 0;
-  const percentUsed = Math.min(100, Math.round((usedCredits / maxCredits) * 100));
+  const percentUsed = Math.min(100, Math.round((usedCredits / maxCreditsDenom) * 100));
 
   const tabClass = (tab: 'profile' | 'billing') =>
     `flex items-center gap-3 w-full px-4 py-3 rounded-xl text-[13px] font-semibold transition-all duration-200 ${
@@ -326,7 +336,7 @@ export default function SettingsPage() {
                       </div>
                       <div className="flex justify-between mt-3 text-[12px] font-medium text-neutral-500">
                         <span>{creditHud ? `${usedCredits} used` : '—'}</span>
-                        <span>{creditHud ? `${maxCredits} included` : 'Loading…'}</span>
+                        <span>{creditHud ? `${allowanceDisplay} included` : 'Loading…'}</span>
                       </div>
                     </div>
                   </div>
