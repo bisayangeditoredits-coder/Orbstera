@@ -105,9 +105,9 @@ export function Navbar() {
         className="border-b border-slate-200/70 bg-white/85 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur-2xl supports-[backdrop-filter]:bg-white/75"
         aria-label="Primary"
       >
-        <div className="mx-auto flex h-[52px] w-full max-w-[1400px] min-w-0 items-center justify-between gap-3 px-3 sm:h-[60px] sm:gap-x-4 sm:px-5 md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:justify-between md:gap-x-7 md:px-8 lg:gap-x-10">
-          {/* Left: logo */}
-          <div className="flex min-w-0 items-center md:justify-self-start">
+        <div className="mx-auto flex h-[52px] w-full max-w-[1400px] min-w-0 items-center justify-between gap-3 px-3 sm:h-[60px] sm:gap-x-4 sm:px-5 md:grid md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-x-4 md:px-6 lg:gap-x-8 lg:px-8">
+          {/* Left: logo — column does not steal space from actions */}
+          <div className="flex shrink-0 items-center md:justify-self-start">
             <Link
               href="/"
               className="group flex min-w-0 shrink-0 items-center"
@@ -124,12 +124,12 @@ export function Navbar() {
             </Link>
           </div>
 
-          {/* Center: readable spacing — never use gap-0; links have their own padding */}
-          <div className="relative z-10 mr-1 hidden min-w-0 justify-center md:flex md:justify-self-center md:mr-2 lg:mr-3">
+          {/* Center: shrinks first — pill scrolls horizontally instead of crushing the right cluster */}
+          <div className="relative z-10 hidden min-w-0 max-w-full justify-center md:flex md:justify-self-center">
             <div
               role="navigation"
               aria-label="Site sections"
-              className="flex max-w-[min(100vw-16rem,42rem)] items-center justify-center gap-x-0.5 overflow-x-auto rounded-full border border-slate-200/70 bg-slate-50/90 px-1 py-1 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] sm:max-w-[min(100vw-22rem,48rem)] sm:gap-x-1 sm:px-2 sm:py-1.5 md:max-w-[min(100vw-26rem,52rem)] md:gap-x-1.5 lg:gap-x-2"
+              className="flex w-full max-w-full items-center justify-center gap-x-0.5 overflow-x-auto rounded-full border border-slate-200/70 bg-slate-50/90 px-1 py-1 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] sm:gap-x-1 sm:px-2 sm:py-1.5 md:max-w-[min(100%,52rem)] md:gap-x-1.5 md:justify-start lg:justify-center lg:gap-x-2"
               style={{ WebkitOverflowScrolling: 'touch' }}
             >
               {NAV_LINKS.map((item) => (
@@ -151,11 +151,11 @@ export function Navbar() {
             </div>
           </div>
 
-          {/* Right: isolated stacking so CTA glow/shadow never bleeds over center nav */}
-          <div className="relative z-20 flex min-w-0 flex-nowrap items-center justify-end gap-1.5 pl-1 sm:gap-2 sm:pl-2 md:justify-self-end md:pl-4 lg:pl-5">
+          {/* Right: min-width = content — never overlaps search / CTA / avatar */}
+          <div className="relative z-20 flex w-max shrink-0 flex-nowrap items-center justify-end gap-2 sm:gap-3 md:justify-self-end">
             <button
               type="button"
-              className="hidden h-9 shrink-0 items-center gap-1.5 rounded-full border border-slate-200/90 bg-white/90 px-2.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500 shadow-sm transition hover:border-primary/25 hover:bg-white hover:text-slate-700 min-[1080px]:flex"
+              className="hidden h-9 shrink-0 items-center gap-1.5 rounded-full border border-slate-200/90 bg-white/90 px-2.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500 shadow-sm transition hover:border-primary/25 hover:bg-white hover:text-slate-700 xl:flex"
               aria-label="Open command palette — keyboard shortcut Command K"
               onClick={() => dispatchCommandPaletteShortcut()}
             >
@@ -178,7 +178,7 @@ export function Navbar() {
 
             <Link
               href="/editor"
-              className="group relative isolate flex h-9 shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-full bg-gradient-to-b from-primary to-primaryHover px-4 text-[10px] font-bold uppercase tracking-[0.14em] text-white shadow-[4px_10px_22px_-6px_rgba(37,99,235,0.5)] ring-1 ring-white/20 transition hover:brightness-[1.05] hover:shadow-[6px_12px_26px_-6px_rgba(37,99,235,0.55)] active:scale-[0.98] touch-manipulation sm:h-10 sm:gap-2 sm:px-6 sm:text-[11px]"
+              className="group relative isolate flex h-9 shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-full bg-gradient-to-b from-primary to-primaryHover px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-white shadow-[3px_8px_18px_-5px_rgba(37,99,235,0.45)] ring-1 ring-white/20 transition hover:brightness-[1.05] hover:shadow-[4px_10px_20px_-5px_rgba(37,99,235,0.5)] active:scale-[0.98] touch-manipulation sm:h-10 sm:gap-2 sm:px-5 sm:text-[11px] md:px-6"
             >
               <span className="relative z-[1] truncate whitespace-nowrap">
                 <span className="hidden xs:inline">Start Creating</span>
