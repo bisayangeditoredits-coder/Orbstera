@@ -186,7 +186,7 @@ export function Pricing() {
             >
               PHP (₱)
             </button>
-          </div>
+          </motion.div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-8">
