@@ -44,11 +44,25 @@ function ExportModal({ step, done, error, onClose }: {
         {done && !error ? (
           <>
             <motion.div
-              initial={{ scale: 0 }} animate={{ scale: 1 }}
+              initial={{ scale: 0, rotate: -10 }}
+              animate={{ scale: 1, rotate: 0 }}
               transition={{ type: 'spring', damping: 12, stiffness: 200 }}
-              className="w-20 h-20 rounded-full bg-emerald-50 flex items-center justify-center"
+              className="w-24 h-24 flex items-center justify-center relative"
             >
-              <CheckCircle size={40} className="text-emerald-500" />
+              <div className="absolute inset-0 bg-emerald-400/20 rounded-full blur-2xl animate-pulse" />
+              <img 
+                src="/PNGs/Powerpoint.png" 
+                alt="PowerPoint" 
+                className="w-20 h-20 object-contain relative z-10 drop-shadow-xl"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3 }}
+                className="absolute -top-1 -right-1 w-8 h-8 rounded-full bg-emerald-500 border-4 border-white flex items-center justify-center z-20 shadow-lg"
+              >
+                <CheckCircle size={16} className="text-white" />
+              </motion.div>
             </motion.div>
             <div className="text-center">
               <h3 className="text-xl font-bold text-black">Export Complete!</h3>

@@ -13,17 +13,13 @@ const tiers = [
     period: null,
     description: 'Start building presentations instantly — no credit card required.',
     badge: null,
-    icon: <Sparkles size={20} className="text-white/40" />,
+    icon: <img src="/psdzone.net-Education-3D-Icons/PNG/Notebook and Pencil.png" alt="Free" className="w-28 h-28 object-contain" />,
     features: [
-      { text: '100 AI credits every month (UTC) for lightweight generation', included: true },
-      { text: '3 AI-generated presentations lifetime · up to 5 slides each', included: true },
-      { text: 'Automatic cinematic layout & motion', included: true },
-      { text: 'PPTX export with watermark', included: true },
-      { text: 'Basic slide templates', included: true },
-      { text: 'Voice Protocol (Hands-free generation)', included: true },
-      { text: 'AI Magic Edit (inline editing)', included: false },
-      { text: 'Generative fill & premium slide imagery pools', included: false },
-      { text: 'Longer decks (25+ slides)', included: false },
+      { text: '100 AI credits every month', included: true },
+      { text: '3 AI presentations lifetime', included: true },
+      { text: 'Cinematic layout & motion', included: true },
+      { text: 'PPTX export (with watermark)', included: true },
+      { text: 'AI Magic Edit & premium assets', included: false },
     ],
     href: '/login',
     popular: false,
@@ -35,16 +31,13 @@ const tiers = [
     period: '/month',
     description: 'The best value for students, freelancers & emerging creators who need real power.',
     badge: 'Most Popular',
-    icon: <Crown size={20} className="text-amber-400" />,
+    icon: <img src="/psdzone.net-Education-3D-Icons/PNG/Graduation Hat.png" alt="Student" className="w-28 h-28 object-contain" />,
     features: [
-      { text: '1,500 AI credits / month · smart Gemini-first routing keeps costs predictable', included: true },
-      { text: 'Unlimited decks within your credit budget · up to 25 slides per presentation', included: true },
-      { text: 'Hybrid orchestration — Flash structure + GPT polish when beneficial', included: true },
-      { text: 'PPTX export — no watermark', included: true },
+      { text: '1,500 AI credits / month', included: true },
+      { text: 'Unlimited decks (up to 25 slides)', included: true },
+      { text: 'No-watermark PPTX export', included: true },
       { text: 'All premium templates & themes', included: true },
-      { text: 'AI Magic Edit (5 credits each) · Generative Fill + imagery tracked', included: true },
-      { text: 'Cinematic slide imagery via Flux-compatible routing', included: true },
-      { text: 'Priority generation lane & transparent credit HUD', included: true },
+      { text: 'Full AI Magic Edit access', included: true },
     ],
     href: '#',
     popular: true,
@@ -56,19 +49,13 @@ const tiers = [
     period: '/month',
     description: 'Built for agencies, teachers & power users who live and breathe presentations.',
     badge: 'Best Value',
-    icon: <Zap size={20} className="text-purple-400" />,
+    icon: <img src="/psdzone.net-Education-3D-Icons/PNG/Trophy.png" alt="Creator" className="w-28 h-28 object-contain" />,
     features: [
-      {
-        text: '6,000–10,000 AI credits / month (default 8,000 — set CREATOR_MONTHLY_AI_CREDITS)',
-        included: true,
-      },
-      { text: 'Unlimited decks within credits · up to 40 slides per presentation', included: true },
-      { text: 'Creator routing — GPT‑5 class + Claude structure + analytical DeepSeek when needed', included: true },
-      { text: 'PPTX export — no watermark, custom branding', included: true },
-      { text: 'All templates + premium cinematic imagery tiers', included: true },
-      { text: 'Full Magic Edit stack + richest generative tooling', included: true },
-      { text: 'Highest priority rendering queue & economy failover via ORBSTERA_AI_ECONOMY_MODE', included: true },
-      { text: 'Priority support', included: true },
+      { text: '8,000 AI credits / month', included: true },
+      { text: 'Unlimited decks (up to 40 slides)', included: true },
+      { text: 'Custom branding & priority lane', included: true },
+      { text: 'Richest generative imagery pools', included: true },
+      { text: '24/7 Priority support', included: true },
     ],
     href: '#',
     popular: false,
@@ -204,14 +191,27 @@ export function Pricing() {
                   <div className="absolute top-0 inset-x-0 h-1.5 bg-primary" />
                 )}
 
-                <h3 className="text-xl font-bold mb-4 flex items-center justify-between">
-                  {tier.name}
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold flex items-center gap-3">
+                    {tier.name}
+                  </h3>
                   {tier.badge && !isCurrentPlan && (
                     <span className="text-[10px] uppercase tracking-widest font-bold bg-amber-100 text-amber-700 px-3 py-1 rounded-full">
                       {tier.badge}
                     </span>
                   )}
-                </h3>
+                </div>
+                
+                <div className="mb-8 flex justify-center py-10 bg-slate-50/50 rounded-[2.5rem] border border-slate-100 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] relative overflow-hidden group/icon">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-indigo-500/5 opacity-0 group-hover/icon:opacity-100 transition-opacity duration-500" />
+                  <motion.div
+                    whileHover={{ scale: 1.15, rotate: 8 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                    className="relative z-10 drop-shadow-2xl"
+                  >
+                    {tier.icon}
+                  </motion.div>
+                </div>
                 
                 <div className="text-4xl font-black mb-6">
                   {displayPrice}<span className="text-sm text-slate-400">{tier.period}</span>

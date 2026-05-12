@@ -18,6 +18,7 @@ const TOUR_STEPS = [
     title: 'Creative Tools',
     description: 'Add text, images, rectangles, circles, triangles, stars, lines, and arrows to your slides. You can also click the Upload button or paste an image directly from your clipboard!',
     icon: Sparkles,
+    icon3d: '/psdzone.net-Education-3D-Icons/PNG/Brush and Color Palette.png',
     position: 'bottom' as const,
   },
   {
@@ -40,6 +41,7 @@ const TOUR_STEPS = [
     description:
       'Describe your topic in “Your vision”, pick how many slides you want, then tap Generate. The AI streams your deck in real time and can add cinematic backgrounds. Credits and costs are shown in the panel before you run.',
     icon: Play,
+    icon3d: '/psdzone.net-Education-3D-Icons/PNG/Rocket.png',
     position: 'left' as const,
   },
   {
@@ -61,6 +63,7 @@ const TOUR_STEPS = [
     title: 'Export to PowerPoint',
     description: 'Export your finished presentation as a fully editable PPTX file with matching backgrounds, fonts, and entrance animations that play in PowerPoint.',
     icon: Download,
+    icon3d: '/PNGs/Powerpoint.png',
     position: 'bottom' as const,
   },
 ];
@@ -299,8 +302,25 @@ export function OnboardingTour() {
              />
           </motion.div>
 
-          <div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary relative z-10">
-            <currentStep.icon size={24} />
+          <div className="flex items-start justify-between gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary relative z-10 shrink-0">
+              <currentStep.icon size={24} />
+            </div>
+            {/* @ts-ignore */}
+            {currentStep.icon3d && (
+              <motion.div
+                initial={{ scale: 0, rotate: -20 }}
+                animate={{ scale: 1, rotate: 0 }}
+                className="w-16 h-16 shrink-0 -mt-2"
+              >
+                <img 
+                  /* @ts-ignore */
+                  src={currentStep.icon3d} 
+                  alt="" 
+                  className="w-full h-full object-contain drop-shadow-lg" 
+                />
+              </motion.div>
+            )}
           </div>
 
           <div>

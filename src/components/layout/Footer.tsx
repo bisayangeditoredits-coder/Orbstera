@@ -7,7 +7,6 @@ export function Footer() {
         <div className="space-y-6">
           <Link href="/" className="flex items-center gap-2 group">
             <img src="/logo.png.png" alt="Orbstera Logo" className="h-8 w-auto object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.2)] group-hover:drop-shadow-[0_0_20px_rgba(255,255,255,0.4)] transition-all" />
-            <span className="font-extrabold text-2xl tracking-tighter text-white group-hover:text-primary transition-colors">Orbstera</span>
           </Link>
           <p className="text-[15px] max-w-xs leading-relaxed font-medium">
             The futuristic presentation generation platform for creative professionals.

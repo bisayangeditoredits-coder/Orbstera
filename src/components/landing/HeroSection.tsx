@@ -661,30 +661,58 @@ export function HeroSection() {
           />
         </div>
 
-        {/* Particles — desktop only (saves layout + paint on phones) */}
-        {heroParticles.map((p) => (
-          <motion.div
-            key={p.id}
-            initial={{
-              x: p.x,
-              y: p.y,
-              opacity: p.baseOpacity,
+        {/* Floating 3D Icons — Billion Dollar Flair */}
+        <div className="absolute inset-0 pointer-events-none hidden lg:block overflow-hidden z-10">
+          <motion.img
+            src="/psdzone.net-Education-3D-Icons/PNG/Rocket.png"
+            initial={{ y: 100, x: -100, opacity: 0, rotate: -20 }}
+            animate={{ 
+              y: [0, -40, 0],
+              x: [0, 15, 0],
+              rotate: [-20, -15, -20],
+              opacity: 0.6
             }}
-            animate={{
-              y: [null, "-40px", "40px"],
-              opacity: [0.2, 0.65, 0.2],
-              scale: [1, 1.45, 1],
-            }}
-            transition={{
-              duration: p.duration,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: p.delay,
-            }}
-            className="absolute w-1.5 h-1.5 rounded-full will-change-transform hidden md:block"
-            style={{ background: 'radial-gradient(circle, rgba(71,59,240,0.8) 0%, transparent 80%)' }}
+            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-[18%] left-[8%] w-40 h-40 object-contain filter blur-[1px] opacity-40"
           />
-        ))}
+          <motion.img
+            src="/psdzone.net-Education-3D-Icons/PNG/Book and Brain.png"
+            initial={{ y: -100, x: 100, opacity: 0, rotate: 15 }}
+            animate={{ 
+              y: [0, 50, 0],
+              x: [0, -25, 0],
+              rotate: [15, 22, 15],
+              opacity: 0.5
+            }}
+            transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+            className="absolute top-[12%] right-[10%] w-48 h-48 object-contain filter blur-[2px] opacity-30"
+          />
+          <motion.img
+            src="/psdzone.net-Education-3D-Icons/PNG/Atomic.png"
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ 
+              y: [0, -60, 0],
+              rotate: [0, 360],
+              opacity: 0.4
+            }}
+            transition={{ 
+              y: { duration: 12, repeat: Infinity, ease: "easeInOut" },
+              rotate: { duration: 25, repeat: Infinity, ease: "linear" }
+            }}
+            className="absolute bottom-[15%] left-[12%] w-28 h-28 object-contain filter blur-[1px]"
+          />
+          <motion.img
+            src="/psdzone.net-Education-3D-Icons/PNG/Globe.png"
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ 
+              y: [0, 40, 0],
+              x: [0, 25, 0],
+              opacity: 0.5
+            }}
+            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+            className="absolute bottom-[22%] right-[14%] w-32 h-32 object-contain filter blur-[1px]"
+          />
+        </div>
       </div>
 
 

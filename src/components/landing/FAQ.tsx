@@ -29,7 +29,22 @@ export function FAQ() {
   return (
     <section className="w-full py-32 px-6 bg-background">
       <div className="max-w-3xl mx-auto">
-        <h2 className="text-4xl md:text-5xl font-space-grotesk font-bold text-center mb-16">Frequently Asked Questions</h2>
+        <div className="flex justify-center mb-6">
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            whileInView={{ y: 0, opacity: 1 }}
+            viewport={{ once: true }}
+            className="relative"
+          >
+            <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full" />
+            <img 
+              src="/psdzone.net-Education-3D-Icons/PNG/Lamp and Brain.png" 
+              alt="Knowledge" 
+              className="w-32 h-32 object-contain relative z-10"
+            />
+          </motion.div>
+        </div>
+        <h2 className="text-4xl md:text-5xl font-space-grotesk font-bold text-center mb-16 tracking-tight">Frequently Asked Questions</h2>
         
         <div className="space-y-4">
           {faqs.map((faq, i) => (

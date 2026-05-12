@@ -7,32 +7,32 @@ const features = [
   {
     title: "Cinematic Generation",
     description: "Multi-model AI architecture utilizing GPT-5.5 and DeepSeek R1 to craft deep narratives and striking visuals.",
-    icon: <Wand2 className="text-primary" size={24} />
+    icon: <img src="/Fintaly - 3D Finance Icons/TERMINAL.png" alt="AI" className="w-12 h-12 object-contain" />
   },
   {
     title: "Pro-Grade Canvas",
     description: "Built on Fabric.js for 60fps drag-and-drop editing. Layer management, snapping, and rich text support.",
-    icon: <Layers className="text-secondary" size={24} />
+    icon: <img src="/Fintaly - 3D Finance Icons/FOLDER.png" alt="Canvas" className="w-12 h-12 object-contain" />
   },
   {
     title: "Flawless PPTX Export",
     description: "Pixel-perfect export to Microsoft PowerPoint. No missing fonts, broken layouts, or flattened images.",
-    icon: <Download className="text-accent" size={24} />
+    icon: <img src="/PNGs/Powerpoint.png" alt="PowerPoint" className="w-12 h-12 object-contain" />
   },
   {
     title: "Lightning Fast",
     description: "Edge-cached generations and GPU-accelerated compositing means you never wait for your ideas to manifest.",
-    icon: <Zap className="text-primary" size={24} />
+    icon: <img src="/Fintaly - 3D Finance Icons/WATCH.png" alt="Speed" className="w-12 h-12 object-contain" />
   },
   {
     title: "Fluid Animations",
     description: "Every element supports micro-animations and slide transitions that rival high-end video production.",
-    icon: <Presentation className="text-secondary" size={24} />
+    icon: <img src="/Fintaly - 3D Finance Icons/PIE.png" alt="Animations" className="w-12 h-12 object-contain" />
   },
   {
     title: "Real-time Collaboration",
     description: "Work with your team in the same canvas simultaneously with instant sync and conflict resolution.",
-    icon: <MousePointer2 className="text-accent" size={24} />
+    icon: <img src="/Fintaly - 3D Finance Icons/USER.png" alt="Team" className="w-12 h-12 object-contain" />
   }
 ];
 
@@ -67,10 +67,13 @@ export function Features() {
               transition={{ delay: i * 0.1 }}
               className="bg-white border border-borderSubtle p-10 rounded-[32px] hover:border-primary/30 transition-all group cursor-default shadow-sm hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1"
             >
-              <div className="bg-panel w-14 h-14 rounded-2xl flex items-center justify-center mb-8 border border-borderSubtle group-hover:bg-primary group-hover:border-primary transition-all duration-300">
-                <span className="group-hover:text-white transition-colors">
+              <div className="w-20 h-20 rounded-[2rem] bg-slate-50 flex items-center justify-center mb-8 border border-slate-100 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] group-hover:bg-white group-hover:border-primary/20 transition-all duration-300">
+                <motion.div
+                  whileHover={{ scale: 1.2, rotate: 5 }}
+                  className="shrink-0"
+                >
                   {feature.icon}
-                </span>
+                </motion.div>
               </div>
               <h3 className="text-xl font-bold mb-4 text-textMain group-hover:text-primary transition-colors">{feature.title}</h3>
               <p className="text-textSecondary text-[15px] leading-relaxed">{feature.description}</p>

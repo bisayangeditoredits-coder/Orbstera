@@ -102,10 +102,19 @@ export function Templates() {
                     <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff15_1px,transparent_1px),linear-gradient(to_bottom,#ffffff15_1px,transparent_1px)] bg-[size:16px_16px]" />
                     
                     <motion.div 
-                      whileHover={{ scale: 1.05 }}
-                      className="relative w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 flex items-center justify-center shadow-xl mb-4 group-hover:-translate-y-1 transition-transform duration-300"
+                      whileHover={{ scale: 1.15, rotate: 5 }}
+                      className="relative w-32 h-32 flex items-center justify-center group-hover:-translate-y-4 transition-all duration-500"
                     >
-                      <IconComponent className={`w-8 h-8 ${tpl.text_color || 'text-white'}`} strokeWidth={1.5} />
+                      <img 
+                        src={
+                          tpl.id === "seq-pitch" ? "/psdzone.net-Education-3D-Icons/PNG/Rocket.png" :
+                          tpl.id === "obsidian-cyber" ? "/psdzone.net-Education-3D-Icons/PNG/Brush and Color Palette.png" :
+                          tpl.id === "b2b-sales" ? "/psdzone.net-Education-3D-Icons/PNG/Trophy.png" :
+                          "/psdzone.net-Education-3D-Icons/PNG/Book.png"
+                        } 
+                        alt={tpl.title}
+                        className="w-28 h-28 object-contain drop-shadow-2xl"
+                      />
                     </motion.div>
                     
                     <div className={`text-center relative z-10 ${tpl.text_color || 'text-white'}`}>
