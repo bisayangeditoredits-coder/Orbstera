@@ -7,9 +7,10 @@ import { useState } from 'react';
 interface ReviewModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
-export function ReviewModal({ isOpen, onClose }: ReviewModalProps) {
+export function ReviewModal({ isOpen, onClose, onSuccess }: ReviewModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rating, setRating] = useState(5);
   const [formData, setFormData] = useState({
@@ -32,6 +33,7 @@ export function ReviewModal({ isOpen, onClose }: ReviewModalProps) {
 
       if (response.ok) {
         alert("Thank you! Your story has been shared.");
+        onSuccess?.();
         onClose();
         setFormData({ name: '', role: '', handle: '', body: '' });
       } else {

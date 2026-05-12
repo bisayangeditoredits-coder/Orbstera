@@ -160,6 +160,7 @@ const MarqueeRow = ({ items, direction = "left", speed = 40 }: { items: typeof R
   return (
     <div className="flex w-full overflow-hidden group">
       <motion.div
+        key={items.length}
         className="flex gap-6 pr-6 w-max"
         animate={{
           x: direction === "left" ? ["0%", "-50%"] : ["-50%", "0%"],
@@ -264,13 +265,14 @@ export function Testimonials() {
       <ReviewModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
+        onSuccess={fetchReviews}
       />
 
       {/* Infinite Scrolling Marquees */}
       <div className="relative z-10 flex flex-col gap-6 -mx-4 md:-mx-20 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
-        <MarqueeRow items={row1} direction="left" speed={60} />
-        <MarqueeRow items={row2} direction="right" speed={55} />
-        <MarqueeRow items={row3} direction="left" speed={65} />
+        <MarqueeRow items={row1} direction="left" speed={30} />
+        <MarqueeRow items={row2} direction="right" speed={25} />
+        <MarqueeRow items={row3} direction="left" speed={35} />
       </div>
 
       <div className="absolute bottom-0 w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
