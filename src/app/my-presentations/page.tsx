@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Navbar } from '@/components/layout/Navbar';
+// Navbar removed
 import type { DeckMeta } from '@/types/deck-meta';
 import { DeckCard } from '@/components/workspace/DeckCard';
 
@@ -61,7 +61,7 @@ export default function MyPresentationsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#CDE4FF] via-white to-white text-neutral-900">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_90%_60%_at_50%_-10%,rgba(59,130,246,0.08),transparent)]" />
-      <Navbar />
+      {/* Navbar removed */}
 
       {deleteTarget && (
         <div

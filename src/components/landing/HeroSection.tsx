@@ -876,20 +876,11 @@ export function HeroSection() {
                         }
                       }}
                       placeholder="Describe your presentation topic..."
-                      className="w-full flex-1 min-h-[7rem] sm:min-h-0 bg-transparent border-none focus:ring-0 focus:outline-none text-base sm:text-lg md:text-xl text-textMain placeholder:text-textMuted resize-none font-medium pr-11 sm:pr-10 pb-14 sm:pb-10"
+                      className="w-full flex-1 min-h-[7rem] sm:min-h-0 bg-transparent border-none focus:ring-0 focus:outline-none text-base sm:text-lg md:text-xl text-textMain placeholder:text-textMuted resize-none font-medium pr-11 sm:pr-10 pb-2"
                     />
                     <button onClick={toggleListening} className={`absolute right-0 top-0 p-2 rounded-lg transition-all ${isListening ? 'text-primary bg-primary/10' : 'text-textMuted hover:bg-panel'}`}>
                       {isListening ? <Mic size={20} className="animate-pulse" /> : <MicOff size={20} className="opacity-40" />}
                     </button>
-                    {prompt.trim() && (
-                      <button
-                        onClick={handleEnhancePrompt}
-                        disabled={isEnhancing}
-                        className="absolute bottom-2 right-2 flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-full text-[11px] font-bold transition-all disabled:opacity-50"
-                      >
-                        {isEnhancing ? <span className="animate-pulse">Enhancing...</span> : <><Sparkles size={12} /> Enhance Prompt</>}
-                      </button>
-                    )}
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center">
@@ -939,6 +930,20 @@ export function HeroSection() {
               {/* ── BOTTOM BAR — stack on narrow screens so CTA never clips ── */}
               {activeMode !== 'voice' && (
                 <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-panel flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end shrink-0 w-full min-w-0">
+                  {activeMode === 'create' && prompt.trim() ? (
+                    <button
+                      type="button"
+                      onClick={handleEnhancePrompt}
+                      disabled={isEnhancing}
+                      className="group flex items-center justify-center gap-1.5 px-4 sm:px-5 min-h-11 bg-primary/10 hover:bg-primary/20 text-primary rounded-full text-[11px] sm:text-[12px] font-bold transition-all disabled:opacity-50 shrink-0 w-full sm:w-auto sm:mr-auto"
+                    >
+                      {isEnhancing ? (
+                        <span className="animate-pulse">Enhancing...</span>
+                      ) : (
+                        <><Sparkles size={14} className="group-hover:rotate-12 transition-transform" /> Enhance Prompt</>
+                      )}
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={handleGenerate}

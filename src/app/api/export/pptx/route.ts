@@ -4,6 +4,8 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { PresentationData, Slide, SlideElement, SlideTransition } from '@/types';
+import fs from 'fs';
+import path from 'path';
 
 // ── Canvas → PPTX coordinate system ──────────────────────────────────────────
 // Canvas: 1280 × 720 px  →  PPTX: 10 × 5.625 inches  (same 16:9 ratio)
@@ -393,17 +395,30 @@ export async function POST(req: Request) {
 
     // ── Watermark: inject on every slide for Free users ──────────────────────
     if (!isPaidUser) {
+      let logoData: string | undefined;
+      try {
+        const logoPath = path.join(process.cwd(), 'public', 'logo.png.png');
+        const logoBuffer = fs.readFileSync(logoPath);
+        logoData = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+      } catch (err) {
+        console.error('Failed to load watermark logo:', err);
+      }
+
       const allSlides = (pptx as any).slides as any[];
       allSlides.forEach((wSlide: any) => {
-        wSlide.addText('Made with Orbstera AI  •  Upgrade to Pro', {
-          x: 0.5, y: 2.8, w: 9, h: 1.8,
-          fontSize: 30,
+        if (logoData) {
+          wSlide.addImage({
+            data: logoData,
+            x: 8.2, y: 5.05, w: 1.5, h: 0.35,
+            sizing: { type: 'contain', w: 1.5, h: 0.35 },
+          });
+        }
+        wSlide.addText('Made with Orbstera AI', {
+          x: 7.2, y: 5.4, w: 2.5, h: 0.15,
+          fontSize: 9,
+          color: '999999',
+          align: 'right',
           bold: true,
-          color: 'FFFFFF',
-          transparency: 60,
-          align: 'center',
-          fontFace: 'Arial',
-          rotate: 335,
           isTextBox: true,
         });
       });

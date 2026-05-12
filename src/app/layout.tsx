@@ -3,6 +3,7 @@ import { Inter, Space_Grotesk, Lora, Montserrat } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/layout/Providers";
 import { PageTransition } from "@/components/layout/PageTransition";
+import { GlobalNavbar } from "@/components/layout/GlobalNavbar";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
@@ -35,6 +36,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} ${spaceGrotesk.variable} ${lora.variable} ${montserrat.variable} font-sans bg-background text-textMain min-h-dvh max-w-[100vw] overflow-x-clip antialiased`}>
         <Providers>
+          <GlobalNavbar />
           <PageTransition>
             {children}
           </PageTransition>

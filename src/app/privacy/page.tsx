@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Navbar } from '@/components/layout/Navbar';
+// Navbar removed
 import { Footer } from '@/components/layout/Footer';
 
 export const metadata = {
@@ -10,7 +10,7 @@ export const metadata = {
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-[#FDFCF9] text-neutral-900">
-      <Navbar />
+      {/* Navbar removed */}
       <main className="mx-auto max-w-2xl px-5 pb-24 pt-28 sm:px-8 sm:pt-32">
         <h1
           className="text-3xl font-semibold tracking-tight text-neutral-950"

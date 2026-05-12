@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Navbar } from '@/components/layout/Navbar';
+// Navbar removed
 import { Footer } from '@/components/layout/Footer';
 
 export const metadata = {
@@ -10,7 +10,7 @@ export const metadata = {
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#CDE4FF] via-white to-white text-neutral-900">
-      <Navbar />
+      {/* Navbar removed */}
       <main>
         <section className="border-b border-neutral-200/80 bg-gradient-to-b from-white to-[#FDFCF9] px-5 py-20 sm:px-8 sm:py-28">
           <div className="mx-auto max-w-3xl">

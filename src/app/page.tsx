@@ -1,6 +1,5 @@
 import dynamic from 'next/dynamic';
 import { HeroSection } from '@/components/landing/HeroSection';
-import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 
 const SocialProof = dynamic(() => import('@/components/landing/SocialProof').then((m) => ({ default: m.SocialProof })));
@@ -16,7 +15,6 @@ const CTA = dynamic(() => import('@/components/landing/CTA').then((m) => ({ defa
 export default function Home() {
   return (
     <main className="flex min-h-screen w-full max-w-[100vw] flex-col items-center justify-between overflow-x-clip">
-      <Navbar />
       <HeroSection />
       <SocialProof />
       <Showcase />

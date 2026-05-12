@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { Navbar } from '@/components/layout/Navbar';
+// Navbar removed
 import {
   User,
   Mail,
@@ -118,7 +118,7 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-dvh bg-[#F7F7F5] text-neutral-900 antialiased">
-      <Navbar />
+      {/* Navbar removed */}
 
       <main className="max-w-5xl mx-auto w-full min-w-0 px-4 sm:px-6 lg:px-8 pt-[max(5.5rem,env(safe-area-inset-top)+4.5rem)] sm:pt-28 pb-16 sm:pb-20 overflow-x-clip">
         {/* Page header */}

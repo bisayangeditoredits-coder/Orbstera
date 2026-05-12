@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Navbar } from '@/components/layout/Navbar';
+// Navbar removed
 import { Footer } from '@/components/layout/Footer';
 
 export default function ContactPage() {
@@ -23,7 +23,7 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] text-neutral-900">
-      <Navbar />
+      {/* Navbar removed */}
       <main className="mx-auto max-w-6xl px-5 pb-24 pt-28 sm:px-8 sm:pt-32">
         <div className="grid gap-16 lg:grid-cols-2 lg:gap-24">
           <div>

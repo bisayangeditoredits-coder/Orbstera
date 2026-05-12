@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     const PRODUCT_MAP: Record<string, string> = {
       'student_pro': process.env.DODO_STUDENT_PRO_ID || '',
       'creator_pro': process.env.DODO_CREATOR_PRO_ID || '',
-      'one_time_export': process.env.DODO_ONE_TIME_EXPORT_ID || '',
+      'one_time_export': process.env.DODO_ONE_TIME_EXPORT_ID || 'pdt_0NeTHnd7mchKsmRaOBa1S',
     };
 
     const targetProductId = productId || PRODUCT_MAP[planId];

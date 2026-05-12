@@ -17,6 +17,7 @@ const NAV_LINKS = [
 
 export function Navbar() {
   const [user, setUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -50,6 +51,7 @@ export function Navbar() {
         data: { user },
       } = await supabase.auth.getUser();
       setUser(user);
+      setIsLoading(false);
     };
     getUser();
 
@@ -57,6 +59,7 @@ export function Navbar() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -143,7 +146,9 @@ export function Navbar() {
             <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity group-hover:opacity-100" />
           </Link>
 
-          {user ? (
+          {isLoading ? (
+            <div className="hidden h-9 w-[120px] animate-pulse rounded-full bg-gray-100 sm:block sm:h-10" />
+          ) : user ? (
             <div className="relative shrink-0" ref={dropdownRef}>
               <button
                 type="button"
@@ -238,7 +243,9 @@ export function Navbar() {
             </Link>
           )}
 
-          {user && (
+          {isLoading ? (
+            <div className="flex h-9 w-9 shrink-0 animate-pulse rounded-full bg-gray-100 sm:hidden" />
+          ) : user && (
             <Link
               href="/my-presentations"
               className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-200/80 bg-gradient-to-br from-primary to-indigo-600 touch-manipulation sm:hidden"

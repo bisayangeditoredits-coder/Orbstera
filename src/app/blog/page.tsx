@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Navbar } from '@/components/layout/Navbar';
+// Navbar removed
 import { Footer } from '@/components/layout/Footer';
 import { BLOG_POSTS } from '@/content/blog-posts';
 
@@ -13,7 +13,7 @@ export default function BlogPage() {
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] text-neutral-900">
-      <Navbar />
+      {/* Navbar removed */}
       <main className="mx-auto max-w-4xl px-5 pb-24 pt-28 sm:px-8 sm:pt-32">
         <header className="mb-16 border-b border-neutral-200/80 pb-12">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary/80">Journal</p>

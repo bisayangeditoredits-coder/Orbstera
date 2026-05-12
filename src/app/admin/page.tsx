@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Navbar } from '@/components/layout/Navbar';
+// Navbar removed
 import { Users, Crown, Shield, Activity, Search, ArrowUpRight, ArrowDownRight, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -76,7 +76,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white pb-20 font-sans selection:bg-primary/30">
-      <Navbar />
+      {/* Navbar removed */}
       
       <main className="max-w-[1400px] mx-auto pt-32 px-6">
         {/* Header */}

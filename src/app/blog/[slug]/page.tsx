@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Navbar } from '@/components/layout/Navbar';
+// Navbar removed
 import { Footer } from '@/components/layout/Footer';
 import { BLOG_POSTS, getPostBySlug } from '@/content/blog-posts';
 
@@ -23,7 +23,7 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] text-neutral-900">
-      <Navbar />
+      {/* Navbar removed */}
       <article className="mx-auto max-w-2xl px-5 pb-24 pt-28 sm:px-8 sm:pt-32">
         <Link
           href="/blog"

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { Navbar } from '@/components/layout/Navbar';
+// Navbar removed
 import { createClient } from '@/lib/supabase';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
@@ -159,7 +159,7 @@ function AccountContent() {
 
   return (
     <div className="min-h-screen bg-[#F4F3F1] text-neutral-900">
-      <Navbar />
+      {/* Navbar removed */}
 
       {deleteTarget && (
         <div
