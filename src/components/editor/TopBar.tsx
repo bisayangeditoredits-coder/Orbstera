@@ -15,6 +15,7 @@ import {
   Upload, AlertCircle, RefreshCw,
   PanelLeft,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase';
 
 // ── Export Progress Modal ─────────────────────────────────────────────────────
 const EXPORT_STEPS = [
@@ -454,7 +455,11 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
   const handleShare = async () => {
     try {
       if (!presentation?.id) throw new Error('No presentation ID');
-      const publicUrl = `${window.location.origin}/p/${presentation.id}`;
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('You must be logged in to share.');
+
+      const publicUrl = `${window.location.origin}/p/${user.id}/${presentation.id}`;
       await navigator.clipboard.writeText(publicUrl);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
