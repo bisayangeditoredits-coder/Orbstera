@@ -127,7 +127,10 @@ export function Pricing() {
   };
 
   return (
-    <section id="pricing" className="w-full py-16 sm:py-24 md:py-32 px-4 sm:px-6 bg-[#F8FAFC] text-slate-900 relative overflow-x-clip">
+    <section id="pricing" className="w-full py-16 sm:py-24 md:py-32 px-4 sm:px-6 bg-[#F8FAFC] text-slate-900 relative overflow-hidden">
+      {/* Subtle Grid Pattern */}
+      <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#000 0.5px, transparent 0.5px)', backgroundSize: '24px 24px' }} />
+      
       {/* Background */}
       <div 
         className="absolute top-0 left-0 right-0 h-full z-0 pointer-events-none overflow-hidden"
@@ -152,11 +155,25 @@ export function Pricing() {
       </div>
       <div className="max-w-7xl mx-auto relative z-10 w-full min-w-0">
         <div className="text-center mb-12 sm:mb-20 px-1">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-4 sm:mb-6 text-slate-900 text-balance">Fair Pricing, Real Power.</h2>
-          <p className="text-slate-500 text-base sm:text-lg mb-8">Choose the plan that fits your vision.</p>
+          <motion.h2 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black mb-4 sm:mb-6 text-slate-900 tracking-tight leading-[1.1]"
+          >
+            Fair Pricing, <span className="text-primary bg-clip-text text-transparent bg-gradient-to-r from-primary to-indigo-600">Real Power.</span>
+          </motion.h2>
+          <p className="text-slate-500 text-base sm:text-lg mb-10 max-w-2xl mx-auto font-medium">
+            Choose the plan that fits your vision. No hidden fees, just pure AI performance.
+          </p>
           
           {/* Currency Toggle */}
-          <div className="inline-flex items-center gap-1 bg-white border border-slate-200 p-1.5 rounded-full shadow-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="inline-flex items-center gap-1 bg-white border border-slate-200 p-1.5 rounded-full shadow-xl"
+          >
             <button
               onClick={() => setCurrency('USD')}
               className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${currency === 'USD' ? 'bg-primary text-white shadow-md' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}

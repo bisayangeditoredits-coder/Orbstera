@@ -47,8 +47,18 @@ export function SpotlightCard({
       onBlur={handleBlur}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`relative overflow-hidden ${className}`}
+      className={`relative overflow-hidden group/spotlight ${className}`}
     >
+      {/* Border Glow Effect */}
+      <div
+        className="pointer-events-none absolute -inset-px rounded-[inherit] opacity-0 transition-opacity duration-500 group-hover/spotlight:opacity-100"
+        style={{
+          background: `radial-gradient(400px circle at ${position.x}px ${position.y}px, ${spotlightColor.replace('0.15', '0.4').replace('0.12', '0.3')}, transparent 80%)`,
+          zIndex: 1
+        }}
+      />
+      
+      {/* Background Glow Effect */}
       <div
         className="pointer-events-none absolute -inset-px opacity-0 transition-opacity duration-300"
         style={{
@@ -57,6 +67,7 @@ export function SpotlightCard({
           zIndex: 0
         }}
       />
+      
       <div className="relative z-10 w-full h-full">
         {children}
       </div>

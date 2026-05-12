@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ImageIcon } from 'lucide-react';
+import Script from 'next/script';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import type { DeckGenerationLifecycle } from '@/types';
 import { KonvaCanvas } from './KonvaCanvas';
@@ -153,15 +154,22 @@ function GenerationLoader() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-white/90 backdrop-blur-2xl overflow-hidden"
+      className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-white/95 backdrop-blur-3xl overflow-hidden"
     >
+      <Script 
+        src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js" 
+        strategy="afterInteractive"
+        onLoad={() => {
+          console.log('Lottie player loaded in CanvasArea');
+        }}
+      />
       {/* 1. Ambient Workspace Background with Neural Streams */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div
-          className="absolute inset-0 opacity-[0.07]"
+          className="absolute inset-0 opacity-[0.12]"
           style={{
             backgroundImage:
-              'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59,130,246,0.25), transparent), radial-gradient(ellipse 60% 40% at 100% 50%, rgba(14,165,233,0.12), transparent)',
+              'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59,130,246,0.35), transparent), radial-gradient(ellipse 60% 40% at 100% 50%, rgba(14,165,233,0.18), transparent)',
           }}
         />
         

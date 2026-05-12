@@ -73,10 +73,10 @@ export function Navbar() {
   const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-[100] border-b border-primary/10 bg-white/95 backdrop-blur-md pt-[env(safe-area-inset-top,0px)] shadow-[0_1px_0_rgba(59,130,246,0.06)]">
+    <nav className="fixed top-0 left-0 right-0 z-[100] border-b border-white/20 bg-white/70 backdrop-blur-xl pt-[env(safe-area-inset-top,0px)] shadow-[0_1px_0_rgba(59,130,246,0.06)]">
       <div className="mx-auto flex h-[52px] w-full max-w-7xl min-w-0 items-center justify-between gap-2 px-3 sm:h-14 sm:gap-3 sm:px-5 md:px-8">
         {/* Left */}
-        <div className="flex flex-1 justify-start min-w-0">
+        <div className="flex flex-1 justify-start min-w-0 items-center gap-4">
           <Link
             href="/"
             className="group flex shrink-0 items-center min-w-0"
@@ -91,6 +91,14 @@ export function Navbar() {
               />
             </div>
           </Link>
+
+          {/* Cmd + K Hint - Premium SaaS feel */}
+          <div className="hidden min-[1100px]:flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/50 border border-slate-200/60 text-[10px] font-black text-slate-400 cursor-pointer hover:border-primary/30 transition-all group/k" onClick={() => {
+            const e = new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true });
+            document.dispatchEvent(e);
+          }}>
+            <span className="flex items-center gap-0.5"><Command size={10} className="group-hover/k:text-primary transition-colors" />K</span>
+          </div>
         </div>
 
         {/* Center: single horizontal strip — scroll on narrow desktop, never wrap */}

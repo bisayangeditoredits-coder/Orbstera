@@ -61,41 +61,77 @@ export function CommandPalette() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative z-10 w-full max-w-xl rounded-2xl bg-white/80 backdrop-blur-3xl shadow-2xl border border-white/40 overflow-hidden mx-4"
+            className="relative z-10 w-full max-w-2xl rounded-2xl bg-[#0C0C0E]/90 backdrop-blur-3xl shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] border border-white/10 overflow-hidden mx-4"
           >
-            <div className="flex items-center px-4 py-4 border-b border-black/5">
-              <Search className="w-5 h-5 text-black/40 mr-3" />
+            <div className="flex items-center px-5 py-5 border-b border-white/5">
+              <Search className="w-5 h-5 text-white/30 mr-4" />
               <input
                 autoFocus
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Type a command or search..."
-                className="flex-1 bg-transparent border-none outline-none text-black placeholder-black/40 font-medium text-lg"
+                placeholder="Search commands, tools, and actions..."
+                className="flex-1 bg-transparent border-none outline-none text-white placeholder-white/20 font-medium text-lg"
               />
-              <div className="text-[10px] font-bold text-black/40 bg-black/5 px-2 py-1 rounded-md uppercase tracking-wider shrink-0">
-                ESC
+              <div className="flex items-center gap-1 shrink-0">
+                <div className="text-[10px] font-black text-white/40 bg-white/5 border border-white/10 px-2 py-1 rounded-md uppercase tracking-tighter">
+                  ESC
+                </div>
               </div>
             </div>
-            <div className="max-h-[60vh] overflow-y-auto p-2 custom-scrollbar">
-              {filteredActions.length === 0 ? (
-                <div className="p-8 text-center text-black/40 text-sm font-medium">
-                  No results found for "{search}"
+            
+            <div className="max-h-[65vh] overflow-y-auto p-3 custom-scrollbar">
+              <div className="px-3 py-2">
+                 <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em] mb-3">Suggestions</p>
+                 
+                 {filteredActions.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <p className="text-white/30 text-sm font-medium">No commands matching "{search}"</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    {filteredActions.map((action, i) => (
+                      <button
+                        key={i}
+                        onClick={action.onSelect}
+                        className="flex items-center justify-between w-full px-4 py-3.5 text-left rounded-xl hover:bg-white/5 transition-all text-white/70 hover:text-white group"
+                      >
+                        <div className="flex items-center">
+                          <div className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center mr-4 group-hover:bg-primary/20 transition-colors">
+                            <action.icon className="w-4 h-4 text-white/40 group-hover:text-primary transition-colors" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-[14px] leading-tight">{action.label}</p>
+                            <p className="text-[11px] text-white/20 font-medium mt-0.5 group-hover:text-white/40">Quick action</p>
+                          </div>
+                        </div>
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="px-2 py-1 rounded-md bg-white/10 text-[9px] font-black text-white/60 uppercase tracking-widest">Execute</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="px-5 py-3.5 bg-white/[0.02] border-t border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-white/30 font-bold">Select</span>
+                  <div className="px-1.5 py-0.5 rounded-sm bg-white/5 border border-white/10 text-[9px] text-white/40 font-black">↵</div>
                 </div>
-              ) : (
-                <div className="flex flex-col gap-1">
-                  {filteredActions.map((action, i) => (
-                    <button
-                      key={i}
-                      onClick={action.onSelect}
-                      className="flex items-center w-full px-3 py-3 text-left rounded-xl hover:bg-black/5 hover:text-primary transition-colors text-black/70 font-semibold text-sm group"
-                    >
-                      <action.icon className="w-4 h-4 mr-3 text-black/30 group-hover:text-primary transition-colors" />
-                      {action.label}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-white/30 font-bold">Navigate</span>
+                  <div className="flex items-center gap-1">
+                    <div className="px-1.5 py-0.5 rounded-sm bg-white/5 border border-white/10 text-[9px] text-white/40 font-black">↑</div>
+                    <div className="px-1.5 py-0.5 rounded-sm bg-white/5 border border-white/10 text-[9px] text-white/40 font-black">↓</div>
+                  </div>
                 </div>
-              )}
+              </div>
+              <div className="text-[10px] font-bold text-white/10 uppercase tracking-widest">
+                Orbstera OS v1.0
+              </div>
             </div>
           </motion.div>
         </div>

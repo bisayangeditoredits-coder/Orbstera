@@ -548,8 +548,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                     try {
                       const slideObj = JSON.parse(matches[i]);
                       if (slideObj.type && slideObj.title) {
-                        // Unblock canvas once slides start streaming so users see live build.
-                        setEditorState({ generationBlockingOverlay: false });
+                        // We keep the overlay active as requested to show the robot/orb animation
                         streamSlide(slideObj);
                         setStreamedSlides(prev => [...prev, { id: slideObj.id || `s-${i}`, title: slideObj.title }]);
                         processedSlideCount++;
