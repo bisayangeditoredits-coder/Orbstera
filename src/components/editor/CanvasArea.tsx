@@ -431,35 +431,26 @@ export function CanvasArea() {
     };
 
     const handleWheel = (e: WheelEvent) => {
-      // Only treat wheel as zoom when user is doing ctrl/meta wheel (trackpad pinch-zoom).
-      // Otherwise use wheel to pan the canvas, and don't unnecessarily block native scrolling.
-      const isZoomGesture = e.ctrlKey || e.metaKey;
-      if (isZoomGesture) e.preventDefault();
+      // Prevent default page scrolling
+      e.preventDefault();
 
       const acc = wheelAccumRef.current;
-      acc.dx += e.deltaX;
-      acc.dy += e.deltaY;
-      if (isZoomGesture) {
-        acc.didZoom = true;
-        acc.zoomDelta += e.deltaY;
-      }
+      acc.zoomDelta += e.deltaY;
 
       if (rafWheelRef.current != null) return;
       rafWheelRef.current = window.requestAnimationFrame(() => {
         rafWheelRef.current = null;
-        const { dx, dy, zoomDelta, didZoom } = wheelAccumRef.current;
+        const { zoomDelta } = wheelAccumRef.current;
         wheelAccumRef.current = { dx: 0, dy: 0, zoomDelta: 0, didZoom: false };
 
-        if (didZoom) {
-          const deltaStep = zoomDelta > 0 ? -0.1 : 0.1;
-          const nextZoom = Math.min(2, Math.max(0.1, zoomRef.current + deltaStep));
-          if (nextZoom !== zoomRef.current) setEditorState({ zoom: nextZoom });
-          return;
+        // Smooth zoom calculation based on scroll wheel delta
+        const scaleFactor = Math.abs(zoomDelta) > 50 ? 0.002 : 0.005;
+        const deltaStep = -(zoomDelta * scaleFactor);
+        const nextZoom = Math.min(2, Math.max(0.1, zoomRef.current + deltaStep));
+        
+        if (nextZoom !== zoomRef.current) {
+          setEditorState({ zoom: nextZoom });
         }
-
-        const p = panRef.current;
-        const nextPan = { x: p.x - dx, y: p.y - dy };
-        if (nextPan.x !== p.x || nextPan.y !== p.y) setEditorState({ pan: nextPan });
       });
     };
 

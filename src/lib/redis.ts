@@ -9,5 +9,8 @@ export const redis: Redis | null =
     ? new Redis({
         url: process.env.UPSTASH_REDIS_REST_URL,
         token: process.env.UPSTASH_REDIS_REST_TOKEN,
+        // Disable Next.js fetch caching for Upstash calls to prevent stale data
+        // and ensure a smooth, perfect, live connection to Redis.
+        fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }),
       })
     : null;
