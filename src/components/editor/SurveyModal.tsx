@@ -48,7 +48,6 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
           .from('profiles')
           .upsert({ 
             id: user.id,
-            survey_completed: true,
             role: selectedRole,
             purpose: selectedPurpose,
             updated_at: new Date().toISOString()

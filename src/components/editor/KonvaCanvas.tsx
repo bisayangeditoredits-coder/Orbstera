@@ -527,11 +527,8 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
   const slide = presentation?.slides[currentSlideIndex];
   const scale = 1; // Locked to 1. CanvasArea handles all zooming via CSS transforms.
 
-  if (!mounted || !slide || !presentation) {
-    return null;
-  }
-
   useEffect(() => {
+    if (!mounted || !slide) return;
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         selectElement(null);
@@ -546,7 +543,7 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [editor.selectedElementId, slide, selectElement, removeElement, editingTextId]);
+  }, [mounted, editor.selectedElementId, slide, selectElement, removeElement, editingTextId]);
 
   const handleStageClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     if (editor.activeTool !== 'select') return;
@@ -601,6 +598,10 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
     }
     setDrawingRect(null);
   }, [editor.activeTool, drawingRect, slide, setEditorState]);
+
+  if (!mounted) {
+    return null;
+  }
 
   if (!slide || !presentation) {
     return (

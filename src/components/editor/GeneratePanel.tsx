@@ -142,6 +142,10 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const [profileData, setProfileData] = useState<any>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
+  const paymentStatus = searchParams.get('payment');
+  const urlPrompt = searchParams.get('prompt');
+  const urlFileName = searchParams.get('fileName');
+  const urlMode = searchParams.get('mode') as 'create' | 'enhance' | null;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isPaid = userPlan === 'student_pro' || userPlan === 'pro' || userPlan === 'creator_pro';
   const isCreatorPro = userPlan === 'creator_pro';
@@ -304,6 +308,10 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         setUser(user);
         
         if (user) {
+          setProfileData((prev: Record<string, unknown> | null) => ({
+            ...(prev || {}),
+            survey_completed: Boolean(user.user_metadata?.survey_completed),
+          }));
           // Check user_metadata first for fastest response after payment
           if (user.user_metadata?.plan) {
             setUserPlan(user.user_metadata.plan.toLowerCase());
@@ -311,14 +319,17 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
           const { data: profile } = await supabase
             .from('profiles')
-            .select('plan, survey_completed')
+            .select('plan')
             .eq('id', user.id)
             .maybeSingle();
 
           if (profile) {
-            setProfileData(profile);
+            setProfileData({
+              ...profile,
+              survey_completed: Boolean(user.user_metadata?.survey_completed),
+            });
             if (profile.plan) setUserPlan(profile.plan.toLowerCase());
-          } else if (retryCount < 3 && searchParams.get('payment') === 'success') {
+          } else if (retryCount < 3 && paymentStatus === 'success') {
             // If payment was successful but profile isn't updated yet, retry after a short delay
             setTimeout(() => fetchUser(retryCount + 1), 2000);
           }
@@ -330,16 +341,12 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       }
     };
     fetchUser();
-  }, [searchParams]); // Re-run if URL params change (e.g. after payment redirect)
+  }, [paymentStatus]); // Re-run if payment URL param changes after redirect
 
   // Auto-trigger from URL params — runs exactly ONCE on mount or when profile is loaded
   useEffect(() => {
     if (hasAutoTriggered.current) return;
     if (isProfileLoading) return;
-
-    const urlPrompt  = searchParams.get('prompt');
-    const urlFileName = searchParams.get('fileName');
-    const urlMode    = searchParams.get('mode') as 'create' | 'enhance' | null;
 
     if (urlMode) {
       setActiveTab(urlMode === 'enhance' ? 'enhance' : 'create');
@@ -360,7 +367,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       }, 50);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isProfileLoading, searchParams]);
+  }, [isProfileLoading, urlPrompt, urlFileName, urlMode]);
 
   const handleGenerateClick = (overridePrompt?: string) => {
     const targetPrompt = overridePrompt || prompt;

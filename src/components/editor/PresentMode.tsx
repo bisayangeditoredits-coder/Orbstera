@@ -396,8 +396,6 @@ function CinematicBackdrop({
   enabled: boolean;
 }) {
   const accent = palette[2] || '#7B61FF';
-  if (!enabled) return null;
-
   const particles = useMemo(
     () =>
       Array.from({ length: 28 }, (_, i) => ({
@@ -409,6 +407,8 @@ function CinematicBackdrop({
       })),
     [],
   );
+
+  if (!enabled) return null;
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
