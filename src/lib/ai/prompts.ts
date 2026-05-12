@@ -26,7 +26,7 @@ Each slide:
   "bullets": ["max 5 concise points unless stats slide"],
   "content": { "bullets": ["optional nested — merged with bullets"] },
   "visualStyle": "cinematic | glass | minimal | editorial",
-  "imagePrompt": "Detailed cinematic prompt for image models — mood-aligned",
+  "imagePrompt": "REQUIRED FOR EVERY SINGLE SLIDE. Detailed cinematic prompt for image models — mood-aligned. Cannot be empty.",
   "visualDirection": "composition notes",
   "backgroundStyle": "mesh-gradient | frosted-glass | radial-glow | pure-dark",
   "slideTransition": "optional per-slide; same vocabulary as defaultSlideTransition",
@@ -39,6 +39,7 @@ RULES:
 - Never repeat the same layout 3 times in a row.
 - Never repeat the same slide "type" 3 times in a row.
 - Keep bullets ≤5 per slide; prefer whitespace over clutter.
+- CRITICAL: EVERY SINGLE SLIDE MUST HAVE AN 'imagePrompt'. Never leave it empty or null.
 - imagePrompt must stay on-brand across slides (consistent lighting/mood).
 - Vary slide types for narrative rhythm (hook → tension → proof → vision → close).
 - Prefer defaultSlideTransition + slideTransition choices that feel cinematic (blurReveal, parallaxFlow, keynote, glassSwipe) where appropriate.

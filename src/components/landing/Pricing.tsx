@@ -36,7 +36,7 @@ const tiers = [
     badge: 'Most Popular',
     icon: <Crown size={20} className="text-amber-400" />,
     features: [
-      { text: '30 AI presentations per month', included: true },
+      { text: '10 premium AI presentations per month', included: true },
       { text: 'Up to 25 slides per presentation', included: true },
       { text: 'Premium automatic AI orchestration', included: true },
       { text: 'PPTX export — no watermark', included: true },
@@ -57,7 +57,7 @@ const tiers = [
     badge: 'Best Value',
     icon: <Zap size={20} className="text-purple-400" />,
     features: [
-      { text: '100 AI presentations per month', included: true },
+      { text: '40 premium AI presentations per month', included: true },
       { text: 'Up to 40 slides per presentation', included: true },
       { text: 'Maximum quality automatic orchestration', included: true },
       { text: 'PPTX export — no watermark, custom branding', included: true },

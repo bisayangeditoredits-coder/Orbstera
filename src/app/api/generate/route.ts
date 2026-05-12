@@ -53,9 +53,9 @@ export async function POST(req: Request) {
 
     const LIMITS: Record<string, number> = {
       free: 3,
-      pro: 30,
-      student_pro: 30,
-      creator_pro: 100,
+      pro: 10,
+      student_pro: 10,
+      creator_pro: 40,
     };
     const MAX_SLIDES: Record<string, number> = {
       free: 5,

@@ -453,7 +453,9 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
 
   const handleShare = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      if (!presentation?.id) throw new Error('No presentation ID');
+      const publicUrl = `${window.location.origin}/p/${presentation.id}`;
+      await navigator.clipboard.writeText(publicUrl);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
