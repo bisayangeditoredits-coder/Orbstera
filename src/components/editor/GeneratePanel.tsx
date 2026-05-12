@@ -16,12 +16,12 @@ import {
 } from '@/lib/editor-speech';
 import { explainGetUserMediaError, explainRecognitionStartError } from '@/lib/mic-access';
 import { VoiceOrb } from '@/components/editor/VoiceOrb';
-import { creditsForPresentation } from '@/lib/billing/credits-policy';
+import { creditsForPresentation, CREDIT_COSTS } from '@/lib/billing/credits-policy';
 import {
   Sparkles, X, ChevronDown, Loader2, Wand2,
   Crown, Globe, ArrowRight,
-  Save, Trash2, Download, AlertCircle, Plus, Mic, MicOff,
-  Briefcase, Palette, Zap, Minus, BookOpen, FlaskConical
+  Trash2, AlertCircle, Plus, Mic, MicOff,
+  Coins, RefreshCw,
 } from 'lucide-react';
 
 interface GeneratePanelProps {
@@ -38,44 +38,11 @@ async function waitForPendingDeckImages(epoch: number, timeoutMs = 120_000): Pro
   }
 }
 
-const EXAMPLE_PROMPTS = [
-  'Create a 12-slide Series A pitch deck for an AI robotics startup with a dark cyber theme',
-  'Build a product launch deck for a fintech SaaS app targeting enterprise companies',
-  'Design a quarterly business review with KPIs, growth metrics, and roadmap',
-  'Create a portfolio presentation for a UX design agency, creative and vibrant',
-  'Build a go-to-market strategy deck for a health-tech startup',
-];
-
 const SLIDE_COUNTS = [2, 5, 10, 15, 20, 25, 30, 35, 40];
 
-const TONE_OPTIONS = [
-  { id: 'professional', label: 'Professional', Icon: Briefcase },
-  { id: 'creative',     label: 'Creative',     Icon: Palette },
-  { id: 'bold',         label: 'Bold & Impact', Icon: Zap },
-  { id: 'minimal',      label: 'Minimal',       Icon: Minus },
-  { id: 'storytelling', label: 'Storytelling',  Icon: BookOpen },
-  { id: 'technical',    label: 'Technical',     Icon: FlaskConical },
-];
-
-const THEME_OPTIONS = [
-  { id: 'modern-dark',  label: 'Obsidian Night', desc: 'Deep dark with neon accents', preview: 'bg-gradient-to-br from-[#05050A] to-[#1a1a2e]' },
-  { id: 'corporate',   label: 'Executive Blue',  desc: 'Clean corporate authority',  preview: 'bg-gradient-to-br from-[#0F4C81] to-[#1a6bb0]' },
-  { id: 'gradient',    label: 'Aurora',          desc: 'Vivid gradient spectacle',   preview: 'bg-gradient-to-br from-[#7928CA] to-[#FF0080]' },
-  { id: 'minimal',     label: 'Paper White',     desc: 'Ultra-clean minimalism',     preview: 'bg-gradient-to-br from-white to-[#F1F5F9] border border-black/10' },
-  { id: 'warm',        label: 'Sunset Gold',     desc: 'Warm, premium editorial',    preview: 'bg-gradient-to-br from-[#B45309] to-[#F59E0B]' },
-  { id: 'tech',        label: 'Cyber Grid',      desc: 'Futuristic tech aesthetic',  preview: 'bg-gradient-to-br from-[#0D1117] to-[#00FF88]/40' },
-];
-
-const LANGUAGE_OPTIONS = [
-  { code: 'en', label: 'English',    flag: '🇺🇸' },
-  { code: 'es', label: 'Spanish',   flag: '🇪🇸' },
-  { code: 'fr', label: 'French',    flag: '🇫🇷' },
-  { code: 'de', label: 'German',    flag: '🇩🇪' },
-  { code: 'pt', label: 'Portuguese', flag: '🇧🇷' },
-  { code: 'zh', label: 'Chinese',   flag: '🇨🇳' },
-  { code: 'ja', label: 'Japanese',  flag: '🇯🇵' },
-  { code: 'ar', label: 'Arabic',    flag: '🇸🇦' },
-];
+/** Defaults passed to /api/generate (orchestration infers style from your prompt). */
+const DEFAULT_GENERATE_TONE = 'professional';
+const DEFAULT_GENERATE_LANGUAGE = 'English';
 
 function CollapsibleSection({
   title,
@@ -135,7 +102,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const [prompt, setPrompt] = useState('');
   const [slideCount, setSlideCount] = useState(5);
   const [error, setError] = useState('');
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [userPlan, setUserPlan] = useState<string>('free');
   const [showSurvey, setShowSurvey] = useState(false);
@@ -153,15 +119,33 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   // Plan-based max slides (mirrors server MAX_SLIDES)
   const maxSlidesForPlan = isCreatorPro ? 40 : isPaid ? 25 : 5;
 
-  const [aiWallet, setAiWallet] = useState<{ remaining: number; allowance: number } | null>(null);
-  const refreshAiWallet = async () => {
+  const [aiWallet, setAiWallet] = useState<{
+    remaining: number;
+    allowance: number;
+    usedThisPeriod: number;
+    plan: string;
+    cycleKey: string;
+  } | null>(null);
+  const [walletRefreshing, setWalletRefreshing] = useState(false);
+  const refreshAiWallet = async (opts?: { silent?: boolean }) => {
     try {
+      if (!opts?.silent) setWalletRefreshing(true);
       const wr = await fetch('/api/me/ai-wallet');
       if (!wr.ok) return;
       const w = await wr.json();
-      setAiWallet({ remaining: w.remaining, allowance: w.allowance });
+      if (typeof w.remaining === 'number' && typeof w.allowance === 'number') {
+        setAiWallet({
+          remaining: w.remaining,
+          allowance: w.allowance,
+          usedThisPeriod: typeof w.usedThisPeriod === 'number' ? w.usedThisPeriod : 0,
+          plan: typeof w.plan === 'string' ? w.plan : 'free',
+          cycleKey: typeof w.cycleKey === 'string' ? w.cycleKey : '',
+        });
+      }
     } catch {
       /* ignore */
+    } finally {
+      if (!opts?.silent) setWalletRefreshing(false);
     }
   };
 
@@ -290,12 +274,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
   const [activeTab, setActiveTab] = useState<'create' | 'enhance'>('create');
   const [expandDensity, setExpandDensity] = useState(true);
-  const [selectedTone, setSelectedTone] = useState('Professional');
-  const [expandTone, setExpandTone] = useState(false);
-  const [selectedTheme, setSelectedTheme] = useState('Obsidian Night');
-  const [expandTheme, setExpandTheme] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState('English');
-  const [expandLanguage, setExpandLanguage] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [streamedSlides, setStreamedSlides] = useState<{id: string, title: string}[]>([]);
@@ -346,7 +324,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             // If payment was successful but profile isn't updated yet, retry after a short delay
             setTimeout(() => fetchUser(retryCount + 1), 2000);
           }
-          await refreshAiWallet();
+          await refreshAiWallet({ silent: true });
         }
       } catch (err) {
         console.error('Error fetching user profile:', err);
@@ -456,9 +434,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           body: JSON.stringify({
             prompt: trimmed,
             slideCount,
-            tone: selectedTone.toLowerCase().replace(/ & /g, '_'),
-            theme: selectedTheme,
-            language: selectedLanguage,
+            tone: DEFAULT_GENERATE_TONE,
+            language: DEFAULT_GENERATE_LANGUAGE,
           }),
         });
 
@@ -486,7 +463,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             return;
           }
           if (res.status === 403 && errData.error === 'INSUFFICIENT_CREDITS') {
-            void refreshAiWallet();
+            void refreshAiWallet({ silent: true });
             setError(
               typeof errData.message === 'string'
                 ? errData.message
@@ -710,7 +687,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         if (activeTab === 'create') {
           if (createGenerationSucceeded) {
             await waitForPendingDeckImages(usePresentationStore.getState().editor.generationEpoch);
-            void refreshAiWallet();
+            void refreshAiWallet({ silent: true });
           }
           setEditorState({
             isGenerating: false,
@@ -744,7 +721,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
           if (res.status === 403 && errData.error === 'INSUFFICIENT_CREDITS') {
-            void refreshAiWallet();
+            void refreshAiWallet({ silent: true });
             throw new Error(
               typeof errData.message === 'string'
                 ? errData.message
@@ -757,7 +734,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         const data: PresentationData = await res.json();
         setPresentation(data);
         setActivePanel('layers');
-        void refreshAiWallet();
+        void refreshAiWallet({ silent: true });
         // Don't call onClose so the layers panel stays open
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Upload failed. Please check your Cloudflare R2 settings or file format.');
@@ -783,10 +760,25 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
     }
   };
 
-  const fillExample = (example: string) => {
-    setPrompt(example);
-    textareaRef.current?.focus();
-  };
+  const deckCreditCost = creditsForPresentation(slideCount);
+  const enhanceCreditCost = CREDIT_COSTS.enhancePpt;
+  const planLabel =
+    userPlan === 'creator_pro'
+      ? 'Creator Pro'
+      : userPlan === 'student_pro' || userPlan === 'pro'
+        ? 'Student Pro'
+        : 'Free';
+  const creditsPct =
+    aiWallet && aiWallet.allowance > 0
+      ? Math.min(100, Math.round((aiWallet.remaining / aiWallet.allowance) * 100))
+      : 0;
+  const insufficientDeckCredits =
+    Boolean(user && aiWallet && activeTab === 'create' && deckCreditCost > aiWallet.remaining);
+  const insufficientEnhanceCredits =
+    Boolean(user && aiWallet && activeTab === 'enhance' && enhanceCreditCost > aiWallet.remaining);
+  const showInsufficientCreditsBanner =
+    (activeTab === 'create' && insufficientDeckCredits) ||
+    (activeTab === 'enhance' && insufficientEnhanceCredits);
 
   return (
     <>
@@ -905,16 +897,19 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         {activeTab === 'create' ? (
           <>
             {/* Prompt Area */}
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <div className="flex items-center justify-between gap-2">
-                <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.16em]">Your Vision</label>
+                <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.16em]">Your vision</label>
                 <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-primary/80 uppercase tracking-[0.12em]">
                   <Mic size={11} strokeWidth={1.75} className="opacity-80" aria-hidden />
                   Voice input
                 </span>
               </div>
+              <p className="text-[10px] text-neutral-400 leading-snug -mt-1">
+                Tone, visuals, and language are inferred from what you write—be specific for best results.
+              </p>
               <div className="animated-border shadow-[0_24px_48px_-20px_rgba(59,130,246,0.22)]">
-                <div className="bg-white p-4 flex flex-col min-h-[112px] transition-all rounded-[22px] relative overflow-hidden">
+                <div className="bg-white p-4 sm:p-4 flex flex-col min-h-[120px] transition-all rounded-[22px] relative overflow-hidden">
                   {/* ✨ Voice Orb overlay — replaces textarea while listening */}
                   <VoiceOrb
                     isListening={isListening}
@@ -926,11 +921,11 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder={isListening ? '🎤 Listening... speak your vision' : 'Describe your presentation topic...'}
-                    className="w-full flex-1 bg-transparent text-[16px] text-neutral-900 placeholder:text-neutral-300 resize-none focus:outline-none font-medium leading-relaxed min-h-[4.5rem]"
+                    placeholder={isListening ? '🎤 Listening... speak your vision' : 'Describe your presentation topic, audience, and any style cues…'}
+                    className="w-full flex-1 bg-transparent text-[15px] sm:text-[16px] text-neutral-900 placeholder:text-neutral-300 resize-none focus:outline-none font-medium leading-relaxed min-h-[5rem]"
                   />
 
-                  <div className="mt-3 flex items-center justify-between pt-3 border-t border-black/[0.05]">
+                  <div className="mt-3 flex items-center justify-between pt-3 border-t border-black/[0.05] gap-2">
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -971,7 +966,10 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                       )}
                     </div>
 
-                    <div className="text-[9px] font-semibold text-neutral-300 uppercase tracking-[0.18em]">
+                    <div className="text-[9px] font-medium text-neutral-400 uppercase tracking-[0.14em] hidden sm:block">
+                      ⌘↵ / Ctrl+↵ generate
+                    </div>
+                    <div className="text-[9px] font-semibold text-neutral-300 uppercase tracking-[0.18em] sm:hidden">
                       Orbstera AI
                     </div>
                   </div>
@@ -983,8 +981,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               title="Density (Slides)"
               summary={
                 `${slideCount} slide${slideCount !== 1 ? 's' : ''}` +
-                (!isPaid ? ' · Free max 5' : ` · max ${maxSlidesForPlan}`) +
-                (aiWallet ? ` · ${creditsForPresentation(slideCount)} cr · ${aiWallet.remaining} left` : '')
+                (!isPaid ? ' · Free max 5' : ` · max ${maxSlidesForPlan}`)
               }
               expanded={expandDensity}
               onToggle={() => setExpandDensity((v) => !v)}
@@ -1014,112 +1011,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               </div>
             </CollapsibleSection>
 
-            {/* ── TONE & STYLE ── */}
-            <CollapsibleSection
-              title="Tone & Style"
-              summary={selectedTone}
-              expanded={expandTone}
-              onToggle={() => setExpandTone((v) => !v)}
-            >
-              <div className="grid grid-cols-2 gap-1.5">
-                {TONE_OPTIONS.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setSelectedTone(t.label)}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left transition-all ${
-                      selectedTone === t.label
-                        ? 'bg-primary/[0.07] border-primary/30 text-primary'
-                        : 'bg-white border-black/[0.07] text-neutral-600 hover:border-primary/20 hover:bg-primary/[0.03]'
-                    }`}
-                  >
-                    <t.Icon size={13} strokeWidth={1.75} className="shrink-0" />
-                    <span className="text-[11px] font-semibold">{t.label}</span>
-                  </button>
-                ))}
-              </div>
-            </CollapsibleSection>
-
-            {/* ── VISUAL THEME ── */}
-            <CollapsibleSection
-              title="Visual Theme"
-              summary={selectedTheme}
-              expanded={expandTheme}
-              onToggle={() => setExpandTheme((v) => !v)}
-            >
-              <div className="flex flex-col gap-1.5">
-                {THEME_OPTIONS.map((th) => (
-                  <button
-                    key={th.id}
-                    type="button"
-                    onClick={() => setSelectedTheme(th.label)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${
-                      selectedTheme === th.label
-                        ? 'bg-primary/[0.07] border-primary/30'
-                        : 'bg-white border-black/[0.07] hover:border-primary/20 hover:bg-primary/[0.03]'
-                    }`}
-                  >
-                    <div className={`w-7 h-7 rounded-lg flex-shrink-0 ${th.preview}`} />
-                    <div className="min-w-0">
-                      <p className={`text-[11px] font-semibold ${selectedTheme === th.label ? 'text-primary' : 'text-neutral-800'}`}>{th.label}</p>
-                      <p className="text-[10px] text-neutral-400 truncate">{th.desc}</p>
-                    </div>
-                    {selectedTheme === th.label && (
-                      <div className="ml-auto w-4 h-4 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </CollapsibleSection>
-
-            {/* ── LANGUAGE ── */}
-            <CollapsibleSection
-              title="Output Language"
-              summary={selectedLanguage}
-              expanded={expandLanguage}
-              onToggle={() => setExpandLanguage((v) => !v)}
-            >
-              <div className="grid grid-cols-2 gap-1.5">
-                {LANGUAGE_OPTIONS.map((lang) => (
-                  <button
-                    key={lang.code}
-                    type="button"
-                    onClick={() => setSelectedLanguage(lang.label)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all ${
-                      selectedLanguage === lang.label
-                        ? 'bg-primary/[0.07] border-primary/30 text-primary'
-                        : 'bg-white border-black/[0.07] text-neutral-600 hover:border-primary/20'
-                    }`}
-                  >
-                    <span className="text-sm">{lang.flag}</span>
-                    <span className="text-[11px] font-semibold truncate">{lang.label}</span>
-                  </button>
-                ))}
-              </div>
-            </CollapsibleSection>
-
-            {/* ── AI QUICK PROMPTS ── */}
-            <div className="rounded-2xl border border-black/[0.07] bg-white/80 shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
-              <div className="px-3 py-2 border-b border-black/[0.05]">
-                <div className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.14em]">Quick Prompts</div>
-              </div>
-              <div className="p-2 flex flex-col gap-1">
-                {EXAMPLE_PROMPTS.map((ex, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => fillExample(ex)}
-                    className="w-full text-left px-3 py-2 rounded-xl text-[11px] text-neutral-600 font-medium hover:bg-primary/[0.05] hover:text-primary transition-all leading-snug group flex items-start gap-2"
-                  >
-                    <span className="mt-0.5 text-neutral-300 group-hover:text-primary transition-colors flex-shrink-0">→</span>
-                    <span className="line-clamp-2">{ex}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
           </>
         ) : (
           <div className="space-y-6">
@@ -1137,6 +1028,94 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             </div>
           </div>
         )}
+
+        {/* Monthly AI credits — both tabs; syncs with /api/me/ai-wallet */}
+        <div className="rounded-2xl border border-black/[0.07] bg-gradient-to-b from-white to-neutral-50/80 shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
+          <div className="px-3.5 py-2.5 flex items-center justify-between gap-2 border-b border-black/[0.05]">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Coins size={15} className="text-primary" strokeWidth={1.75} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.14em]">AI credits</div>
+                <p className="text-[11px] font-semibold text-neutral-800 truncate">
+                  {user ? planLabel : 'Sign in to track usage'}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void refreshAiWallet()}
+              disabled={!user || walletRefreshing}
+              className="shrink-0 flex items-center gap-1 rounded-lg border border-black/[0.08] bg-white px-2 py-1.5 text-[10px] font-semibold text-neutral-600 hover:border-primary/25 hover:text-primary disabled:opacity-40 transition-colors"
+              title="Refresh balance"
+            >
+              <RefreshCw size={12} className={walletRefreshing ? 'animate-spin' : ''} strokeWidth={1.75} />
+              Sync
+            </button>
+          </div>
+
+          <div className="p-3.5 space-y-3">
+            {!user && (
+              <p className="text-[11px] text-neutral-500 leading-relaxed">
+                Credits apply when you are signed in. Each new deck deducts based on slide count; other AI tools use the rates below.
+              </p>
+            )}
+            {user && !aiWallet && <p className="text-[11px] text-neutral-500">Loading wallet…</p>}
+            {user && aiWallet && (
+              <>
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-[22px] font-bold text-neutral-900 tabular-nums leading-none">
+                    {aiWallet.remaining}
+                  </span>
+                  <span className="text-[11px] text-neutral-500 tabular-nums">of {aiWallet.allowance} left</span>
+                </div>
+                <div className="h-2 rounded-full bg-neutral-200/90 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-primary to-[#5B7CFF] transition-[width] duration-300"
+                    style={{ width: `${creditsPct}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-neutral-400 leading-snug">
+                  Usage resets monthly (UTC). Cycle {aiWallet.cycleKey || '—'}.
+                </p>
+                {showInsufficientCreditsBanner ? (
+                  <p className="text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-2.5 py-2">
+                    Not enough credits for this action.{' '}
+                    <a href="/pricing" className="text-primary underline underline-offset-2 font-semibold">
+                      Upgrade
+                    </a>{' '}
+                    or wait for the next reset.
+                  </p>
+                ) : null}
+              </>
+            )}
+
+            <div className="border-t border-black/[0.06] pt-3 space-y-1.5">
+              <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.12em] mb-1">Cost sheet</p>
+              <div className="flex justify-between gap-2 text-[11px] text-neutral-600">
+                <span>New deck (this run, {slideCount} slides)</span>
+                <span className="font-semibold text-neutral-900 tabular-nums">{deckCreditCost} cr</span>
+              </div>
+              <div className="flex justify-between gap-2 text-[11px] text-neutral-600">
+                <span>Enhance upload (PPTX → deck)</span>
+                <span className="font-semibold text-neutral-900 tabular-nums">{enhanceCreditCost} cr</span>
+              </div>
+              <div className="flex justify-between gap-2 text-[11px] text-neutral-600">
+                <span>Magic edit</span>
+                <span className="font-semibold text-neutral-900 tabular-nums">{CREDIT_COSTS.magicEdit} cr</span>
+              </div>
+              <div className="flex justify-between gap-2 text-[11px] text-neutral-600">
+                <span>Generative fill / standard image</span>
+                <span className="font-semibold text-neutral-900 tabular-nums">{CREDIT_COSTS.imageStandard}+ cr</span>
+              </div>
+              <div className="flex justify-between gap-2 text-[11px] text-neutral-600">
+                <span>Cinematic / premium image</span>
+                <span className="font-semibold text-neutral-900 tabular-nums">{CREDIT_COSTS.imagePremiumCinematic} cr</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {error && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-2xl bg-red-50 border border-red-100 text-[12px] text-red-600 font-medium">
@@ -1194,7 +1173,11 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         <button
           type="button"
           onClick={() => handleGenerateClick()}
-          disabled={(activeTab === 'create' ? !prompt.trim() : !selectedFile) || isLoading}
+          disabled={
+            (activeTab === 'create' ? !prompt.trim() : !selectedFile) ||
+            isLoading ||
+            (activeTab === 'create' ? insufficientDeckCredits : insufficientEnhanceCredits)
+          }
           className="group relative w-full h-[3.25rem] rounded-full bg-gradient-to-b from-[#5B7CFF] to-primary hover:from-primary hover:to-[#3d5ef0] text-white shadow-[0_8px_24px_-6px_rgba(59,130,246,0.55),0_0_0_1px_rgba(255,255,255,0.12)_inset] disabled:opacity-35 disabled:shadow-none disabled:from-neutral-200 disabled:to-neutral-300 transition-all duration-200 active:scale-[0.98] overflow-hidden"
         >
           <div className="relative flex items-center justify-center gap-2.5">

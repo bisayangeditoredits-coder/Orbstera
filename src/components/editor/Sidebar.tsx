@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { Plus, Trash2, Copy, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Copy, ChevronUp, ChevronDown, Sparkles, LayoutGrid } from 'lucide-react';
 import { Slide } from '@/types';
 
 const SLIDE_WIDTH = 160;
@@ -195,47 +195,58 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
     <aside
       id="tour-gallery"
       className={`
-        z-[130] w-[220px] shrink-0 border-r-2 border-black/[0.08] bg-[#FBFBFC] flex flex-col overflow-hidden shadow-[1px_0_10px_rgba(0,0,0,0.02)]
+        z-[130] w-[232px] shrink-0 border-r border-black/[0.07] bg-gradient-to-b from-[#FCFCFD] to-[#F6F7F9] flex flex-col overflow-hidden shadow-[1px_0_12px_rgba(15,23,42,0.04)]
         max-md:fixed max-md:left-0 max-md:top-[var(--editor-topbar-h,104px)]
         max-md:h-[calc(100dvh-var(--editor-topbar-h,104px)-env(safe-area-inset-bottom,0px))]
-        max-md:w-[min(260px,88vw)] max-md:transition-transform max-md:duration-300 max-md:ease-[cubic-bezier(0.16,1,0.3,1)]
+        max-md:w-[min(272px,88vw)] max-md:transition-transform max-md:duration-300 max-md:ease-[cubic-bezier(0.16,1,0.3,1)]
         pl-[max(0px,env(safe-area-inset-left,0px))]
         ${drawerOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'}
         md:relative md:top-auto md:h-auto md:translate-x-0 md:pt-0
       `}
     >
-      {/* Premium Header */}
-      <div className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-5 sm:py-8 gap-2 min-w-0">
-        <div className="flex flex-col min-w-0">
-          <span className="text-[10px] font-bold text-black/30 uppercase tracking-[0.3em] truncate">Gallery</span>
-          <h2 className="text-[clamp(15px,4vw,18px)] font-semibold text-black tracking-tighter truncate">{slides.length} Slides</h2>
-          {isLiveGenerating && (
-            <p className="mt-1 text-[10px] font-semibold text-primary/80 truncate">
-              Live generating {slides.length}{targetSlides > 0 ? ` / ${targetSlides}` : ''}…
-            </p>
-          )}
+      {/* Gallery header */}
+      <div className="shrink-0 flex items-center justify-between gap-2 px-4 sm:px-5 py-4 border-b border-black/[0.06] bg-white/60 backdrop-blur-sm min-w-0">
+        <div className="flex items-start gap-2.5 min-w-0">
+          <div className="mt-0.5 w-8 h-8 rounded-xl bg-primary/[0.08] border border-primary/10 flex items-center justify-center shrink-0">
+            <LayoutGrid size={15} className="text-primary" strokeWidth={1.75} />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[9px] font-bold text-black/35 uppercase tracking-[0.22em] truncate">Gallery</span>
+            <h2 className="text-[clamp(16px,4vw,19px)] font-semibold text-neutral-900 tracking-tight truncate leading-tight">
+              {slides.length} {slides.length === 1 ? 'slide' : 'slides'}
+            </h2>
+            {isLiveGenerating && (
+              <p className="mt-1 text-[10px] font-semibold text-primary/85 truncate">
+                Live · {slides.length}
+                {targetSlides > 0 ? ` / ${targetSlides}` : ''}
+              </p>
+            )}
+          </div>
         </div>
         <button
           type="button"
           onClick={handleAddSlide}
-          className="w-10 h-10 min-w-10 shrink-0 flex items-center justify-center rounded-2xl bg-white border border-black/[0.05] text-black hover:text-primary hover:border-primary/20 shadow-sm transition-all active:scale-[0.9] group touch-manipulation"
-          title="Add Architectural Slide"
+          className="w-10 h-10 min-w-10 shrink-0 flex items-center justify-center rounded-2xl bg-white border border-black/[0.08] text-neutral-800 hover:text-primary hover:border-primary/25 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all active:scale-[0.92] group touch-manipulation"
+          title="Add slide"
         >
           <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
         </button>
       </div>
 
-      {/* Orchestrated Slide List */}
+      {/* Slide list */}
       <div 
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 sm:px-4 pt-4 pb-[max(2rem,env(safe-area-inset-bottom,0px))] space-y-5 custom-scrollbar"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 sm:px-4 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] space-y-4 custom-scrollbar"
         data-lenis-prevent
       >
         <AnimatePresence mode="popLayout">
           {slides.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-40 text-center opacity-20 px-4">
-              <div className="w-12 h-12 rounded-2xl border-2 border-dashed border-black mb-4" />
-              <p className="text-[11px] font-bold uppercase tracking-widest leading-relaxed">
-                Vault Empty
+            <div className="flex flex-col items-center justify-center min-h-[220px] text-center px-3 py-6 rounded-[20px] border border-dashed border-black/[0.1] bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/12 to-primary/5 border border-primary/10 flex items-center justify-center mb-4">
+                <Sparkles size={22} className="text-primary/80" strokeWidth={1.5} />
+              </div>
+              <p className="text-[12px] font-semibold text-neutral-800 tracking-tight">No slides yet</p>
+              <p className="text-[10px] text-neutral-500 mt-2 leading-relaxed max-w-[13.5rem]">
+                Open <span className="font-semibold text-primary">AI Generation</span> on the right to build a deck, or tap <span className="font-semibold text-neutral-700">+</span> for a blank slide.
               </p>
             </div>
           ) : (
@@ -259,10 +270,10 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
                   onMouseEnter={() => setHoveredIndex(index)}
                   onMouseLeave={() => setHoveredIndex(null)}
                 >
-                  <div className={`relative rounded-[20px] overflow-hidden transition-all duration-500 ${
+                  <div className={`relative rounded-[18px] overflow-hidden transition-all duration-500 bg-white/40 ${
                     isActive 
-                      ? 'ring-[3px] ring-primary ring-offset-4 shadow-2xl shadow-primary/10' 
-                      : 'hover:shadow-xl hover:shadow-black/5'
+                      ? 'ring-[3px] ring-primary ring-offset-[3px] ring-offset-[#F6F7F9] shadow-lg shadow-primary/15' 
+                      : 'ring-1 ring-black/[0.06] hover:ring-black/[0.1] hover:shadow-lg hover:shadow-black/[0.06]'
                   }`}>
                     <SlideThumbnail slide={slide} index={index} colors={colors} />
                     
@@ -314,11 +325,11 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
                   </div>
                   
                   {/* Subtle Slide Identifier */}
-                  <div className="mt-2 flex items-center justify-between px-2">
-                     <span className={`text-[9px] font-bold uppercase tracking-widest ${isActive ? 'text-primary' : 'text-black/20'}`}>
+                  <div className="mt-2 flex items-center justify-between px-1.5">
+                     <span className={`text-[9px] font-bold uppercase tracking-[0.16em] ${isActive ? 'text-primary' : 'text-black/35'}`}>
                        Slide {String(index + 1).padStart(2, '0')}
                      </span>
-                     {isActive && <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
+                     {isActive && <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_0_3px_rgba(59,130,246,0.2)]" />}
                   </div>
                 </motion.div>
               );
