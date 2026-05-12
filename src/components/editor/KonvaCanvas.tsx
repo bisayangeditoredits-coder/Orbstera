@@ -150,6 +150,7 @@ function ElementNode({
   };
 
   const renderShape = () => {
+    if (el.type === 'text') {
       return (
         <Text
           ref={shapeRef as React.RefObject<Konva.Text>}
