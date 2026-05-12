@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { SLIDE_TRANSITION_OPTIONS } from '@/lib/presentationMotion';
@@ -45,13 +45,24 @@ const GOOGLE_FONTS = [
 
 // Component to dynamically load Google Fonts
 function FontLoader({ fonts }: { fonts: string[] }) {
-  const uniqueFonts = Array.from(new Set(fonts.filter(Boolean)));
-  if (uniqueFonts.length === 0) return null;
+  useEffect(() => {
+    const uniqueFonts = Array.from(new Set(fonts.filter(Boolean)));
+    if (uniqueFonts.length === 0) return;
+    
+    const familyString = uniqueFonts.map(f => `family=${f.replace(/ /g, '+')}:wght@300;400;500;600;700;800`).join('&');
+    const url = `https://fonts.googleapis.com/css2?${familyString}&display=swap`;
+    
+    let link = document.getElementById('google-fonts-link') as HTMLLinkElement;
+    if (!link) {
+      link = document.createElement('link');
+      link.id = 'google-fonts-link';
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+    }
+    link.href = url;
+  }, [fonts]);
   
-  const familyString = uniqueFonts.map(f => `family=${f.replace(/ /g, '+')}:wght@300;400;500;600;700;800`).join('&');
-  const url = `https://fonts.googleapis.com/css2?${familyString}&display=swap`;
-  
-  return <link href={url} rel="stylesheet" />;
+  return null;
 }
 
 // ── Color swatch editor ───────────────────────────────────────────────────────
@@ -62,8 +73,11 @@ const PALETTE_LABELS = ['Background', 'Text', 'Accent', 'Secondary'];
 export function DesignPanel() {
   const { presentation, updatePresentation, currentSlideIndex, updateSlide } = usePresentationStore();
   const [activeTab, setActiveTab] = useState<'theme' | 'colors' | 'fonts'>('theme');
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => { setMounted(true); }, []);
 
-  if (!presentation) {
+  if (!presentation || !mounted) {
     return (
       <div className="flex flex-col items-center justify-center h-40 text-center px-6 opacity-30">
         <Palette size={28} className="mb-2" />

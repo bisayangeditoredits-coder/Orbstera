@@ -23,9 +23,12 @@ function ElementNode({
   onChange,
   stageRef,
   activeTool,
+  isEditingText,
+  onDblClickText,
 }: {
   el: SlideElement;
   isSelected: boolean;
+  onSelect: () => void;
   onChange: (updates: Partial<SlideElement>) => void;
   stageRef: React.RefObject<Konva.Stage>;
   activeTool: string;
@@ -489,6 +492,9 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
   const stageRef = useRef<Konva.Stage>(null);
   const [drawingRect, setDrawingRect] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => { setMounted(true); }, []);
   
   const {
     presentation,
@@ -502,6 +508,10 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
 
   const slide = presentation?.slides[currentSlideIndex];
   const scale = 1; // Locked to 1. CanvasArea handles all zooming via CSS transforms.
+
+  if (!mounted || !slide || !presentation) {
+    return null;
+  }
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
