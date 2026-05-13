@@ -8,6 +8,7 @@ import {
 } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import type { SlideElement, Slide, AnimationEntrance, ChartData } from '@/types';
+import { findDeckBackgroundElement } from '@/lib/slide-background';
 import {
   X,
   ChevronLeft,
@@ -247,12 +248,8 @@ function PresentSlideView({
   const bg     = palette[0] || '#05050A';
   const accent = palette[2] || '#7B61FF';
 
-  const bgEl = slide.elements?.find(
-    (el) => el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0 && el.width >= 1000,
-  );
-  const elements = (slide.elements || [])
-    .filter((el) => el.visible !== false && !(el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0 && el.width >= 1000))
-    .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+  const bgEl = findDeckBackgroundElement(slide.elements);
+  const elements = (slide.elements || []).filter((el) => el.visible !== false && el !== bgEl);
 
   return (
     <div className="absolute inset-0 w-full h-full overflow-hidden">

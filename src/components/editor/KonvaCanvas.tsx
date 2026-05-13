@@ -18,6 +18,7 @@ import Konva from 'konva';
 import useImage from 'use-image';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import type { ChartData, EditorToolId, SlideElement } from '@/types';
+import { findDeckBackgroundElement } from '@/lib/slide-background';
 
 export const CANVAS_WIDTH = 1280;
 export const CANVAS_HEIGHT = 720;
@@ -95,7 +96,13 @@ function ElementNode({
   const shapeRef = useRef<Konva.Group | Konva.Rect | Konva.Text | Konva.Ellipse | Konva.Line | Konva.Star | Konva.Arrow | null>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const genFillBorderRef = useRef<Konva.Rect>(null);
-  const [img] = useImage(el.src || '');
+  const rawImgSrc = el.type === 'image' ? (el.src || '').trim() : '';
+  const imageHookSrc =
+    rawImgSrc &&
+    (/^data:image\//i.test(rawImgSrc) || /^https?:\/\//i.test(rawImgSrc) || /^blob:/i.test(rawImgSrc))
+      ? rawImgSrc
+      : '';
+  const [img, imgStatus] = useImage(imageHookSrc);
 
   useEffect(() => {
     if (!genFillBorderRef.current) return;
@@ -312,7 +319,7 @@ function ElementNode({
           }}
         >
           <Rect x={0} y={0} width={el.width} height={el.height} fill="transparent" listening />
-          {!img && (
+          {!img && imgStatus !== 'failed' && (
             <Group listening={false}>
               <Rect
                 x={0}
@@ -371,6 +378,21 @@ function ElementNode({
                 text={statusSub}
                 fill="rgba(148,163,184,0.85)"
                 fontSize={9}
+                align="center"
+                fontFamily="Inter"
+              />
+            </Group>
+          )}
+          {!img && imgStatus === 'failed' && imageHookSrc && (
+            <Group listening={false}>
+              <Rect x={0} y={0} width={el.width} height={el.height} fill="rgba(127,29,29,0.25)" cornerRadius={8} />
+              <Text
+                x={0}
+                y={el.height / 2 - 8}
+                width={el.width}
+                text="Image failed to load"
+                fill="rgba(254,226,226,0.95)"
+                fontSize={11}
                 align="center"
                 fontFamily="Inter"
               />
@@ -567,10 +589,20 @@ function ElementNode({
 }
 
 // ─── Slide Background ────────────────────────────────────────────────────────
-function SlideBackground({ colors, bgImageUrl }: { colors: string[]; bgImageUrl?: string }) {
+function SlideBackground({
+  colors,
+  bgImageUrl,
+  bgImageOpacity,
+}: {
+  colors: string[];
+  bgImageUrl?: string;
+  /** Deck hero image opacity (element.opacity); falls back when unset */
+  bgImageOpacity?: number;
+}) {
   const bg = colors[0] || '#05050A';
   const accent = colors[2] || '#38BDF8';
-  const [bgImg] = useImage(bgImageUrl || '');
+  const [bgImg] = useImage(bgImageUrl?.trim() || '');
+  const heroOpacity = typeof bgImageOpacity === 'number' ? bgImageOpacity : 0.18;
 
   return (
     <>
@@ -592,7 +624,7 @@ function SlideBackground({ colors, bgImageUrl }: { colors: string[]; bgImageUrl?
           y={0}
           width={CANVAS_WIDTH}
           height={CANVAS_HEIGHT}
-          opacity={0.18}
+          opacity={heroOpacity}
           listening={false}
         />
       )}
@@ -914,7 +946,7 @@ export function KonvaCanvas({ scale }: { scale: number }) {
 
   if (!mounted || !slide || !presentation) return null;
 
-  const bgEl = (slide.elements || []).find((el) => el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0);
+  const bgEl = findDeckBackgroundElement(slide.elements);
   const elements = (slide.elements || []).filter((el) => el !== bgEl);
 
   return (
@@ -939,7 +971,11 @@ export function KonvaCanvas({ scale }: { scale: number }) {
         onMouseUp={handleMouseUp}
       >
         <Layer>
-          <SlideBackground colors={presentation.colorPalette || []} bgImageUrl={bgEl?.src} />
+          <SlideBackground
+            colors={presentation.colorPalette || []}
+            bgImageUrl={bgEl?.src}
+            bgImageOpacity={bgEl?.opacity}
+          />
           {elements.map((el) => (
             <ElementNode
               key={el.id}

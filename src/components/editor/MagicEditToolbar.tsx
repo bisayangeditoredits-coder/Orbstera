@@ -12,6 +12,7 @@ import {
   flushEditorSpeechInterim,
 } from '@/lib/editor-speech';
 import { explainGetUserMediaError, explainRecognitionStartError } from '@/lib/mic-access';
+import { findDeckBackgroundElement } from '@/lib/slide-background';
 
 export function MagicEditToolbar() {
   const { presentation, currentSlideIndex, editor, updateElement, removeElement } = usePresentationStore();
@@ -67,7 +68,7 @@ export function MagicEditToolbar() {
   const slide             = presentation?.slides[currentSlideIndex];
   
   // Find background element if it exists
-  const bgElement         = slide?.elements?.find(el => el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0);
+  const bgElement = findDeckBackgroundElement(slide?.elements);
   
   // If an element is selected, use it. Otherwise, target the background element (or create a virtual one).
   const targetElement     = selectedElementId ? slide?.elements?.find((el) => el.id === selectedElementId) : bgElement;

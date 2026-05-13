@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { PresentationData, Slide, SlideElement, SlideTransition } from '@/types';
+import { findDeckBackgroundElement, isSlideDeckBackgroundImage } from '@/lib/slide-background';
 import fs from 'fs';
 import path from 'path';
 
@@ -231,7 +232,7 @@ export async function POST(req: Request) {
     slides.forEach((slide, si) => {
       (slide.elements || []).forEach((el, ei) => {
         if (el.type === 'image' && el.src) {
-          const isBg = el.zIndex === 0 && el.x === 0 && el.y === 0;
+          const isBg = isSlideDeckBackgroundImage(el);
           imgTasks.push({ slideIdx: si, elIdx: ei, url: el.src, isBg });
         }
       });
@@ -277,9 +278,7 @@ export async function POST(req: Request) {
       });
 
       // ── 3. Hero background image (low opacity, full-slide) ─────────────────
-      const bgEl  = (slide.elements || []).find(
-        (el, i) => el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0 && el.src
-      );
+      const bgEl = findDeckBackgroundElement(slide.elements);
       const bgElIdx = bgEl ? (slide.elements || []).indexOf(bgEl) : -1;
 
       if (bgEl && bgElIdx !== -1) {

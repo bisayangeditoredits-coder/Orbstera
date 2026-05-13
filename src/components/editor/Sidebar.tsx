@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { Plus, Trash2, Copy, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
 import { Slide } from '@/types';
+import { findDeckBackgroundElement } from '@/lib/slide-background';
 
 const SLIDE_WIDTH = 160;
 const SLIDE_HEIGHT = 90;
@@ -17,13 +18,10 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
   const bg     = colors[0] || '#05050A';
   const accent = colors[2] || '#7B61FF'; // index 2 = accent (same as canvas)
 
-  // Find background image element (zIndex 0, full-slide)
-  const bgEl = slide.elements?.find(
-    (el) => el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0 && el.src
-  );
-  // All other elements (skip bg image — it's handled by the background layer)
+  const bgEl = findDeckBackgroundElement(slide.elements);
+  // All other elements (skip deck hero background — it's handled by the background layer)
   const visibleEls = (slide.elements || []).filter(
-    (el) => el.visible !== false && !(el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0)
+    (el) => el.visible !== false && el !== bgEl,
   );
 
   return (

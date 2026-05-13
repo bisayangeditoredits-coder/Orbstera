@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import type { SlideElement, Slide, AnimationEntrance, ChartData, PresentationData } from '@/types';
+import { findDeckBackgroundElement } from '@/lib/slide-background';
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,32 +20,162 @@ import {
   type MotionContext,
 } from '@/lib/presentationMotion';
 
-function ShapeEl({ el, accent }: { el: SlideElement; accent: string }) {
+function ShapeEl({ el, accent, markerSuffix }: { el: SlideElement; accent: string; markerSuffix?: string }) {
   const ss = el.shapeStyle || {};
   const fill = ss.fill || accent;
-  const borderStyle = ss.strokeWidth && ss.stroke ? `${ss.strokeWidth}px solid ${ss.stroke}` : 'none';
+  const sw = ss.strokeWidth || 0;
+  const stroke = ss.stroke || 'transparent';
+  const borderStyle = sw && stroke !== 'transparent' ? `${sw}px solid ${stroke}` : 'none';
+  const corner = ss.cornerRadius || 0;
 
   if (!el.shapeType || el.shapeType === 'rect') {
     return (
-      <div style={{
-        width: '100%', height: '100%',
-        backgroundColor: fill,
-        borderRadius: `${ss.cornerRadius || 0}px`,
-        border: borderStyle,
-      }} />
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          backgroundColor: fill,
+          borderRadius: `${corner}px`,
+          border: borderStyle,
+        }}
+      />
     );
   }
   if (el.shapeType === 'circle') {
     return (
-      <div style={{
-        width: '100%', height: '100%',
-        backgroundColor: fill,
-        borderRadius: '50%',
-        border: borderStyle,
-      }} />
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          backgroundColor: fill,
+          borderRadius: '50%',
+          border: borderStyle,
+        }}
+      />
     );
   }
-  return <div style={{ width: '100%', height: '100%', backgroundColor: fill }} />;
+  if (el.shapeType === 'triangle') {
+    return (
+      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ display: 'block' }}>
+        <polygon points="50,2 98,98 2,98" fill={fill} stroke={stroke !== 'transparent' ? stroke : 'none'} strokeWidth={sw ? Math.min(sw, 3) : 0} vectorEffect="non-scaling-stroke" />
+      </svg>
+    );
+  }
+  if (el.shapeType === 'star') {
+    return (
+      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" style={{ display: 'block' }}>
+        <polygon
+          points="50,6 61,35 92,35 68,54 79,88 50,70 21,88 32,54 8,35 39,35"
+          fill={fill}
+          stroke={stroke !== 'transparent' ? stroke : 'none'}
+          strokeWidth={sw ? Math.min(sw, 2.5) : 0}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    );
+  }
+  if (el.shapeType === 'line') {
+    const c = stroke !== 'transparent' ? stroke : fill;
+    return (
+      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ display: 'block' }}>
+        <line x1="0" y1="50" x2="100" y2="50" stroke={c} strokeWidth={Math.max(sw || 4, 2) / 4} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      </svg>
+    );
+  }
+  if (el.shapeType === 'arrow') {
+    const c = fill;
+    const w = Math.max(sw || 4, 2) / 4;
+    const mid = `arr-${(markerSuffix || 'x').replace(/[^a-zA-Z0-9_-]/g, '')}`;
+    return (
+      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ display: 'block' }}>
+        <defs>
+          <marker id={mid} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill={c} />
+          </marker>
+        </defs>
+        <line x1="2" y1="50" x2="88" y2="50" stroke={c} strokeWidth={w * 2} strokeLinecap="round" markerEnd={`url(#${mid})`} vectorEffect="non-scaling-stroke" />
+      </svg>
+    );
+  }
+  return (
+    <div style={{ width: '100%', height: '100%', backgroundColor: fill, border: borderStyle, borderRadius: `${corner}px` }} />
+  );
+}
+
+function ChartEl({ el, accent }: { el: SlideElement; accent: string }) {
+  const cd: ChartData = el.chartData || {
+    type: 'bar',
+    labels: ['A', 'B', 'C', 'D'],
+    datasets: [{ label: 'S', data: [4, 7, 5, 9], backgroundColor: accent }],
+  };
+  const pad = 8;
+  const maxVal = Math.max(1, ...cd.datasets.flatMap((d) => d.data));
+  const fills = Array.isArray(cd.datasets[0]?.backgroundColor)
+    ? (cd.datasets[0]?.backgroundColor as string[])
+    : [accent];
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        position: 'relative',
+        background: 'rgba(15,23,42,0.55)',
+        borderRadius: 10,
+        border: '1px solid rgba(148,163,184,0.35)',
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        padding: pad,
+        gap: 6,
+      }}
+    >
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(248,250,252,0.9)' }}>Chart</div>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'stretch', gap: 4 }}>
+        {cd.labels.map((label, i) => {
+          const v = cd.datasets[0]?.data[i] ?? 0;
+          const hPct = (v / maxVal) * 100;
+          const bg = fills[i % fills.length] || accent;
+          return (
+            <div
+              key={`${label}-${i}`}
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                minWidth: 0,
+              }}
+            >
+              <div
+                style={{
+                  width: '78%',
+                  height: `${hPct}%`,
+                  minHeight: 2,
+                  background: bg,
+                  borderRadius: 4,
+                }}
+              />
+              <div
+                style={{
+                  fontSize: 8,
+                  color: 'rgba(148,163,184,0.95)',
+                  marginTop: 4,
+                  textAlign: 'center',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  width: '100%',
+                }}
+              >
+                {label}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function splitWords(text: string) {
@@ -110,12 +241,8 @@ function PresentSlideView({
 }) {
   const bg = palette[0] || '#05050A';
   const accent = palette[2] || '#7B61FF';
-  const bgEl = slide.elements?.find(
-    (el) => el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0 && el.width >= 1000,
-  );
-  const elements = (slide.elements || [])
-    .filter((el) => el.visible !== false && !(el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0 && el.width >= 1000))
-    .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+  const bgEl = findDeckBackgroundElement(slide.elements);
+  const elements = (slide.elements || []).filter((el) => el.visible !== false && el !== bgEl);
 
   return (
     <div className="absolute inset-0 w-full h-full overflow-hidden">
@@ -129,25 +256,33 @@ function PresentSlideView({
           animate={animationsOn ? { scale: [1, 1.035, 1] } : { scale: 1 }}
           transition={{ duration: 28, repeat: Infinity, ease: 'easeInOut' }}
         >
-          <img src={bgEl.src} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ opacity: bgEl.opacity ?? 0.18 }} />
+          <img
+            src={bgEl.src}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{ opacity: typeof bgEl.opacity === 'number' ? bgEl.opacity : 0.18 }}
+          />
         </motion.div>
       )}
 
       {elements.map((el, i) => {
         const entrance = el.animation?.entrance;
         const durationMs = el.animation?.duration ?? 600;
-        const delayMs = el.animation?.delay ?? (i * 80);
+        const delayMs = el.animation?.delay ?? i * 80;
         const baseOpacity = el.opacity ?? 1;
-        const rawVariants = animationsOn ? getElementEntranceVariants(entrance, durationMs, delayMs) : { hidden: { opacity: baseOpacity }, visible: { opacity: baseOpacity } };
-        
+        const rawVariants = animationsOn
+          ? getElementEntranceVariants(entrance, durationMs, delayMs)
+          : { hidden: { opacity: baseOpacity }, visible: { opacity: baseOpacity } };
+
         const variants = {
-            hidden: { ...(rawVariants as any).hidden },
-            visible: { ...(rawVariants as any).visible },
+          hidden: { ...(rawVariants as any).hidden },
+          visible: { ...(rawVariants as any).visible },
         };
         variants.visible.opacity = baseOpacity;
 
         const textBase: React.CSSProperties = {
-          width: '100%', height: '100%',
+          width: '100%',
+          height: '100%',
           fontFamily: el.textStyle?.fontFamily || 'Inter, sans-serif',
           fontSize: `${el.textStyle?.fontSize || 24}px`,
           fontWeight: el.textStyle?.fontWeight || 'normal',
@@ -156,8 +291,12 @@ function PresentSlideView({
           color: el.textStyle?.color || '#FFFFFF',
           textAlign: (el.textStyle?.textAlign as React.CSSProperties['textAlign']) || 'left',
           lineHeight: el.textStyle?.lineHeight || 1.4,
-          whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflow: 'hidden',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          overflow: 'hidden',
         };
+
+        const rot = el.rotation || 0;
 
         const inner =
           el.type === 'text' ? (
@@ -172,7 +311,24 @@ function PresentSlideView({
               transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
             />
           ) : el.type === 'shape' ? (
-            <ShapeEl el={el} accent={accent} />
+            <ShapeEl el={el} accent={accent} markerSuffix={el.id} />
+          ) : el.type === 'chart' ? (
+            <ChartEl el={el} accent={accent} />
+          ) : el.type === 'icon' ? (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: accent,
+                fontSize: Math.min(el.width, el.height) * 0.45,
+                fontWeight: 700,
+              }}
+            >
+              ✦
+            </div>
           ) : null;
 
         return (
@@ -182,11 +338,25 @@ function PresentSlideView({
             initial={animationsOn ? 'hidden' : 'visible'}
             animate="visible"
             style={{
-              position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height,
-              zIndex: el.zIndex || 1, rotate: el.rotation || 0, overflow: 'visible',
+              position: 'absolute',
+              left: el.x,
+              top: el.y,
+              width: el.width,
+              height: el.height,
+              zIndex: el.zIndex ?? 1,
+              overflow: 'visible',
             }}
           >
-            {inner}
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                transform: rot ? `rotate(${rot}deg)` : undefined,
+                transformOrigin: 'center center',
+              }}
+            >
+              {inner}
+            </div>
           </motion.div>
         );
       })}
