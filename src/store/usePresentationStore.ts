@@ -28,6 +28,8 @@ interface PresentationStore {
   updateElement: (slideId: string, elementId: string, updates: Partial<SlideElement>, saveHistory?: boolean) => void;
   removeElement: (slideId: string, elementId: string) => void;
   reorderElements: (slideId: string, elementId: string, direction: 'up' | 'down', saveHistory?: boolean) => void;
+  /** `orderedIds` is top-first (same as Layers panel): first id = frontmost on canvas (= last in storage). */
+  setElementsOrder: (slideId: string, orderedIdsTopFirst: string[], saveHistory?: boolean) => void;
 
   // ─── Editor State ─────────────────────────────────────────────────────────
   editor: EditorState;
@@ -598,13 +600,44 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
             const elements = [...(s.elements || [])];
             const idx = elements.findIndex((el) => el.id === elementId);
             if (idx === -1) return s;
-            if (direction === 'up' && idx > 0) {
-              [elements[idx - 1], elements[idx]] = [elements[idx], elements[idx - 1]];
-            } else if (direction === 'down' && idx < elements.length - 1) {
+            // Layers list is top-first; Konva draws later indices on top. "up" = toward front = higher index.
+            if (direction === 'up' && idx < elements.length - 1) {
               [elements[idx], elements[idx + 1]] = [elements[idx + 1], elements[idx]];
+            } else if (direction === 'down' && idx > 0) {
+              [elements[idx - 1], elements[idx]] = [elements[idx], elements[idx - 1]];
             }
             return { ...s, elements };
           }),
+        },
+      };
+    });
+  },
+
+  setElementsOrder: (slideId, orderedIdsTopFirst, saveHistory = false) => {
+    const pres = get().presentation;
+    if (!pres) return;
+    const slide = pres.slides.find((s) => s.id === slideId);
+    if (!slide) return;
+    const current = slide.elements || [];
+    if (orderedIdsTopFirst.length !== current.length || current.length === 0) return;
+    const idSet = new Set(current.map((el) => el.id));
+    if (idSet.size !== orderedIdsTopFirst.length) return;
+    for (const id of orderedIdsTopFirst) {
+      if (!idSet.has(id)) return;
+    }
+    const byId = new Map(current.map((el) => [el.id, el] as const));
+    const newStorageOrder = [...orderedIdsTopFirst].reverse().map((id) => byId.get(id)!);
+    const changed = newStorageOrder.some((el, i) => el.id !== current[i].id);
+    if (!changed) return;
+    if (saveHistory) get().pushHistory();
+    set((state) => {
+      if (!state.presentation) return state;
+      return {
+        presentation: {
+          ...state.presentation,
+          slides: state.presentation.slides.map((s) =>
+            s.id === slideId ? { ...s, elements: newStorageOrder } : s,
+          ),
         },
       };
     });

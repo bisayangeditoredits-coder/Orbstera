@@ -136,16 +136,16 @@ function GenerationLoader() {
 
   const particles = useMemo(
     () =>
-      Array.from({ length: 12 }, () => ({
-        w: Math.random() * 40 + 10,
-        h: Math.random() * 40 + 10,
-        left: `${Math.random() * 100}%`,
-        top: `${Math.random() * 100}%`,
-        x2: Math.random() * 50 - 25,
-        duration: 8 + Math.random() * 10,
-        delay: Math.random() * 5,
+      Array.from({ length: 5 }, (_, i) => ({
+        w: 16 + (i % 3) * 12,
+        h: 16 + (i % 2) * 10,
+        left: `${15 + i * 18}%`,
+        top: `${10 + (i * 17) % 70}%`,
+        x2: (i % 5) * 8 - 16,
+        duration: 10 + i * 2,
+        delay: i * 0.8,
       })),
-    []
+    [],
   );
 
   return (
@@ -153,23 +153,22 @@ function GenerationLoader() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-white/90 backdrop-blur-2xl overflow-hidden"
+      className="absolute inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-neutral-100 via-neutral-50 to-neutral-100/95"
     >
-      {/* 1. Ambient Workspace Background with Neural Streams */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
+      {/* Light ambient — CSS only + few particles (no extra full-screen Lottie) */}
+      <div className="pointer-events-none absolute inset-0 z-0">
         <div
-          className="absolute inset-0 opacity-[0.07]"
+          className="absolute inset-0 opacity-[0.06]"
           style={{
             backgroundImage:
-              'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59,130,246,0.25), transparent), radial-gradient(ellipse 60% 40% at 100% 50%, rgba(14,165,233,0.12), transparent)',
+              'radial-gradient(ellipse 70% 45% at 50% 12%, rgba(59,130,246,0.35), transparent), radial-gradient(ellipse 50% 35% at 92% 78%, rgba(139,92,246,0.12), transparent)',
           }}
         />
-        
-        {/* Floating Shapes / Particles */}
+
         {particles.map((p, i) => (
           <motion.div
             key={`particle-${i}`}
-            className="absolute bg-primary/10 rounded-full blur-[1px]"
+            className="absolute rounded-full bg-primary/15 blur-[1px]"
             style={{
               width: p.w,
               height: p.h,
@@ -177,10 +176,10 @@ function GenerationLoader() {
               top: p.top,
             }}
             animate={{
-              y: [0, -100, 0],
+              y: [0, -40, 0],
               x: [0, p.x2, 0],
-              opacity: [0, 0.4, 0],
-              scale: [1, 1.5, 1],
+              opacity: [0, 0.18, 0],
+              scale: [1, 1.15, 1],
             }}
             transition={{
               duration: p.duration,
@@ -190,84 +189,65 @@ function GenerationLoader() {
           />
         ))}
 
-        {/* Visionary AI Backdrop (VR Man) */}
-        {!reduceMotion && (
-          <div className="absolute inset-0 flex items-center justify-center opacity-[0.07] grayscale pointer-events-none mix-blend-overlay">
-            {/* @ts-ignore */}
-            <lottie-player
-              src="/A Man with VR headset touches a holographic screen.json"
-              background="transparent"
-              speed="0.8"
-              style={{ width: '100%', height: '100%' }}
-              loop
-              autoplay
-            />
-          </div>
-        )}
-
-        <motion.div
-          animate={{
-            x: [0, 60, 0],
-            y: [0, 40, 0],
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.04]"
+          style={{
+            backgroundImage: 'radial-gradient(circle at 22% 28%, rgba(0,0,0,0.12), transparent 55%)',
           }}
-          transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-          className="absolute -top-[10%] -left-[10%] w-[60%] h-[60%] rounded-full bg-primary/[0.03] blur-[100px]"
         />
       </div>
 
-      <div className="relative flex flex-col items-center justify-center w-full max-w-4xl h-full z-10 px-6">
+      <div className="relative z-10 flex h-full w-full max-w-4xl flex-col items-center justify-center px-6">
         
-        {/* 2. Orchestration Core (Lottie AI Orb & Robot Assistant) */}
-        <div className="relative flex items-center justify-center mb-6 sm:mb-8 w-[min(400px,88vw)] h-[min(400px,55dvh)] scale-[0.82] xs:scale-90 md:scale-110">
-           {/* AI Robot Mascot Assistant (Centered in Orb) */}
-           <motion.div 
-             animate={{ 
-               y: [0, -15, 0],
-             }}
-             transition={{ 
-               duration: 4, 
-               repeat: Infinity, 
-               ease: "easeInOut" 
-             }}
-             className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none drop-shadow-[0_0_40px_rgba(255,255,255,0.4)]"
-           >
-              <div className="w-[180px] h-[180px]">
-                {!reduceMotion && (
-                  // @ts-ignore
-                  <lottie-player
-                    src="/robo (2).json"
-                    background="transparent"
-                    speed="1"
-                    style={{ width: '100%', height: '100%' }}
-                    loop
-                    autoplay
-                  />
-                )}
+        {/* Dual Lottie: flow (rear) + robot (front); canvas renderer reduces paint cost */}
+        <div className="relative mb-5 flex h-[min(320px,52dvh)] w-[min(320px,82vw)] items-center justify-center sm:mb-7 sm:h-[min(360px,50dvh)] sm:w-[min(360px,78vw)] md:h-[min(400px,48dvh)] md:w-[min(400px,72vw)]">
+          {!reduceMotion && (
+            <>
+              {/* @ts-expect-error custom element — swirl behind mascot */}
+              <lottie-player
+                className="absolute inset-0 z-0 h-full w-full"
+                src="/ai animation Flow 1.json"
+                background="transparent"
+                speed="1"
+                loop
+                autoplay
+                renderer="canvas"
+              />
+              <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-t from-neutral-100/35 via-transparent to-transparent" />
+            </>
+          )}
+
+          <motion.div
+            animate={reduceMotion ? undefined : { y: [0, -8, 0] }}
+            transition={reduceMotion ? undefined : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+            className="relative z-10 flex h-[46%] w-[46%] max-w-[200px] items-center justify-center drop-shadow-[0_12px_32px_rgba(15,23,42,0.12)]"
+          >
+            {reduceMotion ? (
+              <div className="flex h-24 w-24 items-center justify-center rounded-3xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-500">
+                Generating…
               </div>
-           </motion.div>
+            ) : (
+              // @ts-expect-error custom element
+              <lottie-player
+                src="/robo (2).json"
+                background="transparent"
+                speed="1"
+                style={{ width: '100%', height: '100%' }}
+                loop
+                autoplay
+                renderer="canvas"
+              />
+            )}
+          </motion.div>
 
-           {/* Main Intelligence Orb */}
-           {!reduceMotion && (
-            // @ts-ignore
-            <lottie-player
-              src="/ai animation Flow 1.json"
-              background="transparent"
-              speed="1"
-              style={{ width: '100%', height: '100%' }}
-              loop
-              autoplay
-            />
-           )}
-
-           {/* Floating Progress Pill */}
-           <motion.div 
-             initial={{ y: 20, opacity: 0 }}
-             animate={{ y: 0, opacity: 1 }}
-             className="absolute bottom-4 px-6 py-2.5 rounded-full bg-black text-white text-[12px] font-black tracking-widest uppercase shadow-2xl flex items-center gap-3 border border-white/10"
-           >
-             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-             {Math.round(pct)}% Complete
-           </motion.div>
+          <motion.div
+            initial={{ y: 16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="absolute bottom-1 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2.5 rounded-full border border-white/15 bg-neutral-950 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-lg shadow-black/20 sm:text-xs sm:tracking-[0.24em]"
+          >
+            <span className="h-2 w-2 shrink-0 rounded-full bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.85)]" aria-hidden />
+            <span className="tabular-nums">{Math.round(pct)}% complete</span>
+          </motion.div>
         </div>
 
         {/* 3. Narrative Progress Architecture */}
