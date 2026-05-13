@@ -169,10 +169,7 @@ export function Toolbar() {
       if (key === 'r') handleToolClick('rect');
       if (key === 'o' || key === 'c') handleToolClick('circle');
       if (key === 'l') handleToolClick('line');
-      if (key === 'g' && e.shiftKey) {
-        e.preventDefault();
-        handleToolClick('gen-fill');
-      } else if (key === 'g') setEditorState({ showGrid: !editor.showGrid });
+      if (key === 'g') setEditorState({ showGrid: !editor.showGrid });
       if ((e.ctrlKey || e.metaKey) && key === 'z') { if (e.shiftKey) redo(); else undo(); }
       if ((e.ctrlKey || e.metaKey) && key === 'y') redo();
     };
