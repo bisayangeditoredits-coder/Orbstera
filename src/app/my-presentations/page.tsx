@@ -1,10 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 // Navbar removed
 import type { DeckMeta } from '@/types/deck-meta';
 import { DeckCard } from '@/components/workspace/DeckCard';
+import { NewDeckModal } from '@/components/workspace/NewDeckModal';
+import { Plus } from 'lucide-react';
 
 function sortByUpdated(a: DeckMeta, b: DeckMeta) {
   const tb = Number.isFinite(Date.parse(b?.date ?? '')) ? Date.parse(b.date) : 0;
@@ -18,6 +19,7 @@ export default function MyPresentationsPage() {
   const [query, setQuery] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<DeckMeta | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [newDeckOpen, setNewDeckOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,10 +62,20 @@ export default function MyPresentationsPage() {
     }
   };
 
+  /** Optimistically rename a deck in local state after PATCH succeeds */
+  const handleRename = (id: string, newTitle: string) => {
+    setPresentations((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, title: newTitle, date: new Date().toISOString() } : p))
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#CDE4FF] via-white to-white text-neutral-900">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_90%_60%_at_50%_-10%,rgba(59,130,246,0.08),transparent)]" />
       {/* Navbar removed */}
+
+      {/* ── New Deck Modal ── */}
+      <NewDeckModal open={newDeckOpen} onClose={() => setNewDeckOpen(false)} />
 
       {deleteTarget && (
         <div
@@ -122,18 +134,15 @@ export default function MyPresentationsPage() {
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-3">
-              <Link
-                href="/editor"
-                className="inline-flex items-center justify-center border border-primary bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-[0_4px_14px_-4px_rgba(59,130,246,0.45)] transition hover:bg-primaryHover"
+              <button
+                type="button"
+                id="new-deck-btn"
+                onClick={() => setNewDeckOpen(true)}
+                className="inline-flex items-center justify-center gap-2 border border-primary bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-[0_4px_14px_-4px_rgba(59,130,246,0.45)] transition hover:bg-primaryHover active:scale-[0.98]"
               >
+                <Plus size={15} strokeWidth={2} />
                 New deck
-              </Link>
-              <Link
-                href="/account"
-                className="inline-flex items-center justify-center border border-neutral-200 bg-white px-5 py-2.5 text-sm font-semibold text-neutral-800 transition hover:border-primary/25 hover:bg-accentBlue"
-              >
-                Account &amp; usage
-              </Link>
+              </button>
             </div>
           </div>
         </header>
@@ -147,14 +156,16 @@ export default function MyPresentationsPage() {
           <div className="border border-dashed border-primary/20 bg-white/90 px-8 py-20 text-center shadow-sm">
             <h2 className="font-montserrat text-lg font-semibold text-neutral-950">No presentations yet</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-neutral-600">
-              Generate a deck in the editor and save it—your work will show up here automatically.
+              Create a blank deck or generate one with AI — your work will show up here automatically.
             </p>
-            <Link
-              href="/editor"
-              className="mt-8 inline-block border border-primary bg-primary px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primaryHover"
+            <button
+              type="button"
+              onClick={() => setNewDeckOpen(true)}
+              className="mt-8 inline-flex items-center gap-2 border border-primary bg-primary px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-primaryHover"
             >
-              Open editor
-            </Link>
+              <Plus size={15} strokeWidth={2} />
+              New blank deck
+            </button>
           </div>
         ) : (
           <>
@@ -175,6 +186,7 @@ export default function MyPresentationsPage() {
                     selected={false}
                     onToggleSelect={() => {}}
                     onDelete={() => setDeleteTarget(deck)}
+                    onRename={(title) => handleRename(deck.id, title)}
                   />
                 ))}
               </div>
@@ -215,6 +227,7 @@ export default function MyPresentationsPage() {
                       selected={false}
                       onToggleSelect={() => {}}
                       onDelete={() => setDeleteTarget(deck)}
+                      onRename={(title) => handleRename(deck.id, title)}
                     />
                   ))}
                 </div>

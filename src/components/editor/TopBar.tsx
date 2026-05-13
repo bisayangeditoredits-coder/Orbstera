@@ -171,7 +171,7 @@ function Stat({ icon: Icon, value, label }: { icon: any; value: string | number;
 
 // ── Editable Title ────────────────────────────────────────────────────────────
 function EditableTitle() {
-  const { presentation, updatePresentation } = usePresentationStore();
+  const { presentation, updatePresentation, setEditorState } = usePresentationStore();
   const [editing, setEditing] = useState(false);
   const [draft,   setDraft]   = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -182,9 +182,38 @@ function EditableTitle() {
     setTimeout(() => inputRef.current?.select(), 10);
   };
 
-  const commit = () => {
-    if (draft.trim()) updatePresentation({ title: draft.trim() });
+  const commit = async () => {
+    const trimmed = draft.trim();
     setEditing(false);
+    if (!trimmed || trimmed === presentation?.title) return;
+
+    // 1. Update local store immediately
+    updatePresentation({ title: trimmed });
+
+    // 2. Fast PATCH rename to R2 (no need to wait for debounced full sync)
+    const id = presentation?.id;
+    if (!id) return;
+    setEditorState({ cloudSyncStatus: 'saving', cloudSyncMessage: undefined });
+    try {
+      const res = await fetch(`/api/presentations?id=${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: trimmed }),
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        setEditorState({ cloudSyncStatus: 'saved', cloudSyncMessage: undefined });
+        window.setTimeout(() => {
+          const st = usePresentationStore.getState().editor.cloudSyncStatus;
+          if (st === 'saved') setEditorState({ cloudSyncStatus: 'idle' });
+        }, 1800);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setEditorState({ cloudSyncStatus: 'error', cloudSyncMessage: data.error || 'Rename failed' });
+      }
+    } catch {
+      setEditorState({ cloudSyncStatus: 'error', cloudSyncMessage: 'Rename failed' });
+    }
   };
 
   if (!presentation) return null;
@@ -197,7 +226,7 @@ function EditableTitle() {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
-          onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } if (e.key === 'Escape') setEditing(false); }}
           className="font-semibold text-[13px] leading-tight w-full max-w-[min(220px,calc(100vw-8rem))] sm:max-w-[220px] bg-white border border-black/[0.1] rounded-lg px-2 py-1 text-neutral-900 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30"
           autoFocus
         />

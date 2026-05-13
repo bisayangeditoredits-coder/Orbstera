@@ -245,3 +245,55 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'Failed to delete presentation' }, { status: 500 });
   }
 }
+
+// ── PATCH /api/presentations — rename a presentation title ──────────────────
+export async function PATCH(req: Request) {
+  if (!s3Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) {
+    return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
+  }
+
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+
+  const body = await req.json().catch(() => ({}));
+  const newTitle = typeof body.title === 'string' ? body.title.trim() : null;
+  if (!newTitle) return NextResponse.json({ error: 'Missing title' }, { status: 400 });
+
+  const prefix = `presentations/${user.id}`;
+  const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME;
+  const deckKey = `${prefix}/${id}.json`;
+
+  try {
+    // 1. Update deck JSON
+    const deckRes = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: deckKey }));
+    const deck = JSON.parse(await streamToString(deckRes.Body));
+    deck.title = newTitle;
+    deck.updatedAt = new Date().toISOString();
+    await putJsonWithRetry(s3Client, bucket, deckKey, JSON.stringify(deck));
+
+    // 2. Patch index.json entry
+    let index: any[] = [];
+    try {
+      const idxRes = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: `${prefix}/index.json` }));
+      index = JSON.parse(await streamToString(idxRes.Body));
+    } catch (e: any) { if (e.name !== 'NoSuchKey') throw e; }
+
+    const idx = index.findIndex((p: any) => p.id === id);
+    if (idx >= 0) {
+      index[idx] = { ...index[idx], title: newTitle, date: deck.updatedAt };
+    }
+    await putJsonWithRetry(s3Client, bucket, `${prefix}/index.json`, JSON.stringify(index));
+
+    return NextResponse.json({ success: true, title: newTitle, updatedAt: deck.updatedAt }, { headers: PRIVATE_CACHE_HEADERS });
+  } catch (error: any) {
+    if (error.name === 'NoSuchKey') {
+      return NextResponse.json({ error: 'Deck not found' }, { status: 404 });
+    }
+    console.error('R2 Rename Error:', error);
+    return NextResponse.json({ error: 'Failed to rename presentation' }, { status: 500 });
+  }
+}

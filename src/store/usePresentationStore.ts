@@ -164,7 +164,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
 
     // ── Convert static AI slide content into canvas-accurate elements ──────
     const slides = normalized.slides.map((slide, sIdx) => {
-      if (normalized.source === 'import' && (slide.elements?.length || 0) > 0) {
+      if ((normalized.source === 'import' || normalized.source === 'manual') && (slide.elements?.length || 0) > 0) {
         return finalizeSlideMotion(
           { ...slide, title: '', subtitle: '', bullets: [] },
           motionCtx,
