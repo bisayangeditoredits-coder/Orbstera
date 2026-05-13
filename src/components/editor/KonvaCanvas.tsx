@@ -242,7 +242,14 @@ function ElementNode({
           onTap={commonProps.onTap}
           onDragEnd={commonProps.onDragEnd}
           onTransformEnd={commonProps.onTransformEnd}
+          listening={true}
         >
+          <Rect
+            x={0} y={0} width={el.width} height={el.height}
+            fill="transparent"
+            listening={true}
+          />
+
           {/* Placeholder — only when image hasn't loaded yet */}
           {!img && (
             <Group listening={false}>
