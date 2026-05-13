@@ -241,8 +241,25 @@ export type DeckGenerationLifecycle =
   /** Deck JSON applied — optional AI visuals still hydrating */
   | 'images';
 
+/** Toolbar / canvas interaction mode */
+export type EditorToolId =
+  | 'select'
+  | 'gen-fill'
+  | 'text'
+  | 'image'
+  | 'rect'
+  | 'circle'
+  | 'triangle'
+  | 'star'
+  | 'line'
+  | 'arrow'
+  | 'chart'
+  | 'frame-circle'
+  | 'frame-heart'
+  | 'frame-box';
+
 export interface EditorState {
-  activeTool: 'select' | 'gen-fill';
+  activeTool: EditorToolId;
   selectedElementId: string | null;
   /** After drawing a generative-fill region, prompts appear for this element. */
   generativeFillTarget: { slideId: string; elementId: string } | null;

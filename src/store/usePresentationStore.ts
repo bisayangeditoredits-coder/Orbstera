@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { PresentationData, Slide, SlideElement, HistoryEntry } from '@/types';
+import { PresentationData, Slide, SlideElement, HistoryEntry, EditorState } from '@/types';
 import { finalizeSlideMotion } from '@/lib/presentationMotion';
 
 const MAX_HISTORY = 50;

@@ -2,14 +2,19 @@
 
 import { useEffect, useRef } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { SlideElement } from '@/types';
+import type { EditorToolId, SlideElement } from '@/types';
 import {
   MousePointer2, Type, Image as ImageIcon, Square, Circle,
   Triangle, BarChart2, Undo2, Redo2, Grid3X3, Star, Minus,
-  ArrowRight, PenLine, Upload, Sparkles, Heart,
+  ArrowRight, Upload, Sparkles, Heart,
 } from 'lucide-react';
 
-const TOOLBAR_TOOLS = [
+const TOOLBAR_TOOLS: {
+  id: EditorToolId;
+  icon: typeof MousePointer2;
+  label: string;
+  separator: boolean;
+}[] = [
   { id: 'select',   icon: MousePointer2, label: 'Select (V)',    separator: false },
   { id: 'gen-fill', icon: Sparkles,      label: 'Generative Fill', separator: true },
   { id: 'text',     icon: Type,          label: 'Text (T)',      separator: false },
@@ -77,7 +82,7 @@ export function Toolbar() {
     reader.readAsDataURL(file);
   };
 
-  const handleToolClick = (toolId: string) => {
+  const handleToolClick = (toolId: EditorToolId) => {
     if (!slide) return;
 
     // Direct actions (Select, Gen-Fill, Image upload)
@@ -100,7 +105,7 @@ export function Toolbar() {
 
     // For all other tools (text, shapes, charts), just set the active tool.
     // The actual element addition will happen when clicking on the Canvas.
-    setEditorState({ activeTool: toolId as any });
+    setEditorState({ activeTool: toolId });
   };
 
   // Keyboard shortcuts
@@ -118,13 +123,11 @@ export function Toolbar() {
         e.preventDefault();
         handleToolClick('gen-fill');
       } else if (key === 'g') setEditorState({ showGrid: !editor.showGrid });
-      if ((e.ctrlKey || e.metaKey) && key === 'z') { if (e.shiftKey) redo(); else undo(); }
-      if ((e.ctrlKey || e.metaKey) && key === 'y') redo();
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slide, presentation, editor.showGrid, undo, redo]);
+  }, [slide, presentation, editor.showGrid]);
 
   // Global paste to import image from clipboard
   useEffect(() => {
