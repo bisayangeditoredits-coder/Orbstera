@@ -372,7 +372,6 @@ const ZOOM_MAX = 3;
 const SCROLL_ZOOM_SPEED = 0.0012;
 
 export function CanvasArea() {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ w: 900, h: 600 });
   const { editor, setEditorState } = usePresentationStore();
   const { zoom, showGrid, isGenerating, generationBlockingOverlay } = editor;
