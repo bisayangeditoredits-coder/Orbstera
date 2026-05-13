@@ -19,15 +19,15 @@ interface PresentationStore {
   setCurrentSlideIndex: (index: number) => void;
   addSlide: (slide: Slide) => void;
   removeSlide: (slideId: string) => void;
-  updateSlide: (slideId: string, updates: Partial<Slide>) => void;
+  updateSlide: (slideId: string, updates: Partial<Slide>, saveHistory?: boolean) => void;
   duplicateSlide: (slideId: string) => void;
   reorderSlides: (fromIndex: number, toIndex: number) => void;
 
   // ─── Element Management ───────────────────────────────────────────────────
   addElement: (slideId: string, element: SlideElement) => void;
-  updateElement: (slideId: string, elementId: string, updates: Partial<SlideElement>) => void;
+  updateElement: (slideId: string, elementId: string, updates: Partial<SlideElement>, saveHistory?: boolean) => void;
   removeElement: (slideId: string, elementId: string) => void;
-  reorderElements: (slideId: string, elementId: string, direction: 'up' | 'down') => void;
+  reorderElements: (slideId: string, elementId: string, direction: 'up' | 'down', saveHistory?: boolean) => void;
 
   // ─── Editor State ─────────────────────────────────────────────────────────
   editor: EditorState;
@@ -488,7 +488,8 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     });
   },
 
-  updateSlide: (slideId, updates) => {
+  updateSlide: (slideId, updates, saveHistory = false) => {
+    if (saveHistory) get().pushHistory();
     set((state) => {
       if (!state.presentation) return state;
       return {
@@ -544,7 +545,8 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     });
   },
 
-  updateElement: (slideId, elementId, updates) => {
+  updateElement: (slideId, elementId, updates, saveHistory = false) => {
+    if (saveHistory) get().pushHistory();
     set((state) => {
       if (!state.presentation) return state;
       const clearPending =
@@ -584,7 +586,8 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     });
   },
 
-  reorderElements: (slideId, elementId, direction) => {
+  reorderElements: (slideId, elementId, direction, saveHistory = false) => {
+    if (saveHistory) get().pushHistory();
     set((state) => {
       if (!state.presentation) return state;
       return {

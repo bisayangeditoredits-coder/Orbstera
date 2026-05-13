@@ -373,7 +373,7 @@ const SCROLL_ZOOM_SPEED = 0.0075;
 
 export function CanvasArea() {
   const [containerSize, setContainerSize] = useState({ w: 900, h: 600 });
-  const { editor, setEditorState } = usePresentationStore();
+  const { editor, setEditorState, undo, redo } = usePresentationStore();
   const { zoom, showGrid, isGenerating, generationBlockingOverlay } = editor;
 
   // ─── Interaction State ───
@@ -435,8 +435,20 @@ export function CanvasArea() {
         if (!isSpacePressed) setIsSpacePressed(true);
         if (e.target === document.body) e.preventDefault();
       }
+      
+      // ── Undo / Redo Shortcuts ──
       if (e.ctrlKey || e.metaKey) {
-        if (e.key === '=' || e.key === '+') { e.preventDefault(); setEditorState({ zoom: Math.min(ZOOM_MAX, zoom * 1.2) }); }
+        if (e.key.toLowerCase() === 'z') {
+          e.preventDefault();
+          if (e.shiftKey) redo();
+          else undo();
+        }
+        else if (e.key.toLowerCase() === 'y') {
+          e.preventDefault();
+          redo();
+        }
+        // Existing zoom shortcuts
+        else if (e.key === '=' || e.key === '+') { e.preventDefault(); setEditorState({ zoom: Math.min(ZOOM_MAX, zoom * 1.2) }); }
         else if (e.key === '-')             { e.preventDefault(); setEditorState({ zoom: Math.max(ZOOM_MIN, zoom / 1.2) }); }
         else if (e.key === '0')             { e.preventDefault(); fitAndReset(); }
       }
@@ -445,7 +457,7 @@ export function CanvasArea() {
     window.addEventListener('keydown', onKey);
     window.addEventListener('keyup', onKeyUp);
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKeyUp); };
-  }, [isSpacePressed, zoom, setEditorState, fitAndReset]);
+  }, [isSpacePressed, zoom, setEditorState, fitAndReset, undo, redo]);
 
   // ─── Refined Zoom-to-Cursor Handler ───
   useEffect(() => {
