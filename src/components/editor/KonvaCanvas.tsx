@@ -2,7 +2,7 @@
 
 import { Stage, Layer, Rect, Text, Transformer, Group, Circle, RegularPolygon, Image as KonvaImage, Star as KonvaStar, Line as KonvaLine, Arrow as KonvaArrow } from 'react-konva';
 import useImage from 'use-image';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react';
 import Konva from 'konva';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { SlideElement } from '@/types';
@@ -14,6 +14,8 @@ export const CANVAS_HEIGHT = 720;
 interface KonvaCanvasProps {
   width: number;
   height: number;
+  /** View zoom applied on the Konva stage (not CSS) so hit-testing matches visuals when panning/zooming. */
+  zoom?: number;
 }
 
 function ElementNode({
@@ -21,7 +23,6 @@ function ElementNode({
   isSelected,
   onSelect,
   onChange,
-  stageRef,
   activeTool,
   isEditingText,
   onDblClickText,
@@ -367,6 +368,7 @@ function ElementNode({
             stroke={stroke || fill}
             strokeWidth={strokeWidth || 3}
             fill={undefined}
+            hitStrokeWidth={20}
           />
         );
       }
@@ -381,6 +383,7 @@ function ElementNode({
             strokeWidth={3}
             pointerLength={16}
             pointerWidth={12}
+            hitStrokeWidth={24}
           />
         );
       }
@@ -506,14 +509,14 @@ function SlideBackground({ colors, bgImageUrl }: { colors: string[], bgImageUrl?
 
 
 // ─── Main Konva Canvas ────────────────────────────────────────────────────────
-export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
+export function KonvaCanvas({ width, height, zoom = 1 }: KonvaCanvasProps) {
   const stageRef = useRef<Konva.Stage>(null);
   const [drawingRect, setDrawingRect] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  
+
   useEffect(() => { setMounted(true); }, []);
-  
+
   const {
     presentation,
     currentSlideIndex,
@@ -521,19 +524,74 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
     selectElement,
     updateElement,
     removeElement,
-    setEditorState,
   } = usePresentationStore();
 
   const slide = presentation?.slides[currentSlideIndex];
-  const scale = 1; // Locked to 1. CanvasArea handles all zooming via CSS transforms.
 
-  if (!mounted || !slide || !presentation) {
-    return null;
-  }
+  const drawingRectRef = useRef(drawingRect);
+  const activeToolRef = useRef(editor.activeTool);
+  const slideRef = useRef(slide);
+  drawingRectRef.current = drawingRect;
+  activeToolRef.current = editor.activeTool;
+  slideRef.current = slide;
+
+  const finalizeGenFillDraw = useCallback(() => {
+    if (activeToolRef.current !== 'gen-fill') return;
+    const dr = drawingRectRef.current;
+    if (!dr) return;
+    drawingRectRef.current = null;
+    setDrawingRect(null);
+
+    const rw = dr.w;
+    const rh = dr.h;
+    const bigEnough = Math.abs(rw) > 20 && Math.abs(rh) > 20;
+    const s = slideRef.current;
+    if (bigEnough && s) {
+      const x = rw < 0 ? dr.x + rw : dr.x;
+      const y = rh < 0 ? dr.y + rh : dr.y;
+      const w = Math.abs(rw);
+      const h = Math.abs(rh);
+      const newId = `el-genfill-${Date.now()}`;
+      const newEl: SlideElement = {
+        id: newId,
+        type: 'image',
+        src: '',
+        x, y, width: w, height: h,
+        opacity: 1, visible: true, locked: false,
+        zIndex: (s.elements?.length || 0) + 1,
+      };
+      const store = usePresentationStore.getState();
+      store.addElement(s.id, newEl);
+      store.selectElement(newId);
+      store.setEditorState({
+        activeTool: 'select',
+        generativeFillTarget: { slideId: s.id, elementId: newId },
+      });
+    } else {
+      usePresentationStore.getState().setEditorState({ activeTool: 'select' });
+    }
+  }, []);
+
+  useEffect(() => {
+    const onWindowPointerEnd = () => {
+      finalizeGenFillDraw();
+    };
+    window.addEventListener('mouseup', onWindowPointerEnd);
+    window.addEventListener('touchend', onWindowPointerEnd, { passive: true } as AddEventListenerOptions);
+    return () => {
+      window.removeEventListener('mouseup', onWindowPointerEnd);
+      window.removeEventListener('touchend', onWindowPointerEnd);
+    };
+  }, [finalizeGenFillDraw]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (editor.activeTool === 'gen-fill' && drawingRectRef.current) {
+          drawingRectRef.current = null;
+          setDrawingRect(null);
+          usePresentationStore.getState().setEditorState({ activeTool: 'select' });
+        }
         selectElement(null);
         setEditingTextId(null);
       }
@@ -546,7 +604,7 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [editor.selectedElementId, slide, selectElement, removeElement, editingTextId]);
+  }, [mounted, editor.activeTool, editor.selectedElementId, slide, selectElement, removeElement, editingTextId]);
 
   const handleStageClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     if (editor.activeTool !== 'select') return;
@@ -554,53 +612,47 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
   }, [selectElement, editor.activeTool]);
 
   const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (editor.activeTool === 'gen-fill') {
-      const pos = e.target.getStage()?.getPointerPosition();
-      if (pos) {
-        setDrawingRect({ x: pos.x, y: pos.y, w: 0, h: 0 });
+    if (editor.activeTool !== 'gen-fill') return;
+    const stage = e.target.getStage();
+    const pos = stage?.getPointerPosition();
+    if (!pos || !stage) return;
+    setDrawingRect({ x: pos.x, y: pos.y, w: 0, h: 0 });
+    try {
+      const pid = (e.evt as PointerEvent).pointerId;
+      if (typeof pid === 'number' && stage.container().setPointerCapture) {
+        stage.container().setPointerCapture(pid);
       }
+    } catch {
+      /* ignore: duplicate capture or unsupported */
     }
   }, [editor.activeTool]);
 
   const handleMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (editor.activeTool === 'gen-fill' && drawingRect) {
-      const pos = e.target.getStage()?.getPointerPosition();
-      if (pos) {
-        setDrawingRect(prev => prev ? { ...prev, w: pos.x - prev.x, h: pos.y - prev.y } : null);
-      }
-    }
-  }, [editor.activeTool, drawingRect]);
+    if (activeToolRef.current !== 'gen-fill') return;
+    const start = drawingRectRef.current;
+    if (!start) return;
+    const pos = e.target.getStage()?.getPointerPosition();
+    if (!pos) return;
+    setDrawingRect({ ...start, w: pos.x - start.x, h: pos.y - start.y });
+  }, []);
 
-  const handleMouseUp = useCallback(() => {
-    if (editor.activeTool !== 'gen-fill' || !drawingRect) return;
-    const rw = drawingRect.w;
-    const rh = drawingRect.h;
-    const bigEnough = Math.abs(rw) > 20 && Math.abs(rh) > 20;
-    if (bigEnough && slide) {
-      const x = rw < 0 ? drawingRect.x + rw : drawingRect.x;
-      const y = rh < 0 ? drawingRect.y + rh : drawingRect.y;
-      const w = Math.abs(rw);
-      const h = Math.abs(rh);
-      const newId = `el-genfill-${Date.now()}`;
-      const newEl: SlideElement = {
-        id: newId,
-        type: 'image',
-        src: '',
-        x, y, width: w, height: h,
-        opacity: 1, visible: true, locked: false,
-        zIndex: (slide.elements?.length || 0) + 1,
-      };
-      usePresentationStore.getState().addElement(slide.id, newEl);
-      usePresentationStore.getState().selectElement(newId);
-      setEditorState({
-        activeTool: 'select',
-        generativeFillTarget: { slideId: slide.id, elementId: newId },
-      });
-    } else {
-      setEditorState({ activeTool: 'select' });
-    }
-    setDrawingRect(null);
-  }, [editor.activeTool, drawingRect, slide, setEditorState]);
+  const handleStageMouseUp = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      const stage = stageRef.current;
+      try {
+        const pid = (e.evt as PointerEvent).pointerId;
+        if (stage && typeof pid === 'number') stage.container().releasePointerCapture(pid);
+      } catch {
+        /* not capturing */
+      }
+      finalizeGenFillDraw();
+    },
+    [finalizeGenFillDraw],
+  );
+
+  if (!mounted) {
+    return null;
+  }
 
   if (!slide || !presentation) {
     return (
@@ -615,7 +667,8 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
   const bgEl = (slide.elements || []).find(
     (el) => el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0 && el.src
   );
-  // Render all elements EXCEPT the bg image (it's handled by SlideBackground)
+  // Render all elements EXCEPT the bg image (it's handled by SlideBackground).
+  // Paint order follows slide.elements array order (see reorderElements).
   const elements = (slide.elements || []).filter((el) => !(el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0));
 
   return (
@@ -623,8 +676,8 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
       <div
         className="shadow-[0_50px_120px_-35px_rgba(15,23,42,0.35)] border border-white/[0.12]"
         style={{
-          width:           CANVAS_WIDTH  * scale,
-          height:          CANVAS_HEIGHT * scale,
+          width:           CANVAS_WIDTH,
+          height:          CANVAS_HEIGHT,
           borderRadius:    4,
           overflow:        'hidden',
           backgroundColor: '#000',
@@ -635,14 +688,14 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
       >
         <Stage
           ref={stageRef}
-          width={CANVAS_WIDTH  * scale}
-          height={CANVAS_HEIGHT * scale}
-          scaleX={scale}
-          scaleY={scale}
+          width={CANVAS_WIDTH}
+          height={CANVAS_HEIGHT}
+          scaleX={zoom}
+          scaleY={zoom}
           onClick={handleStageClick}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
+          onMouseUp={handleStageMouseUp}
         >
           <Layer>
             <SlideBackground
@@ -707,44 +760,60 @@ export function KonvaCanvas({ width, height }: KonvaCanvasProps) {
           </Layer>
         </Stage>
 
-        {/* Text Editing Overlay */}
-        {editingTextId && slide.elements?.map(el => {
-          if (el.id !== editingTextId || el.type !== 'text') return null;
-          return (
-            <textarea
-              key="text-editor"
-              autoFocus
-              value={el.content || ''}
-              onChange={(e) => updateElement(slide.id, el.id, { content: e.target.value })}
-              onBlur={() => setEditingTextId(null)}
-              style={{
-                position: 'absolute',
-                top: el.y,
-                left: el.x,
-                width: Math.max(el.width, 100),
-                height: Math.max(el.height, 50),
-                fontSize: `${el.textStyle?.fontSize || 24}px`,
-                fontFamily: el.textStyle?.fontFamily || 'Inter',
-                fontWeight: el.textStyle?.fontWeight || 'normal',
-                fontStyle: el.textStyle?.fontStyle || 'normal',
-                color: el.textStyle?.color || '#fff',
-                textAlign: (el.textStyle?.textAlign as any) || 'left',
-                lineHeight: el.textStyle?.lineHeight || 1.4,
-                letterSpacing: `${el.textStyle?.letterSpacing || 0}px`,
-                background: 'transparent',
-                border: '1px dashed #38BDF8',
-                outline: 'none',
-                resize: 'none',
-                padding: 0,
-                margin: 0,
-                overflow: 'visible',
-                transform: `rotate(${el.rotation || 0}deg)`,
-                transformOrigin: 'top left',
-                zIndex: 1000,
-              }}
-            />
-          );
-        })}
+        {/* Text overlay uses the same logical coordinates as Konva; CSS scale matches Stage scale for zoom */}
+        {editingTextId && (
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: CANVAS_WIDTH,
+              height: CANVAS_HEIGHT,
+              pointerEvents: 'none',
+              transform: `scale(${zoom})`,
+              transformOrigin: 'top left',
+              zIndex: 1000,
+            }}
+          >
+            {slide.elements?.map((el) => {
+              if (el.id !== editingTextId || el.type !== 'text') return null;
+              return (
+                <textarea
+                  key="text-editor"
+                  autoFocus
+                  value={el.content || ''}
+                  onChange={(e) => updateElement(slide.id, el.id, { content: e.target.value })}
+                  onBlur={() => setEditingTextId(null)}
+                  style={{
+                    position: 'absolute',
+                    top: el.y,
+                    left: el.x,
+                    width: Math.max(el.width, 100),
+                    height: Math.max(el.height, 50),
+                    fontSize: `${el.textStyle?.fontSize || 24}px`,
+                    fontFamily: el.textStyle?.fontFamily || 'Inter',
+                    fontWeight: el.textStyle?.fontWeight || 'normal',
+                    fontStyle: el.textStyle?.fontStyle || 'normal',
+                    color: el.textStyle?.color || '#fff',
+                    textAlign: (el.textStyle?.textAlign || 'left') as CSSProperties['textAlign'],
+                    lineHeight: el.textStyle?.lineHeight || 1.4,
+                    letterSpacing: `${el.textStyle?.letterSpacing || 0}px`,
+                    background: 'transparent',
+                    border: '1px dashed #38BDF8',
+                    outline: 'none',
+                    resize: 'none',
+                    padding: 0,
+                    margin: 0,
+                    overflow: 'visible',
+                    transform: `rotate(${el.rotation || 0}deg)`,
+                    transformOrigin: 'top left',
+                    pointerEvents: 'auto',
+                  }}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

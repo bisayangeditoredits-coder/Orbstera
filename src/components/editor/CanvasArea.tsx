@@ -571,7 +571,6 @@ export function CanvasArea() {
           animate={{
             x: editor.pan.x,
             y: editor.pan.y,
-            scale: zoom
           }}
           transition={isPanning ? { duration: 0 } : { type: 'spring', damping: 25, stiffness: 200 }}
           className="rounded-2xl max-w-full max-h-full"
@@ -584,6 +583,7 @@ export function CanvasArea() {
           <KonvaCanvas
             width={Math.max(120, dims.width - canvasPad * 2)}
             height={Math.max(68, dims.height - canvasPad * 2)}
+            zoom={zoom}
           />
         </motion.div>
       </div>
