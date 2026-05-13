@@ -174,6 +174,24 @@ export interface PresentationImportMeta {
   warnings?: string[];
 }
 
+// ─── Presentation DNA (AI Director presets) ────────────────────────────────────
+export interface PresentationDNA {
+  /** Overall narrative pattern, e.g. \"startup_pitch\", \"education\", \"marketing\", \"corporate\". */
+  narrativeProfile: string;
+  /** Visual tone: dark, light, luxury, futuristic, editorial, etc. */
+  visualTone: string;
+  /** Typography pairing identity (beyond raw font names), e.g. \"tech_sans\", \"corporate_serif\". */
+  typographyIdentity: string;
+  /** Global spacing scale, e.g. \"cozy\", \"balanced\", \"airy\". */
+  spacingScale: 'compact' | 'balanced' | 'airy';
+  /** Motion intensity preset, e.g. low/medium/high cinematic. */
+  motionProfile: 'cinematic_low' | 'cinematic_medium' | 'cinematic_high';
+  /** Layout density: how much content per slide the director should allow. */
+  densityMode: 'minimal' | 'standard' | 'rich';
+  /** Palette family identifier, used to pick from predefined color sets. */
+  colorProfile: string;
+}
+
 export interface PresentationData {
   id?: string;
   title: string;
@@ -193,6 +211,8 @@ export interface PresentationData {
   /** UI / export style preset */
   styleMode?: string;
   intentSummary?: string;
+  /** AI Presentation Director DNA for this deck (used by layout/motion engines). */
+  dna?: PresentationDNA;
   /** Server-owned revision counter for optimistic concurrency on cloud saves */
   saveVersion?: number;
   /** Last successful cloud persist (ISO) */

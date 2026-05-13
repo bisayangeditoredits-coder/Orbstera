@@ -1,4 +1,4 @@
-import type { PresentationData, Slide, SlideLayoutType } from '@/types';
+import type { PresentationData, PresentationDNA, Slide, SlideLayoutType } from '@/types';
 import { coerceSlideTransition } from '@/lib/presentationMotion';
 import { openRouterComplete, extractJsonObject } from './openrouter';
 import { PREFLIGHT_SYSTEM, buildComposerSystemPrompt } from './prompts';
@@ -7,6 +7,7 @@ import { AGENT_MODELS } from './agent-models';
 export interface PreflightResult {
   raw: Record<string, unknown>;
   summaryForPrompt: string;
+  dna?: PresentationDNA;
 }
 
 /** Optional standalone preflight (e.g. tools). Deck generation uses prompt-chain output instead. */
@@ -33,7 +34,9 @@ export async function runPreflight(args: {
     });
     const raw = extractJsonObject(text) ?? {};
     const summaryForPrompt = JSON.stringify(raw, null, 2);
-    return { raw, summaryForPrompt };
+    const dnaRaw = (raw as { dna?: PresentationDNA }).dna;
+    const dna = dnaRaw && typeof dnaRaw === 'object' ? (dnaRaw as PresentationDNA) : undefined;
+    return { raw, summaryForPrompt, dna };
   } catch (e) {
     console.warn('[Preflight] failed, continuing without context:', e);
     return {
@@ -187,6 +190,8 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
     });
   }
 
+  const dna = (input as { dna?: PresentationDNA }).dna;
+
   return {
     id: (input.id as string) || undefined,
     title,
@@ -213,5 +218,6 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
       : undefined,
     source: (input as { source?: PresentationData['source'] }).source,
     importMeta: (input as { importMeta?: PresentationData['importMeta'] }).importMeta,
+    dna,
   };
 }

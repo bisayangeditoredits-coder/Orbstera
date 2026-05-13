@@ -30,19 +30,21 @@ async function step(
   }
 }
 
-const S_INTENT = `You are the lead strategist for an automatic presentation engine.
+const S_INTENT = `You are the lead strategist and creative director for an automatic presentation engine.
 
 Output ONE raw JSON object only (no markdown):
 {
   "intentSummary": "one sentence",
   "presentationType": "startup_pitch | investor_deck | business_proposal | education | product_showcase | marketing | corporate | storytelling | data_story | portfolio | other",
   "presentationCategory": "short string e.g. sales, classroom, boardroom, demo_day",
-  "inferredAudience": "who will watch",
+  "audienceType": "board_members | investors | executives | managers | customers | classmates | conference_attendees | general_public",
   "emotionalTone": "e.g. confident, urgent, warm, analytical",
   "needsDeepReasoning": false,
   "promptEnhancement": "single rich paragraph: infer missing context, sharpen storytelling, pacing, and emotional arc. Same language as the user. Under 1200 characters.",
   "recommendedStyle": "apple_keynote | startup_pitch | minimal_dark | corporate | futuristic | luxury | glassmorphism | bento | editorial | creative | cinematic",
   "visualMood": "short phrase for consistent imagery across slides",
+  "densityMode": "minimal | standard | rich",
+  "cinematicIntensity": "low | medium | high",
   "successCriteria": ["2-5 bullets the final deck must satisfy"]
 }
 
@@ -93,12 +95,78 @@ function buildRefinedBrief(args: {
   return parts.join('\n\n');
 }
 
-function buildPreflightSummary(
+function deriveDnaFromDirector(
   intent: Record<string, unknown>,
   structure: Record<string, unknown>,
   reasonMemo: string
-): string {
-  const payload = {
+): {
+  dna: {
+    narrativeProfile: string;
+    visualTone: string;
+    typographyIdentity: string;
+    spacingScale: 'compact' | 'balanced' | 'airy';
+    motionProfile: 'cinematic_low' | 'cinematic_medium' | 'cinematic_high';
+    densityMode: 'minimal' | 'standard' | 'rich';
+    colorProfile: string;
+  };
+  preflight: Record<string, unknown>;
+} {
+  const presentationType = String(intent.presentationType || '').toLowerCase();
+  const category = String(intent.presentationCategory || '').toLowerCase();
+  const emotionalTone = String(intent.emotionalTone || '').toLowerCase();
+  const visualMood = String(intent.visualMood || '').toLowerCase();
+  const densityMode =
+    intent.densityMode === 'minimal' || intent.densityMode === 'rich' ? intent.densityMode : 'standard';
+  const cinematicIntensityRaw = String(intent.cinematicIntensity || '').toLowerCase();
+
+  let narrativeProfile = presentationType || category || 'general';
+  if (!narrativeProfile.includes('pitch') && presentationType === 'startup_pitch') {
+    narrativeProfile = 'startup_pitch';
+  }
+
+  let spacingScale: 'compact' | 'balanced' | 'airy' = 'balanced';
+  if (presentationType === 'investor_deck' || category.includes('boardroom')) spacingScale = 'compact';
+  if (presentationType === 'education' || category.includes('classroom')) spacingScale = 'balanced';
+  if (presentationType === 'marketing' || visualMood.includes('cinematic')) spacingScale = 'airy';
+
+  let motionProfile: 'cinematic_low' | 'cinematic_medium' | 'cinematic_high' = 'cinematic_medium';
+  if (cinematicIntensityRaw === 'low' || emotionalTone.includes('serious') || category.includes('boardroom')) {
+    motionProfile = 'cinematic_low';
+  } else if (cinematicIntensityRaw === 'high' || presentationType === 'marketing') {
+    motionProfile = 'cinematic_high';
+  }
+
+  let visualTone = 'modern-dark';
+  let colorProfile = 'tech_dark';
+  if (presentationType === 'education' || category.includes('classroom')) {
+    visualTone = 'light_clean';
+    colorProfile = 'education_light';
+  } else if (presentationType === 'corporate' || category.includes('boardroom')) {
+    visualTone = 'corporate_light';
+    colorProfile = 'corporate_blue';
+  } else if (presentationType === 'marketing' || visualMood.includes('gradient')) {
+    visualTone = 'cinematic_gradient';
+    colorProfile = 'marketing_gradient';
+  }
+
+  let typographyIdentity = 'tech_sans';
+  if (visualTone.includes('corporate') || category.includes('boardroom')) {
+    typographyIdentity = 'corporate_serif';
+  } else if (presentationType === 'creative' || visualMood.includes('editorial')) {
+    typographyIdentity = 'editorial_mix';
+  }
+
+  const dna = {
+    narrativeProfile,
+    visualTone,
+    typographyIdentity,
+    spacingScale,
+    motionProfile,
+    densityMode: (densityMode as 'minimal' | 'standard' | 'rich') ?? 'standard',
+    colorProfile,
+  };
+
+  const preflight = {
     presentationType: intent.presentationType,
     detectedIntent: intent.intentSummary,
     recommendedStyle: intent.recommendedStyle,
@@ -111,8 +179,10 @@ function buildPreflightSummary(
       : [],
     slideSpine: structure.slideSpine,
     strategyMemo: reasonMemo || null,
+    dna,
   };
-  return JSON.stringify(payload, null, 2);
+
+  return { dna, preflight };
 }
 
 /**
@@ -227,7 +297,8 @@ export async function runOpenRouterOrchestration(
     reasonMemo: reasonOut,
     meta,
   });
-  const preflightSummary = buildPreflightSummary(intent, structure, reasonOut);
+  const { dna, preflight } = deriveDnaFromDirector(intent, structure, reasonOut);
+  const preflightSummary = JSON.stringify(preflight, null, 2);
 
   const dossierText = [
     '=== ORCHESTRATION CONTEXT (internal) ===',
@@ -235,6 +306,7 @@ export async function runOpenRouterOrchestration(
     `STRUCTURE_JSON:\n${structOut || '{}'}`,
     needsDeep ? `STRATEGY_MEMO:\n${reasonOut}` : 'STRATEGY_MEMO: (not required)',
     `MASTER_BRIEF_FOR_COMPOSER:\n${refinedBrief}`,
+    `DIRECTOR_DNA_PRESET:\n${JSON.stringify(dna, null, 2)}`,
   ].join('\n\n');
 
   onProgress?.('synthesis', 'Brief locked — composing deck…');
