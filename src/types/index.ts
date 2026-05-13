@@ -124,6 +124,7 @@ export interface SlideElement {
   src?: string;
   /** True while this slot is waiting on deck-level /api/generate-image (UI placeholder). */
   aiImagePending?: boolean;
+  maskType?: 'circle' | 'heart' | 'square' | 'none';
   // Shape element
   shapeType?: 'rect' | 'circle' | 'triangle' | 'star' | 'line' | 'arrow';
   shapeStyle?: ShapeStyle;

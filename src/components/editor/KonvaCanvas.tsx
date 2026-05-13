@@ -196,7 +196,7 @@ function ElementNode({
       );
     }
 
-    if (el.type === 'image') {
+    if (el.type === 'image') { // Clipping Mask Frame Support
       const awaitingPrompt = !el.src?.trim();
       const aiSlot = !!(awaitingPrompt && el.aiImagePending);
       const statusTitle = awaitingPrompt ? (aiSlot ? 'AI visuals' : 'Generative fill') : 'Rendering';
@@ -209,6 +209,27 @@ function ElementNode({
       return (
         <Group
           ref={shapeRef as React.RefObject<Konva.Group>}
+          clipFunc={(ctx) => {
+            if (!el.maskType || el.maskType === 'none') {
+              ctx.rect(0, 0, el.width, el.height);
+              return;
+            }
+            if (el.maskType === 'circle') {
+              ctx.arc(el.width / 2, el.height / 2, Math.min(el.width, el.height) / 2, 0, Math.PI * 2, false);
+            } else if (el.maskType === 'heart') {
+              const w = el.width;
+              const h = el.height;
+              ctx.moveTo(w / 2, h * 0.25);
+              ctx.bezierCurveTo(w * 0.5, h * 0.22, w * 0.45, h * 0.1, w * 0.25, h * 0.1);
+              ctx.bezierCurveTo(w * 0.05, h * 0.1, w * 0.05, h * 0.4, w * 0.05, h * 0.4);
+              ctx.bezierCurveTo(w * 0.05, h * 0.55, w * 0.2, h * 0.77, w * 0.5, h * 0.95);
+              ctx.bezierCurveTo(w * 0.8, h * 0.77, w * 0.95, h * 0.55, w * 0.95, h * 0.4);
+              ctx.bezierCurveTo(w * 0.95, h * 0.4, w * 0.95, h * 0.1, w * 0.75, h * 0.1);
+              ctx.bezierCurveTo(w * 0.6, h * 0.1, w * 0.5, h * 0.22, w * 0.5, h * 0.25);
+            } else {
+              ctx.rect(0, 0, el.width, el.height);
+            }
+          }}
           x={commonProps.x}
           y={commonProps.y}
           width={commonProps.width}
@@ -234,7 +255,7 @@ function ElementNode({
                   0.45, 'rgba(30,41,59,0.88)',
                   1, 'rgba(15,23,42,0.94)',
                 ]}
-                cornerRadius={12}
+                cornerRadius={(!el.maskType || el.maskType === 'square' || el.maskType === 'none') ? 12 : 0}
               />
               <Rect
                 ref={genFillBorderRef}
@@ -242,7 +263,7 @@ function ElementNode({
                 fill="transparent"
                 stroke="rgba(56,189,248,0.65)"
                 strokeWidth={1.5}
-                cornerRadius={12}
+                cornerRadius={(!el.maskType || el.maskType === 'square' || el.maskType === 'none') ? 12 : 0}
                 dash={[10, 7]}
               />
               <Text
@@ -682,6 +703,12 @@ export function KonvaCanvas({ scale }: KonvaCanvasProps) {
       };
     } else if (activeTool === 'chart') {
       el = { ...base, type: 'chart', width: 500, height: 300 };
+    } else if (activeTool === 'frame-circle') {
+      el = { ...base, type: 'image', maskType: 'circle', width: 300, height: 300, src: '' };
+    } else if (activeTool === 'frame-heart') {
+      el = { ...base, type: 'image', maskType: 'heart', width: 300, height: 300, src: '' };
+    } else if (activeTool === 'frame-box') {
+      el = { ...base, type: 'image', maskType: 'square', width: 300, height: 300, src: '' };
     }
 
     if (el) {

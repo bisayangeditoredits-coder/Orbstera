@@ -6,7 +6,7 @@ import { SlideElement } from '@/types';
 import {
   MousePointer2, Type, Image as ImageIcon, Square, Circle,
   Triangle, BarChart2, Undo2, Redo2, Grid3X3, Star, Minus,
-  ArrowRight, PenLine, Upload, Sparkles,
+  ArrowRight, PenLine, Upload, Sparkles, Heart,
 } from 'lucide-react';
 
 const TOOLBAR_TOOLS = [
@@ -20,7 +20,10 @@ const TOOLBAR_TOOLS = [
   { id: 'star',     icon: Star,          label: 'Star',          separator: false },
   { id: 'line',     icon: Minus,         label: 'Line (L)',      separator: false },
   { id: 'arrow',    icon: ArrowRight,    label: 'Arrow',         separator: true  },
-  { id: 'chart',    icon: BarChart2,     label: 'Chart',         separator: false },
+  { id: 'chart',    icon: BarChart2,     label: 'Chart',         separator: true  },
+  { id: 'frame-circle', icon: Circle,      label: 'Circle Frame',  separator: false },
+  { id: 'frame-heart',  icon: Heart,       label: 'Heart Frame',   separator: false },
+  { id: 'frame-box',    icon: Square,      label: 'Box Frame',     separator: false },
 ];
 
 export function Toolbar() {
