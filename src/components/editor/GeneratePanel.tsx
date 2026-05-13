@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { SurveyModal } from './SurveyModal';
@@ -22,6 +22,37 @@ import {
   Save, Trash2, Download, AlertCircle, Plus, Mic, MicOff,
   Briefcase, Palette, Zap, Minus, BookOpen, FlaskConical
 } from 'lucide-react';
+
+type CreditSummary = {
+  plan: string;
+  monthlyLimit: number;
+  used: number;
+  remaining: number;
+  resetAt: string | null;
+};
+
+function useCreditSummary() {
+  const [summary, setSummary] = useState<CreditSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch('/api/credits/summary');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && data.summary) setSummary(data.summary);
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  return { summary, loading, refresh };
+}
 
 interface GeneratePanelProps {
   onClose?: () => void;
@@ -114,6 +145,90 @@ function CollapsibleSection({
           <div className="border-t border-black/[0.05] pt-2.5">{children}</div>
         </div>
       )}
+    </div>
+  );
+}
+
+
+
+// ─── Credits Tracker Component ───────────────────────────────────────────────
+
+function CreditsTracker({ onGenerated }: { onGenerated?: boolean }) {
+  const { summary, loading, refresh } = useCreditSummary();
+
+  // Refresh after generation completes
+  useEffect(() => {
+    if (!onGenerated) refresh();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onGenerated]);
+
+  if (loading || !summary) {
+    return (
+      <div className="h-10 rounded-xl bg-neutral-100/70 animate-pulse" />
+    );
+  }
+
+  const pct = Math.min(100, Math.round((summary.used / Math.max(summary.monthlyLimit, 1)) * 100));
+  const isLow = summary.remaining < summary.monthlyLimit * 0.2;
+  const isEmpty = summary.remaining <= 0;
+
+  const planEmojis: Record<string, string> = {
+    free: '🆓',
+    student_pro: '🎓',
+    pro: '⚡',
+    creator_pro: '🚀',
+    admin: '👑',
+  };
+  const planEmoji = planEmojis[summary.plan] || '✨';
+
+  return (
+    <div className="rounded-2xl border border-black/[0.06] bg-neutral-50/80 px-3.5 py-2.5 space-y-2">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="text-base leading-none">{planEmoji}</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-neutral-500">
+            AI Credits
+          </span>
+        </div>
+        <span className={`text-[10px] font-black tracking-tight ${isEmpty ? 'text-red-500' : isLow ? 'text-amber-500' : 'text-emerald-600'}`}>
+          {isEmpty ? '😱 Empty' : isLow ? `⚠️ ${summary.remaining} left` : `✅ ${summary.remaining.toLocaleString()} left`}
+        </span>
+      </div>
+
+      {/* Progress Bar */}
+      <div className="relative h-1.5 w-full bg-black/[0.06] rounded-full overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.6, ease: 'circOut' }}
+          className={`absolute inset-y-0 left-0 rounded-full ${
+            isEmpty ? 'bg-red-500' : isLow ? 'bg-amber-400' : 'bg-primary'
+          }`}
+        />
+      </div>
+
+      {/* Stats Row */}
+      <div className="flex items-center justify-between text-[9px] font-semibold text-neutral-400 uppercase tracking-widest">
+        <span>Used: {summary.used.toLocaleString()}</span>
+        <span>Limit: {summary.monthlyLimit.toLocaleString()}</span>
+      </div>
+
+      {/* Cost hints */}
+      <div className="flex gap-2 flex-wrap pt-0.5">
+        {[
+          { label: '🎨 Small deck', cost: 40 },
+          { label: '⚡ Med deck', cost: 80 },
+          { label: '🚀 Large deck', cost: 150 },
+        ].map(({ label, cost }) => (
+          <span
+            key={label}
+            className="inline-flex items-center gap-1 text-[9px] font-semibold text-neutral-400 bg-black/[0.04] px-2 py-0.5 rounded-full"
+          >
+            {label} <span className="text-neutral-500 font-black">·{cost}cr</span>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1139,10 +1254,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         )}
       </div>
 
-      {/* Original Button Loading State (Overlay removed) */}
-
-      {/* Consistent Luxury CTA */}
-      <div className="shrink-0 px-4 sm:px-5 py-3.5 border-t border-black/[0.06] bg-white relative z-50">
+      {/* Consistent Luxury CTA + Credits Tracker */}
+      <div className="shrink-0 px-4 sm:px-5 pt-3.5 pb-3 border-t border-black/[0.06] bg-white relative z-50 space-y-3">
         <button
           type="button"
           onClick={handleGenerateClick}
@@ -1157,13 +1270,16 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               </>
             ) : (
               <>
-                <span className="text-[14px] font-semibold tracking-tight">Generate Presentation</span>
+                <span className="text-[14px] font-semibold tracking-tight">✨ Generate Presentation</span>
                 <ArrowRight size={18} strokeWidth={1.75} className="group-hover:translate-x-0.5 transition-transform" />
               </>
             )}
           </div>
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 group-hover:opacity-100 group-hover:translate-x-full transition-all duration-700 translate-x-[-100%]" />
         </button>
+
+        {/* ── Credits Tracker ── */}
+        <CreditsTracker onGenerated={isLoading} />
       </div>
 
       {/* Save/Discard/Append Confirmation Modal */}
