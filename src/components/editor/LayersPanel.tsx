@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
+import { PPT_ANIMATION_HINT, PPT_STYLE_ENTRANCE_OPTIONS } from '@/lib/editor/pptAnimationCatalog';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -229,8 +230,14 @@ function PropertyEditor({ element, slideId }: { element: SlideElement; slideId: 
           <span className="text-[8px] font-black text-primary uppercase tracking-[0.3em]">Animation</span>
           <button
             onClick={() => {
+              const anim = {
+                entrance: (element.animation?.entrance || 'fadeIn') as import('@/types').AnimationEntrance,
+                duration: element.animation?.duration ?? 600,
+                delay: element.animation?.delay ?? 0,
+              };
+              const ms = Math.min(4500, anim.delay + anim.duration + 500);
               setEditorState({ previewElementId: element.id });
-              setTimeout(() => setEditorState({ previewElementId: null }), 1600);
+              setTimeout(() => setEditorState({ previewElementId: null }), ms);
             }}
             className="text-[8px] font-black text-black/40 hover:text-black uppercase tracking-widest transition-colors px-2 py-1 rounded-lg hover:bg-black/[0.03]"
           >▶ Preview</button>
@@ -250,30 +257,11 @@ function PropertyEditor({ element, slideId }: { element: SlideElement; slideId: 
                 onChange={(e) => upd({ animation: { ...anim, entrance: e.target.value as import('@/types').AnimationEntrance } })}
                 className="w-full bg-white border border-black/[0.08] rounded-2xl px-3 py-2.5 text-[11px] font-bold text-black focus:outline-none appearance-none cursor-pointer shadow-[0_1px_0_rgba(255,255,255,0.9)_inset]"
               >
-                <option value="none">None</option>
-                <option value="fadeIn">Fade In</option>
-                <option value="fadeSlideUp">Slide Up</option>
-                <option value="fadeSlideLeft">Slide Left</option>
-                <option value="slideRight">Slide Right</option>
-                <option value="zoomIn">Zoom In</option>
-                <option value="reveal">Wipe Reveal</option>
-                <option value="blurIn">Blur In</option>
-                <option value="glassBlur">Glass Blur</option>
-                <option value="elasticScale">Elastic Scale</option>
-                <option value="flipIn">Flip In</option>
-                <option value="parallaxDrift">Parallax Drift</option>
-                <option value="verticalRise">Vertical Rise</option>
-                <option value="horizontalReveal">Horizontal Reveal</option>
-                <option value="depthRise">Depth Rise</option>
-                <option value="floatGentle">Float</option>
-                <option value="scaleSoft">Scale Soft</option>
-                <option value="morphBlend">Morph Blend</option>
-                <option value="cinematicImageZoom">Cinematic Image</option>
-                <option value="typewriterWords">Word Stagger</option>
-                <option value="staggerLines">Line Stagger</option>
-                <option value="glitch">Glitch</option>
-                <option value="bounceIn">Bounce In</option>
+                {PPT_STYLE_ENTRANCE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
               </select>
+              <p className="text-[9px] text-black/40 leading-snug">{PPT_ANIMATION_HINT}</p>
               <Slider label="Duration (ms)" value={anim.duration} min={100} max={2000} step={100}
                 onChange={(v) => upd({ animation: { ...anim, duration: v } })} />
               <Slider label="Delay (ms)" value={anim.delay} min={0} max={2000} step={50}

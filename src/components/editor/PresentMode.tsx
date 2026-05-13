@@ -26,6 +26,7 @@ import {
   getElementEntranceVariants,
   getSlideTransitionVariants,
   inferSlideTransition,
+  durSec,
   type MotionContext,
 } from '@/lib/presentationMotion';
 
@@ -285,7 +286,7 @@ function PresentSlideView({
       {elements.map((el, i) => {
         const entrance   = el.animation?.entrance;
         const durationMs = el.animation?.duration ?? 600;
-        const delayMs    = el.animation?.delay    ?? (i * 80);
+        const delayMs    = el.animation == null ? i * 80 : (el.animation.delay ?? 0);
         const baseOpacity = el.opacity ?? 1;
         const rawVariants = animationsOn
           ? getElementEntranceVariants(entrance, durationMs, delayMs)
@@ -345,7 +346,7 @@ function PresentSlideView({
               }}
               initial={animationsOn && entrance === 'cinematicImageZoom' ? { scale: 1.08 } : false}
               animate={animationsOn && entrance === 'cinematicImageZoom' ? { scale: [1.08, 1] } : {}}
-              transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: durSec(durationMs), ease: [0.22, 1, 0.36, 1] }}
             />
           ) : el.type === 'shape' ? (
             <ShapeEl el={el} accent={accent} />
@@ -449,6 +450,7 @@ export function PresentMode() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction,    setDirection]    = useState(1);
   const [scale,        setScale]        = useState(1);
+  const [showPresenterChrome, setShowPresenterChrome] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [booting, setBooting]           = useState(false);
   const [fullscreen, setFullscreen]     = useState(false);
@@ -484,8 +486,8 @@ export function PresentMode() {
   }, [slide, motionCtx]);
 
   const slideVariants = useMemo(
-    () => getSlideTransitionVariants(activeTransition),
-    [activeTransition],
+    () => getSlideTransitionVariants(activeTransition, slide?.slideTransitionDurationMs),
+    [activeTransition, slide?.slideTransitionDurationMs],
   );
 
   const cinematicEffects =
@@ -551,7 +553,7 @@ export function PresentMode() {
   useEffect(() => {
     if (!isPresenting) return;
     const onKey = (e: KeyboardEvent) => {
-      resetHideTimer();
+      if (showPresenterChrome) resetHideTimer();
       if (e.key === 'Escape') {
         if (document.fullscreenElement) void document.exitFullscreen();
         else close();
@@ -563,18 +565,35 @@ export function PresentMode() {
       } else if (e.key.toLowerCase() === 'a') {
         e.preventDefault();
         setAutoplay((v) => !v);
+      } else if (e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        setShowPresenterChrome((v) => !v);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isPresenting, close, goNext, goPrev, resetHideTimer, toggleFs]);
+  }, [isPresenting, close, goNext, goPrev, resetHideTimer, toggleFs, showPresenterChrome]);
 
   useEffect(() => {
-    if (!isPresenting) return;
+    if (!isPresenting || !showPresenterChrome) return;
     resetHideTimer();
     window.addEventListener('mousemove', resetHideTimer);
     return () => window.removeEventListener('mousemove', resetHideTimer);
-  }, [isPresenting, resetHideTimer]);
+  }, [isPresenting, resetHideTimer, showPresenterChrome]);
+
+  useEffect(() => {
+    if (!isPresenting) return;
+    let cancelled = false;
+    const t = window.setTimeout(() => {
+      const el = shellRef.current;
+      if (cancelled || !el || document.fullscreenElement) return;
+      void el.requestFullscreen().catch(() => {});
+    }, 450);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [isPresenting]);
 
   useEffect(() => {
     if (!isPresenting) return;
@@ -630,7 +649,9 @@ export function PresentMode() {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-[#010104]"
-        onClick={() => resetHideTimer()}
+        onClick={() => {
+          if (showPresenterChrome) resetHideTimer();
+        }}
       >
         <CinematicBackdrop palette={palette} enabled={cinematicEffects} />
 
@@ -662,7 +683,7 @@ export function PresentMode() {
           )}
         </AnimatePresence>
 
-        {/* Progress */}
+        {showPresenterChrome && (
         <div className="absolute top-0 left-0 right-0 h-[3px] z-[210] bg-black/40">
           <motion.div
             className="h-full rounded-b-full"
@@ -675,6 +696,7 @@ export function PresentMode() {
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
           />
         </div>
+        )}
 
         <motion.div
           animate={{ scale }}
@@ -715,7 +737,7 @@ export function PresentMode() {
 
         {/* Speaker notes */}
         <AnimatePresence>
-          {speakerView && !audienceMode && notes && showControls && (
+          {showPresenterChrome && speakerView && !audienceMode && notes && showControls && (
             <motion.aside
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -730,7 +752,7 @@ export function PresentMode() {
         </AnimatePresence>
 
         {/* Thumbnail filmstrip */}
-        {showControls && slides.length > 1 && (
+        {showPresenterChrome && showControls && slides.length > 1 && (
           <div className="absolute bottom-[102px] left-1/2 -translate-x-1/2 z-[204] flex gap-2 max-w-[min(94vw,920px)] overflow-x-auto pb-1 px-2 pointer-events-auto scrollbar-none opacity-90">
             {slides.slice(0, dotCount).map((s, i) => (
               <motion.button
@@ -757,7 +779,7 @@ export function PresentMode() {
         )}
 
         <AnimatePresence>
-          {showControls && (
+          {showPresenterChrome && showControls && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -893,6 +915,25 @@ export function PresentMode() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {!showPresenterChrome && (
+          <>
+            <button
+              type="button"
+              aria-label="Previous slide"
+              onClick={goPrev}
+              disabled={currentIndex === 0}
+              className="absolute left-0 top-0 h-full w-1/5 z-[215] pointer-events-auto opacity-0 cursor-w-resize disabled:cursor-default"
+            />
+            <button
+              type="button"
+              aria-label="Next slide"
+              onClick={goNext}
+              disabled={currentIndex === slides.length - 1}
+              className="absolute right-0 top-0 h-full w-1/5 z-[215] pointer-events-auto opacity-0 cursor-e-resize disabled:cursor-default"
+            />
+          </>
+        )}
       </motion.div>
     </AnimatePresence>
   );

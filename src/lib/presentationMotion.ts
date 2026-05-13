@@ -123,57 +123,62 @@ export function coerceAnimationEntrance(raw: unknown): AnimationEntrance {
 const easeOut = [0.22, 1, 0.36, 1] as const;
 const easeInOut = [0.45, 0, 0.55, 1] as const;
 
-function durSec(ms: number) {
+export function durSec(ms: number) {
   return Math.max(0.12, ms / 1000);
 }
 
+const DEFAULT_SLIDE_TRANSITION_MS = 620;
+
 /** Framer Motion variants for slide-level transitions (uses `custom` = direction ±1). */
-export function getSlideTransitionVariants(transition: SlideTransition): Variants {
-  const baseEnter = { transition: { duration: 0.62, ease: easeOut } };
-  const baseExit = { transition: { duration: 0.42, ease: easeInOut } };
+export function getSlideTransitionVariants(transition: SlideTransition, durationMs?: number): Variants {
+  const scale =
+    Math.max(200, Math.min(4000, durationMs ?? DEFAULT_SLIDE_TRANSITION_MS)) / DEFAULT_SLIDE_TRANSITION_MS;
+  const cs = (sec: number) => Math.max(0.06, sec * scale);
+  const baseEnter = { transition: { duration: cs(0.62), ease: easeOut } };
+  const baseExit = { transition: { duration: cs(0.42), ease: easeInOut } };
 
   switch (transition) {
     case 'fade':
       return {
         enter:  () => ({ opacity: 0, scale: 0.992, ...baseEnter }),
-        center: { opacity: 1, scale: 1, transition: { duration: 0.55, ease: easeOut } },
+        center: { opacity: 1, scale: 1, transition: { duration: cs(0.55), ease: easeOut } },
         exit:   () => ({ opacity: 0, scale: 0.988, ...baseExit }),
       };
     case 'smoothSlide':
       return {
         enter:  (d: number) => ({ opacity: 0, x: d * 72, filter: 'blur(6px)', ...baseEnter }),
-        center: { opacity: 1, x: 0, filter: 'blur(0px)', transition: { duration: 0.58, ease: easeOut } },
+        center: { opacity: 1, x: 0, filter: 'blur(0px)', transition: { duration: cs(0.58), ease: easeOut } },
         exit:   (d: number) => ({ opacity: 0, x: d * -56, filter: 'blur(5px)', ...baseExit }),
       };
     case 'zoom':
       return {
         enter:  () => ({ opacity: 0, scale: 0.9, ...baseEnter }),
-        center: { opacity: 1, scale: 1, transition: { duration: 0.6, ease: easeOut } },
+        center: { opacity: 1, scale: 1, transition: { duration: cs(0.6), ease: easeOut } },
         exit:   () => ({ opacity: 0, scale: 1.04, ...baseExit }),
       };
     case 'blurReveal':
       return {
         enter:  () => ({ opacity: 0, filter: 'blur(22px)', scale: 1.02, ...baseEnter }),
-        center: { opacity: 1, filter: 'blur(0px)', scale: 1, transition: { duration: 0.68, ease: easeOut } },
+        center: { opacity: 1, filter: 'blur(0px)', scale: 1, transition: { duration: cs(0.68), ease: easeOut } },
         exit:   () => ({ opacity: 0, filter: 'blur(14px)', scale: 0.98, ...baseExit }),
       };
     case 'parallaxFlow':
       return {
         enter:  (d: number) => ({ opacity: 0, x: d * 140, y: 18, scale: 0.97, ...baseEnter }),
-        center: { opacity: 1, x: 0, y: 0, scale: 1, transition: { duration: 0.72, ease: easeOut } },
+        center: { opacity: 1, x: 0, y: 0, scale: 1, transition: { duration: cs(0.72), ease: easeOut } },
         exit:   (d: number) => ({ opacity: 0, x: d * -100, y: -12, scale: 0.96, ...baseExit }),
       };
     case 'morph':
       return {
         enter:  () => ({ opacity: 0, scale: 0.94, rotate: -0.4, ...baseEnter }),
-        center: { opacity: 1, scale: 1, rotate: 0, transition: { duration: 0.64, ease: easeOut } },
+        center: { opacity: 1, scale: 1, rotate: 0, transition: { duration: cs(0.64), ease: easeOut } },
         exit:   () => ({ opacity: 0, scale: 1.03, rotate: 0.3, ...baseExit }),
       };
     case 'crossDissolve':
       return {
         enter:  () => ({ opacity: 0, ...baseEnter }),
-        center: { opacity: 1, transition: { duration: 0.52, ease: easeOut } },
-        exit:   () => ({ opacity: 0, transition: { duration: 0.48, ease: easeInOut } }),
+        center: { opacity: 1, transition: { duration: cs(0.52), ease: easeOut } },
+        exit:   () => ({ opacity: 0, transition: { duration: cs(0.48), ease: easeInOut } }),
       };
     case 'glassSwipe':
       return {
@@ -189,7 +194,7 @@ export function getSlideTransitionVariants(transition: SlideTransition): Variant
           x: 0,
           skewX: 0,
           filter: 'blur(0px) brightness(1)',
-          transition: { duration: 0.66, ease: easeOut },
+          transition: { duration: cs(0.66), ease: easeOut },
         },
         exit: (d: number) => ({
           opacity: 0,
@@ -215,7 +220,7 @@ export function getSlideTransitionVariants(transition: SlideTransition): Variant
           z: 0,
           rotateX: 0,
           perspective: 1200,
-          transition: { duration: 0.7, ease: easeOut },
+          transition: { duration: cs(0.7), ease: easeOut },
         },
         exit: () => ({
           opacity: 0,
@@ -228,19 +233,19 @@ export function getSlideTransitionVariants(transition: SlideTransition): Variant
     case 'dynamicScale':
       return {
         enter:  () => ({ opacity: 0, scale: 1.06, ...baseEnter }),
-        center: { opacity: 1, scale: 1, transition: { duration: 0.58, ease: easeOut } },
+        center: { opacity: 1, scale: 1, transition: { duration: cs(0.58), ease: easeOut } },
         exit:   () => ({ opacity: 0, scale: 0.94, ...baseExit }),
       };
     case 'verticalFlow':
       return {
         enter:  (d: number) => ({ opacity: 0, y: d * 90, filter: 'blur(4px)', ...baseEnter }),
-        center: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.6, ease: easeOut } },
+        center: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: cs(0.6), ease: easeOut } },
         exit:   (d: number) => ({ opacity: 0, y: d * -70, filter: 'blur(4px)', ...baseExit }),
       };
     case 'horizontalCinematic':
       return {
         enter:  (d: number) => ({ opacity: 0, x: d * 200, scale: 0.965, filter: 'blur(8px)', ...baseEnter }),
-        center: { opacity: 1, x: 0, scale: 1, filter: 'blur(0px)', transition: { duration: 0.74, ease: easeOut } },
+        center: { opacity: 1, x: 0, scale: 1, filter: 'blur(0px)', transition: { duration: cs(0.74), ease: easeOut } },
         exit:   (d: number) => ({ opacity: 0, x: d * -160, scale: 0.97, filter: 'blur(10px)', ...baseExit }),
       };
     case 'layerReveal':
@@ -255,7 +260,7 @@ export function getSlideTransitionVariants(transition: SlideTransition): Variant
           opacity: 1,
           clipPath: 'inset(0% 0% 0% 0%)',
           y: 0,
-          transition: { duration: 0.68, ease: easeOut },
+          transition: { duration: cs(0.68), ease: easeOut },
         },
         exit: () => ({
           opacity: 0,
@@ -267,7 +272,7 @@ export function getSlideTransitionVariants(transition: SlideTransition): Variant
     case 'floating':
       return {
         enter:  () => ({ opacity: 0, y: 40, rotate: -0.8, ...baseEnter }),
-        center: { opacity: 1, y: 0, rotate: 0, transition: { duration: 0.62, ease: easeOut } },
+        center: { opacity: 1, y: 0, rotate: 0, transition: { duration: cs(0.62), ease: easeOut } },
         exit:   () => ({ opacity: 0, y: -28, rotate: 0.6, ...baseExit }),
       };
     case 'keynote':
@@ -284,7 +289,7 @@ export function getSlideTransitionVariants(transition: SlideTransition): Variant
           x: 0,
           scale: 1,
           filter: 'blur(0px)',
-          transition: { duration: 0.78, ease: easeOut },
+          transition: { duration: cs(0.78), ease: easeOut },
         },
         exit: (d: number) => ({
           opacity: 0,
@@ -295,7 +300,7 @@ export function getSlideTransitionVariants(transition: SlideTransition): Variant
         }),
       };
     default:
-      return getSlideTransitionVariants('fade');
+      return getSlideTransitionVariants('fade', durationMs);
   }
 }
 

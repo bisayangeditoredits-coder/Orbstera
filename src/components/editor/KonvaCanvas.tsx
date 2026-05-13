@@ -78,6 +78,7 @@ interface ElementNodeProps {
   activeTool: EditorToolId;
   isEditingText: boolean;
   onDblClickText: () => void;
+  previewElementId: string | null;
 }
 
 // ─── Element Node Component ───────────────────────────────────────────────────
@@ -89,6 +90,7 @@ function ElementNode({
   activeTool,
   isEditingText,
   onDblClickText,
+  previewElementId,
 }: ElementNodeProps) {
   const shapeRef = useRef<Konva.Group | Konva.Rect | Konva.Text | Konva.Ellipse | Konva.Line | Konva.Star | Konva.Arrow | null>(null);
   const trRef = useRef<Konva.Transformer>(null);
@@ -115,6 +117,56 @@ function ElementNode({
       trRef.current.getLayer()?.batchDraw();
     }
   }, [isSelected, el.visible]);
+
+  useEffect(() => {
+    if (previewElementId !== el.id) return;
+    const node = shapeRef.current;
+    if (!node) return;
+    const layer = node.getLayer();
+    if (!layer) return;
+
+    const durationSec = Math.max(0.12, (el.animation?.duration ?? 600) / 1000);
+    const baseOpacity = el.opacity ?? 1;
+    const entrance = el.animation?.entrance;
+    const startY = node.y();
+    const startX = node.x();
+    const lift =
+      entrance === 'fadeSlideUp' || entrance === 'verticalRise' || entrance === 'floatGentle' ? 36 : 0;
+    const shift =
+      entrance === 'fadeSlideLeft' || entrance === 'parallaxDrift' || entrance === 'horizontalReveal'
+        ? 32
+        : entrance === 'slideRight'
+          ? -32
+          : 0;
+
+    node.opacity(0);
+    if (lift) node.y(startY + lift);
+    if (shift) node.x(startX + shift);
+    layer.batchDraw();
+
+    const tween = new Konva.Tween({
+      node,
+      duration: durationSec,
+      opacity: baseOpacity,
+      x: startX,
+      y: startY,
+      easing: Konva.Easings.EaseOut,
+      onFinish: () => {
+        node.opacity(baseOpacity);
+        node.x(startX);
+        node.y(startY);
+        layer.batchDraw();
+      },
+    });
+    tween.play();
+    return () => {
+      tween.destroy();
+      node.opacity(baseOpacity);
+      node.x(startX);
+      node.y(startY);
+      layer.batchDraw();
+    };
+  }, [previewElementId, el.id, el.opacity, el.animation?.duration, el.animation?.entrance, el.x, el.y]);
 
   if (el.visible === false) return null;
 
@@ -898,6 +950,7 @@ export function KonvaCanvas({ scale }: { scale: number }) {
               activeTool={editor.activeTool}
               isEditingText={editingTextId === el.id}
               onDblClickText={() => setEditingTextId(el.id)}
+              previewElementId={editor.previewElementId}
             />
           ))}
           {drawingRect && (

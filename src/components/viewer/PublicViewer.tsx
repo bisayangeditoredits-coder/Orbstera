@@ -224,7 +224,10 @@ export function PublicViewer({ presentation }: { presentation: PresentationData 
     return inferSlideTransition(slide, motionCtx);
   }, [slide, motionCtx]);
 
-  const slideVariants = useMemo(() => getSlideTransitionVariants(activeTransition), [activeTransition]);
+  const slideVariants = useMemo(
+    () => getSlideTransitionVariants(activeTransition, slide?.slideTransitionDurationMs),
+    [activeTransition, slide?.slideTransitionDurationMs],
+  );
 
   const goNext = useCallback(() => {
     if (currentIndex < slides.length - 1) {

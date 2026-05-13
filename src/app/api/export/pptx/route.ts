@@ -108,9 +108,10 @@ async function fetchImageAsBase64(url: string): Promise<string | null> {
 
 // ── Build real OOXML entrance animation for a shape by shapeId ────────────────
 // This injects proper <p:timing> OOXML so PowerPoint actually plays animations
-function buildAnimXml(shapeId: number, entrance: string, delayMs: number, orderIdx: number): string {
+function buildAnimXml(shapeId: number, entrance: string, delayMs: number, orderIdx: number, durationMs = 600): string {
   // Map entrance names → OOXML preset IDs
   const presetMap: Record<string, { preset: number; subtype?: string; dir?: string }> = {
+    none:           { preset: 10 },
     fadeSlideUp:    { preset: 2,  subtype: 'fromBottom' },   // Fly In from bottom
     fadeSlideLeft:  { preset: 2,  subtype: 'fromLeft'   },   // Fly In from left
     slideRight:     { preset: 2,  subtype: 'fromRight'  },
@@ -144,7 +145,8 @@ function buildAnimXml(shapeId: number, entrance: string, delayMs: number, orderI
   // pptxgenjs exposes `addSlide(...).addElement` with raw XML via the internal
   // ooxml override. We patch the slide XML directly after generation.
   // This is the <p:par> block used inside <p:seq> children.
-  return `<p:par><p:cTn id="${orderIdx * 2 + 1}" presetID="${presetId}"${attrSub} presetClass="entr" grpId="0" afterActionClr="false" fill="hold" autoRev="false" restart="whenNotActive" nodeType="clickEffect"><p:stCondLst><p:cond delay="${delayEmu}"/></p:stCondLst><p:childTnLst><p:set><p:cBhvr><p:cTn id="${orderIdx * 2 + 2}" dur="1" fill="hold"/><p:tgtEl><p:spTgt spid="${shapeId}"/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val="visible"/></p:to></p:set><p:animEffect filter="fade" transition="in"><p:cBhvr><p:cTn id="${orderIdx * 2 + 3}" dur="600"/><p:tgtEl><p:spTgt spid="${shapeId}"/></p:tgtEl></p:cBhvr></p:animEffect></p:childTnLst></p:cTn></p:par>`;
+  const dur = Math.round(Math.max(50, durationMs));
+  return `<p:par><p:cTn id="${orderIdx * 2 + 1}" presetID="${presetId}"${attrSub} presetClass="entr" grpId="0" afterActionClr="false" fill="hold" autoRev="false" restart="whenNotActive" nodeType="clickEffect"><p:stCondLst><p:cond delay="${delayEmu}"/></p:stCondLst><p:childTnLst><p:set><p:cBhvr><p:cTn id="${orderIdx * 2 + 2}" dur="1" fill="hold"/><p:tgtEl><p:spTgt spid="${shapeId}"/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val="visible"/></p:to></p:set><p:animEffect filter="fade" transition="in"><p:cBhvr><p:cTn id="${orderIdx * 2 + 3}" dur="${dur}"/><p:tgtEl><p:spTgt spid="${shapeId}"/></p:tgtEl></p:cBhvr></p:animEffect></p:childTnLst></p:cTn></p:par>`;
 }
 
 // Map subtype strings to Office Open XML enum values
@@ -493,17 +495,15 @@ async function injectAnimations(
       // Build the timing XML block
       const parList = animElems.map((el, i) => {
         const entrance = el.animation?.entrance || 'fadeIn';
-        const delay    = el.animation?.delay    || i * 150;
-        // Shape IDs: pptxgenjs starts at 2; we have 2 overlay shapes before elements
-        // so elements start at id 4 for text/shape (images may be interspersed)
-        // We calculate the real id by position
-        const spId = 4 + i; // Conservative estimate
+        const delay = el.animation?.delay ?? i * 150;
+        const durationMs = Math.max(50, el.animation?.duration ?? 600);
+        const spId = 4 + i;
         return `<p:par>
           <p:cTn id="${100 + i * 3}" presetID="${getPresetId(entrance)}" presetClass="entr" grpId="${i}" fill="hold" nodeType="clickEffect">
             <p:stCondLst><p:cond delay="${delay * 100000}"/></p:stCondLst>
             <p:childTnLst>
               <p:animEffect transition="in" filter="fade">
-                <p:cBhvr><p:cTn id="${101 + i * 3}" dur="600" fill="hold"/>
+                <p:cBhvr><p:cTn id="${101 + i * 3}" dur="${durationMs}" fill="hold"/>
                   <p:tgtEl><p:spTgt spid="${spId}"/></p:tgtEl>
                 </p:cBhvr>
               </p:animEffect>
@@ -552,6 +552,7 @@ async function injectAnimations(
 
 function getPresetId(entrance: string): number {
   const map: Record<string, number> = {
+    none: 10,
     fadeSlideUp:   2,
     fadeSlideLeft: 2,
     slideRight:     2,

@@ -156,6 +156,8 @@ export interface Slide {
   animation?: AnimationConfig;
   /** Per-slide transition in presentation mode (overrides deck default). */
   slideTransition?: SlideTransition;
+  /** Milliseconds — Present mode & Framer timing for this slide’s transition (default 620). */
+  slideTransitionDurationMs?: number;
   elements?: SlideElement[];
   backgroundStyle?: string;
   backgroundColor?: string;

@@ -200,10 +200,33 @@ export function DesignPanel() {
                     className="w-full bg-black/[0.02] border border-black/[0.08] rounded-lg px-2 py-2 text-[11px] font-semibold text-black/80 focus:outline-none focus:border-primary/40"
                   >
                     <option value="">Use deck default</option>
-                    {SLIDE_TRANSITION_OPTIONS.map((o) => (
-                      <option key={o.id} value={o.id}>{o.label}</option>
-                    ))}
-                  </select>
+                  {SLIDE_TRANSITION_OPTIONS.map((o) => (
+                    <option key={o.id} value={o.id}>{o.label}</option>
+                  ))}
+                </select>
+                <div className="mt-2">
+                  <label className="text-[8px] font-black text-black/25 uppercase tracking-widest block mb-1">
+                    Transition duration (ms)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min={200}
+                      max={2000}
+                      step={50}
+                      className="flex-1 accent-primary h-2"
+                      value={currentSlide.slideTransitionDurationMs ?? 620}
+                      onChange={(e) =>
+                        updateSlide(currentSlide.id, {
+                          slideTransitionDurationMs: Number(e.target.value),
+                        })
+                      }
+                    />
+                    <span className="text-[10px] font-bold text-black/60 tabular-nums w-12 text-right">
+                      {currentSlide.slideTransitionDurationMs ?? 620}
+                    </span>
+                  </div>
+                </div>
                 </div>
               )}
               <label className="flex items-center gap-2.5 cursor-pointer group">
