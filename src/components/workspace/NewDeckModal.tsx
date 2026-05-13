@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
-  X, FileText, Loader2, ChevronRight, Monitor,
-  Presentation, LayoutGrid, Sun, Moon,
+  X, FileText, Loader2, ChevronRight,
+  Sun, Moon, LayoutGrid,
 } from 'lucide-react';
 
 // ── Preset themes ─────────────────────────────────────────────────────────────
@@ -16,7 +16,6 @@ const THEMES = [
     icon: Moon,
     bg: '#05050A',
     palette: ['#05050A', '#FFFFFF', '#7B61FF', '#A390FF'],
-    preview: 'bg-[#05050A]',
     accent: '#7B61FF',
   },
   {
@@ -25,7 +24,6 @@ const THEMES = [
     icon: Sun,
     bg: '#FFFFFF',
     palette: ['#FFFFFF', '#0F0F1A', '#3B82F6', '#93C5FD'],
-    preview: 'bg-white border border-neutral-200',
     accent: '#3B82F6',
   },
   {
@@ -34,7 +32,6 @@ const THEMES = [
     icon: Moon,
     bg: '#0D0D1A',
     palette: ['#0D0D1A', '#E8E8FF', '#6366F1', '#A5B4FC'],
-    preview: 'bg-[#0D0D1A]',
     accent: '#6366F1',
   },
   {
@@ -43,7 +40,6 @@ const THEMES = [
     icon: LayoutGrid,
     bg: '#061B2E',
     palette: ['#061B2E', '#E0F2FE', '#0EA5E9', '#7DD3FC'],
-    preview: 'bg-[#061B2E]',
     accent: '#0EA5E9',
   },
   {
@@ -52,7 +48,6 @@ const THEMES = [
     icon: LayoutGrid,
     bg: '#1A0900',
     palette: ['#1A0900', '#FFF7ED', '#F97316', '#FED7AA'],
-    preview: 'bg-[#1A0900]',
     accent: '#F97316',
   },
   {
@@ -61,16 +56,13 @@ const THEMES = [
     icon: LayoutGrid,
     bg: '#0A1A0F',
     palette: ['#0A1A0F', '#F0FDF4', '#22C55E', '#86EFAC'],
-    preview: 'bg-[#0A1A0F]',
     accent: '#22C55E',
   },
 ] as const;
 
-// ── Slide size presets ────────────────────────────────────────────────────────
-const SIZES = [
-  { id: 'widescreen', label: 'Widescreen 16:9', icon: Monitor, w: 1280, h: 720 },
-  { id: 'standard',  label: 'Standard 4:3',    icon: Presentation, w: 960,  h: 720 },
-] as const;
+// Fixed canvas size — 1280 × 720 (16:9 widescreen standard)
+const CANVAS_W = 1280;
+const CANVAS_H = 720;
 
 interface Props {
   open: boolean;
@@ -83,7 +75,6 @@ export function NewDeckModal({ open, onClose }: Props) {
 
   const [title,    setTitle]    = useState('Untitled Presentation');
   const [themeId,  setThemeId]  = useState<typeof THEMES[number]['id']>('dark');
-  const [sizeId,   setSizeId]   = useState<typeof SIZES[number]['id']>('widescreen');
   const [creating, setCreating] = useState(false);
   const [error,    setError]    = useState<string | null>(null);
 
@@ -93,26 +84,22 @@ export function NewDeckModal({ open, onClose }: Props) {
       setTitle('Untitled Presentation');
       setError(null);
       setCreating(false);
-      setTimeout(() => {
-        inputRef.current?.select();
-      }, 80);
+      setTimeout(() => inputRef.current?.select(), 80);
     }
   }, [open]);
 
   const selectedTheme = THEMES.find((t) => t.id === themeId) ?? THEMES[0];
-  const selectedSize  = SIZES.find((s) => s.id === sizeId)   ?? SIZES[0];
 
   const handleCreate = async () => {
     const trimmed = title.trim() || 'Untitled Presentation';
     setCreating(true);
     setError(null);
 
-    // Build a minimal blank presentation with one empty hero slide
-    const now = new Date().toISOString();
+    const now     = new Date().toISOString();
     const slideId = `slide-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
     const deckId  = `deck-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
 
-    // A single blank title slide with just a title text box
+    // Single blank hero slide with title + subtitle placeholder
     const blankSlide = {
       id: slideId,
       type: 'hero',
@@ -120,25 +107,25 @@ export function NewDeckModal({ open, onClose }: Props) {
       subtitle: '',
       bullets: [],
       elements: [
-        // Background rectangle
+        // Background fill
         {
           id: `el-bg-${slideId}`,
           type: 'shape',
           shapeType: 'rect',
           x: 0, y: 0,
-          width: selectedSize.w,
-          height: selectedSize.h,
+          width: CANVAS_W,
+          height: CANVAS_H,
           zIndex: 0,
           visible: true,
           shapeStyle: { fill: selectedTheme.bg, stroke: 'transparent', strokeWidth: 0 },
         },
-        // Title text element
+        // Title text
         {
           id: `el-title-${slideId}`,
           type: 'text',
           x: 80,
-          y: selectedSize.h / 2 - 60,
-          width: selectedSize.w - 160,
+          y: CANVAS_H / 2 - 60,
+          width: CANVAS_W - 160,
           height: 120,
           content: trimmed,
           zIndex: 1,
@@ -157,8 +144,8 @@ export function NewDeckModal({ open, onClose }: Props) {
           id: `el-sub-${slideId}`,
           type: 'text',
           x: 200,
-          y: selectedSize.h / 2 + 70,
-          width: selectedSize.w - 400,
+          y: CANVAS_H / 2 + 70,
+          width: CANVAS_W - 400,
           height: 60,
           content: 'Click to add a subtitle',
           zIndex: 2,
@@ -179,7 +166,7 @@ export function NewDeckModal({ open, onClose }: Props) {
       id: deckId,
       title: trimmed,
       theme: selectedTheme.id,
-      colorPalette: selectedTheme.palette,
+      colorPalette: [...selectedTheme.palette],
       fontPairing: { heading: 'Space Grotesk', body: 'Inter' },
       animationStyle: 'cinematic-reveal',
       source: 'manual' as const,
@@ -196,12 +183,8 @@ export function NewDeckModal({ open, onClose }: Props) {
         cache: 'no-store',
       });
       const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : `Failed to create (${res.status})`);
 
-      if (!res.ok) {
-        throw new Error(typeof data.error === 'string' ? data.error : `Failed to create (${res.status})`);
-      }
-
-      // Navigate to the editor with the new deck
       onClose();
       router.push(`/editor?id=${encodeURIComponent(deckId)}`);
     } catch (e: unknown) {
@@ -221,11 +204,11 @@ export function NewDeckModal({ open, onClose }: Props) {
           onClick={() => !creating && onClose()}
         >
           <motion.div
-            initial={{ scale: 0.93, y: 24, opacity: 0 }}
+            initial={{ scale: 0.94, y: 20, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.93, y: 24, opacity: 0 }}
+            exit={{ scale: 0.94, y: 20, opacity: 0 }}
             transition={{ type: 'spring', damping: 22, stiffness: 320 }}
-            className="w-full max-w-2xl bg-[#FAFAFA] rounded-2xl shadow-2xl border border-black/[0.07] overflow-hidden flex flex-col"
+            className="w-full max-w-xl bg-[#FAFAFA] rounded-2xl shadow-2xl border border-black/[0.07] overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* ── Header ── */}
@@ -236,7 +219,7 @@ export function NewDeckModal({ open, onClose }: Props) {
                 </div>
                 <div>
                   <h2 className="text-[15px] font-bold text-neutral-900 leading-tight">New Presentation</h2>
-                  <p className="text-[11px] text-neutral-400 mt-0.5">Start with a blank canvas</p>
+                  <p className="text-[11px] text-neutral-400 mt-0.5">Standard 16:9 canvas — 1280 × 720</p>
                 </div>
               </div>
               <button
@@ -271,35 +254,6 @@ export function NewDeckModal({ open, onClose }: Props) {
                   />
                 </div>
 
-                {/* Slide size */}
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500 mb-2">
-                    Slide size
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {SIZES.map((s) => {
-                      const Icon = s.icon;
-                      const active = sizeId === s.id;
-                      return (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() => setSizeId(s.id)}
-                          disabled={creating}
-                          className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-[12px] font-semibold transition-all ${
-                            active
-                              ? 'border-primary/40 bg-primary/6 text-primary shadow-[0_0_0_1px_rgba(59,130,246,0.25)]'
-                              : 'border-black/[0.08] bg-white text-neutral-600 hover:border-black/15 hover:bg-neutral-50'
-                          }`}
-                        >
-                          <Icon size={14} strokeWidth={1.75} className={active ? 'text-primary' : 'text-neutral-400'} />
-                          <span className="truncate">{s.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
                 {/* Theme */}
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500 mb-2">
@@ -316,7 +270,7 @@ export function NewDeckModal({ open, onClose }: Props) {
                           disabled={creating}
                           className={`group relative flex flex-col items-center gap-1.5 p-2.5 rounded-xl border transition-all ${
                             active
-                              ? 'border-primary/40 bg-primary/6 shadow-[0_0_0_1px_rgba(59,130,246,0.25)]'
+                              ? 'border-primary/40 bg-primary/[0.06] shadow-[0_0_0_1px_rgba(59,130,246,0.25)]'
                               : 'border-black/[0.07] bg-white hover:border-black/15 hover:bg-neutral-50'
                           }`}
                         >
@@ -325,9 +279,7 @@ export function NewDeckModal({ open, onClose }: Props) {
                             className="w-full aspect-video rounded-lg overflow-hidden flex items-center justify-center relative"
                             style={{ background: t.bg }}
                           >
-                            {/* Accent bar */}
                             <div className="absolute bottom-0 left-0 right-0 h-[3px]" style={{ background: t.accent }} />
-                            {/* Fake slide lines */}
                             <div className="flex flex-col gap-1 items-center opacity-60">
                               <div className="w-10 h-1.5 rounded-full" style={{ background: t.palette[1], opacity: 0.9 }} />
                               <div className="w-7 h-1 rounded-full" style={{ background: t.palette[1], opacity: 0.5 }} />
@@ -352,7 +304,6 @@ export function NewDeckModal({ open, onClose }: Props) {
                   </div>
                 </div>
 
-                {/* Error */}
                 {error && (
                   <p className="text-[12px] text-red-600 bg-red-50 rounded-xl px-3 py-2 border border-red-100">
                     {error}
@@ -360,37 +311,26 @@ export function NewDeckModal({ open, onClose }: Props) {
                 )}
               </div>
 
-              {/* Right — preview */}
-              <div className="hidden md:flex flex-col items-center justify-center gap-4 px-6 py-8 border-l border-black/[0.06] w-[200px] shrink-0 bg-neutral-100/60">
+              {/* Right — live preview */}
+              <div className="hidden md:flex flex-col items-center justify-center gap-4 px-6 py-8 border-l border-black/[0.06] w-[180px] shrink-0 bg-neutral-100/60">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-neutral-400">Preview</p>
-                {/* Slide preview */}
                 <div
                   className="w-full aspect-video rounded-xl overflow-hidden shadow-md border border-white/30 relative flex items-center justify-center"
                   style={{ background: selectedTheme.bg }}
                 >
-                  {/* Accent bottom bar */}
                   <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: selectedTheme.accent }} />
-                  {/* Fake title */}
                   <div className="flex flex-col items-center gap-2 px-3 text-center">
-                    <div
-                      className="h-2 rounded-full w-24 opacity-90"
-                      style={{ background: selectedTheme.palette[1] }}
-                    />
-                    <div
-                      className="h-1 rounded-full w-16 opacity-50"
-                      style={{ background: selectedTheme.palette[1] }}
-                    />
+                    <div className="h-2 rounded-full w-20 opacity-90" style={{ background: selectedTheme.palette[1] }} />
+                    <div className="h-1 rounded-full w-14 opacity-50" style={{ background: selectedTheme.palette[1] }} />
                   </div>
                 </div>
-
-                {/* Color dots */}
                 <div className="flex gap-1.5">
                   {selectedTheme.palette.map((c, i) => (
                     <div key={i} className="w-4 h-4 rounded-full border border-black/10 shadow-sm" style={{ background: c }} />
                   ))}
                 </div>
                 <p className="text-[10px] text-neutral-400 font-medium text-center">{selectedTheme.label} theme</p>
-                <p className="text-[10px] text-neutral-400 font-medium text-center">{selectedSize.label}</p>
+                <p className="text-[10px] text-neutral-400 font-medium text-center">1280 × 720 px</p>
               </div>
             </div>
 
@@ -410,11 +350,7 @@ export function NewDeckModal({ open, onClose }: Props) {
                 disabled={creating || !title.trim()}
                 className="flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-b from-[#5B7CFF] to-primary text-white text-[13px] font-bold shadow-[0_4px_14px_-4px_rgba(59,130,246,0.55)] hover:from-primary hover:to-[#3d5ef0] transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
               >
-                {creating ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <ChevronRight size={14} />
-                )}
+                {creating ? <Loader2 size={14} className="animate-spin" /> : <ChevronRight size={14} />}
                 {creating ? 'Creating…' : 'Create Presentation'}
               </button>
             </div>

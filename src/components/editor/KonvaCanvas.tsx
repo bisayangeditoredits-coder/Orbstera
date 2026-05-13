@@ -12,10 +12,12 @@ export const CANVAS_WIDTH  = 1280;
 export const CANVAS_HEIGHT = 720;
 
 interface KonvaCanvasProps {
-  width: number;
-  height: number;
-  /** View zoom applied on the Konva stage (not CSS) so hit-testing matches visuals when panning/zooming. */
-  zoom?: number;
+  /**
+   * CSS scale factor (computed from container size / CANVAS dims).
+   * The Stage stays at CANVAS_WIDTH × CANVAS_HEIGHT logical units always.
+   * The outer wrapper is CSS-scaled so it fits the viewport.
+   */
+  scale: number;
 }
 
 function ElementNode({
@@ -509,7 +511,7 @@ function SlideBackground({ colors, bgImageUrl }: { colors: string[], bgImageUrl?
 
 
 // ─── Main Konva Canvas ────────────────────────────────────────────────────────
-export function KonvaCanvas({ width, height, zoom = 1 }: KonvaCanvasProps) {
+export function KonvaCanvas({ scale }: KonvaCanvasProps) {
   const stageRef = useRef<Konva.Stage>(null);
   const [drawingRect, setDrawingRect] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
@@ -656,7 +658,15 @@ export function KonvaCanvas({ width, height, zoom = 1 }: KonvaCanvasProps) {
 
   if (!slide || !presentation) {
     return (
-      <div className="flex flex-col items-center justify-center text-textMuted" style={{ width, height }}>
+      <div
+        style={{
+          width: CANVAS_WIDTH,
+          height: CANVAS_HEIGHT,
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+        }}
+        className="flex flex-col items-center justify-center text-textMuted"
+      >
         <div className="text-6xl mb-4 opacity-20">✦</div>
         <p className="text-sm">No slide selected</p>
       </div>
@@ -672,7 +682,18 @@ export function KonvaCanvas({ width, height, zoom = 1 }: KonvaCanvasProps) {
   const elements = (slide.elements || []).filter((el) => !(el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0));
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+    <div
+      style={{
+        // The wrapper shrinks/grows via CSS scale — the Stage always stays at native resolution.
+        // transformOrigin: top-left so CanvasArea can center it correctly.
+        width:           CANVAS_WIDTH,
+        height:          CANVAS_HEIGHT,
+        transform:       `scale(${scale})`,
+        transformOrigin: 'top left',
+        flexShrink:      0,
+        pointerEvents:   'none',
+      }}
+    >
       <div
         className="shadow-[0_50px_120px_-35px_rgba(15,23,42,0.35)] border border-white/[0.12]"
         style={{
@@ -690,8 +711,6 @@ export function KonvaCanvas({ width, height, zoom = 1 }: KonvaCanvasProps) {
           ref={stageRef}
           width={CANVAS_WIDTH}
           height={CANVAS_HEIGHT}
-          scaleX={zoom}
-          scaleY={zoom}
           onClick={handleStageClick}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -760,7 +779,7 @@ export function KonvaCanvas({ width, height, zoom = 1 }: KonvaCanvasProps) {
           </Layer>
         </Stage>
 
-        {/* Text overlay uses the same logical coordinates as Konva; CSS scale matches Stage scale for zoom */}
+        {/* Text overlay: positioned in canvas logical pixels; no extra scale needed since the parent wrapper already scales */}
         {editingTextId && (
           <div
             style={{
@@ -770,8 +789,6 @@ export function KonvaCanvas({ width, height, zoom = 1 }: KonvaCanvasProps) {
               width: CANVAS_WIDTH,
               height: CANVAS_HEIGHT,
               pointerEvents: 'none',
-              transform: `scale(${zoom})`,
-              transformOrigin: 'top left',
               zIndex: 1000,
             }}
           >
