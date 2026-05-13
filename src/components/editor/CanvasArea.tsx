@@ -368,8 +368,7 @@ const PAD = 48;
 // Zoom boundaries
 const ZOOM_MIN = 0.15;
 const ZOOM_MAX = 3;
-// Smooth zoom step per scroll tick
-const SCROLL_ZOOM_SPEED = 0.0012;
+
 
 export function CanvasArea() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -386,12 +385,19 @@ export function CanvasArea() {
 
   useEffect(() => { isSpacePressedRef.current = isSpacePressed; }, [isSpacePressed]);
 
-  // Smooth scroll-wheel zoom accumulator
-  const scrollAccumRef = useRef(0);
-  const rafScrollRef = useRef<number | null>(null);
+  // Smooth scroll-wheel 60fps interpolation refs
+  const targetZoomRef = useRef(zoom);
+  const isZoomingRef = useRef(false);
 
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
   useEffect(() => { panRef.current = editor.pan; }, [editor.pan]);
+
+  // Synchronize target zoom if changed externally (e.g. controls/shortcuts)
+  useEffect(() => {
+    if (!isZoomingRef.current) {
+      targetZoomRef.current = zoom;
+    }
+  }, [zoom]);
 
   // Measure container
   useEffect(() => {
@@ -447,7 +453,7 @@ export function CanvasArea() {
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKeyUp); };
   }, [isSpacePressed, zoom, setEditorState, fitAndReset]);
 
-  // Smooth scroll-wheel zoom (plain scroll = zoom, no modifier needed)
+  // Ultra-smooth 60fps scroll-wheel zoom interpolation loop
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -461,32 +467,39 @@ export function CanvasArea() {
         return;
       }
 
-      // Scroll wheel = zoom (smooth, like Figma)
+      // Scroll wheel = zoom (smooth 60fps easing)
       e.preventDefault();
 
-      // Accumulate delta
-      scrollAccumRef.current += e.deltaY;
+      // deltaY > 0 = scroll down = zoom out; < 0 = scroll up = zoom in
+      // Gentle target calculation per detent
+      const factor = 1 - e.deltaY * 0.0008;
+      targetZoomRef.current = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, targetZoomRef.current * factor));
 
-      if (rafScrollRef.current !== null) return;
-      rafScrollRef.current = window.requestAnimationFrame(() => {
-        rafScrollRef.current = null;
-        const delta = scrollAccumRef.current;
-        scrollAccumRef.current = 0;
+      // Trigger continuous 60fps render tick if idle
+      if (!isZoomingRef.current) {
+        isZoomingRef.current = true;
+        const tick = () => {
+          const currentActual = zoomRef.current;
+          const target = targetZoomRef.current;
+          const diff = target - currentActual;
 
-        const currentZoom = zoomRef.current;
-        // deltaY > 0 = scroll down = zoom out; < 0 = scroll up = zoom in
-        const factor = 1 - delta * SCROLL_ZOOM_SPEED;
-        const nextZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, currentZoom * factor));
-        if (Math.abs(nextZoom - currentZoom) > 0.001) {
-          setEditorState({ zoom: nextZoom });
-        }
-      });
+          // If extremely close, snap to target and finish loop
+          if (Math.abs(diff) < 0.001) {
+            setEditorState({ zoom: target });
+            isZoomingRef.current = false;
+          } else {
+            // Silky smooth easing coefficient per frame
+            setEditorState({ zoom: currentActual + diff * 0.24 });
+            requestAnimationFrame(tick);
+          }
+        };
+        requestAnimationFrame(tick);
+      }
     };
 
     container.addEventListener('wheel', onWheel, { passive: false });
     return () => container.removeEventListener('wheel', onWheel);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setEditorState]); // intentionally omit isSpacePressed — we use isSpacePressedRef
+  }, [setEditorState]);
 
   // Pan with middle mouse or Space+drag
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -584,6 +597,8 @@ export function CanvasArea() {
             boxShadow: '0 32px 80px -20px rgba(15,23,42,0.22), 0 0 0 1px rgba(255,255,255,0.06)',
             borderRadius: 4,
             overflow:  'hidden',
+            // Micro-interpolation for buttery smooth 60fps+ visual response
+            transition: 'all 0.08s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
           <KonvaCanvas scale={effectiveScale} />
