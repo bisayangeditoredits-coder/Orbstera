@@ -148,8 +148,14 @@ function ElementNode({
       fitH = Math.min(Math.max(node.height() + padY * 2, minH), maxCanvasH);
     }
 
-    if (Math.abs(fitW - el.width) > 0.5 || Math.abs(fitH - el.height) > 0.5) {
-      onChange({ width: fitW, height: fitH });
+    // Integer bounds + strict equality avoids infinite update loops: Konva can return
+    // fractional measurements; repeated setState from this layout effect triggers React #185.
+    const rw = Math.max(24, Math.min(maxCanvasW, Math.round(fitW)));
+    const rh = Math.max(Math.round(minH), Math.min(maxCanvasH, Math.round(fitH)));
+    const ew = Math.round(el.width);
+    const eh = Math.round(el.height);
+    if (rw !== ew || rh !== eh) {
+      onChange({ width: rw, height: rh });
     }
   }, [
     el.type,
