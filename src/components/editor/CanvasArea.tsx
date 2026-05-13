@@ -377,21 +377,22 @@ export function CanvasArea() {
   const { editor, setEditorState } = usePresentationStore();
   const { zoom, showGrid, isGenerating, generationBlockingOverlay } = editor;
 
+  // ─── Interaction State ───
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
-  const startPanPos = useRef({ x: 0, y: 0 });
-  const zoomRef = useRef(zoom);
+  
+  // Refs for logic (to avoid stale closures and unnecessary re-renders)
+  const containerRef = useRef<HTMLDivElement>(null);
   const panRef = useRef(editor.pan);
+  const zoomRef = useRef(zoom);
   const isSpacePressedRef = useRef(false);
+  const velocityRef = useRef({ x: 0, y: 0 });
+  const lastPanPosRef = useRef({ x: 0, y: 0 });
+  const rafMomentumRef = useRef<number | null>(null);
 
-  useEffect(() => { isSpacePressedRef.current = isSpacePressed; }, [isSpacePressed]);
-
-  // Smooth scroll-wheel zoom accumulator
-  const scrollAccumRef = useRef(0);
-  const rafScrollRef = useRef<number | null>(null);
-
-  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
   useEffect(() => { panRef.current = editor.pan; }, [editor.pan]);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  useEffect(() => { isSpacePressedRef.current = isSpacePressed; }, [isSpacePressed]);
 
   // Measure container
   useEffect(() => {
@@ -409,18 +410,15 @@ export function CanvasArea() {
     return () => ro.disconnect();
   }, []);
 
-  // Compute the scale that fits the canvas in the container (base fit scale × user zoom)
   const baseFitScale = Math.min(
     (containerSize.w - PAD * 2) / CANVAS_WIDTH,
     (containerSize.h - PAD * 2) / CANVAS_HEIGHT,
   );
   const effectiveScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, baseFitScale * zoom));
 
-  // Scaled canvas dimensions in the DOM
   const scaledW = CANVAS_WIDTH  * effectiveScale;
   const scaledH = CANVAS_HEIGHT * effectiveScale;
 
-  // Apply zoom & re-center pan reset when fit changes
   const fitAndReset = useCallback(() => {
     setEditorState({ zoom: 1, pan: { x: 0, y: 0 } });
   }, [setEditorState]);
@@ -436,8 +434,8 @@ export function CanvasArea() {
         if (e.target === document.body) e.preventDefault();
       }
       if (e.ctrlKey || e.metaKey) {
-        if (e.key === '=' || e.key === '+') { e.preventDefault(); setEditorState({ zoom: Math.min(ZOOM_MAX, zoom + 0.15) }); }
-        else if (e.key === '-')             { e.preventDefault(); setEditorState({ zoom: Math.max(ZOOM_MIN, zoom - 0.15) }); }
+        if (e.key === '=' || e.key === '+') { e.preventDefault(); setEditorState({ zoom: Math.min(ZOOM_MAX, zoom * 1.2) }); }
+        else if (e.key === '-')             { e.preventDefault(); setEditorState({ zoom: Math.max(ZOOM_MIN, zoom / 1.2) }); }
         else if (e.key === '0')             { e.preventDefault(); fitAndReset(); }
       }
     };
@@ -447,59 +445,108 @@ export function CanvasArea() {
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKeyUp); };
   }, [isSpacePressed, zoom, setEditorState, fitAndReset]);
 
-  // Smooth scroll-wheel zoom (plain scroll = zoom, no modifier needed)
+  // ─── Pro Zoom-to-Cursor Handler ───
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const onWheel = (e: WheelEvent) => {
-      // If panning with space key held, do panning instead
-      if (isSpacePressedRef.current) {
-        e.preventDefault();
-        const p = panRef.current;
-        setEditorState({ pan: { x: p.x - e.deltaX, y: p.y - e.deltaY } });
-        return;
-      }
-
-      // Scroll wheel = zoom (smooth, like Figma)
       e.preventDefault();
 
-      // Accumulate delta
-      scrollAccumRef.current += e.deltaY;
+      const rect = container.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
 
-      if (rafScrollRef.current !== null) return;
-      rafScrollRef.current = window.requestAnimationFrame(() => {
-        rafScrollRef.current = null;
-        const delta = scrollAccumRef.current;
-        scrollAccumRef.current = 0;
-
+      // Handle Pan via Trackpad or Wheel
+      if (e.ctrlKey || e.metaKey) {
+        // Zoom-to-Cursor logic
         const currentZoom = zoomRef.current;
-        // deltaY > 0 = scroll down = zoom out; < 0 = scroll up = zoom in
-        const factor = 1 - delta * SCROLL_ZOOM_SPEED;
-        const nextZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, currentZoom * factor));
-        if (Math.abs(nextZoom - currentZoom) > 0.001) {
-          setEditorState({ zoom: nextZoom });
-        }
-      });
+        const delta = -e.deltaY * SCROLL_ZOOM_SPEED;
+        const zoomFactor = Math.pow(1.1, delta);
+        const nextZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, currentZoom * zoomFactor));
+        
+        if (nextZoom === currentZoom) return;
+
+        // Calculate offset to keep point under mouse stable
+        const pan = panRef.current;
+        
+        // Logical mouse position relative to canvas center
+        const centerX = containerSize.w / 2 + pan.x;
+        const centerY = containerSize.h / 2 + pan.y;
+        
+        const dx = (mouseX - centerX) / (baseFitScale * currentZoom);
+        const dy = (mouseY - centerY) / (baseFitScale * currentZoom);
+        
+        const newPanX = mouseX - (containerSize.w / 2 + dx * (baseFitScale * nextZoom));
+        const newPanY = mouseY - (containerSize.h / 2 + dy * (baseFitScale * nextZoom));
+
+        setEditorState({ 
+          zoom: nextZoom, 
+          pan: { x: newPanX, y: newPanY } 
+        });
+      } else {
+        // Smooth Pan
+        const p = panRef.current;
+        setEditorState({ pan: { x: p.x - e.deltaX, y: p.y - e.deltaY } });
+      }
     };
 
     container.addEventListener('wheel', onWheel, { passive: false });
     return () => container.removeEventListener('wheel', onWheel);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setEditorState]); // intentionally omit isSpacePressed — we use isSpacePressedRef
+  }, [setEditorState, baseFitScale, containerSize.w, containerSize.h]);
 
-  // Pan with middle mouse or Space+drag
+  // ─── Panning with Momentum ───
+  const startPanPos = useRef({ x: 0, y: 0 });
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 1 || (e.button === 0 && isSpacePressed)) {
       setIsPanning(true);
-      startPanPos.current = { x: e.clientX - editor.pan.x, y: e.clientY - editor.pan.y };
+      startPanPos.current = { x: e.clientX - panRef.current.x, y: e.clientY - panRef.current.y };
+      lastPanPosRef.current = { x: e.clientX, y: e.clientY };
+      velocityRef.current = { x: 0, y: 0 };
+      if (rafMomentumRef.current) cancelAnimationFrame(rafMomentumRef.current);
       e.preventDefault();
     }
   };
+
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isPanning) setEditorState({ pan: { x: e.clientX - startPanPos.current.x, y: e.clientY - startPanPos.current.y } });
+    if (isPanning) {
+      const newX = e.clientX - startPanPos.current.x;
+      const newY = e.clientY - startPanPos.current.y;
+      
+      // Calculate velocity for momentum
+      velocityRef.current = {
+        x: e.clientX - lastPanPosRef.current.x,
+        y: e.clientY - lastPanPosRef.current.y
+      };
+      lastPanPosRef.current = { x: e.clientX, y: e.clientY };
+      
+      setEditorState({ pan: { x: newX, y: newY } });
+    }
   };
-  const handleMouseUp = () => setIsPanning(false);
+
+  const applyMomentum = useCallback(() => {
+    const friction = 0.94;
+    const v = velocityRef.current;
+    
+    if (Math.abs(v.x) > 0.1 || Math.abs(v.y) > 0.1) {
+      const p = panRef.current;
+      const nextPan = { x: p.x + v.x, y: p.y + v.y };
+      
+      velocityRef.current = { x: v.x * friction, y: v.y * friction };
+      setEditorState({ pan: nextPan });
+      rafMomentumRef.current = requestAnimationFrame(applyMomentum);
+    } else {
+      rafMomentumRef.current = null;
+    }
+  }, [setEditorState]);
+
+  const handleMouseUp = () => {
+    if (isPanning) {
+      setIsPanning(false);
+      applyMomentum();
+    }
+  };
 
   return (
     <div
@@ -507,7 +554,7 @@ export function CanvasArea() {
       id="tour-canvas"
       data-lenis-prevent
       className={`flex-1 relative overflow-hidden flex items-center justify-center min-h-0 bg-[#F4F6FA] ${
-        isPanning || isSpacePressed ? 'cursor-grab active:cursor-grabbing' : ''
+        isPanning || isSpacePressed ? 'cursor-grabbing' : 'cursor-default'
       }`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -557,46 +604,40 @@ export function CanvasArea() {
         />
       </div>
 
-      {/* ── Canvas viewport: fixed-size box that clips the scaled canvas ─────── */}
-      {/*
-        Strategy (Figma-style):
-        1. The KonvaCanvas always renders at CANVAS_WIDTH × CANVAS_HEIGHT.
-        2. We apply CSS transform: scale(effectiveScale) with transformOrigin top-left.
-        3. We centre it by translating by half the difference between
-           the container size and the scaled canvas size, plus the user's pan offset.
-      */}
-      <div
-        className="relative z-10 overflow-hidden"
-        style={{
-          // This viewport occupies the full flex area
-          width:  '100%',
-          height: '100%',
-        }}
-      >
-        <div
+      {/* ── Canvas viewport: Animated for Billion-Dollar Smoothness ─────── */}
+      <div className="relative z-10 w-full h-full overflow-hidden">
+        <motion.div
+          animate={{
+            left: (containerSize.w - scaledW) / 2 + editor.pan.x,
+            top: (containerSize.h - scaledH) / 2 + editor.pan.y,
+            width: scaledW,
+            height: scaledH,
+          }}
+          transition={{
+            type: 'spring',
+            damping: 35,
+            stiffness: 400,
+            mass: 0.8,
+            // Skip animation for high-frequency pan/zoom for zero latency feel
+            duration: isPanning ? 0 : 0.15 
+          }}
           style={{
-            position:  'absolute',
-            left:      Math.round((containerSize.w - scaledW) / 2 + editor.pan.x),
-            top:       Math.round((containerSize.h - scaledH) / 2 + editor.pan.y),
-            width:     scaledW,
-            height:    scaledH,
-            // Drop shadow on the scaled canvas wrapper (not inside KonvaCanvas)
-            boxShadow: '0 32px 80px -20px rgba(15,23,42,0.22), 0 0 0 1px rgba(255,255,255,0.06)',
+            position: 'absolute',
+            boxShadow: '0 32px 80px -20px rgba(15,23,42,0.25), 0 0 0 1px rgba(255,255,255,0.08)',
             borderRadius: 4,
-            overflow:  'hidden',
+            overflow: 'hidden',
           }}
         >
           <KonvaCanvas scale={effectiveScale} />
-        </div>
+        </motion.div>
       </div>
 
-      {/* ── Floating Zoom Controls ────────────────────────────────────────────── */}
-      <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom,0px))] right-[max(0.75rem,env(safe-area-inset-right,0px))] sm:bottom-6 sm:right-6 z-50 flex items-center gap-1 bg-white/80 backdrop-blur-xl border border-black/[0.06] p-1 rounded-2xl shadow-lg touch-manipulation">
+      {/* ── Floating Zoom Controls ── */}
+      <div className="absolute bottom-6 right-6 z-50 flex items-center gap-1 bg-white/90 backdrop-blur-2xl border border-black/[0.05] p-1.5 rounded-2xl shadow-2xl scale-90 sm:scale-100">
         <button
           type="button"
-          onClick={() => setEditorState({ zoom: Math.max(ZOOM_MIN, zoom - 0.15) })}
-          className="w-9 h-9 flex items-center justify-center rounded-xl text-black/40 hover:text-black hover:bg-black/5 transition-all touch-manipulation"
-          title="Zoom Out (Ctrl/⌘ −)"
+          onClick={() => setEditorState({ zoom: Math.max(ZOOM_MIN, zoom / 1.2) })}
+          className="w-9 h-9 flex items-center justify-center rounded-xl text-neutral-400 hover:text-black hover:bg-black/5 transition-all"
         >
           <span className="text-xl font-medium">−</span>
         </button>
@@ -604,17 +645,15 @@ export function CanvasArea() {
         <button
           type="button"
           onClick={fitAndReset}
-          className="px-3 h-9 flex items-center justify-center rounded-xl text-[11px] font-black text-black/40 hover:text-black hover:bg-black/5 transition-all uppercase tracking-widest touch-manipulation min-w-[52px]"
-          title="Reset View (Ctrl/⌘ 0)"
+          className="px-3 h-9 flex items-center justify-center rounded-xl text-[11px] font-black text-neutral-800 hover:bg-black/5 transition-all uppercase tracking-widest min-w-[58px]"
         >
           {Math.round(effectiveScale * 100)}%
         </button>
 
         <button
           type="button"
-          onClick={() => setEditorState({ zoom: Math.min(ZOOM_MAX, zoom + 0.15) })}
-          className="w-9 h-9 flex items-center justify-center rounded-xl text-black/40 hover:text-black hover:bg-black/5 transition-all touch-manipulation"
-          title="Zoom In (Ctrl/⌘ +)"
+          onClick={() => setEditorState({ zoom: Math.min(ZOOM_MAX, zoom * 1.2) })}
+          className="w-9 h-9 flex items-center justify-center rounded-xl text-neutral-400 hover:text-black hover:bg-black/5 transition-all"
         >
           <span className="text-xl font-medium">+</span>
         </button>

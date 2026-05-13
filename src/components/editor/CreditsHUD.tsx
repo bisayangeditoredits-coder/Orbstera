@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, RefreshCw, Sparkles, ChevronDown, Layers, Image as ImageIcon, Wand2, Info } from 'lucide-react';
+import { Zap, RefreshCw, Sparkles, ChevronDown, Layers, Image as ImageIcon, Wand2, Info, CheckCircle2, Layout, ScanIcon } from 'lucide-react';
 import { useCredits } from '@/hooks/useCredits';
 import Link from 'next/link';
 
@@ -23,42 +23,44 @@ export function CreditsHUD() {
     plan === 'pro' ? 'Pro Plan' :
     plan === 'admin' ? 'Enterprise Admin' : 'Free Plan';
 
-  // Cost warning styling based on remaining vs usage
   const isLow = remaining < 40 && !loading;
 
   return (
-    <div className="relative inline-block text-left z-50">
+    <div className="relative inline-block text-left z-50 font-sans">
       {/* ── Trigger Button ── */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`min-h-9 h-9 sm:h-[36px] px-2.5 sm:px-3 rounded-full border transition-all flex items-center gap-1.5 sm:gap-2 text-[12px] sm:text-[13px] font-semibold active:scale-[0.98] touch-manipulation shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
+        className={`group relative h-10 px-4 rounded-xl border transition-all flex items-center gap-2.5 text-[13px] font-semibold active:scale-[0.98] touch-manipulation overflow-hidden ${
           isLow 
-            ? 'bg-amber-50/90 border-amber-200/80 text-amber-900 hover:bg-amber-100/80' 
-            : 'bg-white border-black/[0.08] hover:bg-neutral-50 hover:border-black/12 text-neutral-800'
+            ? 'bg-amber-50/90 border-amber-200/80 text-amber-900 shadow-lg shadow-amber-500/10' 
+            : 'bg-white/95 backdrop-blur-md border-black/[0.06] hover:border-black/15 shadow-sm hover:shadow-md text-neutral-800'
         }`}
-        aria-label="View AI Credits and cost consumption"
       >
         <div className="relative flex items-center justify-center">
-          <Zap size={14} className={isLow ? 'text-amber-600 fill-amber-500/20' : 'text-primary fill-primary/10'} strokeWidth={2} />
+          <Zap 
+            size={15} 
+            className={`${isLow ? 'text-amber-600' : 'text-primary'} ${loading ? 'opacity-20' : 'animate-pulse'}`} 
+            fill="currentColor" 
+            style={{ filter: isLow ? 'none' : 'drop-shadow(0 0 4px rgba(56,189,248,0.4))' }}
+          />
           {loading && (
-            <span className="absolute inset-0 rounded-full animate-ping bg-primary/20" />
+            <RefreshCw size={14} className="absolute inset-0 animate-spin text-primary" />
           )}
         </div>
         
-        <div className="flex items-center gap-1">
-          <span className="font-bold tabular-nums tracking-tight">
-            {loading ? '...' : remaining.toLocaleString()}
+        <div className="flex items-center gap-1.5">
+          <span className="font-bold tabular-nums tracking-tighter text-[14px]">
+            {loading ? '--' : remaining.toLocaleString()}
           </span>
-          <span className="text-[10px] uppercase font-extrabold text-neutral-400 tracking-wider hidden md:inline">
+          <span className="text-[10px] uppercase font-black text-neutral-400 tracking-widest opacity-70">
             CR
           </span>
         </div>
 
         <ChevronDown 
-          size={12} 
-          className={`text-neutral-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} 
-          strokeWidth={2} 
+          size={14} 
+          className={`text-neutral-300 group-hover:text-neutral-500 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} 
         />
       </button>
 
@@ -66,157 +68,162 @@ export function CreditsHUD() {
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Backdrop for mobile closing */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 z-40 bg-transparent"
+              className="fixed inset-0 z-40 bg-black/5 backdrop-blur-[1px]"
             />
 
             <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 8 }}
-              transition={{ duration: 0.15, ease: 'easeOut' }}
-              className="absolute right-0 mt-2 w-72 sm:w-80 bg-white rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15),0_0_0_1px_rgba(0,0,0,0.06)] overflow-hidden z-50 flex flex-col border border-black/[0.08]"
+              initial={{ opacity: 0, y: 12, scale: 0.98, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: 8, scale: 0.98, filter: 'blur(4px)' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="absolute right-0 mt-3 w-80 sm:w-96 bg-white/98 backdrop-blur-2xl rounded-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.18),0_0_0_1px_rgba(0,0,0,0.06)] overflow-hidden z-50 flex flex-col border border-black/[0.05]"
             >
-              {/* Header */}
-              <div className="p-4 bg-gradient-to-b from-neutral-50/80 to-white border-b border-black/[0.05] flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <Sparkles size={14} className="text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <h4 className="text-[12px] font-bold text-neutral-900 tracking-tight truncate">
-                        {planNameDisplay}
-                      </h4>
-                      <span className="text-[8px] uppercase tracking-widest font-black px-1.5 py-0.2 bg-primary/10 text-primary rounded-full">
-                        Active
-                      </span>
+              {/* Header with Glassmorphism */}
+              <div className="relative p-5 overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16" />
+                
+                <div className="relative flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center shadow-inner">
+                      <Sparkles size={18} className="text-primary" />
                     </div>
-                    <p className="text-[10px] text-neutral-500 tracking-tight truncate mt-0.5">
-                      AI Presentation Engine Tier
-                    </p>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-[14px] font-black text-neutral-900 tracking-tight">
+                          {planNameDisplay}
+                        </h4>
+                        <div className="flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-600 rounded-full border border-green-100">
+                          <CheckCircle2 size={8} />
+                          <span className="text-[9px] font-black uppercase tracking-tighter">Active</span>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-neutral-500 font-medium tracking-tight">
+                        AI Engine Allocation System
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                <button
-                  type="button"
-                  onClick={handleRefresh}
-                  disabled={isRefreshing || loading}
-                  className="p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-black/[0.04] rounded-lg transition-all shrink-0 disabled:opacity-40"
-                  title="Refresh credit balance"
-                >
-                  <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-primary' : ''} strokeWidth={2} />
-                </button>
+                  <button
+                    type="button"
+                    onClick={handleRefresh}
+                    disabled={isRefreshing || loading}
+                    className="w-8 h-8 flex items-center justify-center bg-neutral-50 hover:bg-neutral-100 text-neutral-400 hover:text-primary rounded-xl transition-all border border-black/[0.03]"
+                  >
+                    <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+                  </button>
+                </div>
               </div>
 
-              {/* Consumption Overview */}
-              <div className="p-4 space-y-3">
-                <div className="flex justify-between items-baseline min-w-0">
-                  <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
-                    Monthly Allocation
-                  </span>
-                  <div className="text-right">
-                    <span className="text-[14px] font-black tracking-tight text-neutral-900">
-                      {remaining.toLocaleString()}
-                    </span>
-                    <span className="text-[11px] font-bold text-neutral-400">
-                      {' '} / {monthlyLimit.toLocaleString()}
-                    </span>
+              {/* Main Credit Display */}
+              <div className="px-5 pb-5 space-y-4">
+                <div className="bg-neutral-50/50 rounded-2xl p-4 border border-black/[0.03]">
+                  <div className="flex justify-between items-end mb-2.5">
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">
+                        Credits Available
+                      </span>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-3xl font-black tracking-tighter text-neutral-900 tabular-nums">
+                          {remaining.toLocaleString()}
+                        </span>
+                        <span className="text-[12px] font-bold text-neutral-400">CR</span>
+                      </div>
+                    </div>
+                    <div className="text-right pb-1">
+                      <span className="text-[11px] font-bold text-neutral-900 bg-white px-2 py-1 rounded-lg border border-black/[0.05] shadow-sm">
+                        {used.toLocaleString()} <span className="text-neutral-400">used</span>
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                {/* Progress bar */}
-                <div className="space-y-1">
-                  <div className="h-1.5 w-full bg-neutral-100 rounded-full overflow-hidden relative">
+                  {/* Progress Bar with Shimmer */}
+                  <div className="relative h-2.5 w-full bg-neutral-200/50 rounded-full overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.min(100, Math.max(0, usagePct))}%` }}
-                      transition={{ duration: 0.5, ease: 'easeOut' }}
-                      className={`h-full rounded-full ${
+                      transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                      className={`h-full relative rounded-full ${
                         usagePct > 90 ? 'bg-red-500' :
                         usagePct > 75 ? 'bg-amber-500' : 'bg-primary'
                       }`}
-                    />
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" style={{ backgroundSize: '200% 100%' }} />
+                    </motion.div>
                   </div>
-                  <div className="flex justify-between text-[10px] text-neutral-400 font-medium">
-                    <span>{used.toLocaleString()} consumed</span>
-                    <span>{usagePct}% used</span>
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-[10px] text-neutral-400 font-bold tracking-tight">Tier limit: {monthlyLimit.toLocaleString()} CR</span>
+                    <span className="text-[10px] text-primary font-black uppercase">{usagePct}% consumed</span>
+                  </div>
+                </div>
+
+                {/* Costs Table - Card Style */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 px-1 mb-1">
+                    <div className="h-px flex-1 bg-black/[0.04]" />
+                    <span className="text-[10px] font-black text-neutral-300 uppercase tracking-widest shrink-0">Engine Action Costs</span>
+                    <div className="h-px flex-1 bg-black/[0.04]" />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <CostCard icon={<Layout size={12} />} label="Gen Presentation" cost={`${estimates.deck_small} - ${estimates.deck_large}`} />
+                    <CostCard icon={<Wand2 size={12} />} label="AI Magic Edit" cost={`${estimates.magic_edit}`} />
+                    <CostCard icon={<ScanIcon size={12} />} label="Generative Fill" cost="10" />
+                    <CostCard icon={<ImageIcon size={12} />} label="Image Generation" cost={`${estimates.image_standard}`} />
                   </div>
                 </div>
               </div>
 
-              {/* Action Cost References */}
-              <div className="px-4 py-3 bg-neutral-50/60 border-t border-black/[0.04] space-y-2">
-                <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-                  <Info size={11} strokeWidth={2} />
-                  <span>AI Cost Per Action</span>
+              {/* Pro Footer */}
+              <div className="mt-auto p-4 bg-gradient-to-t from-neutral-50 to-white border-t border-black/[0.05] flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[10px] font-bold text-neutral-400">
+                  <Info size={12} />
+                  <span>Renews monthly</span>
                 </div>
-
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <div className="flex items-center justify-between p-1.5 bg-white rounded-lg border border-black/[0.04] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                    <div className="flex items-center gap-1 text-[11px] font-semibold text-neutral-700 min-w-0">
-                      <Layers size={11} className="text-neutral-400 shrink-0" />
-                      <span className="truncate">Small Deck</span>
-                    </div>
-                    <span className="text-[11px] font-bold text-neutral-900 shrink-0 tabular-nums">
-                      {estimates.deck_small}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-1.5 bg-white rounded-lg border border-black/[0.04] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                    <div className="flex items-center gap-1 text-[11px] font-semibold text-neutral-700 min-w-0">
-                      <Layers size={11} className="text-neutral-400 shrink-0" />
-                      <span className="truncate">Large Deck</span>
-                    </div>
-                    <span className="text-[11px] font-bold text-neutral-900 shrink-0 tabular-nums">
-                      {estimates.deck_large}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-1.5 bg-white rounded-lg border border-black/[0.04] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                    <div className="flex items-center gap-1 text-[11px] font-semibold text-neutral-700 min-w-0">
-                      <ImageIcon size={11} className="text-neutral-400 shrink-0" />
-                      <span className="truncate">AI Image</span>
-                    </div>
-                    <span className="text-[11px] font-bold text-neutral-900 shrink-0 tabular-nums">
-                      {estimates.image_standard}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-1.5 bg-white rounded-lg border border-black/[0.04] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                    <div className="flex items-center gap-1 text-[11px] font-semibold text-neutral-700 min-w-0">
-                      <Wand2 size={11} className="text-neutral-400 shrink-0" />
-                      <span className="truncate">Magic Edit</span>
-                    </div>
-                    <span className="text-[11px] font-bold text-neutral-900 shrink-0 tabular-nums">
-                      {estimates.magic_edit}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer Upgrade Link */}
-              <div className="p-3 bg-white border-t border-black/[0.05] flex items-center justify-between gap-2">
-                <span className="text-[10px] text-neutral-400 font-medium">
-                  Renews monthly
-                </span>
                 <Link
                   href="/pricing"
                   onClick={() => setIsOpen(false)}
-                  className="text-[11px] font-bold text-primary hover:underline transition-all"
+                  className="px-4 py-2 bg-neutral-900 hover:bg-black text-white text-[11px] font-bold rounded-xl transition-all shadow-lg shadow-black/10 active:scale-95"
                 >
-                  Upgrade Tier →
+                  Upgrade Tier
                 </Link>
               </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
+
+      <style jsx global>{`
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        .animate-shimmer {
+          animation: shimmer 3s infinite linear;
+        }
+      `}</style>
     </div>
   );
 }
+
+function CostCard({ icon, label, cost }: { icon: React.ReactNode, label: string, cost: string }) {
+  return (
+    <div className="group flex items-center justify-between p-3 bg-white hover:bg-neutral-50 rounded-2xl border border-black/[0.04] transition-all hover:shadow-sm">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div className="w-7 h-7 rounded-lg bg-neutral-50 group-hover:bg-primary/5 flex items-center justify-center text-neutral-400 group-hover:text-primary transition-colors border border-black/[0.02]">
+          {icon}
+        </div>
+        <span className="text-[11px] font-bold text-neutral-600 truncate tracking-tight">{label}</span>
+      </div>
+      <div className="flex items-center gap-1 pl-2">
+        <span className="text-[12px] font-black text-neutral-900 tabular-nums">{cost}</span>
+        <span className="text-[8px] font-black text-neutral-300 uppercase">CR</span>
+      </div>
+    </div>
+  );
+}
+
