@@ -43,12 +43,12 @@ function AccountContent() {
 
           const { data: profile } = await supabase
             .from('profiles')
-            .select('plan, generations_used')
+            .select('plan, credits_used_month')
             .eq('id', user.id)
             .maybeSingle();
           if (profile) {
             setUserPlan(profile.plan?.toLowerCase() || 'free');
-            setGenerationsUsed(profile.generations_used || 0);
+            setGenerationsUsed(profile.credits_used_month || 0);
           } else if (retryCount < 3 && searchParams.get('payment') === 'success') {
             setTimeout(() => init(retryCount + 1), 2000);
           }

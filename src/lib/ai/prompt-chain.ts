@@ -1,5 +1,6 @@
 import { openRouterComplete, extractJsonObject } from '@/lib/ai/openrouter';
-import { AGENT_MODELS } from '@/lib/ai/agent-models';
+import { selectTextModel, shouldRunDeepReasoning } from '@/lib/ai/router';
+import { aiCacheGet, aiCacheSet, makeAiCacheKey } from '@/lib/ai/cache';
 
 /** Human-readable progress only — never model IDs (shown in UI). */
 export type OrchestrationProgress = (phase: string, message: string) => void;
@@ -122,14 +123,40 @@ export async function runOpenRouterOrchestration(
   appUrl: string,
   rawUserPrompt: string,
   meta: { slideCount: number; tone: string; language: string },
-  onProgress?: OrchestrationProgress
+  onProgress?: OrchestrationProgress,
+  opts?: { plan?: string; spendState?: { forcedEconomyMode: boolean } }
 ): Promise<{ dossierText: string; refinedBrief: string; preflightSummary: string }> {
+  const plan = String(opts?.plan || 'free').toLowerCase();
+  const orchKey = makeAiCacheKey({
+    kind: 'orchestration',
+    plan,
+    prompt: rawUserPrompt,
+    slideCount: meta.slideCount,
+    tone: meta.tone,
+    language: meta.language,
+  });
+  const cached = await aiCacheGet<Record<string, unknown>>(orchKey);
+  if (cached && typeof cached === 'object') {
+    onProgress?.('cache', 'Reusing a cached orchestration brief…');
+    return {
+      dossierText: String(cached.dossierText || ''),
+      refinedBrief: String(cached.refinedBrief || rawUserPrompt),
+      preflightSummary: String(cached.preflightSummary || '{}'),
+    };
+  }
+
   const baseCtx = `Original user request:\n${rawUserPrompt}\n\nParameters: exactly ${meta.slideCount} slides, tone=${meta.tone}, language=${meta.language}.`;
 
   onProgress?.('understanding', 'Understanding your vision…');
+  const intentModel = selectTextModel({
+    plan: opts?.plan,
+    task: 'deck_intent',
+    complexity: { promptChars: rawUserPrompt.length, slideCount: meta.slideCount },
+    spendState: opts?.spendState,
+  });
   const intentOut = await step(
     appUrl,
-    AGENT_MODELS.gptOrchestrator,
+    intentModel.model,
     S_INTENT,
     baseCtx,
     2000,
@@ -143,11 +170,23 @@ export async function runOpenRouterOrchestration(
     String(intent.needsDeepReasoning).toLowerCase() === 'true';
 
   let reasonOut = '';
-  if (needsDeep) {
+  const allowDeep = shouldRunDeepReasoning({
+    plan: opts?.plan,
+    needsDeepReasoning: needsDeep,
+    slideCount: meta.slideCount,
+    spendState: opts?.spendState,
+  });
+  if (allowDeep) {
     onProgress?.('reasoning', 'Adding strategic depth…');
+    const reasonModel = selectTextModel({
+      plan: opts?.plan,
+      task: 'deck_reason',
+      complexity: { promptChars: rawUserPrompt.length, slideCount: meta.slideCount, needsDeepReasoning: true },
+      spendState: opts?.spendState,
+    });
     reasonOut = await step(
       appUrl,
-      AGENT_MODELS.deepseekReason,
+      reasonModel.model,
       S_REASON,
       `${baseCtx}\n\nAnalyst JSON:\n${intentOut || '{}'}`,
       2200,
@@ -158,9 +197,20 @@ export async function runOpenRouterOrchestration(
   }
 
   onProgress?.('structure', 'Structuring slides and flow…');
+  const structureModel = selectTextModel({
+    plan: opts?.plan,
+    task: 'deck_structure',
+    complexity: {
+      promptChars: rawUserPrompt.length,
+      slideCount: meta.slideCount,
+      needsDeepReasoning: allowDeep,
+      presentationType: typeof intent.presentationType === 'string' ? intent.presentationType : undefined,
+    },
+    spendState: opts?.spendState,
+  });
   const structOut = await step(
     appUrl,
-    AGENT_MODELS.claudeStructure,
+    structureModel.model,
     S_STRUCTURE,
     `${baseCtx}\n\nAnalyst JSON:\n${intentOut || '{}'}${
       reasonOut ? `\n\nStrategy memo:\n${reasonOut}` : ''
@@ -188,6 +238,13 @@ export async function runOpenRouterOrchestration(
   ].join('\n\n');
 
   onProgress?.('synthesis', 'Brief locked — composing deck…');
+
+  void aiCacheSet(
+    orchKey,
+    { dossierText, refinedBrief, preflightSummary },
+    // Keep short TTL for cost savings without making behavior feel stale.
+    15 * 60
+  );
 
   return { dossierText, refinedBrief, preflightSummary };
 }

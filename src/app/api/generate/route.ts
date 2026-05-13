@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { getDeckComposerModels } from '@/lib/ai/models';
 import { buildComposerMessages } from '@/lib/ai/orchestration';
 import { runOpenRouterOrchestration } from '@/lib/ai/prompt-chain';
 import { openRouterStream } from '@/lib/ai/openrouter';
+import { selectTextModel } from '@/lib/ai/router';
+import { ensureCredits, estimateDeckCostCredits, getCreditConfig } from '@/lib/billing/credits';
+import { addEstimatedSpend, getSpendState } from '@/lib/ai/spend';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -44,19 +46,12 @@ export async function POST(req: Request) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('plan, generations_used')
+      .select('plan')
       .eq('id', user.id)
       .maybeSingle();
 
     const plan = profile?.plan?.toLowerCase() || user.user_metadata?.plan?.toLowerCase() || 'free';
-    const usedGenerations = profile?.generations_used || 0;
 
-    const LIMITS: Record<string, number> = {
-      free: 3,
-      pro: 10,
-      student_pro: 10,
-      creator_pro: 40,
-    };
     const MAX_SLIDES: Record<string, number> = {
       free: 5,
       pro: 25,
@@ -64,39 +59,47 @@ export async function POST(req: Request) {
       creator_pro: 40,
     };
 
-    const generationLimit = LIMITS[plan] || 3;
     const maxSlides = MAX_SLIDES[plan] || 5;
     const finalSlideCount = Math.min(Math.max(1, slideCount), maxSlides);
-
-    if (usedGenerations >= generationLimit) {
-      const isFree = plan === 'free' || !plan;
-      const planLabel = isFree ? 'Free' : plan === 'creator_pro' ? 'Creator Pro' : 'Student Pro';
-      const limitKind = isFree ? 'lifetime' : 'monthly';
-      return NextResponse.json({
-        error: 'LIMIT_REACHED',
-        message: isFree
-          ? `You've used all ${generationLimit} of your ${planLabel} AI presentations (${limitKind} limit). Upgrade to create more.`
-          : `You've used all ${generationLimit} of your ${planLabel} ${limitKind} AI generations.`,
-        used: usedGenerations,
-        limit: generationLimit,
-      }, { status: 403 });
-    }
-
-    const { primary: primaryModel, fallback: fallbackModel } = getDeckComposerModels();
 
     const userPrompt = String(prompt || '').trim();
     if (!userPrompt) {
       return NextResponse.json({ error: 'Prompt is required.' }, { status: 400 });
     }
 
+    // Credits gate (configurable). We estimate before running any AI calls.
+    const creditConfig = await getCreditConfig(supabase);
+    const estimatedCredits = estimateDeckCostCredits({
+      slideCount: finalSlideCount,
+      includeImages: true,
+      premiumImages: plan === 'creator_pro' || plan === 'admin',
+      config: creditConfig,
+    });
+    const creditCheck = await ensureCredits({
+      supabase,
+      userId: user.id,
+      planRaw: plan,
+      cost: estimatedCredits,
+      action: finalSlideCount <= 6 ? 'deck_small' : finalSlideCount <= 15 ? 'deck_medium' : 'deck_large',
+      meta: { slides: finalSlideCount, estimatedCredits },
+    });
+    if (!creditCheck.ok) {
+      return NextResponse.json(
+        {
+          error: 'INSUFFICIENT_CREDITS',
+          message: `You don't have enough credits for this generation.`,
+          credits: creditCheck.summary,
+          required: estimatedCredits,
+        },
+        { status: 402 },
+      );
+    }
 
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ generations_used: usedGenerations + 1 })
-      .eq('id', user.id);
-
-    if (updateError) {
-      console.error('[Generate] Failed to increment generations_used:', updateError.message);
+    // Estimated spend tracking (credit-based approximation for protection).
+    // Best-effort only; must never break generation.
+    const usdPerCredit = typeof creditConfig.usdPerCredit === 'number' ? creditConfig.usdPerCredit : 0;
+    if (usdPerCredit > 0) {
+      void addEstimatedSpend({ supabase, usdDelta: estimatedCredits * usdPerCredit });
     }
 
     const encoder = new TextEncoder();
@@ -116,6 +119,17 @@ export async function POST(req: Request) {
             },
           });
 
+          // Global spend protection signal (best-effort). Router will downshift if threshold is exceeded.
+          const spend = await getSpendState({ supabase });
+          const spendState = { forcedEconomyMode: spend.forcedEconomyMode };
+
+          sendOrb({
+            orb: {
+              phase: 'structure_complete',
+              message: 'Locking the narrative spine…',
+            },
+          });
+
           const { dossierText, refinedBrief, preflightSummary } = await runOpenRouterOrchestration(
             APP_URL,
             userPrompt,
@@ -131,7 +145,8 @@ export async function POST(req: Request) {
                   message,
                 },
               });
-            }
+            },
+            { plan, spendState },
           );
 
           sendOrb({
@@ -158,6 +173,20 @@ export async function POST(req: Request) {
             },
           });
 
+          const composerPrimary = selectTextModel({
+            plan,
+            task: 'deck_compose',
+            complexity: { promptChars: userPrompt.length, slideCount: finalSlideCount },
+            spendState,
+          });
+
+          const composerFallback = selectTextModel({
+            plan: 'creator_pro', // fallback is allowed to be slightly stronger; still gated by availability
+            task: 'deck_compose',
+            complexity: { promptChars: userPrompt.length, slideCount: finalSlideCount },
+            spendState,
+          });
+
           async function tryStream(model: string): Promise<boolean> {
             const res = await openRouterStream(APP_URL, {
               model,
@@ -180,15 +209,15 @@ export async function POST(req: Request) {
             return true;
           }
 
-          let ok = await tryStream(primaryModel);
-          if (!ok && fallbackModel) {
+          let ok = await tryStream(composerPrimary.model);
+          if (!ok && composerFallback.model && composerFallback.model !== composerPrimary.model) {
             sendOrb({
               orb: {
                 phase: 'fallback',
                 message: 'Continuing with an alternate composer…',
               },
             });
-            ok = await tryStream(fallbackModel);
+            ok = await tryStream(composerFallback.model);
           }
           if (!ok) {
             sendOrb({

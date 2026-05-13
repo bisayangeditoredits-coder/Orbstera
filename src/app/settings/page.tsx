@@ -99,13 +99,15 @@ export default function SettingsPage() {
   const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
   const fullName = user?.user_metadata?.full_name || 'Creator';
 
-  const used = profile?.generations_used || 0;
+  const used = profile?.credits_used_month || 0;
   const max =
-    profile?.plan === 'creator_pro'
-      ? 100
-      : profile?.plan === 'student_pro'
-        ? 30
-        : 3;
+    typeof profile?.credits_monthly_limit === 'number'
+      ? profile.credits_monthly_limit
+      : profile?.plan === 'creator_pro'
+        ? 8000
+        : profile?.plan === 'student_pro'
+          ? 1500
+          : 100;
   const remaining = Math.max(0, max - used);
   const percentUsed = Math.min(100, Math.round((used / max) * 100));
 

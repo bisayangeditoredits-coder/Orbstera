@@ -63,7 +63,7 @@ export default function AdminDashboard() {
   };
 
   const totalPro = users.filter(u => u.user_metadata?.plan === 'pro').length;
-  const totalGenerations = users.reduce((acc, u) => acc + (u.user_metadata?.generations_used || 0), 0);
+  const totalGenerations = users.reduce((acc, u) => acc + (u.user_metadata?.credits_used_month || 0), 0);
   const totalRevenue = totalPro * 19; 
 
   if (loading) {
@@ -145,7 +145,7 @@ export default function AdminDashboard() {
                   {users.map((u) => {
                     const plan = u.user_metadata?.plan || 'free';
                     const isPro = plan === 'pro';
-                    const used = u.user_metadata?.generations_used || 0;
+                    const used = u.user_metadata?.credits_used_month || 0;
                     const date = new Date(u.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
                     const isUpdating = updatingId === u.id;
                     
