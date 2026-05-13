@@ -368,8 +368,8 @@ const PAD = 48;
 // Zoom boundaries
 const ZOOM_MIN = 0.15;
 const ZOOM_MAX = 3;
-// Smooth zoom step per scroll tick
-const SCROLL_ZOOM_SPEED = 0.0012;
+// Snappy zoom speed (higher = faster zoom per scroll tick)
+const SCROLL_ZOOM_SPEED = 0.0075;
 
 export function CanvasArea() {
   const [containerSize, setContainerSize] = useState({ w: 900, h: 600 });
