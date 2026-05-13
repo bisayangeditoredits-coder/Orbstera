@@ -20,39 +20,12 @@ import {
   Sparkles, X, ChevronDown, Loader2, Wand2,
   Crown, Globe, ArrowRight,
   Save, Trash2, Download, AlertCircle, Plus, Mic, MicOff,
-  Briefcase, Palette, Zap, Minus, BookOpen, FlaskConical
+  Briefcase, Palette, Zap, Minus, BookOpen, FlaskConical,
+  Layers, Image as ImageIcon, Info
 } from 'lucide-react';
+import { useCredits } from '@/hooks/useCredits';
 
-type CreditSummary = {
-  plan: string;
-  monthlyLimit: number;
-  used: number;
-  remaining: number;
-  resetAt: string | null;
-};
 
-function useCreditSummary() {
-  const [summary, setSummary] = useState<CreditSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const refresh = useCallback(async () => {
-    try {
-      const res = await fetch('/api/credits/summary');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.ok && data.summary) setSummary(data.summary);
-      }
-    } catch {
-      /* ignore */
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { refresh(); }, [refresh]);
-
-  return { summary, loading, refresh };
-}
 
 interface GeneratePanelProps {
   onClose?: () => void;
@@ -154,80 +127,100 @@ function CollapsibleSection({
 // ─── Credits Tracker Component ───────────────────────────────────────────────
 
 function CreditsTracker({ onGenerated }: { onGenerated?: boolean }) {
-  const { summary, loading, refresh } = useCreditSummary();
+  const { remaining, monthlyLimit, used, plan, estimates, loading, refresh, usagePct } = useCredits();
 
   // Refresh after generation completes
   useEffect(() => {
     if (!onGenerated) refresh();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onGenerated]);
+  }, [onGenerated, refresh]);
 
-  if (loading || !summary) {
-    return (
-      <div className="h-10 rounded-xl bg-neutral-100/70 animate-pulse" />
-    );
+  if (loading) {
+    return <div className="h-28 rounded-2xl bg-neutral-100/70 animate-pulse border border-black/[0.04]" />;
   }
 
-  const pct = Math.min(100, Math.round((summary.used / Math.max(summary.monthlyLimit, 1)) * 100));
-  const isLow = summary.remaining < summary.monthlyLimit * 0.2;
-  const isEmpty = summary.remaining <= 0;
+  const planNameDisplay =
+    plan === 'creator_pro' ? 'Creator Pro' :
+    plan === 'student_pro' ? 'Student Pro' :
+    plan === 'pro'         ? 'Pro Plan' :
+    plan === 'admin'       ? 'Enterprise Admin' : 'Free Plan';
 
-  const planEmojis: Record<string, string> = {
-    free: '🆓',
-    student_pro: '🎓',
-    pro: '⚡',
-    creator_pro: '🚀',
-    admin: '👑',
-  };
-  const planEmoji = planEmojis[summary.plan] || '✨';
+  const isLow = remaining < 40;
+  const isEmpty = remaining <= 0;
 
   return (
-    <div className="rounded-2xl border border-black/[0.06] bg-neutral-50/80 px-3.5 py-2.5 space-y-2">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <span className="text-base leading-none">{planEmoji}</span>
-          <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-neutral-500">
-            AI Credits
+    <div className="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] space-y-3.5">
+      {/* Header section */}
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-neutral-400">
+              AI Credits Ledger
+            </span>
+            <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded">
+              {planNameDisplay}
+            </span>
+          </div>
+          <div className="flex items-baseline gap-1 mt-1">
+            <span className={`text-[18px] font-black tracking-tight ${isEmpty ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-neutral-900'}`}>
+              {remaining.toLocaleString()}
+            </span>
+            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
+              CR Available
+            </span>
+          </div>
+        </div>
+
+        <div className="text-right">
+          <span className="text-[10px] font-bold text-neutral-500 block">
+            {used.toLocaleString()} / {monthlyLimit.toLocaleString()}
+          </span>
+          <span className="text-[9px] font-medium text-neutral-400 block">
+            {usagePct}% consumed
           </span>
         </div>
-        <span className={`text-[10px] font-black tracking-tight ${isEmpty ? 'text-red-500' : isLow ? 'text-amber-500' : 'text-emerald-600'}`}>
-          {isEmpty ? '😱 Empty' : isLow ? `⚠️ ${summary.remaining} left` : `✅ ${summary.remaining.toLocaleString()} left`}
-        </span>
       </div>
 
-      {/* Progress Bar */}
-      <div className="relative h-1.5 w-full bg-black/[0.06] rounded-full overflow-hidden">
+      {/* Modern thin line progress bar */}
+      <div className="relative h-1 w-full bg-neutral-100 rounded-full overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.6, ease: 'circOut' }}
+          animate={{ width: `${Math.min(100, Math.max(0, usagePct))}%` }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
           className={`absolute inset-y-0 left-0 rounded-full ${
-            isEmpty ? 'bg-red-500' : isLow ? 'bg-amber-400' : 'bg-primary'
+            isEmpty ? 'bg-red-500' : isLow ? 'bg-amber-500' : 'bg-primary'
           }`}
         />
       </div>
 
-      {/* Stats Row */}
-      <div className="flex items-center justify-between text-[9px] font-semibold text-neutral-400 uppercase tracking-widest">
-        <span>Used: {summary.used.toLocaleString()}</span>
-        <span>Limit: {summary.monthlyLimit.toLocaleString()}</span>
-      </div>
+      {/* Precise Action Costs List */}
+      <div className="pt-1.5 border-t border-black/[0.04] space-y-1.5">
+        <div className="text-[8px] font-extrabold uppercase tracking-[0.16em] text-neutral-400 flex items-center justify-between">
+          <span>AI Engine Action</span>
+          <span>Cost (Credits)</span>
+        </div>
 
-      {/* Cost hints */}
-      <div className="flex gap-2 flex-wrap pt-0.5">
-        {[
-          { label: '🎨 Small deck', cost: 40 },
-          { label: '⚡ Med deck', cost: 80 },
-          { label: '🚀 Large deck', cost: 150 },
-        ].map(({ label, cost }) => (
-          <span
-            key={label}
-            className="inline-flex items-center gap-1 text-[9px] font-semibold text-neutral-400 bg-black/[0.04] px-2 py-0.5 rounded-full"
-          >
-            {label} <span className="text-neutral-500 font-black">·{cost}cr</span>
-          </span>
-        ))}
+        <div className="grid grid-cols-1 gap-1 text-[11px]">
+          <div className="flex items-center justify-between py-0.5 font-medium text-neutral-600">
+            <span>Generate Presentation</span>
+            <span className="font-bold text-neutral-900">{estimates.deck_small} - {estimates.deck_large} CR</span>
+          </div>
+          <div className="flex items-center justify-between py-0.5 font-medium text-neutral-600">
+            <span>Edit with AI</span>
+            <span className="font-bold text-neutral-900">{estimates.magic_edit} CR</span>
+          </div>
+          <div className="flex items-center justify-between py-0.5 font-medium text-neutral-600">
+            <span>Generative Fill</span>
+            <span className="font-bold text-neutral-900">10 CR</span>
+          </div>
+          <div className="flex items-center justify-between py-0.5 font-medium text-neutral-600">
+            <span>Add New Slide</span>
+            <span className="font-bold text-neutral-900">15 CR</span>
+          </div>
+          <div className="flex items-center justify-between py-0.5 font-medium text-neutral-600">
+            <span>AI Image Generation</span>
+            <span className="font-bold text-neutral-900">{estimates.image_standard} CR</span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1081,110 +1074,9 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               </div>
             </CollapsibleSection>
 
-            {/* ── TONE & STYLE ── */}
-            <CollapsibleSection
-              title="Tone & Style"
-              summary={selectedTone}
-              expanded={expandTone}
-              onToggle={() => setExpandTone((v) => !v)}
-            >
-              <div className="grid grid-cols-2 gap-1.5">
-                {TONE_OPTIONS.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setSelectedTone(t.label)}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left transition-all ${
-                      selectedTone === t.label
-                        ? 'bg-primary/[0.07] border-primary/30 text-primary'
-                        : 'bg-white border-black/[0.07] text-neutral-600 hover:border-primary/20 hover:bg-primary/[0.03]'
-                    }`}
-                  >
-                    <t.Icon size={13} strokeWidth={1.75} className="shrink-0" />
-                    <span className="text-[11px] font-semibold">{t.label}</span>
-                  </button>
-                ))}
-              </div>
-            </CollapsibleSection>
-
-            {/* ── VISUAL THEME ── */}
-            <CollapsibleSection
-              title="Visual Theme"
-              summary={selectedTheme}
-              expanded={expandTheme}
-              onToggle={() => setExpandTheme((v) => !v)}
-            >
-              <div className="flex flex-col gap-1.5">
-                {THEME_OPTIONS.map((th) => (
-                  <button
-                    key={th.id}
-                    type="button"
-                    onClick={() => setSelectedTheme(th.label)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${
-                      selectedTheme === th.label
-                        ? 'bg-primary/[0.07] border-primary/30'
-                        : 'bg-white border-black/[0.07] hover:border-primary/20 hover:bg-primary/[0.03]'
-                    }`}
-                  >
-                    <div className={`w-7 h-7 rounded-lg flex-shrink-0 ${th.preview}`} />
-                    <div className="min-w-0">
-                      <p className={`text-[11px] font-semibold ${selectedTheme === th.label ? 'text-primary' : 'text-neutral-800'}`}>{th.label}</p>
-                      <p className="text-[10px] text-neutral-400 truncate">{th.desc}</p>
-                    </div>
-                    {selectedTheme === th.label && (
-                      <div className="ml-auto w-4 h-4 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </CollapsibleSection>
-
-            {/* ── LANGUAGE ── */}
-            <CollapsibleSection
-              title="Output Language"
-              summary={selectedLanguage}
-              expanded={expandLanguage}
-              onToggle={() => setExpandLanguage((v) => !v)}
-            >
-              <div className="grid grid-cols-2 gap-1.5">
-                {LANGUAGE_OPTIONS.map((lang) => (
-                  <button
-                    key={lang.code}
-                    type="button"
-                    onClick={() => setSelectedLanguage(lang.label)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all ${
-                      selectedLanguage === lang.label
-                        ? 'bg-primary/[0.07] border-primary/30 text-primary'
-                        : 'bg-white border-black/[0.07] text-neutral-600 hover:border-primary/20'
-                    }`}
-                  >
-                    <span className="text-sm">{lang.flag}</span>
-                    <span className="text-[11px] font-semibold truncate">{lang.label}</span>
-                  </button>
-                ))}
-              </div>
-            </CollapsibleSection>
-
-            {/* ── AI QUICK PROMPTS ── */}
-            <div className="rounded-2xl border border-black/[0.07] bg-white/80 shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
-              <div className="px-3 py-2 border-b border-black/[0.05]">
-                <div className="text-[10px] font-semibold text-neutral-400 uppercase tracking-[0.14em]">Quick Prompts</div>
-              </div>
-              <div className="p-2 flex flex-col gap-1">
-                {EXAMPLE_PROMPTS.map((ex, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => fillExample(ex)}
-                    className="w-full text-left px-3 py-2 rounded-xl text-[11px] text-neutral-600 font-medium hover:bg-primary/[0.05] hover:text-primary transition-all leading-snug group flex items-start gap-2"
-                  >
-                    <span className="mt-0.5 text-neutral-300 group-hover:text-primary transition-colors flex-shrink-0">→</span>
-                    <span className="line-clamp-2">{ex}</span>
-                  </button>
-                ))}
-              </div>
+            {/* ── LIVE AI CREDITS CONSUMPTION LEDGER ── */}
+            <div className="pt-2">
+              <CreditsTracker onGenerated={isLoading} />
             </div>
 
           </>
@@ -1254,8 +1146,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         )}
       </div>
 
-      {/* Consistent Luxury CTA + Credits Tracker */}
-      <div className="shrink-0 px-4 sm:px-5 pt-3.5 pb-3 border-t border-black/[0.06] bg-white relative z-50 space-y-3">
+      {/* Consistent Luxury CTA */}
+      <div className="shrink-0 px-4 sm:px-5 pt-3.5 pb-3 border-t border-black/[0.06] bg-white relative z-50">
         <button
           type="button"
           onClick={handleGenerateClick}
@@ -1270,16 +1162,13 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               </>
             ) : (
               <>
-                <span className="text-[14px] font-semibold tracking-tight">✨ Generate Presentation</span>
+                <span className="text-[14px] font-semibold tracking-tight">Generate Presentation</span>
                 <ArrowRight size={18} strokeWidth={1.75} className="group-hover:translate-x-0.5 transition-transform" />
               </>
             )}
           </div>
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 group-hover:opacity-100 group-hover:translate-x-full transition-all duration-700 translate-x-[-100%]" />
         </button>
-
-        {/* ── Credits Tracker ── */}
-        <CreditsTracker onGenerated={isLoading} />
       </div>
 
       {/* Save/Discard/Append Confirmation Modal */}
