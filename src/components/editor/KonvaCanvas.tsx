@@ -609,9 +609,101 @@ export function KonvaCanvas({ scale }: KonvaCanvasProps) {
   }, [mounted, editor.activeTool, editor.selectedElementId, slide, selectElement, removeElement, editingTextId]);
 
   const handleStageClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (editor.activeTool !== 'select') return;
-    if (e.target === e.target.getStage()) selectElement(null);
-  }, [selectElement, editor.activeTool]);
+    const activeTool = editor.activeTool;
+    
+    // If we're in select mode, just handle deselecting elements
+    if (activeTool === 'select') {
+      if (e.target === e.target.getStage()) selectElement(null);
+      return;
+    }
+
+    // If we have an active insertion tool (text, shape, etc.), handle addition
+    const stage = e.target.getStage();
+    const pos = stage?.getPointerPosition();
+    if (!pos || !stage || !slide) return;
+
+    // Use current state to add the element
+    const store = usePresentationStore.getState();
+    const sIdx = currentSlideIndex;
+    const createId = (p: string) => `${p}-${sIdx}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+
+    const base = {
+      id: createId('el-tool'),
+      x: pos.x,
+      y: pos.y,
+      opacity: 1,
+      visible: true,
+      locked: false,
+      zIndex: (slide.elements?.length || 0) + 1,
+    };
+
+    let el: SlideElement | null = null;
+
+    if (activeTool === 'text') {
+      el = {
+        ...base, type: 'text', width: 400, height: 100,
+        content: 'Edit your text',
+        textStyle: {
+          fontFamily: presentation?.fontPairing?.heading || 'Inter',
+          fontSize: 42, fontWeight: 'bold',
+          color: presentation?.colorPalette?.[1] || '#FFFFFF',
+          textAlign: 'left', lineHeight: 1.2,
+        },
+      };
+    } else if (activeTool === 'rect') {
+      el = {
+        ...base, type: 'shape', shapeType: 'rect', width: 300, height: 180,
+        shapeStyle: { fill: presentation?.colorPalette?.[2] || '#7B61FF', stroke: 'transparent', strokeWidth: 0, cornerRadius: 12 },
+      };
+    } else if (activeTool === 'circle') {
+      el = {
+        ...base, type: 'shape', shapeType: 'circle', width: 200, height: 200,
+        shapeStyle: { fill: presentation?.colorPalette?.[2] || '#10B981', stroke: 'transparent', strokeWidth: 0 },
+      };
+    } else if (activeTool === 'triangle') {
+      el = {
+        ...base, type: 'shape', shapeType: 'triangle', width: 220, height: 200,
+        shapeStyle: { fill: presentation?.colorPalette?.[3] || '#F43F5E', stroke: 'transparent', strokeWidth: 0 },
+      };
+    } else if (activeTool === 'star') {
+      el = {
+        ...base, type: 'shape', shapeType: 'star', width: 200, height: 200,
+        shapeStyle: { fill: presentation?.colorPalette?.[2] || '#FBBF24', stroke: 'transparent', strokeWidth: 0 },
+      };
+    } else if (activeTool === 'line') {
+      el = {
+        ...base, type: 'shape', shapeType: 'line', width: 300, height: 4,
+        shapeStyle: { fill: 'transparent', stroke: presentation?.colorPalette?.[1] || '#FFFFFF', strokeWidth: 3 },
+      };
+    } else if (activeTool === 'arrow') {
+      el = {
+        ...base, type: 'shape', shapeType: 'arrow', width: 300, height: 60,
+        shapeStyle: { fill: presentation?.colorPalette?.[2] || '#7B61FF', stroke: 'transparent', strokeWidth: 0 },
+      };
+    } else if (activeTool === 'chart') {
+      el = { ...base, type: 'chart', width: 500, height: 300 };
+    }
+
+    if (el) {
+      // Adjust x/y to be centered on the click for shapes
+      const isCentered = el.shapeType === 'circle' || el.shapeType === 'triangle' || el.shapeType === 'star';
+      if (!isCentered) {
+        el.x -= el.width / 2;
+        el.y -= el.height / 2;
+      }
+      
+      store.addElement(slide.id, el);
+      store.selectElement(el.id);
+      // Switch back to select tool
+      store.setEditorState({ activeTool: 'select' });
+    }
+  }, [selectElement, editor.activeTool, slide, presentation, currentSlideIndex]);
+
+
+
+
+
+
 
   const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     if (editor.activeTool !== 'gen-fill') return;
