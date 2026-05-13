@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { gunzipSync } from 'node:zlib';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import { createServerClient } from '@supabase/ssr';
@@ -109,7 +110,11 @@ export async function POST(req: Request) {
   const prefix = `presentations/${user.id}`;
 
   try {
-    const presentation = await req.json();
+    const encoding = (req.headers.get('content-encoding') || '').toLowerCase();
+    const raw = Buffer.from(await req.arrayBuffer());
+    const jsonStr =
+      encoding === 'gzip' ? gunzipSync(raw).toString('utf8') : raw.toString('utf8');
+    const presentation = JSON.parse(jsonStr);
     
     // ─── VALIDATION ───
     // Prevent "Generating..." placeholders or empty decks from polluting the dashboard index.

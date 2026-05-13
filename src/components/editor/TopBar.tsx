@@ -16,6 +16,7 @@ import {
   PanelLeft,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { postPresentationCloudSave } from '@/lib/presentation-cloud-save';
 import { CreditsHUD } from './CreditsHUD';
 
 // ── Export Progress Modal ─────────────────────────────────────────────────────
@@ -351,12 +352,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
     if (!body?.id) return;
     setEditorState({ cloudSyncStatus: 'saving', cloudSyncMessage: undefined });
     try {
-      const res = await fetch('/api/presentations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        cache: 'no-store',
-      });
+      const { response: res, prepared } = await postPresentationCloudSave(body);
       const data = await res.json().catch(() => ({}));
       if (res.status === 409) {
         setEditorState({
@@ -365,11 +361,19 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
         });
         return;
       }
-      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Save failed');
+      if (!res.ok) {
+        if (res.status === 413) {
+          throw new Error(
+            'Deck too large to upload in one request. Set NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL for image offload, or reduce embedded images.',
+          );
+        }
+        throw new Error(typeof data.error === 'string' ? data.error : 'Save failed');
+      }
       if (data.success && typeof data.saveVersion === 'number') {
         usePresentationStore.getState().updatePresentation({
           saveVersion: data.saveVersion,
           lastCloudSavedAt: data.updatedAt || new Date().toISOString(),
+          slides: prepared.slides,
         });
       }
       setEditorState({ cloudSyncStatus: 'saved' });

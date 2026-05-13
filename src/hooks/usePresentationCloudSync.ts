@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
+import { postPresentationCloudSave } from '@/lib/presentation-cloud-save';
 
 const DEBOUNCE_MS = 2400;
 
@@ -36,12 +37,7 @@ export function usePresentationCloudSync() {
       }
 
       try {
-        const res = await fetch('/api/presentations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-          cache: 'no-store',
-        });
+        const { response: res, prepared } = await postPresentationCloudSave(body);
         const data = await res.json().catch(() => ({}));
 
         if (res.status === 401) {
@@ -61,6 +57,11 @@ export function usePresentationCloudSync() {
         }
 
         if (!res.ok) {
+          if (res.status === 413) {
+            throw new Error(
+              'Save failed: deck too large for one upload. Set NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL so images can be stored on R2, or remove heavy embedded images.',
+            );
+          }
           throw new Error(typeof data.error === 'string' ? data.error : `Save failed (${res.status})`);
         }
 
@@ -73,6 +74,7 @@ export function usePresentationCloudSync() {
           updatePresentation({
             saveVersion: data.saveVersion,
             lastCloudSavedAt: data.updatedAt || new Date().toISOString(),
+            slides: prepared.slides,
           });
         }
 
