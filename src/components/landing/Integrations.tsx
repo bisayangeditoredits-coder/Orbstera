@@ -4,18 +4,18 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 
 const INTEGRATIONS = [
-  { name: "PowerPoint", icon: "/PNGs/Powerpoint.png" },
-  { name: "Keynote", icon: "/PNGs/Keynote.png" },
-  { name: "Canva", icon: "/PNGs/Canva.png" },
-  { name: "Figma", icon: "/PNGs/Figma.png" },
-  { name: "Notion", icon: "/PNGs/Notion.png" },
-  { name: "Slack", icon: "/PNGs/Slack.png" },
-  { name: "Zoom", icon: "/PNGs/Zoom.png" },
-  { name: "Photoshop", icon: "/PNGs/Photoshop.png" },
-  { name: "Visual Studio Code", icon: "/PNGs/Visual Studio Code.png" },
-  { name: "Google Chrome", icon: "/PNGs/Chrome.png" },
-  { name: "Excel", icon: "/PNGs/Excel.png" },
-  { name: "Word", icon: "/PNGs/Word.png" },
+  { name: "PowerPoint", icon: "/pngs/Powerpoint.png" },
+  { name: "Keynote", icon: "/pngs/Keynote.png" },
+  { name: "Canva", icon: "/pngs/Canva.png" },
+  { name: "Figma", icon: "/pngs/Figma.png" },
+  { name: "Notion", icon: "/pngs/Notion.png" },
+  { name: "Slack", icon: "/pngs/Slack.png" },
+  { name: "Zoom", icon: "/pngs/Zoom.png" },
+  { name: "Photoshop", icon: "/pngs/Photoshop.png" },
+  { name: "Visual Studio Code", icon: "/pngs/Visual Studio Code.png" },
+  { name: "Google Chrome", icon: "/pngs/Chrome.png" },
+  { name: "Excel", icon: "/pngs/Excel.png" },
+  { name: "Word", icon: "/pngs/Word.png" },
 ];
 
 export function Integrations() {
@@ -72,12 +72,15 @@ export function Integrations() {
               whileHover={{ y: -8, scale: 1.05 }}
               className="flex flex-col items-center justify-center p-6 rounded-[2rem] bg-white border border-black/[0.04] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.08)] hover:border-primary/20 transition-all duration-300 group cursor-default"
             >
-              <div className="relative w-16 h-16 sm:w-20 sm:h-20 mb-4 transition-transform duration-500 group-hover:rotate-[5deg]">
-                <Image
-                  src={item.icon}
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20 mb-4 transition-transform duration-500 group-hover:rotate-[5deg] flex items-center justify-center">
+                <img
+                  src={encodeURI(item.icon)}
                   alt={item.name}
-                  fill
-                  className="object-contain drop-shadow-[0_8px_15px_rgba(0,0,0,0.1)]"
+                  loading="lazy"
+                  className="w-full h-full object-contain drop-shadow-[0_8px_15px_rgba(0,0,0,0.1)]"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.opacity = '0.3';
+                  }}
                 />
               </div>
               <span className="text-[12px] font-bold text-neutral-400 group-hover:text-neutral-900 transition-colors tracking-tight uppercase">
