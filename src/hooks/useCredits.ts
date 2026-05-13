@@ -50,6 +50,8 @@ const DEFAULT_ESTIMATES: CreditEstimates = {
   animation_enhance: 5,
 };
 
+const LS_KEY = 'orbstera_credits_cache';
+
 const DEFAULT_STATE: CreditState = {
   loading:      true,
   error:        null,
@@ -70,11 +72,11 @@ const DEFAULT_STATE: CreditState = {
   },
 };
 
-// Cache in module scope so all hook instances share the same fetch
+// Cache in module scope
 let _cache: CreditState | null = null;
 let _cacheTs = 0;
 let _inflight: Promise<CreditState> | null = null;
-const CACHE_TTL_MS = 30_000; // 30s
+const CACHE_TTL_MS = 15_000; // 15s internal TTL
 
 async function fetchCredits(): Promise<CreditState> {
   const now = Date.now();
@@ -104,8 +106,15 @@ async function fetchCredits(): Promise<CreditState> {
         estimates:    json.estimates             ?? DEFAULT_ESTIMATES,
         canAfford:    json.canAfford             ?? DEFAULT_STATE.canAfford,
       };
+      
       _cache  = state;
       _cacheTs = Date.now();
+      
+      // Persist to localStorage for instant subsequent loads
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(LS_KEY, JSON.stringify({ state, ts: _cacheTs }));
+      }
+
       return state;
     } catch (e) {
       return { ...DEFAULT_STATE, loading: false, error: e instanceof Error ? e.message : 'fetch_error' };
@@ -123,28 +132,40 @@ export function invalidateCreditCache() {
 }
 
 /**
- * useCredits — lightweight hook for real-time credit state.
- * Fetches once per mount and refreshes every `refreshInterval` ms.
- *
- * @param refreshInterval How often to re-fetch in ms. Default 60 000 (1 min).
+ * useCredits — high-performance hook with localStorage caching and background revalidation.
  */
 export function useCredits(refreshInterval = 60_000): CreditState & { refresh: () => void } {
-  const [state, setState] = useState<CreditState>(DEFAULT_STATE);
+  // Try to initialize from memory cache or localStorage for instant UI
+  const [state, setState] = useState<CreditState>(() => {
+    if (_cache) return _cache;
+    
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved) {
+        try {
+          const { state: s, ts } = JSON.parse(saved);
+          // Only use if less than 24h old to avoid stale info
+          if (Date.now() - ts < 86_400_000) {
+            _cache = { ...s, loading: false };
+            _cacheTs = ts;
+            return _cache;
+          }
+        } catch (_) {}
+      }
+    }
+    return DEFAULT_STATE;
+  });
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const load = useCallback(async () => {
-    invalidateCreditCache(); // force fresh fetch on manual refresh
+  const refresh = useCallback(async () => {
+    invalidateCreditCache();
     const next = await fetchCredits();
     setState(next);
   }, []);
 
-  const refresh = useCallback(() => {
-    invalidateCreditCache();
-    fetchCredits().then(setState);
-  }, []);
-
   useEffect(() => {
-    // Initial load (use cache if fresh)
+    // Background revalidation
     fetchCredits().then(setState);
 
     if (refreshInterval > 0) {
