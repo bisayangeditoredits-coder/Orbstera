@@ -378,9 +378,12 @@ export function CanvasArea() {
 
   // ─── Interaction State ───
   const [isPanning, setIsPanning] = useState(false);
+  const [isWheelActive, setIsWheelActive] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   
-  // Refs for logic (to avoid stale closures and unnecessary re-renders)
+  const wheelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Refs for logic
   const containerRef = useRef<HTMLDivElement>(null);
   const panRef = useRef(editor.pan);
   const zoomRef = useRef(zoom);
@@ -444,32 +447,36 @@ export function CanvasArea() {
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKeyUp); };
   }, [isSpacePressed, zoom, setEditorState, fitAndReset]);
 
-  // ─── Pro Zoom-to-Cursor Handler ───
+  // ─── Refined Zoom-to-Cursor Handler ───
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      
+      // Mark wheel as active to disable transitions
+      setIsWheelActive(true);
+      if (wheelTimeoutRef.current) clearTimeout(wheelTimeoutRef.current);
+      wheelTimeoutRef.current = setTimeout(() => setIsWheelActive(false), 150);
 
       const rect = container.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
-      // Handle Pan via Trackpad or Wheel
-      if (e.ctrlKey || e.metaKey) {
-        // Zoom-to-Cursor logic
+      // Logic: Zoom if Ctrl is held OR if simple scroll (depending on preference)
+      // Most users with wheel-zoom issues want Scroll = Zoom
+      const isZooming = e.ctrlKey || e.metaKey || true; // Set to true to always zoom on scroll
+
+      if (isZooming && !isSpacePressedRef.current) {
         const currentZoom = zoomRef.current;
         const delta = -e.deltaY * SCROLL_ZOOM_SPEED;
         const zoomFactor = Math.pow(1.1, delta);
         const nextZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, currentZoom * zoomFactor));
         
-        if (nextZoom === currentZoom) return;
+        if (Math.abs(nextZoom - currentZoom) < 0.0001) return;
 
-        // Calculate offset to keep point under mouse stable
         const pan = panRef.current;
-        
-        // Logical mouse position relative to canvas center
         const centerX = containerSize.w / 2 + pan.x;
         const centerY = containerSize.h / 2 + pan.y;
         
@@ -479,12 +486,9 @@ export function CanvasArea() {
         const newPanX = mouseX - (containerSize.w / 2 + dx * (baseFitScale * nextZoom));
         const newPanY = mouseY - (containerSize.h / 2 + dy * (baseFitScale * nextZoom));
 
-        setEditorState({ 
-          zoom: nextZoom, 
-          pan: { x: newPanX, y: newPanY } 
-        });
+        setEditorState({ zoom: nextZoom, pan: { x: newPanX, y: newPanY } });
       } else {
-        // Smooth Pan
+        // Pan
         const p = panRef.current;
         setEditorState({ pan: { x: p.x - e.deltaX, y: p.y - e.deltaY } });
       }
@@ -512,14 +516,8 @@ export function CanvasArea() {
     if (isPanning) {
       const newX = e.clientX - startPanPos.current.x;
       const newY = e.clientY - startPanPos.current.y;
-      
-      // Calculate velocity for momentum
-      velocityRef.current = {
-        x: e.clientX - lastPanPosRef.current.x,
-        y: e.clientY - lastPanPosRef.current.y
-      };
+      velocityRef.current = { x: e.clientX - lastPanPosRef.current.x, y: e.clientY - lastPanPosRef.current.y };
       lastPanPosRef.current = { x: e.clientX, y: e.clientY };
-      
       setEditorState({ pan: { x: newX, y: newY } });
     }
   };
@@ -527,13 +525,10 @@ export function CanvasArea() {
   const applyMomentum = useCallback(() => {
     const friction = 0.94;
     const v = velocityRef.current;
-    
     if (Math.abs(v.x) > 0.1 || Math.abs(v.y) > 0.1) {
       const p = panRef.current;
-      const nextPan = { x: p.x + v.x, y: p.y + v.y };
-      
       velocityRef.current = { x: v.x * friction, y: v.y * friction };
-      setEditorState({ pan: nextPan });
+      setEditorState({ pan: { x: p.x + v.x, y: p.y + v.y } });
       rafMomentumRef.current = requestAnimationFrame(applyMomentum);
     } else {
       rafMomentumRef.current = null;
@@ -565,7 +560,6 @@ export function CanvasArea() {
         {isGenerating && !generationBlockingOverlay && <GenerationAssetsBanner key="asset-banner" />}
       </AnimatePresence>
 
-      {/* Studio backdrop */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         <div
           className="absolute inset-0"
@@ -584,7 +578,6 @@ export function CanvasArea() {
             }}
           />
         )}
-        {/* Watermark */}
         <div className="absolute inset-0 flex items-center justify-center opacity-[0.04] grayscale pointer-events-none mix-blend-multiply">
           {/* @ts-ignore */}
           <lottie-player
@@ -603,7 +596,6 @@ export function CanvasArea() {
         />
       </div>
 
-      {/* ── Canvas viewport: Animated for Billion-Dollar Smoothness ─────── */}
       <div className="relative z-10 w-full h-full overflow-hidden">
         <motion.div
           animate={{
@@ -617,8 +609,8 @@ export function CanvasArea() {
             damping: 35,
             stiffness: 400,
             mass: 0.8,
-            // Skip animation for high-frequency pan/zoom for zero latency feel
-            duration: isPanning ? 0 : 0.15 
+            // Skip animation during high-frequency wheel or pan events for zero latency
+            duration: (isPanning || isWheelActive) ? 0 : 0.15 
           }}
           style={{
             position: 'absolute',
@@ -631,7 +623,6 @@ export function CanvasArea() {
         </motion.div>
       </div>
 
-      {/* ── Floating Zoom Controls ── */}
       <div className="absolute bottom-6 right-6 z-50 flex items-center gap-1 bg-white/90 backdrop-blur-2xl border border-black/[0.05] p-1.5 rounded-2xl shadow-2xl scale-90 sm:scale-100">
         <button
           type="button"
@@ -660,3 +651,4 @@ export function CanvasArea() {
     </div>
   );
 }
+
