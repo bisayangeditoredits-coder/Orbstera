@@ -157,6 +157,27 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const voicePromptPrefixRef = useRef('');
   const voiceStartBusyRef = useRef(false);
 
+  const [activeTab, setActiveTab] = useState<'create' | 'enhance'>('create');
+  const [expandDensity, setExpandDensity] = useState(true);
+  const [selectedTone, setSelectedTone] = useState('Professional');
+  const [expandTone, setExpandTone] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState('Obsidian Night');
+  const [expandTheme, setExpandTheme] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState('English');
+  const [expandLanguage, setExpandLanguage] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [streamedSlides, setStreamedSlides] = useState<{ id: string; title: string }[]>([]);
+  const [interviewSummary, setInterviewSummary] = useState<InterviewSummary | null>(null);
+  const [showInterviewSummary, setShowInterviewSummary] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasAutoTriggered = useRef(false);
+
+  const { presentation, setPresentation, setActivePanel, setEditorState, editor } = usePresentationStore();
+  const isLoading = editor.isGenerating;
+
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+
   const ensureVoiceRecognition = () => {
     if (recognitionRef.current) return recognitionRef.current;
     recognitionRef.current = createEditorSpeechRecognition({
@@ -271,28 +292,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'create' | 'enhance'>('create');
-  const [expandDensity, setExpandDensity] = useState(true);
-  const [selectedTone, setSelectedTone] = useState('Professional');
-  const [expandTone, setExpandTone] = useState(false);
-  const [selectedTheme, setSelectedTheme] = useState('Obsidian Night');
-  const [expandTheme, setExpandTheme] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState('English');
-  const [expandLanguage, setExpandLanguage] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [streamedSlides, setStreamedSlides] = useState<{id: string, title: string}[]>([]);
-  const [interviewSummary, setInterviewSummary] = useState<InterviewSummary | null>(null);
-  const [showInterviewSummary, setShowInterviewSummary] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  // Guard: auto-trigger from URL params fires exactly once
-  const hasAutoTriggered = useRef(false);
-
-  const { presentation, setPresentation, setActivePanel, setEditorState, editor } = usePresentationStore();
-  const isLoading = editor.isGenerating;
-
-  const [isProfileLoading, setIsProfileLoading] = useState(true);
-
   // Fetch user plan and survey status on mount
   useEffect(() => {
     const fetchUser = async (retryCount = 0) => {
@@ -309,18 +308,32 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             setUserPlan(user.user_metadata.plan.toLowerCase());
           }
 
-          const { data: profile } = await supabase
+          const { data: profile, error: profileErr } = await supabase
             .from('profiles')
-            .select('plan, survey_completed')
+            .select('plan')
             .eq('id', user.id)
             .maybeSingle();
 
+          if (profileErr) {
+            console.warn('[GeneratePanel] profiles fetch:', profileErr.message);
+          }
+
+          const lsSurveyDone =
+            typeof window !== 'undefined' && localStorage.getItem(`survey_done_${user.id}`) === 'true';
+          const metaSurveyDone = user.user_metadata?.survey_completed === true;
+          const surveyCompleted = !!(metaSurveyDone || lsSurveyDone);
+
           if (profile) {
-            setProfileData(profile);
+            setProfileData({ ...profile, survey_completed: surveyCompleted });
             if (profile.plan) setUserPlan(profile.plan.toLowerCase());
-          } else if (retryCount < 3 && searchParams.get('payment') === 'success') {
-            // If payment was successful but profile isn't updated yet, retry after a short delay
-            setTimeout(() => fetchUser(retryCount + 1), 2000);
+          } else {
+            setProfileData({
+              plan: (user.user_metadata?.plan as string | undefined) ?? null,
+              survey_completed: surveyCompleted,
+            });
+            if (retryCount < 3 && searchParams.get('payment') === 'success') {
+              setTimeout(() => fetchUser(retryCount + 1), 2000);
+            }
           }
         }
       } catch (err) {

@@ -43,16 +43,27 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        // Use upsert to ensure the profile row exists for new users
-        await supabase
-          .from('profiles')
-          .upsert({ 
-            id: user.id,
+        const { error: authErr } = await supabase.auth.updateUser({
+          data: {
             survey_completed: true,
-            role: selectedRole,
-            purpose: selectedPurpose,
-            updated_at: new Date().toISOString()
-          });
+            survey_role: selectedRole,
+            survey_purpose: selectedPurpose,
+          },
+        });
+        if (authErr) {
+          console.warn('[SurveyModal] auth.updateUser:', authErr.message);
+        }
+        // Best-effort profiles touch (ignore if columns differ from this project's schema)
+        const { error: profileErr } = await supabase.from('profiles').upsert(
+          {
+            id: user.id,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id' },
+        );
+        if (profileErr) {
+          console.warn('[SurveyModal] profiles upsert:', profileErr.message);
+        }
       }
       onComplete();
     } catch (err) {
