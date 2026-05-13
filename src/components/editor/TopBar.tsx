@@ -16,6 +16,7 @@ import {
   PanelLeft,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { CreditsHUD } from './CreditsHUD';
 
 // ── Export Progress Modal ─────────────────────────────────────────────────────
 const EXPORT_STEPS = [
@@ -749,6 +750,8 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
             <span className="px-1.5 py-0.5 rounded-md bg-white border border-black/[0.06] text-neutral-500 tabular-nums ml-1">⌘E</span>
             <span className="text-neutral-400">Export</span>
           </div>
+
+          <CreditsHUD />
 
           <button 
             type="button"

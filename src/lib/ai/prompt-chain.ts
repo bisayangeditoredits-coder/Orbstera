@@ -314,8 +314,8 @@ export async function runOpenRouterOrchestration(
   void aiCacheSet(
     orchKey,
     { dossierText, refinedBrief, preflightSummary },
-    // Keep short TTL for cost savings without making behavior feel stale.
-    15 * 60
+    // Intelligent caching for prompt enhancements, slide structures, themes, layouts to reduce redundant AI costs
+    7 * 24 * 3600
   );
 
   return { dossierText, refinedBrief, preflightSummary };

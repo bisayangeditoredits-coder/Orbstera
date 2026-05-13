@@ -65,15 +65,22 @@ function isPaid(plan: PlanTier): boolean {
 }
 
 function complexityScore(s: ComplexitySignals): number {
-  // 0..100-ish, intentionally simple and cheap.
+  // 0..100-ish, dynamically scoring prompt depth, presentation type, and reasoning requirements.
   const slide = Math.min(40, Math.max(1, s.slideCount || 1));
   const prompt = Math.min(8000, Math.max(0, s.promptChars || 0));
   let score = 0;
   score += slide <= 5 ? 8 : slide <= 10 ? 18 : slide <= 20 ? 32 : 45;
   score += prompt < 300 ? 6 : prompt < 900 ? 14 : prompt < 1800 ? 24 : 34;
   if (s.needsDeepReasoning) score += 22;
+  
+  // DYNAMIC MODEL ACTIVATION adjustment based on presentation type
   const pt = String(s.presentationType || '').toLowerCase();
-  if (pt.includes('data') || pt.includes('analytics') || pt.includes('investor')) score += 8;
+  if (pt.includes('data') || pt.includes('analytics') || pt.includes('investor') || pt.includes('pitch') || pt.includes('business')) {
+    score += 15;
+  }
+  if (pt.includes('school') || pt.includes('education') || pt.includes('simple')) {
+    score -= 15;
+  }
   return score;
 }
 
@@ -82,13 +89,21 @@ export function shouldRunDeepReasoning(args: {
   needsDeepReasoning: boolean;
   slideCount: number;
   spendState?: SpendState;
+  presentationType?: string;
 }): boolean {
   const planTier = normalizePlan(args.plan);
   if (!args.needsDeepReasoning) return false;
   if (args.spendState?.forcedEconomyMode) return false;
-  if (planTier === 'free') return false;
-  // Student pro can run deep reasoning but only on larger/technical decks.
-  if (planTier === 'student_pro') return args.slideCount >= 10;
+  if (planTier === 'free') return false; // Free users: Do NOT use expensive frontier/reasoning models.
+
+  const pt = String(args.presentationType || '').toLowerCase();
+  if (pt.includes('school') || pt.includes('simple')) return false;
+
+  // Student pro users: Optional/conditional routing. Only on larger/technical decks.
+  if (planTier === 'student_pro') {
+    return args.slideCount >= 10 || pt.includes('analytics') || pt.includes('technical');
+  }
+  // Creator pro / Admin users: activate expensive reasoning models when necessary
   return true;
 }
 
@@ -103,41 +118,59 @@ export function selectTextModel(args: {
   const score = complexityScore(args.complexity);
   const economy = Boolean(args.spendState?.forcedEconomyMode);
 
-  // Default low-cost model for free + economy mode.
+  // FREE USERS & low-cost fallback: Primary Gemini 2.5 Flash, lightweight generation, low-cost inference.
   const lowCost: SelectedTextModel = {
     provider: 'openrouter',
-    model: OR_MODELS.coach, // gemini-2.5-flash by default
+    model: OR_MODELS.coach, // gemini-2.5-flash
     label: 'Flash',
     maxTokens: args.task === 'deck_compose' ? 16_000 : 4096,
     temperature: 0.25,
   };
 
+  // AI COST PROTECTION SYSTEM: If total monthly AI spend reaches a predefined threshold (forcedEconomyMode), switch lightweight tasks to Gemini Flash.
   if (!paid || economy) {
     // Free users: never use frontier models.
     return lowCost;
   }
 
-  // Paid tiers: choose per task, with a conservative bias toward speed unless high complexity.
+  // STUDENT PRO USERS: Primary: Gemini 2.5 Flash. Optional: limited GPT-5 polish, limited Claude refinement on higher complexity.
+  if (planTier === 'student_pro') {
+    if (args.task === 'deck_intent') {
+      return score >= 60
+        ? { provider: 'openrouter', model: AGENT_MODELS.gptOrchestrator, label: 'Orchestrator', maxTokens: 2400, temperature: 0.22 }
+        : lowCost;
+    }
+    if (args.task === 'deck_structure') {
+      return score >= 50
+        ? { provider: 'openrouter', model: AGENT_MODELS.claudeStructure, label: 'Structure', maxTokens: 3600, temperature: 0.25 }
+        : lowCost;
+    }
+    if (args.task === 'deck_reason') {
+      return { provider: 'openrouter', model: AGENT_MODELS.deepseekReason, label: 'Reasoning', maxTokens: 2400, temperature: 0.35 };
+    }
+    if (args.task === 'deck_compose') {
+      // Use hybrid routing to reduce costs while maintaining quality
+      return score >= 55
+        ? { provider: 'openrouter', model: OR_MODELS.composerPrimary, label: 'Composer', maxTokens: 24_000, temperature: 0.28 }
+        : lowCost;
+    }
+    return lowCost;
+  }
+
+  // CREATOR PRO USERS & Admin: Use: GPT-5.5, Claude Sonnet, DeepSeek R1 (when required)
   if (args.task === 'deck_intent') {
-    return score >= 55
-      ? { provider: 'openrouter', model: AGENT_MODELS.gptOrchestrator, label: 'Orchestrator', maxTokens: 2400, temperature: 0.22 }
-      : lowCost;
+    return { provider: 'openrouter', model: AGENT_MODELS.gptOrchestrator, label: 'Orchestrator', maxTokens: 2400, temperature: 0.22 };
   }
 
   if (args.task === 'deck_structure') {
-    return score >= 45
-      ? { provider: 'openrouter', model: AGENT_MODELS.claudeStructure, label: 'Structure', maxTokens: 3600, temperature: 0.25 }
-      : lowCost;
+    return { provider: 'openrouter', model: AGENT_MODELS.claudeStructure, label: 'Structure', maxTokens: 3600, temperature: 0.25 };
   }
 
   if (args.task === 'deck_reason') {
-    // Deep reasoning is expensive; caller should gate with shouldRunDeepReasoning.
     return { provider: 'openrouter', model: AGENT_MODELS.deepseekReason, label: 'Reasoning', maxTokens: 2400, temperature: 0.35 };
   }
 
   if (args.task === 'deck_compose') {
-    // Student pro: default to Flash unless complexity is high.
-    if (planTier === 'student_pro' && score < 60) return lowCost;
     return {
       provider: 'openrouter',
       model: OR_MODELS.composerPrimary,
@@ -147,20 +180,6 @@ export function selectTextModel(args: {
     };
   }
 
-  if (args.task === 'deck_polish') {
-    // Optional polish: keep it bounded, and only for creator_pro/admin by default.
-    if (planTier !== 'creator_pro' && planTier !== 'admin') return lowCost;
-    return {
-      provider: 'openrouter',
-      model: OR_MODELS.refineFallback,
-      label: 'Refine',
-      maxTokens: 6000,
-      temperature: 0.25,
-    };
-  }
-
-  // Magic edit + other: default to Flash for student_pro, refine for creator_pro.
-  if (planTier === 'student_pro') return lowCost;
   return {
     provider: 'openrouter',
     model: OR_MODELS.refineFallback,

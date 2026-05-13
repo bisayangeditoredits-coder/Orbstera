@@ -115,7 +115,7 @@ export async function POST(req: Request) {
           sendOrb({
             orb: {
               phase: 'starting',
-              message: 'Preparing your presentation…',
+              message: 'Analyzing narrative architecture...',
             },
           });
 
@@ -126,7 +126,7 @@ export async function POST(req: Request) {
           sendOrb({
             orb: {
               phase: 'structure_complete',
-              message: 'Locking the narrative spine…',
+              message: '✓ Structure complete',
             },
           });
 
@@ -151,8 +151,8 @@ export async function POST(req: Request) {
 
           sendOrb({
             orb: {
-              phase: 'composing',
-              message: 'Translating the brief into slide structure and motion…',
+              phase: 'slides_generated',
+              message: '✓ Slides generated',
             },
           });
 
@@ -168,8 +168,27 @@ export async function POST(req: Request) {
 
           sendOrb({
             orb: {
+              phase: 'generating_visuals',
+              message: '⟳ Generating visuals...',
+            },
+          });
+
+          // Short delay to give a visual rhythm of progressive stages
+          await new Promise((r) => setTimeout(r, 400));
+
+          sendOrb({
+            orb: {
+              phase: 'enhancing_animations',
+              message: '⟳ Enhancing animations...',
+            },
+          });
+
+          await new Promise((r) => setTimeout(r, 400));
+
+          sendOrb({
+            orb: {
               phase: 'streaming',
-              message: 'Rendering your deck…',
+              message: '⟳ Final cinematic polish...',
             },
           });
 

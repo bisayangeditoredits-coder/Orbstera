@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
-import { getCreditSummary } from '@/lib/billing/credits';
+import { getCreditSummary, getCreditConfig, estimateDeckCostCredits } from '@/lib/billing/credits';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,11 +24,42 @@ export async function GET() {
       .maybeSingle();
 
     const plan = profile?.plan ?? user.user_metadata?.plan ?? 'free';
-    const summary = await getCreditSummary({ supabase, userId: user.id, planRaw: plan });
+    const [summary, config] = await Promise.all([
+      getCreditSummary({ supabase, userId: user.id, planRaw: plan }),
+      getCreditConfig(supabase),
+    ]);
 
-    return NextResponse.json({ ok: true, summary });
-  } catch (e) {
+    // Pre-compute cost estimates so the UI can show affordability instantly
+    const estimates = {
+      deck_small:        config.costs.deck_small        ?? 40,
+      deck_medium:       config.costs.deck_medium       ?? 80,
+      deck_large:        config.costs.deck_large        ?? 150,
+      deck_small_images: estimateDeckCostCredits({ slideCount: 5,  includeImages: true, premiumImages: false, config }),
+      deck_large_images: estimateDeckCostCredits({ slideCount: 15, includeImages: true, premiumImages: false, config }),
+      magic_edit:        config.costs.magic_edit        ?? 5,
+      rewrite:           config.costs.rewrite           ?? 3,
+      image_standard:    config.costs.image_standard    ?? 10,
+      image_premium:     config.costs.image_premium     ?? 20,
+      animation_enhance: config.costs.animation_enhance ?? 5,
+    };
+
+    const usagePct = summary.monthlyLimit > 0
+      ? Math.min(100, Math.round((summary.used / summary.monthlyLimit) * 100))
+      : 0;
+
+    const canAfford = {
+      deck_small:  summary.remaining >= estimates.deck_small,
+      deck_medium: summary.remaining >= estimates.deck_medium,
+      deck_large:  summary.remaining >= estimates.deck_large,
+      magic_edit:  summary.remaining >= estimates.magic_edit,
+      image:       summary.remaining >= estimates.image_standard,
+    };
+
+    return NextResponse.json(
+      { ok: true, summary: { ...summary, usagePct }, estimates, canAfford },
+      { headers: { 'Cache-Control': 'private, no-store' } },
+    );
+  } catch {
     return NextResponse.json({ ok: false, error: 'server_error' }, { status: 500 });
   }
 }
-

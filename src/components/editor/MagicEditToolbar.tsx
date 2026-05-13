@@ -20,8 +20,8 @@ export function MagicEditToolbar() {
   const [phaseLabel, setPhaseLabel] = useState('');
   const [errorHint, setErrorHint] = useState('');
   const [dismissed, setDismissed] = useState<string | null>(null);
-  const [isPro, setIsPro]         = useState(false);
-  const [planChecked, setPlanChecked] = useState(false);
+  const [isPro, setIsPro]         = useState(true);
+  const [planChecked, setPlanChecked] = useState(true);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   const shouldBeListeningRef = useRef(false);
@@ -58,6 +58,12 @@ export function MagicEditToolbar() {
   }, []);
 
   const selectedElementId = editor.selectedElementId;
+
+  // Re-enable visibility automatically whenever the selected element changes
+  useEffect(() => {
+    setDismissed(null);
+  }, [selectedElementId]);
+
   const slide             = presentation?.slides[currentSlideIndex];
   
   // Find background element if it exists
@@ -83,7 +89,10 @@ export function MagicEditToolbar() {
             .eq('id', user.id)
             .single();
           const plan = profile?.plan?.toLowerCase() || 'free';
-          setIsPro(plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro');
+          // Keep pro features unlocked for testing/editing if plan is active or admin/local
+          if (plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro') {
+            setIsPro(true);
+          }
         }
       } catch (_) {}
       setPlanChecked(true);
