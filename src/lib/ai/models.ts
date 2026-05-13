@@ -19,7 +19,7 @@ export const OR_MODELS = {
   refineFallback:
     process.env.OPENROUTER_REFINE_FB ?? process.env.OPENROUTER_COMPOSER_FALLBACK ?? 'anthropic/claude-sonnet-latest',
 
-  coach: process.env.OPENROUTER_COACH ?? 'google/gemini-2.5-flash',
+  coach: process.env.OPENROUTER_COACH ?? 'google/gemini-3.1-flash',
 } as const;
 
 export function getDeckComposerModels(): { primary: string; fallback: string } {

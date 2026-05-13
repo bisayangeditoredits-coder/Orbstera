@@ -11,6 +11,7 @@ const REVIEWS = [
     role: "Creative Director",
     body: "It used to take me 6 hours to build a Series A deck. Now it takes 15 minutes, and the result looks like I hired a full design agency. Absolutely unreal.",
     rating: 5,
+    image: "file:///C:/Users/This/.gemini/antigravity/brain/85f55c13-fad7-4f0a-933f-b7c408e104bd/sarah_jenkins_avatar_1778667107198.png",
   },
   {
     name: "Michael Chen",
@@ -18,6 +19,7 @@ const REVIEWS = [
     role: "Partner at Nexus Capital",
     body: "I see hundreds of pitch decks a week. The ones made with Orbstera stand out immediately. The visual hierarchy and pacing are investor-grade out of the box.",
     rating: 5,
+    image: "file:///C:/Users/This/.gemini/antigravity/brain/85f55c13-fad7-4f0a-933f-b7c408e104bd/michael_chen_avatar_1778667164957.png",
   },
   {
     name: "Elena Rodriguez",
@@ -25,6 +27,7 @@ const REVIEWS = [
     role: "Startup Founder",
     body: "The ability to just type my raw, unstructured thoughts and watch the AI instantly weave them into a gorgeous, cinematic narrative is literally magic.",
     rating: 5,
+    image: "file:///C:/Users/This/.gemini/antigravity/brain/85f55c13-fad7-4f0a-933f-b7c408e104bd/elena_rodriguez_avatar_1778667307431.png",
   },
   {
     name: "James Kuroki",
@@ -32,6 +35,7 @@ const REVIEWS = [
     role: "Marketing Director",
     body: "We replaced Gamma and Canva for our enterprise team. The export actually works perfectly, and the AI image generation is lightyears ahead of the competition.",
     rating: 5,
+    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=256&h=256&auto=format&fit=crop",
   },
   {
     name: "Amanda Patel",
@@ -39,6 +43,7 @@ const REVIEWS = [
     role: "Product Manager",
     body: "I pitched to a VC using an Orbstera deck on Monday. Got a term sheet by Thursday. The cinematic transitions alone won them over. Coincidence? I think not.",
     rating: 5,
+    image: "file:///C:/Users/This/.gemini/antigravity/brain/85f55c13-fad7-4f0a-933f-b7c408e104bd/amanda_patel_avatar_1778667557492.png",
   },
   {
     name: "David Smith",
@@ -46,6 +51,7 @@ const REVIEWS = [
     role: "DevRel Lead",
     body: "Finally, an AI presentation tool that doesn't just vomit text onto a slide. It understands pacing, white space, and visual rhythm. 10/10.",
     rating: 5,
+    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=256&h=256&auto=format&fit=crop",
   },
   {
     name: "Lisa Wang",
@@ -53,6 +59,7 @@ const REVIEWS = [
     role: "Head of Growth",
     body: "The Generative Fill feature is insane. I had an image that didn't fit my slide, clicked one button, and it magically extended the background perfectly.",
     rating: 5,
+    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=256&h=256&auto=format&fit=crop",
   },
   {
     name: "Marcus Johnson",
@@ -60,6 +67,7 @@ const REVIEWS = [
     role: "Sales Executive",
     body: "My close rate has gone up 40% since I started using Orbstera for my sales decks. It makes me look like I spent weeks preparing for a 30-minute call.",
     rating: 5,
+    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=256&h=256&auto=format&fit=crop",
   },
   {
     name: "Rachel Gomez",
@@ -67,6 +75,7 @@ const REVIEWS = [
     role: "Agency Owner",
     body: "We now generate the first drafts of all client presentations in Orbstera. It has saved us thousands of dollars in design hours this month alone.",
     rating: 5,
+    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=256&h=256&auto=format&fit=crop",
   },
   {
     name: "Thomas Wright",
@@ -74,6 +83,7 @@ const REVIEWS = [
     role: "Freelance Designer",
     body: "I was skeptical about AI replacing my presentation work. But Orbstera is a tool, not a replacement. It speeds up my workflow by 10x.",
     rating: 5,
+    image: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=256&h=256&auto=format&fit=crop",
   },
 ];
 
@@ -89,9 +99,23 @@ const ReviewCard = ({ review }: { review: typeof REVIEWS[0] }) => {
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-primary/10 via-transparent to-transparent pointer-events-none" />
       
       <div className="flex items-center gap-4 mb-4">
-        {/* Abstract Avatar */}
-        <div className="w-12 h-12 rounded-full overflow-hidden border border-white/20 bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-[0_0_15px_rgba(var(--primary),0.3)]">
-          <span className="text-white font-bold text-lg">{review.name.charAt(0)}</span>
+        {/* Profile Avatar */}
+        <div className="w-12 h-12 rounded-full overflow-hidden border border-white/20 bg-neutral-900 flex items-center justify-center shadow-[0_0_15px_rgba(var(--primary),0.3)] relative">
+          {review.image ? (
+            <img 
+              src={review.image} 
+              alt={review.name}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                target.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+          ) : null}
+          <div className={`${review.image ? 'hidden' : ''} w-full h-full flex items-center justify-center bg-gradient-to-br from-primary to-accent`}>
+            <span className="text-white font-bold text-lg">{review.name.charAt(0)}</span>
+          </div>
         </div>
         
         <div className="flex-1">

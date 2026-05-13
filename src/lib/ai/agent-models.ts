@@ -11,7 +11,7 @@ export const AGENT_MODELS = {
   /** Slide spine, educational flow, long-form structure */
   claudeStructure: process.env.OPENROUTER_AGENT_CLAUDE ?? 'anthropic/claude-sonnet-latest',
   /** Optional — technical / analytical depth only */
-  deepseekReason: process.env.OPENROUTER_AGENT_DEEPSEEK ?? 'deepseek/deepseek-r1-0528',
+  deepseekReason: process.env.OPENROUTER_AGENT_DEEPSEEK ?? 'deepseek/deepseek-r1',
 } as const;
 
 export const IMAGE_MODELS = {

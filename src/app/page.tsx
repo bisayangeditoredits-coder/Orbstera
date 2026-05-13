@@ -5,6 +5,7 @@ import { Footer } from '@/components/layout/Footer';
 const SocialProof = dynamic(() => import('@/components/landing/SocialProof').then((m) => ({ default: m.SocialProof })));
 const Showcase = dynamic(() => import('@/components/landing/Showcase').then((m) => ({ default: m.Showcase })));
 const Features = dynamic(() => import('@/components/landing/Features').then((m) => ({ default: m.Features })));
+const Integrations = dynamic(() => import('@/components/landing/Integrations').then((m) => ({ default: m.Integrations })));
 const EditorPreview = dynamic(() => import('@/components/landing/EditorPreview').then((m) => ({ default: m.EditorPreview })));
 const Templates = dynamic(() => import('@/components/landing/Templates').then((m) => ({ default: m.Templates })));
 const Pricing = dynamic(() => import('@/components/landing/Pricing').then((m) => ({ default: m.Pricing })));
@@ -19,6 +20,7 @@ export default function Home() {
       <SocialProof />
       <Showcase />
       <Features />
+      <Integrations />
       <EditorPreview />
       <Templates />
       <Pricing />

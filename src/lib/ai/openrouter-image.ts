@@ -13,7 +13,7 @@ export async function openRouterImageGeneration(args: {
   }
 
   const primary =
-    args.visualProfile === 'typography' ? IMAGE_MODELS.ideogram : IMAGE_MODELS.flux;
+    args.visualProfile === 'typography' ? IMAGE_MODELS.typography : IMAGE_MODELS.flux;
   const secondary = IMAGE_MODELS.fallback;
 
   const run = async (model: string) => {

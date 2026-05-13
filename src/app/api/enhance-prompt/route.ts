@@ -1,5 +1,7 @@
-import { NextResponse } from 'next/server';
 import { openRouterComplete } from '@/lib/ai/openrouter';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -26,6 +28,44 @@ export async function POST(req: Request) {
 
     if (!process.env.OPENROUTER_API_KEY?.trim()) {
       return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured.' }, { status: 500 });
+    }
+
+    // Auth & Credit Check
+    const cookieStore = cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } }
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
+
+    const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).maybeSingle();
+    const plan = profile?.plan?.toLowerCase() || user.user_metadata?.plan?.toLowerCase() || 'free';
+
+    const creditConfig = await getCreditConfig(supabase);
+    const cost = creditConfig.costs.rewrite || 3;
+    const creditCheck = await ensureCredits({
+      supabase,
+      userId: user.id,
+      planRaw: plan,
+      cost,
+      action: 'rewrite',
+      meta: { purpose },
+    });
+
+    if (!creditCheck.ok) {
+      return NextResponse.json(
+        {
+          error: 'INSUFFICIENT_CREDITS',
+          message: `Not enough credits to enhance prompt.`,
+          credits: creditCheck.summary,
+          required: cost,
+        },
+        { status: 402 },
+      );
     }
 
     const system =

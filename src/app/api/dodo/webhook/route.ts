@@ -48,15 +48,23 @@ export async function POST(req: Request) {
       const planId = metadata.planId;
 
       if (userId && planId) {
-        console.log(`[Dodo Webhook] Upgrading user ${userId} to ${planId}`);
-        
+        const creditLimits: Record<string, number> = {
+          'free': 100,
+          'student_pro': 1500,
+          'pro': 2500,
+          'creator_pro': 8000
+        };
+        const newLimit = creditLimits[planId.toLowerCase()] || 100;
+
         // 1. Upsert public.profiles table (Primary source for UI)
-        // Using upsert ensures that if the profile doesn't exist yet, it gets created.
         const { error: profileError } = await supabaseAdmin
           .from('profiles')
           .upsert({ 
             id: userId,
             plan: planId,
+            credits_used_month: 0, // Reset usage on payment/renewal
+            credits_monthly_limit: newLimit,
+            credits_reset_at: new Date().toISOString(),
             updated_at: new Date().toISOString() 
           }, { onConflict: 'id' });
 
@@ -65,7 +73,15 @@ export async function POST(req: Request) {
           return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
         }
 
-        // 2. Update auth.user_metadata (Secondary source for quick access)
+        // 2. Add entry to credit_ledger for audit trail
+        await supabaseAdmin.from('credit_ledger').insert({
+          user_id: userId,
+          delta: newLimit,
+          reason: `subscription_${eventType}_${planId}`,
+          meta: { planId, eventType, dodoData: data }
+        }).catch(err => console.error('[Dodo Webhook] Ledger Error:', err));
+
+        // 3. Update auth.user_metadata (Secondary source for quick access)
         const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
           user_metadata: { plan: planId }
         });

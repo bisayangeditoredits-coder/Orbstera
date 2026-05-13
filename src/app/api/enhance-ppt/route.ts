@@ -6,6 +6,9 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import JSZip from 'jszip';
 import { v4 as uuidv4 } from 'uuid';
 import { extractJsonObject } from '@/lib/ai/openrouter';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
 
 const OPENROUTER_API_KEY = (process.env.OPENROUTER_API_KEY || '').trim();
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -108,6 +111,44 @@ export async function POST(req: Request) {
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+
+    // Auth & Credit Check
+    const cookieStore = cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } }
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Please sign in to enhance presentations.' }, { status: 401 });
+    }
+
+    const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).maybeSingle();
+    const plan = profile?.plan?.toLowerCase() || user.user_metadata?.plan?.toLowerCase() || 'free';
+
+    const creditConfig = await getCreditConfig(supabase);
+    const cost = creditConfig.costs.deck_medium || 80;
+    const creditCheck = await ensureCredits({
+      supabase,
+      userId: user.id,
+      planRaw: plan,
+      cost,
+      action: 'deck_medium',
+      meta: { fileName: file.name },
+    });
+
+    if (!creditCheck.ok) {
+      return NextResponse.json(
+        {
+          error: 'INSUFFICIENT_CREDITS',
+          message: `You don't have enough credits to enhance this presentation.`,
+          credits: creditCheck.summary,
+          required: cost,
+        },
+        { status: 402 },
+      );
+    }
 
     // 1. Upload Original PPTX to Cloudflare R2
     let fileUrl = '';

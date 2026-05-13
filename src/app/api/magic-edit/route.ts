@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { SlideElement } from '@/types';
 import { generateClaidImageUrl } from '@/lib/claid-image';
 import { generatePollinationsImageUrl } from '@/lib/pollinations-image';
+import { openRouterImageGeneration } from '@/lib/ai/openrouter-image';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
@@ -83,6 +85,32 @@ export async function POST(req: Request) {
     const plan = profile?.plan?.toLowerCase() || user?.user_metadata?.plan?.toLowerCase() || 'free';
     const isPaid = plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro';
 
+    // Credit Deduction
+    const creditConfig = await getCreditConfig(supabase);
+    const creditAction = element.type === 'image' ? 'image_standard' : 'magic_edit';
+    const cost = creditConfig.costs[creditAction] || 5;
+
+    const creditCheck = await ensureCredits({
+      supabase,
+      userId,
+      planRaw: plan,
+      cost,
+      action: creditAction,
+      meta: { elementType: element.type, elementId: element.id },
+    });
+
+    if (!creditCheck.ok) {
+      return NextResponse.json(
+        {
+          error: 'INSUFFICIENT_CREDITS',
+          message: `You don't have enough credits for this magic edit.`,
+          credits: creditCheck.summary,
+          required: cost,
+        },
+        { status: 402 },
+      );
+    }
+
     const ctx =
       slideContext && typeof slideContext === 'object'
         ? `
@@ -103,7 +131,7 @@ Return the modified element JSON only.`;
     const models = [
       'google/gemini-2.5-flash',
       'anthropic/claude-sonnet-latest',
-      'openai/gpt-4.1-mini',
+      'openai/gpt-5-mini',
       'deepseek/deepseek-chat',
     ];
 
@@ -186,14 +214,25 @@ Return the modified element JSON only.`;
         );
       }
       try {
-        updatedElement.src = hasClaid
-          ? await generateClaidImageUrl({ prompt: promptText, polish: true, width, height })
-          : await generatePollinationsImageUrl({
-              prompt: promptText,
-              width,
-              height,
-              polish: true,
-            });
+        const result = await openRouterImageGeneration({
+          prompt: promptText,
+          size: `${width}x${height}`,
+          visualProfile: 'cinematic',
+        });
+
+        if (result.ok && result.url) {
+          updatedElement.src = result.url;
+        } else {
+          // Fallback to Claid/Pollinations if OpenRouter Image fails
+          updatedElement.src = hasClaid
+            ? await generateClaidImageUrl({ prompt: promptText, polish: true, width, height })
+            : await generatePollinationsImageUrl({
+                prompt: promptText,
+                width,
+                height,
+                polish: true,
+              });
+        }
 
         // Best-effort usage log for dashboard cost tracking.
         supabase.from('ai_usage_events').insert({
