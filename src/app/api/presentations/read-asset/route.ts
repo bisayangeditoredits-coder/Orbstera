@@ -77,7 +77,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Asset too large' }, { status: 413 });
     }
     const ct = obj.ContentType || 'application/octet-stream';
-    return new NextResponse(buf, {
+    // Node Buffer is a valid fetch body at runtime; DOM BodyInit types disagree with Buffer's ArrayBufferLike generics (TS 5.7+).
+    return new NextResponse(buf as unknown as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': ct,
