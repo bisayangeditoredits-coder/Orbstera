@@ -21,15 +21,29 @@ async function readExportFailureMessage(res: Response): Promise<string> {
   const ct = (res.headers.get('content-type') || '').toLowerCase();
   const status = res.status;
   if (ct.includes('application/json')) {
-    const j = (await res.json().catch(() => ({}))) as { error?: string; detail?: string };
-    if (typeof j.error === 'string' && j.error.trim()) return j.error.trim();
-    if (typeof j.detail === 'string' && j.detail.trim()) return j.detail.trim();
+    const j = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      detail?: string;
+      message?: string;
+    };
+    const msg = typeof j.message === 'string' ? j.message.trim() : '';
+    if (msg) return msg;
+    const err = typeof j.error === 'string' ? j.error.trim() : '';
+    const detail = typeof j.detail === 'string' ? j.detail.trim() : '';
+    if (detail && (!err || err === 'Export failed')) return detail.slice(0, 900);
+    if (err && detail && err !== detail) return `${err}: ${detail.slice(0, 600)}`;
+    if (err) return err;
+    if (detail) return detail.slice(0, 900);
   } else {
     const text = await res.text().catch(() => '');
     if (text.trimStart().startsWith('{')) {
       try {
-        const j = JSON.parse(text) as { error?: string };
-        if (typeof j.error === 'string' && j.error.trim()) return j.error.trim();
+        const j = JSON.parse(text) as { error?: string; message?: string; detail?: string };
+        if (typeof j.message === 'string' && j.message.trim()) return j.message.trim();
+        const d = typeof j.detail === 'string' ? j.detail.trim() : '';
+        const er = typeof j.error === 'string' ? j.error.trim() : '';
+        if (d && (!er || er === 'Export failed')) return d.slice(0, 900);
+        if (er) return er;
       } catch {
         /* ignore */
       }

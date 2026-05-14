@@ -73,7 +73,9 @@ function ExportModal({ step, done, error, onClose }: {
             </div>
             <div className="text-center">
               <h3 className="text-xl font-bold text-black">Export Failed</h3>
-              <p className="text-xs text-red-400 mt-1 max-w-[240px] text-center">{error}</p>
+              <p className="text-xs sm:text-sm text-red-500/95 mt-1 max-w-[min(92vw,380px)] text-center break-words whitespace-pre-wrap leading-snug">
+                {error}
+              </p>
             </div>
             <button onClick={onClose} className="w-full h-11 rounded-xl bg-red-500 text-white font-bold text-sm">
               Close

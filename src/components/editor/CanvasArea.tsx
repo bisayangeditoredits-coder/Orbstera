@@ -9,6 +9,10 @@ import { KonvaCanvas, CANVAS_WIDTH, CANVAS_HEIGHT } from './KonvaCanvas';
 
 // ─── Generation Loader (deterministic milestones — no faux random %) ───────────────────
 
+/** Public asset paths — encode spaces for reliable fetches across hosts/CDNs. */
+const GENERATION_ORB_LOTTIE_SRC = encodeURI('/ai animation Flow 1.json');
+const GENERATION_ROBOT_LOTTIE_SRC = encodeURI('/robo (2).json');
+
 function deriveGenerationUi(
   life: DeckGenerationLifecycle,
   slideLen: number,
@@ -199,37 +203,31 @@ function GenerationLoader() {
 
       <div className="relative z-10 flex h-full w-full max-w-4xl flex-col items-center justify-center px-6">
         
-        {/* Dual Lottie: flow (rear) + robot (front); canvas renderer reduces paint cost */}
+        {/* Dual Lottie: flow (rear) + robot (front); orb always visible (reduced motion = slower orb, no mascot) */}
         <div className="relative mb-5 flex h-[min(320px,52dvh)] w-[min(320px,82vw)] items-center justify-center sm:mb-7 sm:h-[min(360px,50dvh)] sm:w-[min(360px,78vw)] md:h-[min(400px,48dvh)] md:w-[min(400px,72vw)]">
-          {!reduceMotion && (
-            <>
-              {/* @ts-expect-error custom element — swirl behind mascot */}
-              <lottie-player
-                className="absolute inset-0 z-0 h-full w-full"
-                src="/ai animation Flow 1.json"
-                background="transparent"
-                speed="1"
-                loop
-                autoplay
-                renderer="canvas"
-              />
-              <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-t from-neutral-100/35 via-transparent to-transparent" />
-            </>
-          )}
+          <>
+            {/* @ts-expect-error custom element — swirl / orb behind mascot */}
+            <lottie-player
+              className="absolute inset-0 z-0 h-full w-full"
+              src={GENERATION_ORB_LOTTIE_SRC}
+              background="transparent"
+              speed={reduceMotion ? '0.35' : '1'}
+              loop
+              autoplay
+              renderer="canvas"
+            />
+            <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-t from-neutral-100/35 via-transparent to-transparent" />
+          </>
 
           <motion.div
             animate={reduceMotion ? undefined : { y: [0, -8, 0] }}
             transition={reduceMotion ? undefined : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
             className="relative z-10 flex h-[46%] w-[46%] max-w-[200px] items-center justify-center drop-shadow-[0_12px_32px_rgba(15,23,42,0.12)]"
           >
-            {reduceMotion ? (
-              <div className="flex h-24 w-24 items-center justify-center rounded-3xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-500">
-                Generating…
-              </div>
-            ) : (
+            {!reduceMotion && (
               // @ts-expect-error custom element
               <lottie-player
-                src="/robo (2).json"
+                src={GENERATION_ROBOT_LOTTIE_SRC}
                 background="transparent"
                 speed="1"
                 style={{ width: '100%', height: '100%' }}
@@ -240,14 +238,16 @@ function GenerationLoader() {
             )}
           </motion.div>
 
-          <motion.div
-            initial={{ y: 16, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="absolute bottom-1 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2.5 rounded-full border border-white/15 bg-neutral-950 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-lg shadow-black/20 sm:text-xs sm:tracking-[0.24em]"
-          >
-            <span className="h-2 w-2 shrink-0 rounded-full bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.85)]" aria-hidden />
-            <span className="tabular-nums">{Math.round(pct)}% complete</span>
-          </motion.div>
+          <div className="pointer-events-none absolute inset-x-0 bottom-1 z-20 flex justify-center px-2">
+            <motion.div
+              initial={{ y: 16, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              className="inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-neutral-950 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-lg shadow-black/20 sm:text-xs sm:tracking-[0.24em]"
+            >
+              <span className="h-2 w-2 shrink-0 rounded-full bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.85)]" aria-hidden />
+              <span className="tabular-nums text-center">{Math.round(pct)}% complete</span>
+            </motion.div>
+          </div>
         </div>
 
         {/* 3. Narrative Progress Architecture */}
@@ -311,7 +311,7 @@ function GenerationLoader() {
 
            <div className="grid grid-cols-1 xs:grid-cols-3 gap-4 xs:gap-8 pt-6 border-t border-black/[0.03] w-full max-w-xl mx-auto">
               {[
-                { label: 'Progress', value: `${Math.round(((currentStepIndex + 1) / steps.length) * 100)}%` },
+                { label: 'Progress', value: `${Math.round(pct)}%` },
                 {
                   label: 'Engine',
                   value: editor.orchestrationPhase

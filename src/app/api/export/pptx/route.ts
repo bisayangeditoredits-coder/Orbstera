@@ -533,33 +533,53 @@ export async function POST(req: Request) {
 
     // ── Watermark: inject on every slide for Free users ──────────────────────
     if (!isPaidUser) {
-      let logoData: string | undefined;
       try {
-        const logoPath = path.join(process.cwd(), 'public', 'logo.png.png');
-        const logoBuffer = fs.readFileSync(logoPath);
-        logoData = `data:image/png;base64,${logoBuffer.toString('base64')}`;
-      } catch (err) {
-        console.error('Failed to load watermark logo:', err);
-      }
+        let logoData: string | undefined;
+        const logoCandidates = [
+          path.join(process.cwd(), 'public', 'logo.png'),
+          path.join(process.cwd(), 'public', 'logo.png.png'),
+          path.join(process.cwd(), 'public', 'PNGs', 'Powerpoint.png'),
+        ];
+        for (const logoPath of logoCandidates) {
+          try {
+            const logoBuffer = fs.readFileSync(logoPath);
+            logoData = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+            break;
+          } catch {
+            /* try next */
+          }
+        }
+        if (!logoData) {
+          console.warn('[export/pptx] No watermark logo found in public/; text-only watermark');
+        }
 
-      const allSlides = (pptx as any).slides as any[];
-      allSlides.forEach((wSlide: any) => {
-        if (logoData) {
-          wSlide.addImage({
-            data: logoData,
-            x: 8.2, y: 5.05, w: 1.5, h: 0.35,
-            sizing: { type: 'contain', w: 1.5, h: 0.35 },
+        const internalSlides = (pptx as unknown as { slides?: unknown }).slides;
+        const allSlides = Array.isArray(internalSlides) ? internalSlides : [];
+        for (const wSlide of allSlides) {
+          if (!wSlide || typeof (wSlide as { addText?: unknown }).addText !== 'function') continue;
+          const ws = wSlide as {
+            addImage?: (o: Record<string, unknown>) => void;
+            addText: (t: string, o: Record<string, unknown>) => void;
+          };
+          if (logoData && typeof ws.addImage === 'function') {
+            ws.addImage({
+              data: logoData,
+              x: 8.2, y: 5.05, w: 1.5, h: 0.35,
+              sizing: { type: 'contain', w: 1.5, h: 0.35 },
+            });
+          }
+          ws.addText('Made with Orbstera AI', {
+            x: 7.2, y: 5.4, w: 2.5, h: 0.15,
+            fontSize: 9,
+            color: '999999',
+            align: 'right',
+            bold: true,
+            isTextBox: true,
           });
         }
-        wSlide.addText('Made with Orbstera AI', {
-          x: 7.2, y: 5.4, w: 2.5, h: 0.15,
-          fontSize: 9,
-          color: '999999',
-          align: 'right',
-          bold: true,
-          isTextBox: true,
-        });
-      });
+      } catch (wmErr) {
+        console.error('[export/pptx] Watermark injection skipped:', wmErr);
+      }
     }
 
     // ── Serialise ─────────────────────────────────────────────────────────────
@@ -588,7 +608,15 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error('PPTX export error:', err);
     captureApiException(err, { requestId, route: 'POST /api/export/pptx' });
-    return NextResponse.json({ error: 'Export failed', detail: String(err) }, { status: 500 });
+    const detail = err instanceof Error ? err.stack || err.message : String(err);
+    const short = err instanceof Error ? err.message : String(err);
+    return NextResponse.json(
+      {
+        error: short && short !== 'Error' ? short.slice(0, 240) : 'PPTX generation failed',
+        detail: detail.slice(0, 1200),
+      },
+      { status: 500 },
+    );
   }
 }
 
