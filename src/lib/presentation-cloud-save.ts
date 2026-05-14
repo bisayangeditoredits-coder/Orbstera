@@ -35,7 +35,9 @@ async function uploadDataUrlViaServer(
   const fd = new FormData();
   fd.set('presentationId', presentationId);
   fd.set('mimeType', parsed.mime);
-  fd.set('file', new Blob([parsed.bytes], { type: parsed.mime }));
+  // Copy so BlobPart is backed by ArrayBuffer (Vercel/TS strict: Uint8Array<ArrayBufferLike> rejected).
+  const fileBytes = Uint8Array.from(parsed.bytes);
+  fd.set('file', new Blob([fileBytes], { type: parsed.mime }));
   const res = await fetch('/api/presentations/upload-asset', {
     method: 'POST',
     body: fd,
