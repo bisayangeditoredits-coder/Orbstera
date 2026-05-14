@@ -11,6 +11,7 @@ const Templates = dynamic(() => import('@/components/landing/Templates').then((m
 const Pricing = dynamic(() => import('@/components/landing/Pricing').then((m) => ({ default: m.Pricing })));
 const Testimonials = dynamic(() => import('@/components/landing/Testimonials').then((m) => ({ default: m.Testimonials })));
 const FAQ = dynamic(() => import('@/components/landing/FAQ').then((m) => ({ default: m.FAQ })));
+const DesktopDownload = dynamic(() => import('@/components/landing/DesktopDownload').then((m) => ({ default: m.DesktopDownload })));
 const CTA = dynamic(() => import('@/components/landing/CTA').then((m) => ({ default: m.CTA })));
 
 export default function Home() {
@@ -26,6 +27,7 @@ export default function Home() {
       <Pricing />
       <Testimonials />
       <FAQ />
+      <DesktopDownload />
       <CTA />
       <Footer />
     </main>

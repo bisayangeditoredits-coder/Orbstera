@@ -16,6 +16,9 @@
 # production
 /build
 
+# Electron generated config (CI / local pack)
+/electron/generated/
+
 # misc
 .DS_Store
 *.pem

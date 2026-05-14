@@ -1,0 +1,45 @@
+# Orbstera Desktop — electron-builder (cloud shell). Run from repo root after `npm run electron:write-load-url`.
+appId: com.orbstera.app
+productName: Orbstera
+copyright: Copyright © Orbstera
+
+directories:
+  output: release
+
+files:
+  - electron/**/*
+  - package.json
+
+asar: true
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  icon: public/logo.png.png
+  artifactName: "${productName}-${version}-${os}-${arch}.${ext}"
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Orbstera
+  installerLanguages:
+    - English
+  language: "1033"
+
+portable:
+  artifactName: "${productName}-${version}-portable-${os}-${arch}.${ext}"
+
+# Future desktop targets (enable when you add icons + signing):
+# mac:
+#   category: public.app-category.productivity
+#   target: [dmg]
+# linux:
+#   target: [AppImage]
+#   category: Office
