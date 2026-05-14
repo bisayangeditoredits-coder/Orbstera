@@ -46,7 +46,7 @@ Deck JSON and exports stay small by **offloading large inline images** to Cloudf
 - `CLOUDFLARE_R2_ENDPOINT`, `CLOUDFLARE_R2_ACCESS_KEY`, `CLOUDFLARE_R2_SECRET_KEY`, `CLOUDFLARE_R2_BUCKET_NAME`
 - **`NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL`** — public base URL for objects (required for presigned URLs and for the same-origin `/api/presentations/upload-asset` fallback to return stable `https://…` image links).
 
-**R2 bucket CORS**: allow `GET` and `PUT` from your web app origin (and `http://localhost:3000` for dev) so the browser can use presigned PUT URLs. If CORS is wrong, the app falls back to **server-side upload** via `POST /api/presentations/upload-asset`, which avoids browser→R2 CORS but still needs R2 credentials and the public URL above for readable image URLs.
+**R2 bucket CORS**: allow `GET` and `PUT` from your web app origin (and `http://localhost:3000` for dev) so the browser can use presigned PUT URLs for **images** and for **large deck JSON** (staging uploads when the deck exceeds the Vercel request size limit). If CORS is wrong, the app falls back to **server-side upload** via `POST /api/presentations/upload-asset` for images under ~4 MB, but very large decks still require a successful presigned PUT to R2.
 
 ## Legacy `.ppt` import
 

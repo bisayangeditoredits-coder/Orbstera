@@ -1,10 +1,13 @@
 import type { PresentationData, Slide, SlideElement } from '@/types';
 
 /** Inline data URLs above this length are uploaded to R2 before the deck JSON is POSTed. */
-const DATA_URL_OFFLOAD_MIN_CHARS = 6_000;
+const DATA_URL_OFFLOAD_MIN_CHARS = 2_000;
 
 /** Same-origin /api/presentations/upload-asset must stay under typical serverless body limits (e.g. Vercel ~4.5 MB). */
 const SERVER_UPLOAD_MAX_BYTES = 4_000_000;
+
+/** Above this size, POST the deck to R2 via presigned PUT then finalize (avoids Vercel request body limits). */
+const VERCEL_DIRECT_POST_MAX_BYTES = 2_800_000;
 
 /** Fresh `ArrayBuffer` so `Blob` / `BodyInit` accept it under TS 5.x (avoids `Uint8Array<ArrayBufferLike>` vs `BlobPart`). */
 function uint8ToArrayBuffer(src: Uint8Array): ArrayBuffer {
@@ -173,6 +176,70 @@ export async function preparePresentationForCloudSave(presentation: Presentation
   return clone;
 }
 
+function encodedBodyByteLength(body: BodyInit): number {
+  if (typeof body === 'string') return new TextEncoder().encode(body).byteLength;
+  if (body instanceof ArrayBuffer) return body.byteLength;
+  if (ArrayBuffer.isView(body)) return body.byteLength;
+  return VERCEL_DIRECT_POST_MAX_BYTES + 1;
+}
+
+async function postPresentationViaStaging(
+  prepared: PresentationData,
+  body: BodyInit,
+  encodeHeaders: Record<string, string>,
+): Promise<Response> {
+  const gzip = encodeHeaders['Content-Encoding'] === 'gzip';
+  const presentationId = prepared.id || 'draft';
+
+  const pres = await fetch('/api/presentations/presign-deck-upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ presentationId, gzip }),
+    cache: 'no-store',
+  });
+
+  if (!pres.ok) {
+    const err = (await pres.json().catch(() => ({}))) as { error?: string };
+    return new Response(JSON.stringify({ error: err.error || 'Presign failed' }), {
+      status: pres.status,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const { putUrl, stagingKey } = (await pres.json()) as { putUrl?: string; stagingKey?: string };
+  if (!putUrl || !stagingKey) {
+    return new Response(JSON.stringify({ error: 'Invalid presign response' }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const putRes = await fetch(putUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': gzip ? 'application/gzip' : 'application/json',
+    },
+    body,
+  });
+
+  if (!putRes.ok) {
+    return new Response(
+      JSON.stringify({
+        error:
+          'Large deck upload failed (direct PUT to storage). Add Cloudflare R2 CORS allowing PUT from this site, same as for images.',
+      }),
+      { status: 502, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+
+  return fetch('/api/presentations/complete-deck-upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ stagingKey, gzip }),
+    cache: 'no-store',
+  });
+}
+
 /** Async gzip branch — unified API */
 export async function encodePresentationPostBody(json: string): Promise<{ body: BodyInit; headers: Record<string, string> }> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -197,11 +264,16 @@ export async function postPresentationCloudSave(presentation: PresentationData):
   const prepared = await preparePresentationForCloudSave(presentation);
   const json = JSON.stringify(prepared);
   const { body, headers } = await encodePresentationPostBody(json);
-  const response = await fetch('/api/presentations', {
-    method: 'POST',
-    headers,
-    body,
-    cache: 'no-store',
-  });
+  const payloadBytes = encodedBodyByteLength(body);
+
+  const response =
+    payloadBytes > VERCEL_DIRECT_POST_MAX_BYTES
+      ? await postPresentationViaStaging(prepared, body, headers)
+      : await fetch('/api/presentations', {
+          method: 'POST',
+          headers,
+          body,
+          cache: 'no-store',
+        });
   return { response, prepared };
 }

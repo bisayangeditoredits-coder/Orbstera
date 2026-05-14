@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
 import { gunzipSync } from 'node:zlib';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3';
-import { v4 as uuidv4 } from 'uuid';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { deriveDeckIndexThumbFields } from '@/lib/deck-index-meta';
+import { runPresentationSaveFromParsed } from '@/lib/server/run-presentation-save';
 
 let s3Client: S3Client | null = null;
 if (
@@ -107,95 +106,31 @@ export async function POST(req: Request) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const prefix = `presentations/${user.id}`;
-
   try {
     const encoding = (req.headers.get('content-encoding') || '').toLowerCase();
     const raw = Buffer.from(await req.arrayBuffer());
     const jsonStr =
       encoding === 'gzip' ? gunzipSync(raw).toString('utf8') : raw.toString('utf8');
-    const presentation = JSON.parse(jsonStr);
-    
-    // ─── VALIDATION ───
-    // Prevent "Generating..." placeholders or empty decks from polluting the dashboard index.
-    // This handles cases where the user quits before generation finishes.
-    if (presentation.title === 'Generating...' || !presentation.slides || presentation.slides.length === 0) {
+    const presentation = JSON.parse(jsonStr) as Record<string, unknown>;
+    const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME;
+    const result = await runPresentationSaveFromParsed(s3Client, bucket, user.id, presentation);
+
+    if (!result.ok && result.reason === 'placeholder') {
       return NextResponse.json({ message: 'Placeholder skipped' }, { headers: PRIVATE_CACHE_HEADERS });
     }
-
-    if (!presentation.id)        presentation.id        = uuidv4();
-    if (!presentation.createdAt) presentation.createdAt = new Date().toISOString();
-    presentation.updatedAt = new Date().toISOString();
-    presentation.userId    = user.id;
-
-    const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME;
-    const deckKey = `${prefix}/${presentation.id}.json`;
-
-    // ─── Optimistic concurrency (saveVersion) ───────────────────────────────
-    let serverVersion = 0;
-    try {
-      const existingRes = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: deckKey }));
-      const existing = JSON.parse(await streamToString(existingRes.Body));
-      serverVersion = Number(existing.saveVersion) || 0;
-    } catch (e: any) {
-      if (e.name !== 'NoSuchKey') throw e;
-    }
-    const clientVersion = Number(presentation.saveVersion) || 0;
-    if (serverVersion > 0 && clientVersion !== serverVersion) {
+    if (!result.ok && result.reason === 'conflict') {
       return NextResponse.json(
-        { error: 'Save conflict', code: 'SAVE_CONFLICT', serverVersion },
+        { error: 'Save conflict', code: 'SAVE_CONFLICT', serverVersion: result.serverVersion },
         { status: 409 },
       );
-    }
-    presentation.saveVersion = serverVersion + 1;
-
-    // 1. Save full presentation JSON (retried)
-    await putJsonWithRetry(s3Client, bucket, deckKey, JSON.stringify(presentation));
-
-    // 2. Read → update → write index (retried; best-effort merge)
-    let index: any[] = [];
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        try {
-          const res  = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: `${prefix}/index.json` }));
-          const body = await streamToString(res.Body);
-          index = JSON.parse(body);
-        } catch (e: any) {
-          if (e.name !== 'NoSuchKey') throw e;
-        }
-
-        const thumb = deriveDeckIndexThumbFields(presentation as { slides?: unknown[] });
-
-        const metadata = {
-          id:          presentation.id,
-          title:       presentation.title || 'Untitled Presentation',
-          date:        presentation.updatedAt,
-          createdAt:   presentation.createdAt,
-          slidesCount: presentation.slides?.length || 0,
-          theme:       presentation.theme || 'dark',
-          colorPalette: presentation.colorPalette || ['#05050A', '#7B61FF', '#FFFFFF', '#A390FF'],
-          subtitle:    presentation.slides?.[0]?.subtitle || '',
-          ...thumb,
-        };
-
-        const existingIndex = index.findIndex((p: any) => p.id === presentation.id);
-        if (existingIndex >= 0) index[existingIndex] = metadata;
-        else index.unshift(metadata);
-
-        await putJsonWithRetry(s3Client, bucket, `${prefix}/index.json`, JSON.stringify(index));
-        break;
-      } catch (e) {
-        if (attempt === 2) throw e;
-        await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
-      }
     }
 
     return NextResponse.json(
       {
         success: true,
-        id: presentation.id,
-        saveVersion: presentation.saveVersion,
-        updatedAt: presentation.updatedAt,
+        id: result.id,
+        saveVersion: result.saveVersion,
+        updatedAt: result.updatedAt,
       },
       { headers: PRIVATE_CACHE_HEADERS }
     );
