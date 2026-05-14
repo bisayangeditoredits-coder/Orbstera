@@ -19,6 +19,7 @@ import { usePresentationCloudSync } from '@/hooks/usePresentationCloudSync';
 import type { PresentationData } from '@/types';
 import { isSlideDeckBackgroundImage } from '@/lib/slide-background';
 import { createStarterPresentation } from '@/lib/editor-starter-deck';
+import { createEditorGeneratingShell } from '@/lib/editor-generating-shell';
 
 const EditorCanvasLoading = () => (
   <div className="flex-1 min-h-0 flex items-center justify-center bg-background text-textMuted">
@@ -123,14 +124,29 @@ export default function EditorClient() {
     return () => ac.abort();
   }, [searchParams, setActivePanel, setPanelOpen]);
 
-  /** Empty store breaks several editor surfaces; bootstrap a blank deck for plain `/editor` visits (e.g. “Start Creating”). */
+  /**
+   * Empty store breaks several editor surfaces.
+   * - Plain `/editor`: starter deck with one blank slide.
+   * - `/editor?prompt=…` (etc.): generating shell so components never mount with `presentation === null`
+   *   before GeneratePanel runs (must use empty slides + title `Generating…` per store rules).
+   */
   useEffect(() => {
     const id = searchParams.get('id');
     const prompt = searchParams.get('prompt');
     const mode = searchParams.get('mode');
-    if (id || prompt || mode) return;
-
+    const fileName = searchParams.get('fileName');
     const st = usePresentationStore.getState();
+
+    if (id) return;
+
+    const hasDeepLinkIntent = !!(prompt || mode || fileName);
+    if (hasDeepLinkIntent) {
+      if (!st.presentation && !st.editor.isGenerating) {
+        st.setPresentation(createEditorGeneratingShell());
+      }
+      return;
+    }
+
     if (st.presentation) return;
     if (st.editor.isGenerating) return;
 

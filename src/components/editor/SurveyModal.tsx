@@ -36,11 +36,11 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
   const [selectedRole, setSelectedRole] = useState('');
   const [selectedPurpose, setSelectedPurpose] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const supabase = createClient();
 
   const handleFinish = async () => {
     setIsSubmitting(true);
     try {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { error: authErr } = await supabase.auth.updateUser({

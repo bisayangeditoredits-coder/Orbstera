@@ -7,6 +7,7 @@ import { SurveyModal } from './SurveyModal';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { PresentationData } from '@/types';
 import { normalizePresentationPayload } from '@/lib/ai/orchestration';
+import { createEditorGeneratingShell } from '@/lib/editor-generating-shell';
 import { extractDeckJsonFromModelOutput } from '@/lib/ai/openrouter';
 import {
   createEditorSpeechRecognition,
@@ -521,14 +522,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
       // For 'replace' mode, wipe the existing presentation immediately
       if (appendMode === 'replace') {
-        setPresentation({
-          title: 'Generating...',
-          theme: 'modern-dark',
-          colorPalette: ['#05050A', '#FFFFFF', '#3B82F6', '#94A3B8'],
-          fontPairing: { heading: 'Space Grotesk', body: 'Inter' },
-          animationStyle: 'cinematic-reveal',
-          slides: [],
-        });
+        setPresentation(createEditorGeneratingShell());
       }
 
       const nextEpoch = usePresentationStore.getState().editor.generationEpoch + 1;
