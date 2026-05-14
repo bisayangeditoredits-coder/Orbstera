@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ImageIcon } from 'lucide-react';
 import { usePresentationStore } from '@/store/usePresentationStore';
@@ -283,7 +283,8 @@ const ZOOM_MAX = 3;
 const SCROLL_ZOOM_SPEED = 0.0075;
 
 export function CanvasArea() {
-  const [containerSize, setContainerSize] = useState({ w: 900, h: 600 });
+  /** Start at 0 so first layout pass does not run centering math with a fake width (avoids bad pan from ResizeObserver). */
+  const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const setEditorState = usePresentationStore((s) => s.setEditorState);
   const undo = usePresentationStore((s) => s.undo);
   const redo = usePresentationStore((s) => s.redo);
@@ -299,7 +300,7 @@ export function CanvasArea() {
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   
   const wheelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevContainerWRef = useRef<number | null>(null);
+  const prevContainerSizeRef = useRef<{ w: number; h: number } | null>(null);
 
   // Refs for logic
   const containerRef = useRef<HTMLDivElement>(null);
@@ -314,41 +315,42 @@ export function CanvasArea() {
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
   useEffect(() => { isSpacePressedRef.current = isSpacePressed; }, [isSpacePressed]);
 
-  // Measure container
-  useEffect(() => {
+  // Measure container before paint so centering uses real dimensions (main column + sidebars).
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
     const measure = () => {
-      if (containerRef.current) {
-        setContainerSize({
-          w: containerRef.current.clientWidth,
-          h: containerRef.current.clientHeight,
-        });
-      }
+      const cr = el.getBoundingClientRect();
+      setContainerSize({ w: cr.width, h: cr.height });
     };
     measure();
     const ro = new ResizeObserver(measure);
-    if (containerRef.current) ro.observe(containerRef.current);
+    ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  /** Keep slide visually anchored when the main column width changes (e.g. right panel open/close). */
-  useEffect(() => {
-    const w = containerSize.w;
-    if (prevContainerWRef.current === null) {
-      prevContainerWRef.current = w;
-      return;
-    }
-    const prev = prevContainerWRef.current;
-    const dw = w - prev;
-    prevContainerWRef.current = w;
-    if (Math.abs(dw) < 12) return;
-    const p = usePresentationStore.getState().editor.pan;
-    setEditorState({ pan: { x: p.x - dw / 2, y: p.y } });
-  }, [containerSize.w, setEditorState]);
+  /**
+   * When the canvas box resizes, `scaledW` / `scaledH` change with `baseFitScale`, so the old
+   * `pan.x -= dw/2` correction (constant slide size) drifted the slide off-center. Recenter by
+   * clearing pan on meaningful layout changes (panel toggle, window resize).
+   */
+  useLayoutEffect(() => {
+    const { w, h } = containerSize;
+    if (w <= 0 || h <= 0) return;
+    const prev = prevContainerSizeRef.current;
+    prevContainerSizeRef.current = { w, h };
+    if (!prev) return;
+    if (Math.abs(w - prev.w) < 12 && Math.abs(h - prev.h) < 12) return;
+    setEditorState({ pan: { x: 0, y: 0 } });
+  }, [containerSize.w, containerSize.h, setEditorState]);
 
-  const baseFitScale = Math.min(
-    (containerSize.w - PAD * 2) / CANVAS_WIDTH,
-    (containerSize.h - PAD * 2) / CANVAS_HEIGHT,
-  );
+  const baseFitScale =
+    containerSize.w <= PAD * 2 || containerSize.h <= PAD * 2
+      ? 0.01
+      : Math.min(
+          (containerSize.w - PAD * 2) / CANVAS_WIDTH,
+          (containerSize.h - PAD * 2) / CANVAS_HEIGHT,
+        );
   const effectiveScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, baseFitScale * zoom));
 
   const scaledW = CANVAS_WIDTH  * effectiveScale;
