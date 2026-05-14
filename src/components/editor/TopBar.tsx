@@ -19,7 +19,7 @@ import { createClient } from '@/lib/supabase';
 import { postPresentationCloudSave } from '@/lib/presentation-cloud-save';
 import { buildPresentationUpdatesAfterCloudSave } from '@/lib/merge-cloud-prepared';
 import { suppressCloudDirtyDuring } from '@/lib/cloud-dirty-suppress';
-import { humanizeFetchError } from '@/lib/network-error-message';
+import { humanizeFetchError, isAbortLikeError } from '@/lib/network-error-message';
 import { CreditsHUD } from './CreditsHUD';
 
 // ── Export Progress Modal ─────────────────────────────────────────────────────
@@ -394,9 +394,14 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
         if (st === 'saved') setEditorState({ cloudSyncStatus: 'idle' });
       }, 1800);
     } catch (e: unknown) {
+      if (isAbortLikeError(e)) {
+        setEditorState({ cloudSyncStatus: 'idle', cloudSyncMessage: undefined });
+        return;
+      }
+      const msg = humanizeFetchError(e);
       setEditorState({
         cloudSyncStatus: 'error',
-        cloudSyncMessage: humanizeFetchError(e),
+        cloudSyncMessage: msg || 'Sync failed',
       });
     }
   };
@@ -689,9 +694,9 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
                 </div>
               )}
               {cloudSync === 'error' && (
-                <div className="flex items-center gap-1 text-red-700 text-[10px] font-semibold px-2 py-1 rounded-full bg-red-50 border border-red-100 max-w-[150px]">
+                <div className="flex items-center gap-1 text-red-700 text-[10px] font-semibold px-2 py-1 rounded-full bg-red-50 border border-red-100 max-w-[min(100%,260px)]">
                   <AlertCircle size={11} className="shrink-0" strokeWidth={1.75} />
-                  <span className="truncate min-w-0" title={cloudMsg}>{cloudMsg || 'Sync error'}</span>
+                  <span className="min-w-0 line-clamp-2 whitespace-normal leading-snug" title={cloudMsg}>{cloudMsg || 'Sync error'}</span>
                   <button type="button" onClick={retrySaveNow} className="shrink-0 p-1 rounded-full hover:bg-red-100/80" title="Retry save">
                     <RefreshCw size={11} strokeWidth={1.75} />
                   </button>

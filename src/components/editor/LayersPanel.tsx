@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useMemo, useCallback, memo } from 'react';
+import { useRef, useMemo, useCallback, memo, useState, useEffect } from 'react';
 import { PPT_ANIMATION_HINT, PPT_STYLE_ENTRANCE_OPTIONS } from '@/lib/editor/pptAnimationCatalog';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
@@ -8,7 +8,7 @@ import {
   Eye, EyeOff, Lock, Unlock, Trash2, ArrowUp, ArrowDown,
   AlignLeft, AlignCenter,
   AlignRight, AlignJustify, Bold, Italic, Upload, Copy,
-  GripVertical,
+  GripVertical, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { SlideElement } from '@/types';
 import { ColorPicker } from './ColorPicker';
@@ -322,13 +322,18 @@ const SortableLayerRow = memo(function SortableLayerRow({
   el,
   slideId,
   isSelected,
-  onToggleSelect,
+  isInspectorOpen,
+  onRowActivate,
+  onToggleInspector,
   onDuplicate,
 }: {
   el: SlideElement;
   slideId: string;
   isSelected: boolean;
-  onToggleSelect: () => void;
+  isInspectorOpen: boolean;
+  /** Select this layer / toggle inspector (see LayersPanel). */
+  onRowActivate: () => void;
+  onToggleInspector: () => void;
   onDuplicate: (el: SlideElement) => void;
 }) {
   const controls = useDragControls();
@@ -357,15 +362,7 @@ const SortableLayerRow = memo(function SortableLayerRow({
     >
       <div className="flex w-full min-w-0 flex-col gap-0">
         <div
-          role="button"
-          tabIndex={0}
-          onClick={onToggleSelect}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onToggleSelect();
-            }
-          }}
+          onClick={onRowActivate}
           className="flex cursor-pointer items-center gap-2 px-2 py-2.5 sm:gap-2.5 sm:px-3"
         >
           <button
@@ -393,6 +390,26 @@ const SortableLayerRow = memo(function SortableLayerRow({
               {Math.round(el.x)}, {Math.round(el.y)} · {Math.round(el.width)}×{Math.round(el.height)}
             </p>
           </div>
+
+          {isSelected && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleInspector();
+              }}
+              className="shrink-0 rounded-lg border border-neutral-200/90 bg-white p-1.5 text-neutral-500 shadow-sm transition hover:border-primary/25 hover:bg-primary/5 hover:text-primary"
+              title={isInspectorOpen ? 'Hide properties' : 'Show properties'}
+              aria-expanded={isInspectorOpen}
+              aria-label={isInspectorOpen ? 'Hide layer properties' : 'Show layer properties'}
+            >
+              {isInspectorOpen ? (
+                <ChevronUp size={16} strokeWidth={2} />
+              ) : (
+                <ChevronDown size={16} strokeWidth={2} />
+              )}
+            </button>
+          )}
         </div>
 
         <div
@@ -480,7 +497,7 @@ const SortableLayerRow = memo(function SortableLayerRow({
       </div>
 
       <AnimatePresence>
-        {isSelected && (
+        {isSelected && isInspectorOpen && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -510,6 +527,22 @@ export function LayersPanel() {
     setElementsOrder,
   } = usePresentationStore();
 
+  /** Property inspector is separate from selection so reordering does not jump layout. */
+  const [inspectorExpandedId, setInspectorExpandedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setInspectorExpandedId(null);
+  }, [currentSlideIndex]);
+
+  useEffect(() => {
+    const sel = editor.selectedElementId;
+    setInspectorExpandedId((prev) => {
+      if (prev === null) return null;
+      if (sel === null) return null;
+      return sel === prev ? prev : null;
+    });
+  }, [editor.selectedElementId]);
+
   const slide = presentation?.slides[currentSlideIndex];
   const displayIds = useMemo(
     () => [...(slide?.elements || [])].reverse().map((e) => e.id),
@@ -533,6 +566,7 @@ export function LayersPanel() {
     };
     addElement(slide.id, copy);
     selectElement(copy.id);
+    setInspectorExpandedId(null);
   };
 
   const handleReorder = useCallback(
@@ -541,6 +575,22 @@ export function LayersPanel() {
     },
     [slide, setElementsOrder],
   );
+
+  const handleLayerRowClick = useCallback(
+    (elId: string) => {
+      if (editor.selectedElementId !== elId) {
+        selectElement(elId);
+        setInspectorExpandedId(null);
+      } else {
+        setInspectorExpandedId((p) => (p === elId ? null : elId));
+      }
+    },
+    [editor.selectedElementId, selectElement],
+  );
+
+  const handleToggleInspector = useCallback((elId: string) => {
+    setInspectorExpandedId((p) => (p === elId ? null : elId));
+  }, []);
 
   return (
     <div
@@ -552,7 +602,9 @@ export function LayersPanel() {
           <div className="h-2 w-2 shrink-0 rounded-full bg-gradient-to-br from-primary to-sky-400 shadow-[0_0_10px_rgba(59,130,246,0.45)]" />
           <div className="flex min-w-0 flex-col gap-0.5">
             <h3 className="text-sm font-semibold tracking-tight text-neutral-900">Layers</h3>
-            <p className="text-xs text-neutral-500">Stacking, visibility, and properties</p>
+            <p className="text-xs text-neutral-500">
+              Drag the grip to reorder · Select a layer, then click again or use the chevron for properties
+            </p>
           </div>
         </div>
         <span className="shrink-0 rounded-lg border border-neutral-200/90 bg-neutral-50 px-2.5 py-1 text-[11px] font-medium tabular-nums text-neutral-600">
@@ -582,13 +634,16 @@ export function LayersPanel() {
                 const el = byId.get(id);
                 if (!el) return null;
                 const isSelected = editor.selectedElementId === el.id;
+                const isInspectorOpen = inspectorExpandedId === el.id;
                 return (
                   <SortableLayerRow
                     key={id}
                     el={el}
                     slideId={slide!.id}
                     isSelected={isSelected}
-                    onToggleSelect={() => selectElement(isSelected ? null : el.id)}
+                    isInspectorOpen={isInspectorOpen}
+                    onRowActivate={() => handleLayerRowClick(el.id)}
+                    onToggleInspector={() => handleToggleInspector(el.id)}
                     onDuplicate={duplicateElement}
                   />
                 );
