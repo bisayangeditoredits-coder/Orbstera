@@ -6,6 +6,13 @@ const DATA_URL_OFFLOAD_MIN_CHARS = 6_000;
 /** Same-origin /api/presentations/upload-asset must stay under typical serverless body limits (e.g. Vercel ~4.5 MB). */
 const SERVER_UPLOAD_MAX_BYTES = 4_000_000;
 
+/** Fresh `ArrayBuffer` so `Blob` / `BodyInit` accept it under TS 5.x (avoids `Uint8Array<ArrayBufferLike>` vs `BlobPart`). */
+function uint8ToArrayBuffer(src: Uint8Array): ArrayBuffer {
+  const out = new ArrayBuffer(src.byteLength);
+  new Uint8Array(out).set(src);
+  return out;
+}
+
 function parseDataUrl(dataUrl: string): { mime: string; bytes: Uint8Array } | null {
   const match = /^data:([^;,]+)(;base64)?,(.*)$/s.exec(dataUrl);
   if (!match) return null;
@@ -31,14 +38,14 @@ function parseDataUrl(dataUrl: string): { mime: string; bytes: Uint8Array } | nu
 }
 
 async function uploadDataUrlViaServer(
-  fileBytes: Uint8Array,
+  payload: ArrayBuffer,
   mime: string,
   presentationId: string,
 ): Promise<string | null> {
   const fd = new FormData();
   fd.set('presentationId', presentationId);
   fd.set('mimeType', mime);
-  fd.set('file', new Blob([fileBytes], { type: mime }));
+  fd.set('file', new Blob([payload], { type: mime }));
   const res = await fetch('/api/presentations/upload-asset', {
     method: 'POST',
     body: fd,
@@ -60,8 +67,7 @@ async function uploadDataUrlOnce(
   const parsed = parseDataUrl(dataUrl);
   if (!parsed) return null;
 
-  // Single copy: BlobPart typing + reuse for PUT + multipart upload.
-  const fileBytes = Uint8Array.from(parsed.bytes);
+  const payloadBuffer = uint8ToArrayBuffer(parsed.bytes);
   const { mime } = parsed;
 
   const tryPresignedPut = async (): Promise<string | null> => {
@@ -87,7 +93,7 @@ async function uploadDataUrlOnce(
       const put = await fetch(putUrl, {
         method: 'PUT',
         headers: { 'Content-Type': mime },
-        body: fileBytes as unknown as BodyInit,
+        body: payloadBuffer,
       });
       if (!put.ok) return null;
       dedupe.set(dataUrl, publicUrl);
@@ -98,12 +104,12 @@ async function uploadDataUrlOnce(
   };
 
   const tryServer = async (): Promise<string | null> => {
-    if (fileBytes.byteLength > SERVER_UPLOAD_MAX_BYTES) return null;
-    return uploadDataUrlViaServer(fileBytes, mime, presentationId);
+    if (payloadBuffer.byteLength > SERVER_UPLOAD_MAX_BYTES) return null;
+    return uploadDataUrlViaServer(payloadBuffer, mime, presentationId);
   };
 
   // Prefer same-origin upload first under the serverless body cap — avoids browser→R2 CORS entirely.
-  if (fileBytes.byteLength <= SERVER_UPLOAD_MAX_BYTES) {
+  if (payloadBuffer.byteLength <= SERVER_UPLOAD_MAX_BYTES) {
     try {
       const url = await tryServer();
       if (url) {
@@ -174,7 +180,7 @@ export async function encodePresentationPostBody(json: string): Promise<{ body: 
   if (typeof CompressionStream === 'undefined' || bytes.byteLength < 48_000) {
     return { body: json, headers };
   }
-  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+  const stream = new Blob([uint8ToArrayBuffer(bytes)]).stream().pipeThrough(new CompressionStream('gzip'));
   const buf = await new Response(stream).arrayBuffer();
   headers['Content-Encoding'] = 'gzip';
   return { body: buf, headers };
