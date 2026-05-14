@@ -1,8 +1,10 @@
 import type { PresentationData, Slide, SlideElement } from '@/types';
-import { CloudImageUploadError } from '@/lib/network-error-message';
 
 /** Inline data URLs above this length are uploaded to R2 before the deck JSON is POSTed. */
 const DATA_URL_OFFLOAD_MIN_CHARS = 6_000;
+
+/** Same-origin /api/presentations/upload-asset must stay under typical serverless body limits (e.g. Vercel ~4.5 MB). */
+const SERVER_UPLOAD_MAX_BYTES = 4_000_000;
 
 function parseDataUrl(dataUrl: string): { mime: string; bytes: Uint8Array } | null {
   const match = /^data:([^;,]+)(;base64)?,(.*)$/s.exec(dataUrl);
@@ -29,15 +31,14 @@ function parseDataUrl(dataUrl: string): { mime: string; bytes: Uint8Array } | nu
 }
 
 async function uploadDataUrlViaServer(
-  parsed: { mime: string; bytes: Uint8Array },
+  fileBytes: Uint8Array,
+  mime: string,
   presentationId: string,
 ): Promise<string | null> {
   const fd = new FormData();
   fd.set('presentationId', presentationId);
-  fd.set('mimeType', parsed.mime);
-  // Copy so BlobPart is backed by ArrayBuffer (Vercel/TS strict: Uint8Array<ArrayBufferLike> rejected).
-  const fileBytes = Uint8Array.from(parsed.bytes);
-  fd.set('file', new Blob([fileBytes], { type: parsed.mime }));
+  fd.set('mimeType', mime);
+  fd.set('file', new Blob([fileBytes], { type: mime }));
   const res = await fetch('/api/presentations/upload-asset', {
     method: 'POST',
     body: fd,
@@ -59,54 +60,75 @@ async function uploadDataUrlOnce(
   const parsed = parseDataUrl(dataUrl);
   if (!parsed) return null;
 
-  let networkThrow: unknown;
+  // Single copy: BlobPart typing + reuse for PUT + multipart upload.
+  const fileBytes = Uint8Array.from(parsed.bytes);
+  const { mime } = parsed;
 
-  try {
-    const presignRes = await fetch('/api/presentations/presigned-asset', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ presentationId, mimeType: parsed.mime }),
-      cache: 'no-store',
-    });
+  const tryPresignedPut = async (): Promise<string | null> => {
+    try {
+      const presignRes = await fetch('/api/presentations/presigned-asset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ presentationId, mimeType: mime }),
+        cache: 'no-store',
+      });
 
-    if (presignRes.status === 401 || presignRes.status === 501) {
+      if (presignRes.status === 401 || presignRes.status === 501) {
+        return null;
+      }
+
+      if (!presignRes.ok) {
+        return null;
+      }
+
+      const { putUrl, publicUrl } = (await presignRes.json()) as { putUrl?: string; publicUrl?: string };
+      if (!putUrl || !publicUrl) return null;
+
+      const put = await fetch(putUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': mime },
+        body: fileBytes as unknown as BodyInit,
+      });
+      if (!put.ok) return null;
+      dedupe.set(dataUrl, publicUrl);
+      return publicUrl;
+    } catch {
       return null;
     }
+  };
 
-    if (presignRes.ok) {
-      const { putUrl, publicUrl } = (await presignRes.json()) as { putUrl?: string; publicUrl?: string };
-      if (putUrl && publicUrl) {
-        try {
-          const put = await fetch(putUrl, {
-            method: 'PUT',
-            headers: { 'Content-Type': parsed.mime },
-            body: parsed.bytes as unknown as BodyInit,
-          });
-          if (put.ok) {
-            dedupe.set(dataUrl, publicUrl);
-            return publicUrl;
-          }
-        } catch (e) {
-          networkThrow = networkThrow ?? e;
-        }
+  const tryServer = async (): Promise<string | null> => {
+    if (fileBytes.byteLength > SERVER_UPLOAD_MAX_BYTES) return null;
+    return uploadDataUrlViaServer(fileBytes, mime, presentationId);
+  };
+
+  // Prefer same-origin upload first under the serverless body cap — avoids browser→R2 CORS entirely.
+  if (fileBytes.byteLength <= SERVER_UPLOAD_MAX_BYTES) {
+    try {
+      const url = await tryServer();
+      if (url) {
+        dedupe.set(dataUrl, url);
+        return url;
       }
+    } catch {
+      /* fall through to presigned */
     }
-  } catch (e) {
-    networkThrow = networkThrow ?? e;
+    const presigned = await tryPresignedPut();
+    if (presigned) return presigned;
+    return null;
   }
 
+  // Large payloads: direct R2 PUT only fits without hitting the app API body limit; then try server as last resort.
+  const presignedLarge = await tryPresignedPut();
+  if (presignedLarge) return presignedLarge;
   try {
-    const viaServer = await uploadDataUrlViaServer(parsed, presentationId);
-    if (viaServer) {
-      dedupe.set(dataUrl, viaServer);
-      return viaServer;
+    const url = await tryServer();
+    if (url) {
+      dedupe.set(dataUrl, url);
+      return url;
     }
-  } catch (e) {
-    networkThrow = networkThrow ?? e;
-  }
-
-  if (networkThrow) {
-    throw new CloudImageUploadError(undefined, { cause: networkThrow });
+  } catch {
+    /* ignore */
   }
   return null;
 }
