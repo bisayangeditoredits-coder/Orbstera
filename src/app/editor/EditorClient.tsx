@@ -85,6 +85,12 @@ export default function EditorClient() {
             return;
           }
           if (!data || !data.id) {
+            const local = usePresentationStore.getState().presentation;
+            if (local?.id === id && Array.isArray(local.slides) && local.slides.length > 0) {
+              setDeckLoadStatus('idle');
+              setDeckLoadMessage(null);
+              return;
+            }
             setDeckLoadStatus('error');
             setDeckLoadMessage('Deck not found (or you no longer have access).');
             return;

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { gunzipSync } from 'node:zlib';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
@@ -205,6 +205,35 @@ export async function POST(req: Request) {
   }
 }
 
+async function deleteDeckAssetsUnderPrefix(
+  client: S3Client,
+  bucket: string,
+  prefix: string,
+): Promise<void> {
+  let continuationToken: string | undefined;
+  for (;;) {
+    const list = await client.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+        MaxKeys: 1000,
+      }),
+    );
+    const keys = (list.Contents || []).map((o) => o.Key).filter((k): k is string => Boolean(k));
+    if (keys.length) {
+      await client.send(
+        new DeleteObjectsCommand({
+          Bucket: bucket,
+          Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true },
+        }),
+      );
+    }
+    if (!list.IsTruncated) break;
+    continuationToken = list.NextContinuationToken;
+  }
+}
+
 // ── DELETE /api/presentations?id= — remove a presentation ──────────────────
 export async function DELETE(req: Request) {
   if (!s3Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) {
@@ -243,6 +272,16 @@ export async function DELETE(req: Request) {
       Body:        JSON.stringify(index),
       ContentType: 'application/json',
     }));
+
+    try {
+      await deleteDeckAssetsUnderPrefix(
+        s3Client,
+        process.env.CLOUDFLARE_R2_BUCKET_NAME,
+        `${prefix}/deck-assets/${id}/`,
+      );
+    } catch (assetErr) {
+      console.error('R2 deck-assets cleanup (non-fatal):', assetErr);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

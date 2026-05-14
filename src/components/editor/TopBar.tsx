@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { postPresentationCloudSave } from '@/lib/presentation-cloud-save';
+import { buildPresentationUpdatesAfterCloudSave } from '@/lib/merge-cloud-prepared';
+import { suppressCloudDirtyDuring } from '@/lib/cloud-dirty-suppress';
 import { CreditsHUD } from './CreditsHUD';
 
 // ── Export Progress Modal ─────────────────────────────────────────────────────
@@ -370,11 +372,20 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
         throw new Error(typeof data.error === 'string' ? data.error : 'Save failed');
       }
       if (data.success && typeof data.saveVersion === 'number') {
-        usePresentationStore.getState().updatePresentation({
-          saveVersion: data.saveVersion,
-          lastCloudSavedAt: data.updatedAt || new Date().toISOString(),
-          slides: prepared.slides,
-        });
+        const current = usePresentationStore.getState().presentation;
+        if (current) {
+          suppressCloudDirtyDuring(() => {
+            usePresentationStore.getState().updatePresentation(
+              buildPresentationUpdatesAfterCloudSave(
+                current,
+                body,
+                prepared,
+                data.saveVersion,
+                data.updatedAt || new Date().toISOString(),
+              ),
+            );
+          });
+        }
       }
       setEditorState({ cloudSyncStatus: 'saved' });
       window.setTimeout(() => {

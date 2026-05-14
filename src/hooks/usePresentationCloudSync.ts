@@ -1,101 +1,133 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { postPresentationCloudSave } from '@/lib/presentation-cloud-save';
+import { buildPresentationUpdatesAfterCloudSave } from '@/lib/merge-cloud-prepared';
+import { isCloudDirtySuppressed, suppressCloudDirtyDuring } from '@/lib/cloud-dirty-suppress';
 
-const DEBOUNCE_MS = 2400;
+const AUTOSAVE_INTERVAL_MS = 60_000;
 
 /**
- * Debounced autosave of the active presentation to `/api/presentations` (Cloudflare R2).
- * Updates `editor.cloudSyncStatus` and `presentation.saveVersion` on success.
+ * Interval-based cloud autosave (~60s while the deck has local changes) plus flush on tab hide.
+ * Applies merged updates after save so concurrent edits are not overwritten by stale prepared slides.
  */
 export function usePresentationCloudSync() {
-  const presentation = usePresentationStore((s) => s.presentation);
   const updatePresentation = usePresentationStore((s) => s.updatePresentation);
   const setEditorState = usePresentationStore((s) => s.setEditorState);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savingRef = useRef(false);
+  const dirtyRef = useRef(false);
 
-  useEffect(() => {
-    if (!presentation?.id || presentation.title === 'Generating...' || !presentation.slides?.length) {
-      return;
-    }
+  const runSave = useCallback(async () => {
+    if (savingRef.current) return;
 
-    if (timerRef.current) clearTimeout(timerRef.current);
+    const body = usePresentationStore.getState().presentation;
+    if (!body?.id || body.title === 'Generating...' || !body.slides?.length) return;
 
-    timerRef.current = setTimeout(async () => {
-      if (savingRef.current) return;
-      savingRef.current = true;
-      setEditorState({ cloudSyncStatus: 'saving', cloudSyncMessage: undefined });
+    savingRef.current = true;
+    setEditorState({ cloudSyncStatus: 'saving', cloudSyncMessage: undefined });
 
-      const body = usePresentationStore.getState().presentation;
-      if (!body?.id || body.title === 'Generating...') {
-        savingRef.current = false;
+    try {
+      const { response: res, prepared } = await postPresentationCloudSave(body);
+      const data = await res.json().catch(() => ({}));
+
+      if (res.status === 401) {
+        setEditorState({
+          cloudSyncStatus: 'error',
+          cloudSyncMessage: 'Sign in to sync to the cloud.',
+        });
+        return;
+      }
+
+      if (res.status === 409) {
+        setEditorState({
+          cloudSyncStatus: 'conflict',
+          cloudSyncMessage: 'This deck was saved elsewhere. Reload to get the latest version.',
+        });
+        return;
+      }
+
+      if (!res.ok) {
+        if (res.status === 413) {
+          throw new Error(
+            'Save failed: deck too large for one upload. Set NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL so images can be stored on R2, or remove heavy embedded images.',
+          );
+        }
+        throw new Error(typeof data.error === 'string' ? data.error : `Save failed (${res.status})`);
+      }
+
+      if (data.message === 'Placeholder skipped') {
         setEditorState({ cloudSyncStatus: 'idle' });
         return;
       }
 
-      try {
-        const { response: res, prepared } = await postPresentationCloudSave(body);
-        const data = await res.json().catch(() => ({}));
-
-        if (res.status === 401) {
-          setEditorState({
-            cloudSyncStatus: 'error',
-            cloudSyncMessage: 'Sign in to sync to the cloud.',
-          });
-          return;
-        }
-
-        if (res.status === 409) {
-          setEditorState({
-            cloudSyncStatus: 'conflict',
-            cloudSyncMessage: 'This deck was saved elsewhere. Reload to get the latest version.',
-          });
-          return;
-        }
-
-        if (!res.ok) {
-          if (res.status === 413) {
-            throw new Error(
-              'Save failed: deck too large for one upload. Set NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL so images can be stored on R2, or remove heavy embedded images.',
+      if (data.success && typeof data.saveVersion === 'number') {
+        const current = usePresentationStore.getState().presentation;
+        if (current) {
+          suppressCloudDirtyDuring(() => {
+            updatePresentation(
+              buildPresentationUpdatesAfterCloudSave(
+                current,
+                body,
+                prepared,
+                data.saveVersion,
+                data.updatedAt || new Date().toISOString(),
+              ),
             );
-          }
-          throw new Error(typeof data.error === 'string' ? data.error : `Save failed (${res.status})`);
-        }
-
-        if (data.message === 'Placeholder skipped') {
-          setEditorState({ cloudSyncStatus: 'idle' });
-          return;
-        }
-
-        if (data.success && typeof data.saveVersion === 'number') {
-          updatePresentation({
-            saveVersion: data.saveVersion,
-            lastCloudSavedAt: data.updatedAt || new Date().toISOString(),
-            slides: prepared.slides,
           });
         }
-
+        dirtyRef.current = false;
         setEditorState({ cloudSyncStatus: 'saved', cloudSyncMessage: undefined });
         window.setTimeout(() => {
           const st = usePresentationStore.getState().editor.cloudSyncStatus;
           if (st === 'saved') setEditorState({ cloudSyncStatus: 'idle' });
         }, 2000);
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : 'Sync failed';
-        setEditorState({
-          cloudSyncStatus: 'error',
-          cloudSyncMessage: msg,
-        });
-      } finally {
-        savingRef.current = false;
       }
-    }, DEBOUNCE_MS);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Sync failed';
+      setEditorState({
+        cloudSyncStatus: 'error',
+        cloudSyncMessage: msg,
+      });
+    } finally {
+      savingRef.current = false;
+    }
+  }, [updatePresentation, setEditorState]);
 
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+  useEffect(() => {
+    return usePresentationStore.subscribe((state, prev) => {
+      if (isCloudDirtySuppressed()) return;
+      if (state.presentation !== prev.presentation) {
+        dirtyRef.current = true;
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (!dirtyRef.current) return;
+      void runSave();
+    }, AUTOSAVE_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [runSave]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'hidden' && dirtyRef.current) {
+        void runSave();
+      }
     };
-  }, [presentation, updatePresentation, setEditorState]);
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [runSave]);
+
+  useEffect(() => {
+    const onBeforeUnload = () => {
+      if (dirtyRef.current && usePresentationStore.getState().presentation?.id) {
+        void runSave();
+      }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [runSave]);
 }

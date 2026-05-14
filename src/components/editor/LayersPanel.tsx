@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useMemo, useCallback } from 'react';
+import { useRef, useMemo, useCallback, memo } from 'react';
 import { PPT_ANIMATION_HINT, PPT_STYLE_ENTRANCE_OPTIONS } from '@/lib/editor/pptAnimationCatalog';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
@@ -318,7 +318,7 @@ function PropertyEditor({ element, slideId }: { element: SlideElement; slideId: 
 }
 
 // ─── Sortable layer row (drag handle + thumbnail + actions) ───────────────────
-function SortableLayerRow({
+const SortableLayerRow = memo(function SortableLayerRow({
   el,
   slideId,
   isSelected,
@@ -486,7 +486,7 @@ function SortableLayerRow({
       </AnimatePresence>
     </Reorder.Item>
   );
-}
+});
 
 // ─── Main Layers Panel ────────────────────────────────────────────────────────
 export function LayersPanel() {

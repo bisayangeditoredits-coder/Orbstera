@@ -353,8 +353,14 @@ const SCROLL_ZOOM_SPEED = 0.0075;
 
 export function CanvasArea() {
   const [containerSize, setContainerSize] = useState({ w: 900, h: 600 });
-  const { editor, setEditorState, undo, redo } = usePresentationStore();
-  const { zoom, showGrid, isGenerating, generationBlockingOverlay } = editor;
+  const setEditorState = usePresentationStore((s) => s.setEditorState);
+  const undo = usePresentationStore((s) => s.undo);
+  const redo = usePresentationStore((s) => s.redo);
+  const pan = usePresentationStore((s) => s.editor.pan);
+  const zoom = usePresentationStore((s) => s.editor.zoom);
+  const showGrid = usePresentationStore((s) => s.editor.showGrid);
+  const isGenerating = usePresentationStore((s) => s.editor.isGenerating);
+  const generationBlockingOverlay = usePresentationStore((s) => s.editor.generationBlockingOverlay);
 
   // ─── Interaction State ───
   const [isPanning, setIsPanning] = useState(false);
@@ -365,14 +371,14 @@ export function CanvasArea() {
 
   // Refs for logic
   const containerRef = useRef<HTMLDivElement>(null);
-  const panRef = useRef(editor.pan);
+  const panRef = useRef(pan);
   const zoomRef = useRef(zoom);
   const isSpacePressedRef = useRef(false);
   const velocityRef = useRef({ x: 0, y: 0 });
   const lastPanPosRef = useRef({ x: 0, y: 0 });
   const rafMomentumRef = useRef<number | null>(null);
 
-  useEffect(() => { panRef.current = editor.pan; }, [editor.pan]);
+  useEffect(() => { panRef.current = pan; }, [pan]);
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
   useEffect(() => { isSpacePressedRef.current = isSpacePressed; }, [isSpacePressed]);
 
@@ -591,8 +597,8 @@ export function CanvasArea() {
       <div className="relative z-10 w-full h-full overflow-hidden">
         <motion.div
           animate={{
-            left: (containerSize.w - scaledW) / 2 + editor.pan.x,
-            top: (containerSize.h - scaledH) / 2 + editor.pan.y,
+            left: (containerSize.w - scaledW) / 2 + pan.x,
+            top: (containerSize.h - scaledH) / 2 + pan.y,
             width: scaledW,
             height: scaledH,
           }}

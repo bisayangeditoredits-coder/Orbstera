@@ -17,6 +17,7 @@ import {
 import Konva from 'konva';
 import useImage from 'use-image';
 import { usePresentationStore } from '@/store/usePresentationStore';
+import { useShallow } from 'zustand/react/shallow';
 import type { ChartData, EditorToolId, SlideElement } from '@/types';
 import { findDeckBackgroundElement } from '@/lib/slide-background';
 
@@ -652,8 +653,21 @@ export function KonvaCanvas({ scale }: { scale: number }) {
     setMounted(true);
   }, []);
 
-  const { presentation, currentSlideIndex, editor, selectElement, updateElement } = usePresentationStore();
-  const slide = presentation?.slides[currentSlideIndex];
+  const slide = usePresentationStore((s) => {
+    const p = s.presentation;
+    if (!p?.slides?.length) return undefined;
+    return p.slides[s.currentSlideIndex];
+  });
+  const selectElement = usePresentationStore((s) => s.selectElement);
+  const updateElement = usePresentationStore((s) => s.updateElement);
+  const { activeTool, selectedElementId, previewElementId } = usePresentationStore(
+    useShallow((s) => ({
+      activeTool: s.editor.activeTool,
+      selectedElementId: s.editor.selectedElementId,
+      previewElementId: s.editor.previewElementId,
+    })),
+  );
+  const colorPalette = usePresentationStore((s) => s.presentation?.colorPalette ?? []);
 
   const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (!isSlideBackgroundTarget(e.target)) return;
@@ -661,7 +675,7 @@ export function KonvaCanvas({ scale }: { scale: number }) {
       ignoreNextBgClickRef.current = false;
       return;
     }
-    if (editor.activeTool === 'select') {
+    if (activeTool === 'select') {
       selectElement(null);
       setEditingTextId(null);
     }
@@ -672,7 +686,7 @@ export function KonvaCanvas({ scale }: { scale: number }) {
     const pos = e.target.getStage()?.getPointerPosition();
     if (!pos) return;
 
-    const tool = editor.activeTool;
+    const tool = activeTool;
     if (tool === 'gen-fill') {
       setDrawingRect({ x: pos.x, y: pos.y, w: 0, h: 0 });
       return;
@@ -944,7 +958,7 @@ export function KonvaCanvas({ scale }: { scale: number }) {
     }
   };
 
-  if (!mounted || !slide || !presentation) return null;
+  if (!mounted || !slide) return null;
 
   const bgEl = findDeckBackgroundElement(slide.elements);
   const elements = (slide.elements || []).filter((el) => el !== bgEl);
@@ -958,7 +972,7 @@ export function KonvaCanvas({ scale }: { scale: number }) {
         transformOrigin: 'top left',
         position: 'relative',
         backgroundColor: '#000',
-        cursor: placementCursor(editor.activeTool),
+        cursor: placementCursor(activeTool),
       }}
     >
       <Stage
@@ -972,7 +986,7 @@ export function KonvaCanvas({ scale }: { scale: number }) {
       >
         <Layer>
           <SlideBackground
-            colors={presentation.colorPalette || []}
+            colors={colorPalette}
             bgImageUrl={bgEl?.src}
             bgImageOpacity={bgEl?.opacity}
           />
@@ -980,13 +994,13 @@ export function KonvaCanvas({ scale }: { scale: number }) {
             <ElementNode
               key={el.id}
               el={el}
-              isSelected={editor.selectedElementId === el.id}
+              isSelected={selectedElementId === el.id}
               onSelect={() => selectElement(el.id)}
               onChange={(updates, save) => updateElement(slide.id, el.id, updates, save)}
-              activeTool={editor.activeTool}
+              activeTool={activeTool}
               isEditingText={editingTextId === el.id}
               onDblClickText={() => setEditingTextId(el.id)}
-              previewElementId={editor.previewElementId}
+              previewElementId={previewElementId}
             />
           ))}
           {drawingRect && (
