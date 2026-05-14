@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { gunzipSync } from 'node:zlib';
 import PptxGenJS from 'pptxgenjs';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
@@ -172,7 +173,11 @@ export const maxDuration = 120;
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
   try {
-    const body: PresentationData & { slideImages?: string[] } = await req.json();
+    const encoding = (req.headers.get('content-encoding') || '').toLowerCase();
+    const raw = Buffer.from(await req.arrayBuffer());
+    const jsonStr =
+      encoding === 'gzip' ? gunzipSync(raw).toString('utf8') : raw.toString('utf8');
+    const body: PresentationData & { slideImages?: string[] } = JSON.parse(jsonStr);
     const { slides, colorPalette, fontPairing, animationStyle, title, defaultSlideTransition } = body;
 
     // ── Check user plan for watermark ─────────────────────────────────────────

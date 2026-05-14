@@ -1,4 +1,5 @@
 import type { PresentationData, Slide, SlideElement } from '@/types';
+import { CloudImageUploadError } from '@/lib/network-error-message';
 
 /** Inline data URLs above this length are uploaded to R2 before the deck JSON is POSTed. */
 const DATA_URL_OFFLOAD_MIN_CHARS = 6_000;
@@ -27,6 +28,24 @@ function parseDataUrl(dataUrl: string): { mime: string; bytes: Uint8Array } | nu
   }
 }
 
+async function uploadDataUrlViaServer(
+  parsed: { mime: string; bytes: Uint8Array },
+  presentationId: string,
+): Promise<string | null> {
+  const fd = new FormData();
+  fd.set('presentationId', presentationId);
+  fd.set('mimeType', parsed.mime);
+  fd.set('file', new Blob([parsed.bytes], { type: parsed.mime }));
+  const res = await fetch('/api/presentations/upload-asset', {
+    method: 'POST',
+    body: fd,
+    cache: 'no-store',
+  });
+  if (!res.ok) return null;
+  const j = (await res.json().catch(() => ({}))) as { publicUrl?: string };
+  return typeof j.publicUrl === 'string' ? j.publicUrl : null;
+}
+
 async function uploadDataUrlOnce(
   dataUrl: string,
   presentationId: string,
@@ -38,30 +57,56 @@ async function uploadDataUrlOnce(
   const parsed = parseDataUrl(dataUrl);
   if (!parsed) return null;
 
-  const presignRes = await fetch('/api/presentations/presigned-asset', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ presentationId, mimeType: parsed.mime }),
-    cache: 'no-store',
-  });
+  let networkThrow: unknown;
 
-  if (!presignRes.ok) {
-    // 501: no public R2 URL — caller keeps original data URL
-    return null;
+  try {
+    const presignRes = await fetch('/api/presentations/presigned-asset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ presentationId, mimeType: parsed.mime }),
+      cache: 'no-store',
+    });
+
+    if (presignRes.status === 401 || presignRes.status === 501) {
+      return null;
+    }
+
+    if (presignRes.ok) {
+      const { putUrl, publicUrl } = (await presignRes.json()) as { putUrl?: string; publicUrl?: string };
+      if (putUrl && publicUrl) {
+        try {
+          const put = await fetch(putUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': parsed.mime },
+            body: parsed.bytes as unknown as BodyInit,
+          });
+          if (put.ok) {
+            dedupe.set(dataUrl, publicUrl);
+            return publicUrl;
+          }
+        } catch (e) {
+          networkThrow = networkThrow ?? e;
+        }
+      }
+    }
+  } catch (e) {
+    networkThrow = networkThrow ?? e;
   }
 
-  const { putUrl, publicUrl } = (await presignRes.json()) as { putUrl?: string; publicUrl?: string };
-  if (!putUrl || !publicUrl) return null;
+  try {
+    const viaServer = await uploadDataUrlViaServer(parsed, presentationId);
+    if (viaServer) {
+      dedupe.set(dataUrl, viaServer);
+      return viaServer;
+    }
+  } catch (e) {
+    networkThrow = networkThrow ?? e;
+  }
 
-  const put = await fetch(putUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': parsed.mime },
-    body: parsed.bytes as unknown as BodyInit,
-  });
-  if (!put.ok) return null;
-
-  dedupe.set(dataUrl, publicUrl);
-  return publicUrl;
+  if (networkThrow) {
+    throw new CloudImageUploadError(undefined, { cause: networkThrow });
+  }
+  return null;
 }
 
 function shouldOffloadDataUrl(s: string | undefined): s is string {

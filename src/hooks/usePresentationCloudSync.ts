@@ -8,9 +8,10 @@ import { isCloudDirtySuppressed, suppressCloudDirtyDuring } from '@/lib/cloud-di
 import { humanizeFetchError, isAbortLikeError } from '@/lib/network-error-message';
 
 const AUTOSAVE_INTERVAL_MS = 60_000;
+const DEBOUNCE_SAVE_MS = 12_000;
 
 /**
- * Interval-based cloud autosave (~60s while the deck has local changes) plus flush on tab hide.
+ * Debounced + interval cloud autosave while the deck has local changes, plus flush on tab hide.
  * Applies merged updates after save so concurrent edits are not overwritten by stale prepared slides.
  */
 export function usePresentationCloudSync() {
@@ -18,6 +19,7 @@ export function usePresentationCloudSync() {
   const setEditorState = usePresentationStore((s) => s.setEditorState);
   const savingRef = useRef(false);
   const dirtyRef = useRef(false);
+  const debounceTimerRef = useRef<number | null>(null);
 
   const runSave = useCallback(async () => {
     if (savingRef.current) return;
@@ -87,7 +89,10 @@ export function usePresentationCloudSync() {
           const st = usePresentationStore.getState().editor.cloudSyncStatus;
           if (st === 'saved') setEditorState({ cloudSyncStatus: 'idle' });
         }, 2000);
+        return;
       }
+
+      setEditorState({ cloudSyncStatus: 'idle', cloudSyncMessage: undefined });
     } catch (e: unknown) {
       if (isAbortLikeError(e)) {
         setEditorState({ cloudSyncStatus: 'idle', cloudSyncMessage: undefined });
@@ -108,8 +113,24 @@ export function usePresentationCloudSync() {
       if (isCloudDirtySuppressed()) return;
       if (state.presentation !== prev.presentation) {
         dirtyRef.current = true;
+        if (debounceTimerRef.current != null) {
+          window.clearTimeout(debounceTimerRef.current);
+        }
+        debounceTimerRef.current = window.setTimeout(() => {
+          debounceTimerRef.current = null;
+          void runSave();
+        }, DEBOUNCE_SAVE_MS);
       }
     });
+  }, [runSave]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current != null) {
+        window.clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {

@@ -48,8 +48,11 @@ export async function POST(req: Request) {
     if (lower.endsWith('.ppt')) {
       return NextResponse.json(
         {
-          error: 'Legacy .ppt format is not supported. Please open the file in PowerPoint and save as .pptx.',
+          error: 'Legacy .ppt format is not supported in the browser yet.',
           code: 'UNSUPPORTED_PPT',
+          conversionHint:
+            'Open the file in PowerPoint or LibreOffice and save as .pptx, then import again. ' +
+            'A future server-side converter (LibreOffice worker or conversion API) can automate this.',
         },
         { status: 415 },
       );

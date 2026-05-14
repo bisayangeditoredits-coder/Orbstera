@@ -322,7 +322,16 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
       fd.set('file', file);
       const res = await fetch('/api/import/presentation', { method: 'POST', body: fd });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `Import failed (${res.status})`);
+      if (!res.ok) {
+        if (data.code === 'UNSUPPORTED_PPT') {
+          const hint =
+            typeof data.conversionHint === 'string'
+              ? ` ${data.conversionHint}`
+              : '';
+          throw new Error(`${data.error || 'Legacy .ppt is not supported.'}${hint}`);
+        }
+        throw new Error(data.error || `Import failed (${res.status})`);
+      }
       if (!data.presentation?.slides?.length) throw new Error('Import returned no slides.');
       setPresentation(data.presentation);
       const pid = data.presentation.id;
@@ -357,6 +366,13 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
     try {
       const { response: res, prepared } = await postPresentationCloudSave(body);
       const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        setEditorState({
+          cloudSyncStatus: 'error',
+          cloudSyncMessage: 'Sign in to sync to the cloud.',
+        });
+        return;
+      }
       if (res.status === 409) {
         setEditorState({
           cloudSyncStatus: 'conflict',
@@ -371,6 +387,10 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
           );
         }
         throw new Error(typeof data.error === 'string' ? data.error : 'Save failed');
+      }
+      if (data.message === 'Placeholder skipped') {
+        setEditorState({ cloudSyncStatus: 'idle', cloudSyncMessage: undefined });
+        return;
       }
       if (data.success && typeof data.saveVersion === 'number') {
         const current = usePresentationStore.getState().presentation;
@@ -387,12 +407,14 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
             );
           });
         }
+        setEditorState({ cloudSyncStatus: 'saved' });
+        window.setTimeout(() => {
+          const st = usePresentationStore.getState().editor.cloudSyncStatus;
+          if (st === 'saved') setEditorState({ cloudSyncStatus: 'idle' });
+        }, 1800);
+        return;
       }
-      setEditorState({ cloudSyncStatus: 'saved' });
-      window.setTimeout(() => {
-        const st = usePresentationStore.getState().editor.cloudSyncStatus;
-        if (st === 'saved') setEditorState({ cloudSyncStatus: 'idle' });
-      }, 1800);
+      setEditorState({ cloudSyncStatus: 'idle', cloudSyncMessage: undefined });
     } catch (e: unknown) {
       if (isAbortLikeError(e)) {
         setEditorState({ cloudSyncStatus: 'idle', cloudSyncMessage: undefined });
@@ -662,7 +684,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
               <input
                 ref={importInputRef}
                 type="file"
-                accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                accept=".ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
                 className="hidden"
                 onChange={(e) => handleImportFile(e.target.files?.[0] || null)}
               />
@@ -671,7 +693,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
                 disabled={importBusy}
                 onClick={() => importInputRef.current?.click()}
                 className="flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1.5 min-h-9 sm:min-h-0 rounded-full border border-black/[0.08] bg-white text-neutral-600 hover:text-neutral-900 hover:border-black/12 hover:bg-neutral-50 transition-all disabled:opacity-40 touch-manipulation shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-                title="Import .pptx"
+                title="Import .pptx (legacy .ppt: save as .pptx in PowerPoint, or wait for server conversion)"
               >
                 <Upload size={12} strokeWidth={1.75} className="text-neutral-500" />
                 <span className="hidden sm:inline">Import</span>

@@ -1,0 +1,130 @@
+import { NextResponse } from 'next/server';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { v4 as uuidv4 } from 'uuid';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+
+let s3Client: S3Client | null = null;
+if (
+  process.env.CLOUDFLARE_R2_ENDPOINT &&
+  process.env.CLOUDFLARE_R2_ACCESS_KEY &&
+  process.env.CLOUDFLARE_R2_SECRET_KEY
+) {
+  s3Client = new S3Client({
+    region: 'auto',
+    endpoint: process.env.CLOUDFLARE_R2_ENDPOINT,
+    credentials: {
+      accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY,
+      secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_KEY,
+    },
+  });
+}
+
+async function getAuthUser() {
+  const cookieStore = cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } },
+  );
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
+}
+
+function extFromMime(mime: string): string {
+  const m = mime.split(';')[0].trim().toLowerCase();
+  if (m === 'image/png') return 'png';
+  if (m === 'image/jpeg' || m === 'image/jpg') return 'jpg';
+  if (m === 'image/webp') return 'webp';
+  if (m === 'image/gif') return 'gif';
+  if (m === 'image/svg+xml') return 'svg';
+  return 'bin';
+}
+
+const MAX_BYTES = 32 * 1024 * 1024;
+
+/**
+ * Same-origin upload of a deck image to R2 (server PutObject).
+ * Use when browser presigned PUT to R2 fails (e.g. missing bucket CORS).
+ */
+export async function POST(req: Request) {
+  if (!s3Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) {
+    return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
+  }
+
+  const publicBase = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL?.replace(/\/$/, '');
+  if (!publicBase) {
+    return NextResponse.json(
+      { error: 'Set NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL so saved decks can load images on other devices.' },
+      { status: 501 },
+    );
+  }
+
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const ct = req.headers.get('content-type') || '';
+  if (!ct.includes('multipart/form-data')) {
+    return NextResponse.json({ error: 'Expected multipart/form-data' }, { status: 400 });
+  }
+
+  let form: FormData;
+  try {
+    form = await req.formData();
+  } catch {
+    return NextResponse.json({ error: 'Could not read upload body.' }, { status: 400 });
+  }
+
+  const presentationIdRaw = form.get('presentationId');
+  const presentationId =
+    typeof presentationIdRaw === 'string' && presentationIdRaw.trim()
+      ? presentationIdRaw.trim()
+      : 'unknown-deck';
+
+  const mimeField = form.get('mimeType');
+  const file = form.get('file');
+  if (!(file instanceof Blob)) {
+    return NextResponse.json({ error: 'Missing file field' }, { status: 400 });
+  }
+
+  if (file.size > MAX_BYTES) {
+    return NextResponse.json(
+      { error: `Image exceeds maximum size of ${Math.round(MAX_BYTES / (1024 * 1024))} MB.` },
+      { status: 413 },
+    );
+  }
+
+  let mimeType =
+    typeof mimeField === 'string' && mimeField.startsWith('image/')
+      ? mimeField.split(';')[0].trim()
+      : file.type && file.type.startsWith('image/')
+        ? file.type.split(';')[0].trim()
+        : '';
+  if (!mimeType) {
+    return NextResponse.json({ error: 'Expected an image mime type' }, { status: 400 });
+  }
+
+  const buf = Buffer.from(await file.arrayBuffer());
+  const ext = extFromMime(mimeType);
+  const key = `presentations/${user.id}/deck-assets/${presentationId}/${uuidv4()}.${ext}`;
+
+  try {
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,
+        Key: key,
+        Body: buf,
+        ContentType: mimeType,
+      }),
+    );
+  } catch (e) {
+    console.error('[upload-asset] R2 PutObject:', e);
+    return NextResponse.json({ error: 'Failed to store image' }, { status: 500 });
+  }
+
+  const publicUrl = `${publicBase}/${key}`;
+  return NextResponse.json(
+    { publicUrl, key },
+    { headers: { 'Cache-Control': 'private, no-store, max-age=0' } },
+  );
+}

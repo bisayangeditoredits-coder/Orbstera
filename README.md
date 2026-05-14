@@ -39,6 +39,23 @@ Orbstera utilizes a tiered subscription model managed via Dodo Payments:
 - **Student Pro**: 30 generations/mo, 25 slides max, Fast Intelligence (Claude 3.5).
 - **Creator Pro**: 100 generations/mo, 30 slides max, Elite Intelligence (DeepSeek R1).
 
+## Cloud save, R2, and export
+
+Deck JSON and exports stay small by **offloading large inline images** to Cloudflare R2 before calling `/api/presentations` or `/api/export/pptx`. Configure:
+
+- `CLOUDFLARE_R2_ENDPOINT`, `CLOUDFLARE_R2_ACCESS_KEY`, `CLOUDFLARE_R2_SECRET_KEY`, `CLOUDFLARE_R2_BUCKET_NAME`
+- **`NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL`** — public base URL for objects (required for presigned URLs and for the same-origin `/api/presentations/upload-asset` fallback to return stable `https://…` image links).
+
+**R2 bucket CORS**: allow `GET` and `PUT` from your web app origin (and `http://localhost:3000` for dev) so the browser can use presigned PUT URLs. If CORS is wrong, the app falls back to **server-side upload** via `POST /api/presentations/upload-asset`, which avoids browser→R2 CORS but still needs R2 credentials and the public URL above for readable image URLs.
+
+## Legacy `.ppt` import
+
+Only **`.pptx`** is parsed in-app today. Legacy binary **`.ppt`** requires a conversion step. Practical options for a future pipeline:
+
+1. **Dedicated worker/container** with **LibreOffice** (`soffice --headless --convert-to pptx`) then feed the buffer to the existing `convertPptxBufferToPresentation` importer.
+2. **Third-party conversion API** (commercial) if you do not want to run LibreOffice.
+3. **User workflow**: open in PowerPoint / LibreOffice, **Save As → .pptx**, then import (supported today).
+
 ## 🛡️ License
 
 Private and Confidential. Built by the Orbstera Creative Team.
