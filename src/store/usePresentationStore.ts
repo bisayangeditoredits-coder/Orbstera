@@ -138,10 +138,16 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     };
 
     const normalized = normalize(data);
+    const isGenerationReset =
+      normalized.title === 'Generating...' &&
+      Array.isArray(normalized.slides) &&
+      normalized.slides.length === 0;
     if (!Array.isArray(normalized.slides) || normalized.slides.length === 0) {
-      console.error('Invalid presentation data received (no slides):', data);
-      set({ presentation: null, currentSlideIndex: 0, history: [], historyIndex: -1 });
-      return;
+      if (!isGenerationReset) {
+        console.error('Invalid presentation data received (no slides):', data);
+        set({ presentation: null, currentSlideIndex: 0, history: [], historyIndex: -1 });
+        return;
+      }
     }
 
     const palette     = normalized.colorPalette || ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'];
@@ -409,8 +415,6 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     const existingId = typeof data.id === 'string' ? data.id.trim() : '';
     const prevIdRaw = get().presentation?.id;
     const prevId = typeof prevIdRaw === 'string' ? prevIdRaw.trim() : '';
-    const isGenerationReset =
-      data.title === 'Generating...' && Array.isArray(data.slides) && data.slides.length === 0;
     const fallbackRandom =
       typeof crypto !== 'undefined' && 'randomUUID' in crypto
         ? crypto.randomUUID()

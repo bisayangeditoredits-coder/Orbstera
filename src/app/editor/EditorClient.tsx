@@ -18,6 +18,7 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import { usePresentationCloudSync } from '@/hooks/usePresentationCloudSync';
 import type { PresentationData } from '@/types';
 import { isSlideDeckBackgroundImage } from '@/lib/slide-background';
+import { createStarterPresentation } from '@/lib/editor-starter-deck';
 
 const EditorCanvasLoading = () => (
   <div className="flex-1 min-h-0 flex items-center justify-center bg-background text-textMuted">
@@ -122,6 +123,20 @@ export default function EditorClient() {
     return () => ac.abort();
   }, [searchParams, setActivePanel, setPanelOpen]);
 
+  /** Empty store breaks several editor surfaces; bootstrap a blank deck for plain `/editor` visits (e.g. “Start Creating”). */
+  useEffect(() => {
+    const id = searchParams.get('id');
+    const prompt = searchParams.get('prompt');
+    const mode = searchParams.get('mode');
+    if (id || prompt || mode) return;
+
+    const st = usePresentationStore.getState();
+    if (st.presentation) return;
+    if (st.editor.isGenerating) return;
+
+    st.setPresentation(createStarterPresentation());
+  }, [searchParams]);
+
   // Auto-trigger onboarding tour
   useEffect(() => {
     if (!onboarding.hasSeenTour) {
@@ -169,7 +184,8 @@ export default function EditorClient() {
       if (st.editor.activeTool !== 'select') return;
       const selectedId = st.editor.selectedElementId;
       if (!selectedId || !st.presentation?.slides?.length) return;
-      const slide = st.presentation.slides[st.currentSlideIndex];
+      const slide = st.presentation?.slides?.[st.currentSlideIndex];
+      if (!slide) return;
       if (!slide) return;
       const el = slide.elements?.find((x) => x.id === selectedId);
       if (!el) return;
