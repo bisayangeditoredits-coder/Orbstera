@@ -11,6 +11,7 @@ import {
   GripVertical, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { SlideElement } from '@/types';
+import { editorImageFetchUrl } from '@/lib/r2-public-url';
 import { ColorPicker } from './ColorPicker';
 import { LayerRowThumbnail } from './LayerRowThumbnail';
 
@@ -204,7 +205,7 @@ function PropertyEditor({ element, slideId }: { element: SlideElement; slideId: 
           {element.src && (
             <div className="aspect-video w-full overflow-hidden rounded-xl border border-neutral-200/90 bg-neutral-100 shadow-inner">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={element.src} alt="" className="h-full w-full object-cover" />
+              <img src={editorImageFetchUrl(element.src)} alt="" className="h-full w-full object-cover" />
             </div>
           )}
           <button

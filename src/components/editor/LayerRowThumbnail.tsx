@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import type { SlideElement } from '@/types';
+import { editorImageFetchUrl } from '@/lib/r2-public-url';
 import { Type, Image, Square, BarChart2, Sparkles } from 'lucide-react';
 
 const FRAME = 44;
@@ -150,7 +151,7 @@ export function LayerRowThumbnail({ el }: { el: SlideElement }) {
       {el.type === 'image' && el.src && !imgErr && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={el.src}
+          src={editorImageFetchUrl(el.src)}
           alt=""
           className="h-full w-full object-cover"
           style={{

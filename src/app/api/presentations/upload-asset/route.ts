@@ -3,6 +3,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { getR2PublicBaseTrimmed } from '@/lib/r2-public-url';
 
 let s3Client: S3Client | null = null;
 if (
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
   }
 
-  const publicBase = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL?.replace(/\/$/, '');
+  const publicBase = getR2PublicBaseTrimmed();
   if (!publicBase) {
     return NextResponse.json(
       { error: 'Set NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL so saved decks can load images on other devices.' },

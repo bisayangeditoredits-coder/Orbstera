@@ -501,7 +501,7 @@ export async function POST(req: Request) {
 
     const finalBuffer = xmlStr instanceof ArrayBuffer ? xmlStr : buffer;
 
-    return new NextResponse(new Uint8Array(finalBuffer), {
+    return new NextResponse(new Uint8Array(finalBuffer) as unknown as BodyInit, {
       headers: {
         'Content-Type':        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         'Content-Disposition': `attachment; filename="${safeTitle}.pptx"`,

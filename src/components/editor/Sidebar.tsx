@@ -6,6 +6,7 @@ import { usePresentationStore } from '@/store/usePresentationStore';
 import { Plus, Trash2, Copy, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
 import { Slide } from '@/types';
 import { findDeckBackgroundElement } from '@/lib/slide-background';
+import { editorImageFetchUrl } from '@/lib/r2-public-url';
 
 const SLIDE_WIDTH = 160;
 const SLIDE_HEIGHT = 90;
@@ -43,7 +44,7 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
       {/* Layer 3: Hero background image at 18% opacity (if present) */}
       {bgEl?.src && (
         <img
-          src={bgEl.src}
+          src={editorImageFetchUrl(bgEl.src)}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
           style={{ opacity: 0.18, pointerEvents: 'none' }}
@@ -121,7 +122,7 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
             return (
               <img
                 key={el.id}
-                src={el.src}
+                src={editorImageFetchUrl(el.src)}
                 alt=""
                 style={{
                   position:   'absolute',

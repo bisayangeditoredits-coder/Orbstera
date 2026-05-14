@@ -9,6 +9,7 @@ import {
 import { usePresentationStore } from '@/store/usePresentationStore';
 import type { SlideElement, Slide, AnimationEntrance, ChartData } from '@/types';
 import { findDeckBackgroundElement } from '@/lib/slide-background';
+import { editorImageFetchUrl } from '@/lib/r2-public-url';
 import {
   X,
   ChevronLeft,
@@ -272,7 +273,7 @@ function PresentSlideView({
           style={{ willChange: animationsOn ? 'transform' : undefined }}
         >
           <img
-            src={bgEl.src}
+            src={editorImageFetchUrl(bgEl.src)}
             alt=""
             className="absolute inset-0 w-full h-full object-cover"
             style={{ opacity: bgEl.opacity ?? 0.18 }}
@@ -333,7 +334,7 @@ function PresentSlideView({
             )
           ) : el.type === 'image' && el.src ? (
             <motion.img
-              src={el.src}
+              src={editorImageFetchUrl(el.src)}
               alt=""
               style={{
                 width:     '100%',
