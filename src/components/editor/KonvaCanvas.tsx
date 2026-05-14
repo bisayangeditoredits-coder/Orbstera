@@ -20,6 +20,7 @@ import { usePresentationStore } from '@/store/usePresentationStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { ChartData, EditorToolId, SlideElement } from '@/types';
 import { findDeckBackgroundElement } from '@/lib/slide-background';
+import { editorImageFetchUrl } from '@/lib/r2-public-url';
 
 export const CANVAS_WIDTH = 1280;
 export const CANVAS_HEIGHT = 720;
@@ -98,10 +99,14 @@ function ElementNode({
   const trRef = useRef<Konva.Transformer>(null);
   const genFillBorderRef = useRef<Konva.Rect>(null);
   const rawImgSrc = el.type === 'image' ? (el.src || '').trim() : '';
+  const displayImgSrc = editorImageFetchUrl(rawImgSrc);
   const imageHookSrc =
-    rawImgSrc &&
-    (/^data:image\//i.test(rawImgSrc) || /^https?:\/\//i.test(rawImgSrc) || /^blob:/i.test(rawImgSrc))
-      ? rawImgSrc
+    displayImgSrc &&
+    (/^data:image\//i.test(displayImgSrc) ||
+      /^https?:\/\//i.test(displayImgSrc) ||
+      /^blob:/i.test(displayImgSrc) ||
+      displayImgSrc.startsWith('/api/'))
+      ? displayImgSrc
       : '';
   const [img, imgStatus] = useImage(imageHookSrc);
 
@@ -385,7 +390,7 @@ function ElementNode({
               />
             </Group>
           )}
-          {!img && imgStatus === 'failed' && imageHookSrc && (
+          {!img && imgStatus === 'failed' && displayImgSrc && (
             <Group listening={false}>
               <Rect x={0} y={0} width={el.width} height={el.height} fill="rgba(127,29,29,0.25)" cornerRadius={8} />
               <Text
@@ -603,7 +608,8 @@ function SlideBackground({
 }) {
   const bg = colors[0] || '#05050A';
   const accent = colors[2] || '#38BDF8';
-  const [bgImg] = useImage(bgImageUrl?.trim() || '');
+  const bgUrl = bgImageUrl?.trim() || '';
+  const [bgImg] = useImage(editorImageFetchUrl(bgUrl));
   const heroOpacity = typeof bgImageOpacity === 'number' ? bgImageOpacity : 0.18;
 
   return (

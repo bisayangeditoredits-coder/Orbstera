@@ -44,7 +44,7 @@ Orbstera utilizes a tiered subscription model managed via Dodo Payments:
 Deck JSON and exports stay small by **offloading large inline images** to Cloudflare R2 before calling `/api/presentations` or `/api/export/pptx`. Configure:
 
 - `CLOUDFLARE_R2_ENDPOINT`, `CLOUDFLARE_R2_ACCESS_KEY`, `CLOUDFLARE_R2_SECRET_KEY`, `CLOUDFLARE_R2_BUCKET_NAME`
-- **`NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL`** — public base URL for objects (required for presigned URLs and for the same-origin `/api/presentations/upload-asset` fallback to return stable `https://…` image links).
+- **`NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL`** — public base URL for objects (required for presigned URLs and for the same-origin `/api/presentations/upload-asset` fallback to return stable `https://…` image links). The **editor** rewrites those URLs to `GET /api/presentations/read-asset?key=…` so images load while you are signed in even if the bucket is not publicly readable; **public share links** still need objects readable at that HTTPS URL (or a custom public domain on the bucket).
 
 **R2 bucket CORS**: allow `GET` and `PUT` from your web app origin (and `http://localhost:3000` for dev) so the browser can use presigned PUT URLs for **images** and for **large deck JSON** (staging uploads when the deck exceeds the Vercel request size limit). If CORS is wrong, the app falls back to **server-side upload** via `POST /api/presentations/upload-asset` for images under ~4 MB, but very large decks still require a successful presigned PUT to R2.
 

@@ -6,10 +6,46 @@ import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { PresentationData, Slide, SlideElement, SlideTransition } from '@/types';
 import { findDeckBackgroundElement, isSlideDeckBackgroundImage } from '@/lib/slide-background';
+import { tryExtractR2ObjectKeyFromPublicUrl } from '@/lib/r2-public-url';
 import { enforceAiRateLimit } from '@/lib/rate-limit-server';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import fs from 'fs';
 import path from 'path';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+
+let exportR2Client: S3Client | null = null;
+if (
+  process.env.CLOUDFLARE_R2_ENDPOINT &&
+  process.env.CLOUDFLARE_R2_ACCESS_KEY &&
+  process.env.CLOUDFLARE_R2_SECRET_KEY
+) {
+  exportR2Client = new S3Client({
+    region: 'auto',
+    endpoint: process.env.CLOUDFLARE_R2_ENDPOINT,
+    credentials: {
+      accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY,
+      secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_KEY,
+    },
+  });
+}
+
+async function r2ObjectToBuffer(key: string): Promise<{ buf: Buffer; mime: string } | null> {
+  if (!exportR2Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) return null;
+  try {
+    const obj = await exportR2Client.send(
+      new GetObjectCommand({ Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME, Key: key }),
+    );
+    const chunks: Buffer[] = [];
+    for await (const chunk of obj.Body as AsyncIterable<Uint8Array | Buffer>) {
+      chunks.push(Buffer.from(chunk));
+    }
+    const buf = Buffer.concat(chunks);
+    const mime = obj.ContentType || 'image/jpeg';
+    return { buf, mime };
+  } catch {
+    return null;
+  }
+}
 
 // ── Canvas → PPTX coordinate system ──────────────────────────────────────────
 // Canvas: 1280 × 720 px  →  PPTX: 10 × 5.625 inches  (same 16:9 ratio)
@@ -99,6 +135,15 @@ function resolveSlideTransitionExport(
 async function fetchImageAsBase64(url: string): Promise<string | null> {
   if (!url) return null;
   if (url.startsWith('data:')) return url;
+
+  const r2Key = tryExtractR2ObjectKeyFromPublicUrl(url);
+  if (r2Key) {
+    const got = await r2ObjectToBuffer(r2Key);
+    if (got) {
+      return `data:${got.mime};base64,${got.buf.toString('base64')}`;
+    }
+  }
+
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
     if (!res.ok) return null;
