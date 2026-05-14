@@ -416,7 +416,7 @@ function AccountContent() {
                       <button
                         type="button"
                         disabled={selectedCount === 0}
-                        onClick={() => selectedCount && setBulkDeleteIds([...selectedIds])}
+                        onClick={() => selectedCount && setBulkDeleteIds(Array.from(selectedIds))}
                         className="border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-900 transition enabled:hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         Delete selected{selectedCount ? ` (${selectedCount})` : ''}

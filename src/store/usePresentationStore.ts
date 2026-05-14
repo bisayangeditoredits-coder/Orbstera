@@ -171,7 +171,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     };
 
     // ── Convert static AI slide content into canvas-accurate elements ──────
-    const slides = normalized.slides.map((slide, sIdx) => {
+    const slides = normalized.slides.map((slide: Slide, sIdx: number) => {
       if ((normalized.source === 'import' || normalized.source === 'manual') && (slide.elements?.length || 0) > 0) {
         return finalizeSlideMotion(
           { ...slide, title: '', subtitle: '', bullets: [] },
@@ -273,7 +273,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         elements.push({
           id: uid('el-split-bg-image'), type: 'shape', shapeType: 'rect', x: flipSplit ? 40 : 680, y: 40, width: 560, height: CANVAS_H - 80, zIndex: currentZ++, visible: true,
           shapeStyle: { fill: 'rgba(255, 255, 255, 0.02)', stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 1, cornerRadius: 24 },
-          animation: { entrance: 'fadeSlideRight', duration: 600, delay: 0 }
+          animation: { entrance: 'slideRight', duration: 600, delay: 0 }
         });
         elements.push({
           id: imgId,
@@ -307,7 +307,8 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         });
         elements.push({
           id: uid('el-quote-mark'), type: 'text', x: 120, y: 80, width: CANVAS_W - 240, height: 100, content: '"', zIndex: currentZ++, visible: true,
-          textStyle: { fontFamily: headingFont, fontSize: 160, fontWeight: 'bold', color: palette[2] || '#38BDF8', textAlign: 'center', opacity: 0.3 },
+          opacity: 0.3,
+          textStyle: { fontFamily: headingFont, fontSize: 160, fontWeight: 'bold', color: palette[2] || '#38BDF8', textAlign: 'center' },
           animation: { entrance: 'fadeIn', duration: 1000, delay: 200 }
         });
         if (slide.title) {
@@ -683,14 +684,16 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       const updates: Partial<PresentationStore> = {
         editor: { ...state.editor, selectedElementId: id }
       };
-      // Auto-open layers panel to show properties when an element is selected
+      // With a selection: open side panel and show Layers (properties / stack).
       if (id !== null) {
         updates.isPanelOpen = true;
         if (state.activePanel !== 'layers') {
           updates.activePanel = 'layers';
         }
-      } else if (state.activePanel === 'layers') {
-        updates.isPanelOpen = false;
+      } else {
+        // Deselect: keep side panel open; return to default Generate tab (do not collapse).
+        updates.isPanelOpen = true;
+        updates.activePanel = 'generate';
       }
       return updates;
     }),
@@ -828,7 +831,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         elements.push({ id: uid(`el-bullet-bg-${i}`), type: 'shape', shapeType: 'rect', x: 80, y: 240 + (i * 80), width: 540, height: 64, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.03)', cornerRadius: 12 }, animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 300 + (i * 80) } });
         elements.push({ id: uid(`el-bullet-${i}`), type: 'text', x: 100, y: 258 + (i * 80), width: 500, height: 64, content: b.replace(/^•\s*/, ''), zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 20, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'left', lineHeight: 1.4 }, animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 350 + (i * 80) } });
       });
-      elements.push({ id: uid('el-split-bg-right'), type: 'shape', shapeType: 'rect', x: 680, y: 40, width: 560, height: CANVAS_H - 80, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.02)', stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 1, cornerRadius: 24 }, animation: { entrance: 'fadeSlideRight', duration: 600 } });
+      elements.push({ id: uid('el-split-bg-right'), type: 'shape', shapeType: 'rect', x: 680, y: 40, width: 560, height: CANVAS_H - 80, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.02)', stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 1, cornerRadius: 24 }, animation: { entrance: 'slideRight', duration: 600 } });
       const imgId = uid('el-image');
       elements.push({
         id: imgId,
@@ -863,7 +866,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       }
     } else if (isQuote) {
       elements.push({ id: uid('el-quote-bg'), type: 'shape', shapeType: 'rect', x: 80, y: 100, width: CANVAS_W - 160, height: CANVAS_H - 200, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.03)', stroke: 'rgba(255, 255, 255, 0.06)', strokeWidth: 1, cornerRadius: 32 }, animation: { entrance: 'zoomIn', duration: 800 } });
-      elements.push({ id: uid('el-quote-mark'), type: 'text', x: 120, y: 80, width: CANVAS_W - 240, height: 100, content: '"', zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 160, fontWeight: 'bold', color: palette[2] || '#38BDF8', textAlign: 'center', opacity: 0.3 }, animation: { entrance: 'fadeIn', duration: 1000 } });
+      elements.push({ id: uid('el-quote-mark'), type: 'text', x: 120, y: 80, width: CANVAS_W - 240, height: 100, content: '"', zIndex: currentZ++, visible: true, opacity: 0.3, textStyle: { fontFamily: headingFont, fontSize: 160, fontWeight: 'bold', color: palette[2] || '#38BDF8', textAlign: 'center' }, animation: { entrance: 'fadeIn', duration: 1000 } });
       elements.push({ id: uid('el-quote'), type: 'text', x: 140, y: 220, width: CANVAS_W-280, height: 240, content: slideData.title || '', zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 52, fontWeight: 'normal', fontStyle: 'italic', color: palette[1], textAlign: 'center', lineHeight: 1.35 }, animation: { entrance: 'fadeIn', duration: 800, delay: 100 } });
       if (slideData.subtitle) elements.push({ id: uid('el-author'), type: 'text', x: 140, y: 480, width: CANVAS_W-280, height: 60, content: `— ${slideData.subtitle}`, zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 24, fontWeight: 'bold', color: palette[2], textAlign: 'center', lineHeight: 1.2, letterSpacing: 2 }, animation: { entrance: 'fadeIn', duration: 800, delay: 300 } });
     } else {

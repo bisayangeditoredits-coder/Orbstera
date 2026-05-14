@@ -8,11 +8,17 @@ import { createServerClient } from '@supabase/ssr';
 import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
 import { selectImageProvider } from '@/lib/ai/router';
 import { addEstimatedSpend, getSpendState } from '@/lib/ai/spend';
+import { enforceAiRateLimit } from '@/lib/rate-limit-server';
+import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
 const POLISH_SUFFIX =
   ', editorial quality, sharp focus, balanced composition, clean professional look, no text overlays, no watermarks';
 
+export const runtime = 'nodejs';
+export const maxDuration = 120;
+
 export async function POST(req: Request) {
+  const requestId = getOrCreateRequestId(req);
   try {
     const body = await req.json();
     const {
@@ -52,6 +58,8 @@ export async function POST(req: Request) {
     );
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    const limited = await enforceAiRateLimit(req, user.id, 'default');
+    if (limited) return limited;
     const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).maybeSingle();
     const plan = profile?.plan?.toLowerCase() || user.user_metadata?.plan?.toLowerCase() || 'free';
 
@@ -131,6 +139,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ url, seed });
   } catch (error) {
     console.error('Image Generation Error:', error);
+    captureApiException(error, { requestId, route: 'POST /api/generate-image' });
     const message = error instanceof Error ? error.message : 'Failed to generate image';
     return NextResponse.json({ error: message }, { status: 502 });
   }

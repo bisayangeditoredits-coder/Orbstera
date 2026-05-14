@@ -73,5 +73,13 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   // Only routes that need auth checks — avoids Supabase getUser() on marketing pages (faster TTFB).
-  matcher: ['/editor/:path*', '/dashboard/:path*', '/settings/:path*', '/admin/:path*', '/login'],
+  matcher: [
+    '/editor/:path*',
+    '/dashboard/:path*',
+    '/account/:path*',
+    '/my-presentations/:path*',
+    '/settings/:path*',
+    '/admin/:path*',
+    '/login',
+  ],
 };

@@ -394,8 +394,6 @@ function CinematicBackdrop({
   enabled: boolean;
 }) {
   const accent = palette[2] || '#7B61FF';
-  if (!enabled) return null;
-
   const particles = useMemo(
     () =>
       Array.from({ length: 28 }, (_, i) => ({
@@ -407,6 +405,8 @@ function CinematicBackdrop({
       })),
     [],
   );
+
+  if (!enabled) return null;
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -468,9 +468,9 @@ export function PresentMode() {
 
   const motionCtx: MotionContext = useMemo(
     () => ({
-      animationStyle: presentation?.animationStyle,
-      presentationType: presentation?.presentationType,
-      styleMode: presentation?.styleMode,
+      animationStyle: presentation?.animationStyle ?? '',
+      presentationType: presentation?.presentationType ?? '',
+      styleMode: presentation?.styleMode ?? '',
       defaultSlideTransition: presentation?.defaultSlideTransition,
     }),
     [presentation?.animationStyle, presentation?.presentationType, presentation?.styleMode, presentation?.defaultSlideTransition],

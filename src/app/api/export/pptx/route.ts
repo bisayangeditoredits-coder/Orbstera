@@ -5,6 +5,8 @@ import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { PresentationData, Slide, SlideElement, SlideTransition } from '@/types';
 import { findDeckBackgroundElement, isSlideDeckBackgroundImage } from '@/lib/slide-background';
+import { enforceAiRateLimit } from '@/lib/rate-limit-server';
+import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import fs from 'fs';
 import path from 'path';
 
@@ -162,8 +164,13 @@ function subEnum(sub?: string): number {
   }
 }
 
+export const runtime = 'nodejs';
+/** Large decks + image prefetch can exceed default serverless limits on Vercel. */
+export const maxDuration = 120;
+
 // ── POST handler ──────────────────────────────────────────────────────────────
 export async function POST(req: Request) {
+  const requestId = getOrCreateRequestId(req);
   try {
     const body: PresentationData & { slideImages?: string[] } = await req.json();
     const { slides, colorPalette, fontPairing, animationStyle, title, defaultSlideTransition } = body;
@@ -194,6 +201,9 @@ export async function POST(req: Request) {
         isPaidUser = plan === 'pro' || plan === 'creator_pro' || plan === 'student_pro';
       }
     } catch (_) { /* If auth fails, default to watermark */ }
+
+    const limited = await enforceAiRateLimit(req, userId, 'default');
+    if (limited) return limited;
 
     // Use a credit if they are not a paid user but have credits
     const useCredit = !isPaidUser && exportCredits > 0;
@@ -450,6 +460,7 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     console.error('PPTX export error:', err);
+    captureApiException(err, { requestId, route: 'POST /api/export/pptx' });
     return NextResponse.json({ error: 'Export failed', detail: String(err) }, { status: 500 });
   }
 }

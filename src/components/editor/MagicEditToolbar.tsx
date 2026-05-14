@@ -340,7 +340,12 @@ export function MagicEditToolbar() {
                 ) : (
                   <>Magic AI: editing <span className="text-primary/50 font-bold">{targetElement?.type}</span>
                     {targetElement?.type === 'text' && targetElement?.content && (
-                      <> — "{targetElement.content.slice(0, 40)}{targetElement.content.length > 40 ? '…' : ''}"</>
+                      <>
+                        {' — "'}
+                        {targetElement.content.slice(0, 40)}
+                        {targetElement.content.length > 40 ? '…' : ''}
+                        {'"'}
+                      </>
                     )}
                   </>
                 )}

@@ -51,7 +51,7 @@ export function Integrations() {
             transition={{ delay: 0.2 }}
             className="text-neutral-500 text-lg md:text-xl max-w-2xl mx-auto font-medium tracking-tight"
           >
-            Orbstera doesn't replace your favorite tools. It makes them better. Export, sync, and present across all major platforms.
+            Orbstera doesn&apos;t replace your favorite tools. It makes them better. Export, sync, and present across all major platforms.
           </motion.p>
         </div>
 

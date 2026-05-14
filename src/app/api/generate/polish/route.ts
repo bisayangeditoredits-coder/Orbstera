@@ -5,6 +5,8 @@ import { AGENT_MODELS } from '@/lib/ai/agent-models';
 import { OR_MODELS } from '@/lib/ai/models';
 import { openRouterComplete, extractJsonObject } from '@/lib/ai/openrouter';
 import { normalizePresentationPayload } from '@/lib/ai/orchestration';
+import { enforceAiRateLimit } from '@/lib/rate-limit-server';
+import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -14,7 +16,11 @@ Return ONE raw JSON object only — same schema as input — with improved headl
 Preserve slide count, ids, types, and chart data structurally.
 Do not add HTML. Do not wrap in markdown.`;
 
+export const runtime = 'nodejs';
+export const maxDuration = 120;
+
 export async function POST(req: Request) {
+  const requestId = getOrCreateRequestId(req);
   try {
     const cookieStore = cookies();
     const supabase = createServerClient(
@@ -26,6 +32,9 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const limited = await enforceAiRateLimit(req, user.id, 'default');
+    if (limited) return limited;
 
     const { presentation } = await req.json();
     if (!presentation || typeof presentation !== 'object') {
@@ -59,6 +68,7 @@ export async function POST(req: Request) {
     }
   } catch (e) {
     console.error('[Polish]', e);
+    captureApiException(e, { requestId, route: 'POST /api/generate/polish' });
     return NextResponse.json({ error: 'Polish failed' }, { status: 500 });
   }
 }

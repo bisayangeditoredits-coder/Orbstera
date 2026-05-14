@@ -355,7 +355,7 @@ function LoginContent() {
               <span className="text-primary italic">Presentations.</span>
             </h1>
             <p className="text-[20px] text-gray-500 mt-6 max-w-[480px] leading-relaxed font-medium">
-              Join the world's most advanced AI-driven presentation platform. Cinematic decks, created in seconds.
+              Join the world&apos;s most advanced AI-driven presentation platform. Cinematic decks, created in seconds.
             </p>
           </div>
 

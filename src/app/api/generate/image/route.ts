@@ -1,18 +1,16 @@
 import { NextResponse } from 'next/server';
 import type { ImageVisualProfile } from '@/lib/ai/agent-models';
 import { openRouterImageGeneration } from '@/lib/ai/openrouter-image';
+import { enforceAiRateLimit } from '@/lib/rate-limit-server';
+import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
-const DEFAULT_IMAGE_MODEL =
-  process.env.OPENROUTER_IMAGE_MODEL?.trim() || 'black-forest-labs/flux-1.1-pro';
 
-function clampImageEdge(n: unknown, fallback: number) {
-  const v = Math.round(Number(n));
-  if (!Number.isFinite(v) || v <= 0) return fallback;
-  return Math.max(1, Math.min(1536, v));
-}
+export const runtime = 'nodejs';
+export const maxDuration = 120;
 
 export async function POST(req: Request) {
+  const requestId = getOrCreateRequestId(req);
   try {
     const body = await req.json();
     const {
@@ -36,6 +34,9 @@ export async function POST(req: Request) {
     if (!OPENROUTER_API_KEY.trim()) {
       return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured.' }, { status: 503 });
     }
+
+    const limited = await enforceAiRateLimit(req, null, 'default');
+    if (limited) return limited;
 
     let size = typeof sizeIn === 'string' && sizeIn.includes('x') ? sizeIn : '1024x1024';
     if (typeof width === 'number' && typeof height === 'number' && width > 0 && height > 0) {
@@ -61,6 +62,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: result.url });
   } catch (error) {
     console.error('Image Generation Error:', error);
+    captureApiException(error, { requestId, route: 'POST /api/generate/image' });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

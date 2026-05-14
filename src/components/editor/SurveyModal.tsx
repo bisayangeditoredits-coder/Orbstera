@@ -118,7 +118,7 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
                     Who are you <br className="hidden xs:block" />
                     <span className="text-primary italic">creating for today?</span>
                   </h2>
-                  <p className="text-sm text-slate-500 font-medium">We'll tailor the AI to match your professional tone.</p>
+                  <p className="text-sm text-slate-500 font-medium">We&apos;ll tailor the AI to match your professional tone.</p>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">

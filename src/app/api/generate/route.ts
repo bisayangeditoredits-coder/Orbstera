@@ -5,13 +5,25 @@ import { buildComposerMessages } from '@/lib/ai/orchestration';
 import { runOpenRouterOrchestration } from '@/lib/ai/prompt-chain';
 import { openRouterStream } from '@/lib/ai/openrouter';
 import { selectTextModel } from '@/lib/ai/router';
-import { ensureCredits, estimateDeckCostCredits, getCreditConfig } from '@/lib/billing/credits';
+import {
+  consumeCreditsAtomic,
+  estimateDeckCostCredits,
+  getCreditConfig,
+  getCreditSummary,
+} from '@/lib/billing/credits';
 import { addEstimatedSpend, getSpendState } from '@/lib/ai/spend';
+import { enforceAiRateLimit } from '@/lib/rate-limit-server';
+import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
+export const runtime = 'nodejs';
+/** Raise on Vercel Pro+ if deck generation consistently hits the ceiling (dashboard → Functions). */
+export const maxDuration = 300;
+
 export async function POST(req: Request) {
+  const requestId = getOrCreateRequestId(req);
   try {
     const body = await req.json();
     const {
@@ -44,6 +56,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Please sign in to generate presentations.' }, { status: 401 });
     }
 
+    const limited = await enforceAiRateLimit(req, user.id, 'default');
+    if (limited) return limited;
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('plan')
@@ -75,20 +90,16 @@ export async function POST(req: Request) {
       premiumImages: plan === 'creator_pro' || plan === 'admin',
       config: creditConfig,
     });
-    const creditCheck = await ensureCredits({
-      supabase,
-      userId: user.id,
-      planRaw: plan,
-      cost: estimatedCredits,
-      action: finalSlideCount <= 6 ? 'deck_small' : finalSlideCount <= 15 ? 'deck_medium' : 'deck_large',
-      meta: { slides: finalSlideCount, estimatedCredits },
-    });
-    if (!creditCheck.ok) {
+    const deckCreditAction =
+      finalSlideCount <= 6 ? 'deck_small' : finalSlideCount <= 15 ? 'deck_medium' : 'deck_large';
+
+    const creditPreview = await getCreditSummary({ supabase, userId: user.id, planRaw: plan });
+    if (creditPreview.remaining < estimatedCredits) {
       return NextResponse.json(
         {
           error: 'INSUFFICIENT_CREDITS',
           message: `You don't have enough credits for this generation.`,
-          credits: creditCheck.summary,
+          credits: creditPreview,
           required: estimatedCredits,
         },
         { status: 402 },
@@ -110,6 +121,30 @@ export async function POST(req: Request) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
         };
 
+        const finalizeCreditsIfStreamOk = async (streamOk: boolean) => {
+          if (!streamOk) return;
+          try {
+            const cookieStore = cookies();
+            const sb = createServerClient(
+              process.env.NEXT_PUBLIC_SUPABASE_URL!,
+              process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+              { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } },
+            );
+            const spent = await consumeCreditsAtomic({
+              supabase: sb,
+              userId: user.id,
+              planRaw: plan,
+              cost: estimatedCredits,
+              action: deckCreditAction,
+              meta: { slides: finalSlideCount, estimatedCredits },
+            });
+            if (!spent.ok) {
+              console.error('[Generate] Credit finalization failed after successful stream', spent);
+            }
+          } catch (e) {
+            console.error('[Generate] Credit finalization error:', e);
+          }
+        };
 
         try {
           sendOrb({
@@ -242,9 +277,12 @@ export async function POST(req: Request) {
             sendOrb({
               orb: { phase: 'error', message: 'Generation could not complete. Try again shortly.' },
             });
+          } else {
+            await finalizeCreditsIfStreamOk(true);
           }
         } catch (e: unknown) {
           console.error('[Generate] stream error:', e);
+          captureApiException(e, { requestId, route: 'POST /api/generate stream' });
           sendOrb({
             orb: {
               phase: 'error',
@@ -266,6 +304,7 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error('[Generate] Internal error:', error);
+    captureApiException(error, { requestId, route: 'POST /api/generate' });
     return NextResponse.json({ error: 'An unexpected error occurred during generation.' }, { status: 500 });
   }
 }

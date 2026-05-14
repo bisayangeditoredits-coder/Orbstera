@@ -709,15 +709,15 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             const streamedSlides = streamed?.slides ?? [];
             if (streamedSlides.length > 0) {
               const inferredTitle =
-                streamed.title && streamed.title !== 'Generating...'
+                streamed?.title && streamed.title !== 'Generating...'
                   ? streamed.title
                   : streamedSlides[0]?.title || 'Presentation';
               parsedRaw = {
                 title: inferredTitle,
-                theme: streamed.theme || 'modern-dark',
-                colorPalette: streamed.colorPalette || ['#05050A', '#F8FAFC', '#38BDF8', '#94A3B8'],
-                fontPairing: streamed.fontPairing || { heading: 'Space Grotesk', body: 'Inter' },
-                animationStyle: streamed.animationStyle || 'cinematic-reveal',
+                theme: streamed?.theme || 'modern-dark',
+                colorPalette: streamed?.colorPalette || ['#05050A', '#F8FAFC', '#38BDF8', '#94A3B8'],
+                fontPairing: streamed?.fontPairing || { heading: 'Space Grotesk', body: 'Inter' },
+                animationStyle: streamed?.animationStyle || 'cinematic-reveal',
                 slides: streamedSlides,
               } as unknown as Record<string, unknown>;
             }
@@ -884,7 +884,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               </div>
               <h2 className="text-2xl font-black font-space-grotesk mb-2">Limit Reached</h2>
               <p className="text-white/60 text-sm mb-8 leading-relaxed">
-                You've used all 3 free AI presentations (lifetime limit on the Free plan). Upgrade to keep generating full cinematic decks.
+                You&apos;ve used all 3 free AI presentations (lifetime limit on the Free plan). Upgrade to keep generating full cinematic decks.
               </p>
               <div className="flex flex-col gap-3">
                 <a href="/pricing" className="w-full py-3.5 bg-amber-500 text-black font-bold rounded-xl hover:bg-amber-400 transition-colors flex items-center justify-center gap-2">
@@ -1150,7 +1150,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       <div className="shrink-0 px-4 sm:px-5 pt-3.5 pb-3 border-t border-black/[0.06] bg-white relative z-50">
         <button
           type="button"
-          onClick={handleGenerateClick}
+          onClick={() => handleGenerateClick()}
           disabled={(activeTab === 'create' ? !prompt.trim() : !selectedFile) || isLoading}
           className="group relative w-full h-[3.25rem] rounded-full bg-gradient-to-b from-[#5B7CFF] to-primary hover:from-primary hover:to-[#3d5ef0] text-white shadow-[0_8px_24px_-6px_rgba(59,130,246,0.55),0_0_0_1px_rgba(255,255,255,0.12)_inset] disabled:opacity-35 disabled:shadow-none disabled:from-neutral-200 disabled:to-neutral-300 transition-all duration-200 active:scale-[0.98] overflow-hidden"
         >

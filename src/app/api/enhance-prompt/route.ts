@@ -1,7 +1,10 @@
+import { NextResponse } from 'next/server';
 import { openRouterComplete } from '@/lib/ai/openrouter';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
+import { enforceAiRateLimit } from '@/lib/rate-limit-server';
+import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -18,7 +21,11 @@ Expand it into ONE fluent, highly descriptive image prompt (2–3 sentences max)
 Requirements: no on-image text, no logos, no watermarks, presentation-ready and tasteful.
 Output ONLY the prompt text. No preamble or quotes.`;
 
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 export async function POST(req: Request) {
+  const requestId = getOrCreateRequestId(req);
   try {
     const { prompt, purpose } = await req.json();
 
@@ -41,6 +48,9 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
+
+    const limited = await enforceAiRateLimit(req, user.id, 'default');
+    if (limited) return limited;
 
     const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).maybeSingle();
     const plan = profile?.plan?.toLowerCase() || user.user_metadata?.plan?.toLowerCase() || 'free';
@@ -100,6 +110,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ enhancedPrompt });
   } catch (error) {
     console.error('Enhance prompt error:', error);
+    captureApiException(error, { requestId, route: 'POST /api/enhance-prompt' });
     return NextResponse.json({ error: 'Failed to enhance prompt' }, { status: 500 });
   }
 }

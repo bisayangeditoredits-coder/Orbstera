@@ -154,7 +154,15 @@ export async function getCreditSummary(args: { supabase: any; userId: string; pl
   return await readSummaryFromProfile(args.supabase, args.userId, plan, config);
 }
 
-export async function ensureCredits(args: {
+type RpcConsumePayload = { ok?: boolean; error?: string; credits_used_month?: number };
+
+function isConsumeRpcUnavailable(error: unknown): boolean {
+  const msg = String((error as { message?: string })?.message || (error as { details?: string })?.details || error || '');
+  return /consume_credits_atomic|schema cache|Could not find the function|function .* does not exist/i.test(msg);
+}
+
+/** Legacy path when DB migration `consume_credits_atomic` is not applied yet. */
+async function consumeCreditsLegacy(args: {
   supabase: any;
   userId: string;
   planRaw: unknown;
@@ -165,15 +173,10 @@ export async function ensureCredits(args: {
   const plan = normalizePlan(args.planRaw);
   const config = await getCreditConfig(args.supabase);
   const summary = await readSummaryFromProfile(args.supabase, args.userId, plan, config);
-
   const cost = Math.max(0, Math.round(args.cost || 0));
   if (cost <= 0) return { ok: true, summary };
   if (summary.remaining < cost) return { ok: false, error: 'INSUFFICIENT_CREDITS', summary };
 
-  // Best-effort atomic spend:
-  // 1) Update profile counters
-  // 2) Insert ledger record if table exists
-  // If either fails, we still continue (never break generation UX).
   try {
     await args.supabase
       .from('profiles')
@@ -200,5 +203,92 @@ export async function ensureCredits(args: {
     ok: true,
     summary: { ...summary, used: nextUsed, remaining: nextRemaining },
   };
+}
+
+/**
+ * Atomically increments `credits_used_month` only if within cap (DB + plan default).
+ * Requires Supabase migration `consume_credits_atomic` (see supabase/migrations).
+ */
+export async function consumeCreditsAtomic(args: {
+  supabase: any;
+  userId: string;
+  planRaw: unknown;
+  cost: number;
+  action: CreditAction;
+  meta?: Record<string, unknown>;
+}): Promise<{ ok: true; summary: CreditSummary } | { ok: false; error: string; summary: CreditSummary }> {
+  const plan = normalizePlan(args.planRaw);
+  const config = await getCreditConfig(args.supabase);
+  const summary = await readSummaryFromProfile(args.supabase, args.userId, plan, config);
+  const cost = Math.max(0, Math.round(args.cost || 0));
+  if (cost <= 0) return { ok: true, summary };
+
+  const monthlyFromConfig = config.monthly[plan] ?? DEFAULT_CONFIG.monthly[plan];
+  const meta = args.meta && typeof args.meta === 'object' ? args.meta : {};
+
+  const { data, error } = await args.supabase.rpc('consume_credits_atomic', {
+    p_cost: cost,
+    p_plan_default_cap: monthlyFromConfig,
+    p_action: args.action,
+    p_meta: meta,
+  });
+
+  if (error && isConsumeRpcUnavailable(error)) {
+    return consumeCreditsLegacy(args);
+  }
+
+  if (error) {
+    console.error('[credits] consume_credits_atomic RPC error:', error);
+    return consumeCreditsLegacy(args);
+  }
+
+  const payload = (data ?? {}) as RpcConsumePayload;
+  if (payload.ok === true) {
+    const next = await readSummaryFromProfile(args.supabase, args.userId, plan, config);
+    return { ok: true, summary: next };
+  }
+
+  if (payload.error === 'INSUFFICIENT_CREDITS') {
+    const refreshed = await readSummaryFromProfile(args.supabase, args.userId, plan, config);
+    return { ok: false, error: 'INSUFFICIENT_CREDITS', summary: refreshed };
+  }
+
+  console.warn('[credits] consume_credits_atomic unexpected payload:', data);
+  return consumeCreditsLegacy(args);
+}
+
+export async function ensureCredits(args: {
+  supabase: any;
+  userId: string;
+  planRaw: unknown;
+  cost: number;
+  action: CreditAction;
+  meta?: Record<string, unknown>;
+}): Promise<{ ok: true; summary: CreditSummary } | { ok: false; error: 'INSUFFICIENT_CREDITS'; summary: CreditSummary }> {
+  const plan = normalizePlan(args.planRaw);
+  const config = await getCreditConfig(args.supabase);
+  const summary = await readSummaryFromProfile(args.supabase, args.userId, plan, config);
+
+  const cost = Math.max(0, Math.round(args.cost || 0));
+  if (cost <= 0) return { ok: true, summary };
+  if (summary.remaining < cost) return { ok: false, error: 'INSUFFICIENT_CREDITS', summary };
+
+  const spent = await consumeCreditsAtomic({
+    supabase: args.supabase,
+    userId: args.userId,
+    planRaw: args.planRaw,
+    cost,
+    action: args.action,
+    meta: args.meta,
+  });
+
+  if (!spent.ok) {
+    if (spent.error === 'INSUFFICIENT_CREDITS') {
+      return { ok: false, error: 'INSUFFICIENT_CREDITS', summary: spent.summary };
+    }
+    return consumeCreditsLegacy(args);
+  }
+
+  return { ok: true, summary: spent.summary };
 }
 

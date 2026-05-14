@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
 // Ensure the route is treated as dynamic
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
+  const requestId = getOrCreateRequestId(req);
   try {
     const body = await req.text();
     const signature = req.headers.get('x-dodo-signature');
@@ -19,9 +21,20 @@ export async function POST(req: Request) {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    const webhookSecret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET;
+    const webhookSecret = (process.env.DODO_PAYMENTS_WEBHOOK_SECRET || '').trim();
+    const isDev = process.env.NODE_ENV === 'development';
 
-    if (webhookSecret && signature) {
+    if (!webhookSecret) {
+      if (!isDev) {
+        console.error('[Dodo Webhook] Missing DODO_PAYMENTS_WEBHOOK_SECRET in non-development');
+        return NextResponse.json({ error: 'Webhook not configured' }, { status: 401 });
+      }
+      console.warn('[Dodo Webhook] DEV only: no DODO_PAYMENTS_WEBHOOK_SECRET — accepting without verification');
+    } else {
+      if (!signature) {
+        console.error('[Dodo Webhook] Missing x-dodo-signature header');
+        return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+      }
       const crypto = await import('crypto');
       const hmac = crypto.createHmac('sha256', webhookSecret);
       hmac.update(body);
@@ -31,8 +44,6 @@ export async function POST(req: Request) {
         console.error('[Dodo Webhook] Invalid signature');
         return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
       }
-    } else {
-      console.warn('[Dodo Webhook] WARNING: DODO_PAYMENTS_WEBHOOK_SECRET is not set. Skipping signature verification.');
     }
 
     // Parse webhook payload
@@ -74,12 +85,15 @@ export async function POST(req: Request) {
         }
 
         // 2. Add entry to credit_ledger for audit trail
-        await supabaseAdmin.from('credit_ledger').insert({
+        const { error: ledgerError } = await supabaseAdmin.from('credit_ledger').insert({
           user_id: userId,
           delta: newLimit,
           reason: `subscription_${eventType}_${planId}`,
-          meta: { planId, eventType, dodoData: data }
-        }).catch(err => console.error('[Dodo Webhook] Ledger Error:', err));
+          meta: { planId, eventType, dodoData: data },
+        });
+        if (ledgerError) {
+          console.error('[Dodo Webhook] Ledger Error:', ledgerError);
+        }
 
         // 3. Update auth.user_metadata (Secondary source for quick access)
         const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
@@ -94,8 +108,9 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ received: true });
-  } catch (error: any) {
-    console.error('[Dodo Webhook] Error:', error.message || error);
+  } catch (error: unknown) {
+    console.error('[Dodo Webhook] Error:', error instanceof Error ? error.message : error);
+    captureApiException(error, { requestId, route: 'POST /api/dodo/webhook' });
     return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 });
   }
 }

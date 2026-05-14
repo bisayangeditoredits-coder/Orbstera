@@ -9,9 +9,14 @@ import { extractJsonObject } from '@/lib/ai/openrouter';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
+import { enforceAiRateLimit } from '@/lib/rate-limit-server';
+import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
 const OPENROUTER_API_KEY = (process.env.OPENROUTER_API_KEY || '').trim();
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+export const runtime = 'nodejs';
+export const maxDuration = 300;
 
 async function extractTextFromPptx(buffer: Buffer): Promise<string> {
   const zip = await JSZip.loadAsync(buffer);
@@ -101,6 +106,7 @@ if (
 }
 
 export async function POST(req: Request) {
+  const requestId = getOrCreateRequestId(req);
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File;
@@ -123,6 +129,9 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'Please sign in to enhance presentations.' }, { status: 401 });
     }
+
+    const limited = await enforceAiRateLimit(req, user.id, 'heavy');
+    if (limited) return limited;
 
     const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).maybeSingle();
     const plan = profile?.plan?.toLowerCase() || user.user_metadata?.plan?.toLowerCase() || 'free';
@@ -297,6 +306,7 @@ export async function POST(req: Request) {
 
   } catch (error: unknown) {
     console.error('Enhancement Error:', error);
+    captureApiException(error, { requestId, route: 'POST /api/enhance-ppt' });
 
     let errorMessage = 'Internal server error';
     if (error instanceof SyntaxError) {

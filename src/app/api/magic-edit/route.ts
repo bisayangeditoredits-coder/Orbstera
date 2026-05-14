@@ -6,6 +6,8 @@ import { openRouterImageGeneration } from '@/lib/ai/openrouter-image';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
+import { enforceAiRateLimit } from '@/lib/rate-limit-server';
+import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
@@ -56,7 +58,11 @@ function toPollinationPixels(w: number, h: number) {
   return { width: pw, height: ph };
 }
 
+export const runtime = 'nodejs';
+export const maxDuration = 120;
+
 export async function POST(req: Request) {
+  const requestId = getOrCreateRequestId(req);
   try {
     const { prompt, element, slideContext } = await req.json();
 
@@ -80,6 +86,9 @@ export async function POST(req: Request) {
     if (!userId) {
       return NextResponse.json({ error: 'Please sign in to use Magic Edit.' }, { status: 401 });
     }
+
+    const limited = await enforceAiRateLimit(req, userId, 'default');
+    if (limited) return limited;
 
     const { data: profile } = await supabase.from('profiles').select('plan').eq('id', userId).maybeSingle();
     const plan = profile?.plan?.toLowerCase() || user?.user_metadata?.plan?.toLowerCase() || 'free';
@@ -235,11 +244,18 @@ Return the modified element JSON only.`;
         }
 
         // Best-effort usage log for dashboard cost tracking.
-        supabase.from('ai_usage_events').insert({
-          user_id: userId,
-          kind: 'magic_edit_image',
-          meta: { width, height },
-        }).catch(() => {});
+        try {
+          const { error: usageLogError } = await supabase.from('ai_usage_events').insert({
+            user_id: userId,
+            kind: 'magic_edit_image',
+            meta: { width, height },
+          });
+          if (usageLogError) {
+            console.warn('[MagicEdit] ai_usage_events insert:', usageLogError);
+          }
+        } catch {
+          /* ignore */
+        }
       } catch (e) {
         console.error('[MagicEdit] Image generation:', e);
         return NextResponse.json(
@@ -252,6 +268,7 @@ Return the modified element JSON only.`;
     return NextResponse.json(updatedElement);
   } catch (error) {
     console.error('Magic Edit Error:', error);
+    captureApiException(error, { requestId, route: 'POST /api/magic-edit' });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

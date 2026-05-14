@@ -146,9 +146,10 @@ export function useCredits(refreshInterval = 60_000): CreditState & { refresh: (
           const { state: s, ts } = JSON.parse(saved);
           // Only use if less than 24h old to avoid stale info
           if (Date.now() - ts < 86_400_000) {
-            _cache = { ...s, loading: false };
+            const cached: CreditState = { ...s, loading: false };
+            _cache = cached;
             _cacheTs = ts;
-            return _cache;
+            return cached;
           }
         } catch (_) {}
       }

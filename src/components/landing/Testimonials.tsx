@@ -147,7 +147,7 @@ const ReviewCard = ({ review }: { review: typeof REVIEWS[0] }) => {
       </div>
 
       <p className="text-white/70 text-sm leading-relaxed">
-        "{review.body}"
+        &ldquo;{review.body}&rdquo;
       </p>
     </div>
   );
@@ -212,7 +212,7 @@ export function Testimonials() {
           transition={{ delay: 0.1 }}
           className="text-4xl md:text-6xl font-space-grotesk font-bold text-white tracking-tight mb-6"
         >
-          Don't just take our word for it.
+          Don&apos;t just take our word for it.
         </motion.h2>
 
         <motion.p

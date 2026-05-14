@@ -1,9 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // ── Ignore TypeScript & ESLint errors during Vercel production builds ──
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  // ESLint is enforced in CI (`npm run lint`). Skipping during `next build` avoids blocking deploys on legacy warnings.
   eslint: {
     ignoreDuringBuilds: true,
   },
