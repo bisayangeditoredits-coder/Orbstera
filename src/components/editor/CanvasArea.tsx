@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ImageIcon } from 'lucide-react';
 import { usePresentationStore } from '@/store/usePresentationStore';
@@ -9,9 +9,11 @@ import { KonvaCanvas, CANVAS_WIDTH, CANVAS_HEIGHT } from './KonvaCanvas';
 
 // ─── Generation Loader (deterministic milestones — no faux random %) ───────────────────
 
-/** Public asset paths — encode spaces for reliable fetches across hosts/CDNs. */
+/** Public asset path — encode spaces for reliable fetches across hosts/CDNs. */
 const GENERATION_ORB_LOTTIE_SRC = encodeURI('/ai animation Flow 1.json');
-const GENERATION_ROBOT_LOTTIE_SRC = encodeURI('/robo (2).json');
+/** From `ai animation Flow 1.json` — keep box matching comp to avoid non-uniform scale (canvas blur banding). */
+const FLOW1_LOTTIE_W = 316.81;
+const FLOW1_LOTTIE_H = 319.05;
 
 function deriveGenerationUi(
   life: DeckGenerationLifecycle,
@@ -138,20 +140,6 @@ function GenerationLoader() {
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  const particles = useMemo(
-    () =>
-      Array.from({ length: 5 }, (_, i) => ({
-        w: 16 + (i % 3) * 12,
-        h: 16 + (i % 2) * 10,
-        left: `${15 + i * 18}%`,
-        top: `${10 + (i * 17) % 70}%`,
-        x2: (i % 5) * 8 - 16,
-        duration: 10 + i * 2,
-        delay: i * 0.8,
-      })),
-    [],
-  );
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -159,84 +147,27 @@ function GenerationLoader() {
       exit={{ opacity: 0 }}
       className="absolute inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-neutral-100 via-neutral-50 to-neutral-100/95"
     >
-      {/* Light ambient — CSS only + few particles (no extra full-screen Lottie) */}
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <div
-          className="absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage:
-              'radial-gradient(ellipse 70% 45% at 50% 12%, rgba(59,130,246,0.35), transparent), radial-gradient(ellipse 50% 35% at 92% 78%, rgba(139,92,246,0.12), transparent)',
-          }}
-        />
-
-        {particles.map((p, i) => (
-          <motion.div
-            key={`particle-${i}`}
-            className="absolute rounded-full bg-primary/15 blur-[1px]"
-            style={{
-              width: p.w,
-              height: p.h,
-              left: p.left,
-              top: p.top,
-            }}
-            animate={{
-              y: [0, -40, 0],
-              x: [0, p.x2, 0],
-              opacity: [0, 0.18, 0],
-              scale: [1, 1.15, 1],
-            }}
-            transition={{
-              duration: p.duration,
-              repeat: Infinity,
-              delay: p.delay,
-            }}
-          />
-        ))}
-
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage: 'radial-gradient(circle at 22% 28%, rgba(0,0,0,0.12), transparent 55%)',
-          }}
-        />
-      </div>
-
       <div className="relative z-10 flex h-full w-full max-w-4xl flex-col items-center justify-center px-6">
-        
-        {/* Dual Lottie: flow (rear) + robot (front); orb always visible (reduced motion = slower orb, no mascot) */}
-        <div className="relative mb-5 flex h-[min(320px,52dvh)] w-[min(320px,82vw)] items-center justify-center sm:mb-7 sm:h-[min(360px,50dvh)] sm:w-[min(360px,78vw)] md:h-[min(400px,48dvh)] md:w-[min(400px,72vw)]">
-          <>
-            {/* @ts-expect-error custom element — swirl / orb behind mascot */}
+        {/* Single Lottie: raw JSON only — SVG renderer avoids canvas + blur edge banding; no overlays / second mascot */}
+        <div className="relative mb-5 flex w-full max-w-[min(400px,88vw)] items-center justify-center sm:mb-7 md:max-w-[min(440px,80vw)]">
+          <div
+            className="relative w-full overflow-visible"
+            style={{
+              aspectRatio: `${FLOW1_LOTTIE_W} / ${FLOW1_LOTTIE_H}`,
+              maxHeight: 'min(48dvh, 420px)',
+            }}
+          >
+            {/* @ts-expect-error custom element */}
             <lottie-player
-              className="absolute inset-0 z-0 h-full w-full"
+              className="block h-full w-full"
               src={GENERATION_ORB_LOTTIE_SRC}
               background="transparent"
-              speed={reduceMotion ? '0.35' : '1'}
+              speed={reduceMotion ? '0.4' : '1'}
               loop
               autoplay
-              renderer="canvas"
+              renderer="svg"
             />
-            <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-t from-neutral-100/35 via-transparent to-transparent" />
-          </>
-
-          <motion.div
-            animate={reduceMotion ? undefined : { y: [0, -8, 0] }}
-            transition={reduceMotion ? undefined : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
-            className="relative z-10 flex h-[46%] w-[46%] max-w-[200px] items-center justify-center drop-shadow-[0_12px_32px_rgba(15,23,42,0.12)]"
-          >
-            {!reduceMotion && (
-              // @ts-expect-error custom element
-              <lottie-player
-                src={GENERATION_ROBOT_LOTTIE_SRC}
-                background="transparent"
-                speed="1"
-                style={{ width: '100%', height: '100%' }}
-                loop
-                autoplay
-                renderer="canvas"
-              />
-            )}
-          </motion.div>
+          </div>
 
           <div className="pointer-events-none absolute inset-x-0 bottom-1 z-20 flex justify-center px-2">
             <motion.div
