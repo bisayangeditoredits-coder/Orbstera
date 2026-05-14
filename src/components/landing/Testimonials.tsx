@@ -11,7 +11,7 @@ const REVIEWS = [
     role: "Creative Director",
     body: "It used to take me 6 hours to build a Series A deck. Now it takes 15 minutes, and the result looks like I hired a full design agency. Absolutely unreal.",
     rating: 5,
-    image: "file:///C:/Users/This/.gemini/antigravity/brain/85f55c13-fad7-4f0a-933f-b7c408e104bd/sarah_jenkins_avatar_1778667107198.png",
+    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=256&h=256&auto=format&fit=crop",
   },
   {
     name: "Michael Chen",
@@ -19,7 +19,7 @@ const REVIEWS = [
     role: "Partner at Nexus Capital",
     body: "I see hundreds of pitch decks a week. The ones made with Orbstera stand out immediately. The visual hierarchy and pacing are investor-grade out of the box.",
     rating: 5,
-    image: "file:///C:/Users/This/.gemini/antigravity/brain/85f55c13-fad7-4f0a-933f-b7c408e104bd/michael_chen_avatar_1778667164957.png",
+    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=256&h=256&auto=format&fit=crop",
   },
   {
     name: "Elena Rodriguez",
@@ -27,7 +27,7 @@ const REVIEWS = [
     role: "Startup Founder",
     body: "The ability to just type my raw, unstructured thoughts and watch the AI instantly weave them into a gorgeous, cinematic narrative is literally magic.",
     rating: 5,
-    image: "file:///C:/Users/This/.gemini/antigravity/brain/85f55c13-fad7-4f0a-933f-b7c408e104bd/elena_rodriguez_avatar_1778667307431.png",
+    image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&h=256&auto=format&fit=crop",
   },
   {
     name: "James Kuroki",
@@ -43,7 +43,7 @@ const REVIEWS = [
     role: "Product Manager",
     body: "I pitched to a VC using an Orbstera deck on Monday. Got a term sheet by Thursday. The cinematic transitions alone won them over. Coincidence? I think not.",
     rating: 5,
-    image: "file:///C:/Users/This/.gemini/antigravity/brain/85f55c13-fad7-4f0a-933f-b7c408e104bd/amanda_patel_avatar_1778667557492.png",
+    image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=256&h=256&auto=format&fit=crop",
   },
   {
     name: "David Smith",
