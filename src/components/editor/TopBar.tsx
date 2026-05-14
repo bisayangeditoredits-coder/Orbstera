@@ -493,7 +493,11 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
       await new Promise((r) => setTimeout(r, 500));
       setExportDone(true);
     } catch (err) {
-      setExportError(err instanceof Error ? err.message : 'Export failed. Please try again.');
+      setExportError(
+        err instanceof Error && err.message?.trim()
+          ? err.message.trim()
+          : 'Export failed. Please try again.',
+      );
     }
   };
 

@@ -11,7 +11,8 @@ import { enforceAiRateLimit } from '@/lib/rate-limit-server';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import fs from 'fs';
 import path from 'path';
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { isValidDeckStagingKey } from '@/lib/server/deck-staging-key';
 
 let exportR2Client: S3Client | null = null;
 if (
@@ -27,6 +28,14 @@ if (
       secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_KEY,
     },
   });
+}
+
+async function readS3BodyToBuffer(stream: unknown): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream as AsyncIterable<Uint8Array | Buffer>) {
+    chunks.push(Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
 }
 
 async function r2ObjectToBuffer(key: string): Promise<{ buf: Buffer; mime: string } | null> {
@@ -219,11 +228,79 @@ export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
   try {
     const encoding = (req.headers.get('content-encoding') || '').toLowerCase();
+    const contentType = (req.headers.get('content-type') || '').toLowerCase();
     const raw = Buffer.from(await req.arrayBuffer());
-    const jsonStr =
-      encoding === 'gzip' ? gunzipSync(raw).toString('utf8') : raw.toString('utf8');
-    const body: PresentationData & { slideImages?: string[] } = JSON.parse(jsonStr);
+
+    let jsonStr: string;
+
+    const trySmallStagingMeta =
+      contentType.includes('application/json') &&
+      encoding !== 'gzip' &&
+      raw.length <= 65536;
+
+    if (trySmallStagingMeta) {
+      let meta: { stagingKey?: string; gzip?: boolean };
+      try {
+        meta = JSON.parse(raw.toString('utf8')) as { stagingKey?: string; gzip?: boolean };
+      } catch {
+        meta = {};
+      }
+      if (typeof meta.stagingKey === 'string' && meta.stagingKey.trim()) {
+        const cookieStore = cookies();
+        const supabaseEarly = createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } },
+        );
+        const { data: { user: stagingUser } } = await supabaseEarly.auth.getUser();
+        if (!stagingUser) {
+          return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+        if (!isValidDeckStagingKey(stagingUser.id, meta.stagingKey)) {
+          return NextResponse.json({ error: 'Invalid staging key' }, { status: 400 });
+        }
+        if (!exportR2Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) {
+          return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
+        }
+        const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME;
+        let stagedBuf: Buffer;
+        try {
+          const obj = await exportR2Client.send(
+            new GetObjectCommand({ Bucket: bucket, Key: meta.stagingKey }),
+          );
+          stagedBuf = await readS3BodyToBuffer(obj.Body);
+        } catch (e) {
+          console.error('[export/pptx] staging GetObject', e);
+          return NextResponse.json({ error: 'Export staging blob not found or expired' }, { status: 404 });
+        }
+        try {
+          jsonStr = meta.gzip ? gunzipSync(stagedBuf).toString('utf8') : stagedBuf.toString('utf8');
+        } catch (e) {
+          console.error('[export/pptx] staging gunzip', e);
+          await exportR2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: meta.stagingKey })).catch(() => {});
+          return NextResponse.json({ error: 'Invalid compressed export payload' }, { status: 400 });
+        }
+        await exportR2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: meta.stagingKey })).catch((err) => {
+          console.error('[export/pptx] staging delete', err);
+        });
+      } else {
+        jsonStr = raw.toString('utf8');
+      }
+    } else {
+      jsonStr = encoding === 'gzip' ? gunzipSync(raw).toString('utf8') : raw.toString('utf8');
+    }
+
+    let body: PresentationData & { slideImages?: string[] };
+    try {
+      body = JSON.parse(jsonStr) as PresentationData & { slideImages?: string[] };
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
+    }
+
     const { slides, colorPalette, fontPairing, animationStyle, title, defaultSlideTransition } = body;
+    if (!slides || !Array.isArray(slides) || slides.length === 0) {
+      return NextResponse.json({ error: 'Invalid presentation: missing or empty slides' }, { status: 400 });
+    }
 
     // ── Check user plan for watermark ─────────────────────────────────────────
     let isPaidUser = false;

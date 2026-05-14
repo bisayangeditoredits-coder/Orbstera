@@ -4,6 +4,7 @@ import { S3Client, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { runPresentationSaveFromParsed } from '@/lib/server/run-presentation-save';
+import { isValidDeckStagingKey } from '@/lib/server/deck-staging-key';
 
 export const maxDuration = 60;
 
@@ -42,14 +43,6 @@ async function streamToBuffer(stream: any): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-function isValidStagingKey(userId: string, key: unknown): key is string {
-  if (typeof key !== 'string' || !key.trim()) return false;
-  const prefix = `presentations/${userId}/deck-staging/`;
-  if (!key.startsWith(prefix)) return false;
-  if (key.includes('..')) return false;
-  return true;
-}
-
 /**
  * Reads staged deck bytes from R2 (from presign-deck-upload + client PUT), runs the normal save pipeline, deletes staging.
  */
@@ -66,7 +59,7 @@ export async function POST(req: Request) {
   const stagingKey = body.stagingKey;
   const gzip = Boolean(body.gzip);
 
-  if (!isValidStagingKey(user.id, stagingKey)) {
+  if (!isValidDeckStagingKey(user.id, stagingKey)) {
     return NextResponse.json({ error: 'Invalid staging key' }, { status: 400 });
   }
 

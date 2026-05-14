@@ -7,7 +7,7 @@ const DATA_URL_OFFLOAD_MIN_CHARS = 2_000;
 const SERVER_UPLOAD_MAX_BYTES = 4_000_000;
 
 /** Above this size, POST the deck to R2 via presigned PUT then finalize (avoids Vercel request body limits). */
-const VERCEL_DIRECT_POST_MAX_BYTES = 2_800_000;
+export const VERCEL_DIRECT_POST_MAX_BYTES = 2_800_000;
 
 /** Fresh `ArrayBuffer` so `Blob` / `BodyInit` accept it under TS 5.x (avoids `Uint8Array<ArrayBufferLike>` vs `BlobPart`). */
 function uint8ToArrayBuffer(src: Uint8Array): ArrayBuffer {
@@ -176,7 +176,7 @@ export async function preparePresentationForCloudSave(presentation: Presentation
   return clone;
 }
 
-function encodedBodyByteLength(body: BodyInit): number {
+export function encodedBodyByteLength(body: BodyInit): number {
   if (typeof body === 'string') return new TextEncoder().encode(body).byteLength;
   if (body instanceof ArrayBuffer) return body.byteLength;
   if (ArrayBuffer.isView(body)) return body.byteLength;
@@ -233,6 +233,67 @@ async function postPresentationViaStaging(
   }
 
   return fetch('/api/presentations/complete-deck-upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ stagingKey, gzip }),
+    cache: 'no-store',
+  });
+}
+
+/**
+ * Same staging pipeline as cloud save, but final POST is /api/export/pptx with a small JSON body
+ * so large gzipped deck JSON bypasses Vercel's ~4.5 MB request limit on the export route.
+ */
+export async function postPptxExportViaStaging(
+  prepared: PresentationData,
+  body: BodyInit,
+  encodeHeaders: Record<string, string>,
+): Promise<Response> {
+  const gzip = encodeHeaders['Content-Encoding'] === 'gzip';
+  const presentationId = prepared.id || 'draft';
+
+  const pres = await fetch('/api/presentations/presign-deck-upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ presentationId, gzip }),
+    cache: 'no-store',
+  });
+
+  if (!pres.ok) {
+    const err = (await pres.json().catch(() => ({}))) as { error?: string };
+    return new Response(JSON.stringify({ error: err.error || 'Export presign failed' }), {
+      status: pres.status,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const { putUrl, stagingKey } = (await pres.json()) as { putUrl?: string; stagingKey?: string };
+  if (!putUrl || !stagingKey) {
+    return new Response(JSON.stringify({ error: 'Invalid presign response' }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const putRes = await fetch(putUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': gzip ? 'application/gzip' : 'application/json',
+    },
+    body,
+  });
+
+  if (!putRes.ok) {
+    return new Response(
+      JSON.stringify({
+        error:
+          'Export upload failed (direct PUT to storage). Add Cloudflare R2 CORS allowing PUT from this site, same as for images.',
+      }),
+      { status: 502, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+
+  return fetch('/api/export/pptx', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ stagingKey, gzip }),
