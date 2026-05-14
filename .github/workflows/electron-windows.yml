@@ -1,0 +1,48 @@
+# Builds Orbstera Desktop (NSIS + portable) on GitHub-hosted Windows runners.
+# Use this when local `npm install` fails (e.g. ENOSPC) or you want reproducible CI artifacts.
+name: Electron Windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      load_url:
+        description: Full HTTPS URL of the live site (same as production). Overrides secret/variable if set.
+        required: false
+        type: string
+
+concurrency:
+  group: electron-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pack:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Write Electron load URL and pack
+        env:
+          ORBSTERA_LOAD_URL: ${{ github.event.inputs.load_url || secrets.ORBSTERA_LOAD_URL || vars.ORBSTERA_LOAD_URL }}
+        run: npm run electron:pack
+
+      - name: Upload Windows installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbstera-windows-${{ github.run_number }}
+          path: |
+            release/*.exe
+          if-no-files-found: error
+          compression-level: 0
