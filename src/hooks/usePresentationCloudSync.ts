@@ -5,6 +5,7 @@ import { usePresentationStore } from '@/store/usePresentationStore';
 import { postPresentationCloudSave } from '@/lib/presentation-cloud-save';
 import { buildPresentationUpdatesAfterCloudSave } from '@/lib/merge-cloud-prepared';
 import { isCloudDirtySuppressed, suppressCloudDirtyDuring } from '@/lib/cloud-dirty-suppress';
+import { humanizeFetchError } from '@/lib/network-error-message';
 
 const AUTOSAVE_INTERVAL_MS = 60_000;
 
@@ -23,6 +24,10 @@ export function usePresentationCloudSync() {
 
     const body = usePresentationStore.getState().presentation;
     if (!body?.id || body.title === 'Generating...' || !body.slides?.length) return;
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return;
+    }
 
     savingRef.current = true;
     setEditorState({ cloudSyncStatus: 'saving', cloudSyncMessage: undefined });
@@ -84,10 +89,9 @@ export function usePresentationCloudSync() {
         }, 2000);
       }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Sync failed';
       setEditorState({
         cloudSyncStatus: 'error',
-        cloudSyncMessage: msg,
+        cloudSyncMessage: humanizeFetchError(e),
       });
     } finally {
       savingRef.current = false;

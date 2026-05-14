@@ -333,7 +333,6 @@ const SortableLayerRow = memo(function SortableLayerRow({
 }) {
   const controls = useDragControls();
   const pushHistory = usePresentationStore((s) => s.pushHistory);
-  const setElementsOrder = usePresentationStore((s) => s.setElementsOrder);
   const updateElement = usePresentationStore((s) => s.updateElement);
   const removeElement = usePresentationStore((s) => s.removeElement);
   const reorderElements = usePresentationStore((s) => s.reorderElements);
@@ -356,43 +355,55 @@ const SortableLayerRow = memo(function SortableLayerRow({
           : 'border-transparent bg-transparent hover:border-neutral-200/60 hover:bg-white/80'
       }`}
     >
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={onToggleSelect}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onToggleSelect();
-          }
-        }}
-        className="flex cursor-pointer items-center gap-2 px-2 py-2.5 sm:gap-2.5 sm:px-3"
-      >
-        <button
-          type="button"
-          className="touch-none cursor-grab rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 active:cursor-grabbing"
-          aria-label="Drag to reorder layer"
-          title="Drag to reorder"
-          onPointerDown={(e) => {
-            e.stopPropagation();
-            controls.start(e);
+      <div className="flex w-full min-w-0 flex-col gap-0">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={onToggleSelect}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onToggleSelect();
+            }
           }}
+          className="flex cursor-pointer items-center gap-2 px-2 py-2.5 sm:gap-2.5 sm:px-3"
         >
-          <GripVertical size={16} strokeWidth={2} />
-        </button>
+          <button
+            type="button"
+            className="touch-none shrink-0 cursor-grab rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 active:cursor-grabbing"
+            aria-label="Drag to reorder layer"
+            title="Drag to reorder"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              controls.start(e);
+            }}
+          >
+            <GripVertical size={16} strokeWidth={2} />
+          </button>
 
-        <LayerRowThumbnail el={el} />
+          <div className="shrink-0">
+            <LayerRowThumbnail el={el} />
+          </div>
 
-        <div className="min-w-0 flex-1">
-          <p className={`truncate text-sm font-semibold tracking-tight ${isSelected ? 'text-neutral-900' : 'text-neutral-700'}`}>
-            {displayName}
-          </p>
-          <p className="mt-0.5 text-xs tabular-nums text-neutral-500">
-            {Math.round(el.x)}, {Math.round(el.y)} · {Math.round(el.width)}×{Math.round(el.height)}
-          </p>
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <p className={`truncate text-sm font-semibold tracking-tight ${isSelected ? 'text-neutral-900' : 'text-neutral-700'}`}>
+              {displayName}
+            </p>
+            <p className="mt-0.5 truncate text-xs tabular-nums text-neutral-500">
+              {Math.round(el.x)}, {Math.round(el.y)} · {Math.round(el.width)}×{Math.round(el.height)}
+            </p>
+          </div>
         </div>
 
-        <div className={`flex shrink-0 items-center gap-0.5 ${isSelected ? 'opacity-100' : 'opacity-0 transition-opacity group-hover:opacity-100'}`}>
+        <div
+          className={`flex w-full min-w-0 flex-wrap items-center justify-end gap-1 px-2 pb-2 sm:px-3 ${
+            isSelected
+              ? 'opacity-100'
+              : 'pointer-events-none opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <button
             type="button"
             className={controlBtn}

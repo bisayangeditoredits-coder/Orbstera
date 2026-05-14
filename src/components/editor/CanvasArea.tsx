@@ -368,6 +368,7 @@ export function CanvasArea() {
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   
   const wheelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevContainerWRef = useRef<number | null>(null);
 
   // Refs for logic
   const containerRef = useRef<HTMLDivElement>(null);
@@ -397,6 +398,21 @@ export function CanvasArea() {
     if (containerRef.current) ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, []);
+
+  /** Keep slide visually anchored when the main column width changes (e.g. right panel open/close). */
+  useEffect(() => {
+    const w = containerSize.w;
+    if (prevContainerWRef.current === null) {
+      prevContainerWRef.current = w;
+      return;
+    }
+    const prev = prevContainerWRef.current;
+    const dw = w - prev;
+    prevContainerWRef.current = w;
+    if (Math.abs(dw) < 12) return;
+    const p = usePresentationStore.getState().editor.pan;
+    setEditorState({ pan: { x: p.x - dw / 2, y: p.y } });
+  }, [containerSize.w, setEditorState]);
 
   const baseFitScale = Math.min(
     (containerSize.w - PAD * 2) / CANVAS_WIDTH,

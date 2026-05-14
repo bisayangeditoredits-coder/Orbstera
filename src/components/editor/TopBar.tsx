@@ -19,6 +19,7 @@ import { createClient } from '@/lib/supabase';
 import { postPresentationCloudSave } from '@/lib/presentation-cloud-save';
 import { buildPresentationUpdatesAfterCloudSave } from '@/lib/merge-cloud-prepared';
 import { suppressCloudDirtyDuring } from '@/lib/cloud-dirty-suppress';
+import { humanizeFetchError } from '@/lib/network-error-message';
 import { CreditsHUD } from './CreditsHUD';
 
 // ── Export Progress Modal ─────────────────────────────────────────────────────
@@ -395,7 +396,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
     } catch (e: unknown) {
       setEditorState({
         cloudSyncStatus: 'error',
-        cloudSyncMessage: e instanceof Error ? e.message : 'Save failed',
+        cloudSyncMessage: humanizeFetchError(e),
       });
     }
   };

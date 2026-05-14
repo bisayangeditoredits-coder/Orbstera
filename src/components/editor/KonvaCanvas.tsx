@@ -178,7 +178,8 @@ function ElementNode({
 
   if (el.visible === false) return null;
 
-  const isDrawingTool = activeTool === 'gen-fill';
+  const elementListening = activeTool === 'select';
+  const elementDraggable = activeTool === 'select' && !el.locked;
 
   const groupTransformEnd = () => {
     const node = shapeRef.current!;
@@ -205,8 +206,8 @@ function ElementNode({
     y: el.y,
     rotation: el.rotation || 0,
     opacity: el.opacity ?? 1,
-    draggable: isDrawingTool ? false : !el.locked,
-    listening: !isDrawingTool,
+    draggable: elementDraggable,
+    listening: elementListening,
     onClick: onSelect,
     onTap: onSelect,
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -222,15 +223,15 @@ function ElementNode({
     height: el.height,
     rotation: el.rotation || 0,
     opacity: el.opacity ?? 1,
-    draggable: isDrawingTool ? false : !el.locked,
-    listening: !isDrawingTool,
+    draggable: elementDraggable,
+    listening: elementListening,
     onClick: onSelect,
     onTap: onSelect,
     onDblClick: () => {
-      if (el.type === 'text' && !el.locked && !isDrawingTool) onDblClickText();
+      if (el.type === 'text' && !el.locked && activeTool === 'select') onDblClickText();
     },
     onDblTap: () => {
-      if (el.type === 'text' && !el.locked && !isDrawingTool) onDblClickText();
+      if (el.type === 'text' && !el.locked && activeTool === 'select') onDblClickText();
     },
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
       onChange({ x: e.target.x(), y: e.target.y() }, true);
@@ -319,7 +320,7 @@ function ElementNode({
             }
           }}
         >
-          <Rect x={0} y={0} width={el.width} height={el.height} fill="transparent" listening />
+          <Rect x={0} y={0} width={el.width} height={el.height} fill="transparent" listening={elementListening} />
           {!img && imgStatus !== 'failed' && (
             <Group listening={false}>
               <Rect

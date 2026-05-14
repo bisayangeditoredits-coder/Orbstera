@@ -17,6 +17,7 @@ import { usePresentationStore } from '@/store/usePresentationStore';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { usePresentationCloudSync } from '@/hooks/usePresentationCloudSync';
 import type { PresentationData } from '@/types';
+import { isSlideDeckBackgroundImage } from '@/lib/slide-background';
 
 const EditorCanvasLoading = () => (
   <div className="flex-1 min-h-0 flex items-center justify-center bg-background text-textMuted">
@@ -157,6 +158,29 @@ export default function EditorClient() {
     setActivePanel('generate');
     setPanelOpen(true);
   }, [setActivePanel, setPanelOpen]);
+
+  useHotkeys(
+    'delete, backspace',
+    (e) => {
+      const ae = document.activeElement as HTMLElement | null;
+      const tag = ae?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || ae?.isContentEditable) return;
+      const st = usePresentationStore.getState();
+      if (st.editor.activeTool !== 'select') return;
+      const selectedId = st.editor.selectedElementId;
+      if (!selectedId || !st.presentation?.slides?.length) return;
+      const slide = st.presentation.slides[st.currentSlideIndex];
+      if (!slide) return;
+      const el = slide.elements?.find((x) => x.id === selectedId);
+      if (!el) return;
+      if (isSlideDeckBackgroundImage(el)) return;
+      e.preventDefault();
+      st.removeElement(slide.id, selectedId);
+      st.selectElement(null);
+    },
+    { enableOnFormTags: false },
+    [],
+  );
 
   const requestedId = searchParams.get('id');
   if (requestedId && !presentation) {
