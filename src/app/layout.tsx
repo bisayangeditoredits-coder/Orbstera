@@ -14,7 +14,10 @@ export const metadata: Metadata = {
   title: "Orbstera — Futuristic Presentation Generation",
   description: "Generate professional, fully designed presentations from a single text prompt using AI. Cinematic decks in seconds.",
   icons: {
-    icon: "/favicon.png",
+    icon: [
+      { url: "/favicon.png", type: "image/png", sizes: "32x32" },
+      { url: "/favicon.png", type: "image/png", sizes: "16x16" },
+    ],
     shortcut: "/favicon.png",
     apple: "/favicon.png",
   },
