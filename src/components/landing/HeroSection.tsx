@@ -619,6 +619,12 @@ export function HeroSection() {
       return;
     }
 
+    // Direct routing to the Planner Copilot for create mode
+    if (activeMode === 'create' || activeMode === 'voice') {
+      router.push(`/planner?topic=${encodeURIComponent(effectivePrompt)}`);
+      return;
+    }
+
     const params = new URLSearchParams();
     if (effectivePrompt) params.set('prompt', effectivePrompt);
     if (selectedFile) params.set('fileName', selectedFile.name);

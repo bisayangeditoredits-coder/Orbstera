@@ -674,6 +674,8 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     activeModelLabel: '',
     cloudSyncStatus: 'idle',
     cloudSyncMessage: undefined,
+    copilotContext: '',
+    hasSeenWelcome: false,
   },
 
   setEditorState: (updates) =>

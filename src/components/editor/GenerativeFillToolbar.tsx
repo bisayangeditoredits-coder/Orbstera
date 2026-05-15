@@ -6,10 +6,30 @@ import { usePresentationStore } from '@/store/usePresentationStore';
 import { Sparkles, Loader2, X, Wand2, Trash2 } from 'lucide-react';
 
 function regionToImagePixels(regionW: number, regionH: number) {
-  // Keep generation dimensions aligned to the exact rectangle the user drew.
-  // We cap only the upper bound for provider safety; no aspect remapping.
-  const w = Math.max(1, Math.min(1536, Math.round(regionW)));
-  const h = Math.max(1, Math.min(1536, Math.round(regionH)));
+  // Preserve the exact aspect ratio of the drawn rectangle.
+  // Scale up so the shortest side is at least 512px (needed for AI quality),
+  // and cap the longest side at 1536px (provider limit).
+  const aspectRatio = regionW / regionH;
+  let w: number;
+  let h: number;
+
+  if (regionW >= regionH) {
+    // Landscape or square
+    w = Math.min(1536, Math.max(512, Math.round(regionW)));
+    h = Math.round(w / aspectRatio);
+    // If height exceeds cap, scale down proportionally
+    if (h > 1536) { h = 1536; w = Math.round(h * aspectRatio); }
+  } else {
+    // Portrait
+    h = Math.min(1536, Math.max(512, Math.round(regionH)));
+    w = Math.round(h * aspectRatio);
+    if (w > 1536) { w = 1536; h = Math.round(w / aspectRatio); }
+  }
+
+  // Clamp minimums
+  w = Math.max(256, w);
+  h = Math.max(256, h);
+
   return { width: w, height: h };
 }
 
@@ -36,7 +56,8 @@ export function GenerativeFillToolbar() {
   const [prompt, setPrompt] = useState('');
   const [enhance, setEnhance] = useState(true);
   const [polish, setPolish] = useState(true);
-  const [phase, setPhase] = useState<'idle' | 'enhance' | 'render'>('idle');
+  const [transparent, setTransparent] = useState(false);
+  const [phase, setPhase] = useState<'idle' | 'enhance' | 'render' | 'remove_bg'>('idle');
   const [error, setError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -81,6 +102,9 @@ export function GenerativeFillToolbar() {
     if (!target || !slide || !el || !isGenFillRegion || !prompt.trim()) return;
     setError('');
     let finalPrompt = prompt.trim();
+    if (transparent) {
+      finalPrompt += " (isolated on a pure solid white background, central focus, sticker style)";
+    }
 
     try {
       if (enhance) {
@@ -111,6 +135,7 @@ export function GenerativeFillToolbar() {
           height,
           format: 'png',
           polish,
+          transparent,
           visualProfile: 'cinematic',
         }),
       });
@@ -119,7 +144,9 @@ export function GenerativeFillToolbar() {
       if (!data.url) throw new Error('No image URL returned');
       const cacheBustedUrl =
         typeof data.url === 'string' && data.url.trim()
-          ? `${data.url}${data.url.includes('?') ? '&' : '?'}v=${Date.now()}`
+          ? data.url.startsWith('data:') 
+            ? data.url 
+            : `${data.url}${data.url.includes('?') ? '&' : '?'}v=${Date.now()}`
           : data.url;
 
       updateElement(slide.id, el.id, {
@@ -143,7 +170,12 @@ export function GenerativeFillToolbar() {
         }),
       }).catch(() => {});
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong');
+      const msg = e instanceof Error ? e.message : 'Something went wrong';
+      if (msg === 'FREE_LIMIT_REACHED') {
+        setError('Free limit reached (5/month). Upgrade to Pro for unlimited Generative Fill.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setPhase('idle');
     }
@@ -232,11 +264,8 @@ export function GenerativeFillToolbar() {
                     }}
                     disabled={busy}
                     placeholder="Describe the missing content — lighting, subject, mood…"
-                    className="w-full h-11 rounded-2xl border border-transparent bg-transparent px-3 pr-20 text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                    className="w-full h-11 rounded-2xl border border-transparent bg-transparent px-3 pr-4 text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none"
                   />
-                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[9px] font-semibold uppercase tracking-[0.16em] text-sky-500/75">
-                    Region prompt
-                  </span>
                 </div>
 
                 <button
@@ -261,6 +290,16 @@ export function GenerativeFillToolbar() {
                   className="rounded border-slate-300 text-sky-600 focus:ring-sky-500/30"
                 />
                 AI refine prompt
+              </label>
+              <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={transparent}
+                  onChange={(e) => setTransparent(e.target.checked)}
+                  disabled={busy}
+                  className="rounded border-slate-300 text-sky-600 focus:ring-sky-500/30"
+                />
+                Transparent (No BG)
               </label>
               <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
                 <input

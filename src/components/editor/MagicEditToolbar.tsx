@@ -155,7 +155,12 @@ export function MagicEditToolbar() {
       setPhaseLabel('');
     } catch (err) {
       console.error(err);
-      setErrorHint(err instanceof Error ? err.message : 'Magic Edit failed');
+      const msg = err instanceof Error ? err.message : 'Magic Edit failed';
+      if (msg === 'FREE_LIMIT_REACHED') {
+        setErrorHint('Free limit reached (10/month). Upgrade to Pro for unlimited AI edits.');
+      } else {
+        setErrorHint(msg);
+      }
       if (createdBgId) {
         removeElement(slide.id, createdBgId);
       } else if (prevImageSrc && elementToEdit) {

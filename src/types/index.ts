@@ -293,6 +293,9 @@ export interface EditorState {
   /** Cloud autosave / sync indicator */
   cloudSyncStatus: 'idle' | 'saving' | 'saved' | 'error' | 'conflict' | 'retrying';
   cloudSyncMessage?: string;
+  /** Stores context approved from the Planner copilot phase */
+  copilotContext?: string;
+  hasSeenWelcome?: boolean;
 }
 
 // ─── UI Types ─────────────────────────────────────────────────────────────────

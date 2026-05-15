@@ -51,6 +51,33 @@ function isSlideBackgroundTarget(target: Konva.Node): boolean {
   return target === stage || target.name() === SLIDE_BG_NAME;
 }
 
+function getObjectFitCoverCrop(
+  img: HTMLImageElement | undefined,
+  boxWidth: number,
+  boxHeight: number,
+): { crop: { x: number; y: number; width: number; height: number } } | Record<string, never> {
+  if (!img || !img.width || !img.height) return {};
+  const imageRatio = img.width / img.height;
+  const boxRatio = boxWidth / boxHeight;
+
+  let cropWidth = img.width;
+  let cropHeight = img.height;
+  let cropX = 0;
+  let cropY = 0;
+
+  if (imageRatio > boxRatio) {
+    // Image is wider than box — crop sides
+    cropWidth = img.height * boxRatio;
+    cropX = (img.width - cropWidth) / 2;
+  } else if (imageRatio < boxRatio) {
+    // Image is taller than box — crop top/bottom
+    cropHeight = img.width / boxRatio;
+    cropY = (img.height - cropHeight) / 2;
+  }
+
+  return { crop: { x: cropX, y: cropY, width: cropWidth, height: cropHeight } };
+}
+
 function defaultShapeStyle(accent: string) {
   return { fill: accent, stroke: 'transparent' as const, strokeWidth: 0 };
 }
@@ -175,11 +202,9 @@ function ElementNode({
     return () => {
       tween.destroy();
       node.opacity(baseOpacity);
-      node.x(startX);
-      node.y(startY);
       layer.batchDraw();
     };
-  }, [previewElementId, el.id, el.opacity, el.animation?.duration, el.animation?.entrance, el.x, el.y]);
+  }, [previewElementId, el.id, el.opacity, el.animation?.duration, el.animation?.entrance]);
 
   if (el.visible === false) return null;
 
@@ -405,7 +430,16 @@ function ElementNode({
               />
             </Group>
           )}
-          {img && <KonvaImage image={img} x={0} y={0} width={el.width} height={el.height} />}
+          {img && (
+            <KonvaImage
+              image={img}
+              x={0}
+              y={0}
+              width={el.width}
+              height={el.height}
+              {...getObjectFitCoverCrop(img as HTMLImageElement, el.width, el.height)}
+            />
+          )}
         </Group>
       );
     }

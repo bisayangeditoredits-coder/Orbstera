@@ -462,12 +462,21 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
     const urlPrompt  = searchParams.get('prompt');
     const urlFileName = searchParams.get('fileName');
     const urlMode    = searchParams.get('mode') as 'create' | 'enhance' | null;
+    const copilotApproved = searchParams.get('copilot_approved');
 
     if (urlMode) {
       setActiveTab(urlMode === 'enhance' ? 'enhance' : 'create');
     }
 
-    if (urlPrompt && urlMode !== 'enhance') {
+    if (copilotApproved) {
+      hasAutoTriggered.current = true;
+      const context = usePresentationStore.getState().editor.copilotContext;
+      const finalPrompt = `[Copilot Approved Outline]\n\n${context}\n\nPlease generate a presentation matching this exact approved outline.`;
+      setPrompt(finalPrompt);
+      setTimeout(() => {
+        executeGenerate('replace', finalPrompt, true);
+      }, 50);
+    } else if (urlPrompt && urlMode !== 'enhance') {
       hasAutoTriggered.current = true;  // lock before async work
       setPrompt(urlPrompt);
       if (urlFileName) setSelectedFile({ name: urlFileName } as File);
@@ -514,11 +523,17 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   };
 
   // appendMode: 'replace' = wipe & replace, 'append' = add to existing deck
-  const executeGenerate = async (appendMode: 'replace' | 'append' = 'replace', overridePrompt?: string) => {
+  const executeGenerate = async (appendMode: 'replace' | 'append' = 'replace', overridePrompt?: string, bypassPlanner = false) => {
     const targetPrompt = overridePrompt || prompt;
     if (activeTab === 'create') {
       const trimmed = targetPrompt.trim();
       if (!trimmed || isLoading) return;
+
+      if (!bypassPlanner) {
+        if (onClose) onClose();
+        router.push(`/planner?topic=${encodeURIComponent(trimmed)}`);
+        return;
+      }
 
       // For 'replace' mode, wipe the existing presentation immediately
       if (appendMode === 'replace') {
