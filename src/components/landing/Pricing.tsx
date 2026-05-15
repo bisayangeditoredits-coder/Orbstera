@@ -12,7 +12,7 @@ const tiers = [
     period: null,
     description: 'Start building presentations instantly — no credit card required.',
     badge: null,
-    icon: <Sparkles size={20} className="text-white/40" />,
+    icon: "/3d_icons/Pencil.png",
     features: [
       { text: '3 AI-generated presentations (lifetime on Free)', included: true },
       { text: 'Maximum 5 slides per presentation', included: true },
@@ -34,7 +34,7 @@ const tiers = [
     period: '/month',
     description: 'The best value for students, freelancers & emerging creators who need real power.',
     badge: 'Most Popular',
-    icon: <Crown size={20} className="text-amber-400" />,
+    icon: "/3d_icons/Graduation Hat.png",
     features: [
       { text: '10 premium AI presentations per month', included: true },
       { text: 'Up to 25 slides per presentation', included: true },
@@ -55,7 +55,7 @@ const tiers = [
     period: '/month',
     description: 'Built for agencies, teachers & power users who live and breathe presentations.',
     badge: 'Best Value',
-    icon: <Zap size={20} className="text-purple-400" />,
+    icon: "/3d_icons/Trophy.png",
     features: [
       { text: '40 premium AI presentations per month', included: true },
       { text: 'Up to 40 slides per presentation', included: true },
@@ -183,13 +183,24 @@ export function Pricing() {
                   <div className="absolute top-0 inset-x-0 h-1.5 bg-primary" />
                 )}
 
-                <h3 className="text-xl font-bold mb-4 flex items-center justify-between">
-                  {tier.name}
+                <div className="mb-8 flex justify-between items-start">
+                  <div className="w-24 h-24 rounded-[32px] bg-white/40 backdrop-blur-xl border border-white/60 flex items-center justify-center p-4 shadow-[0_8px_32px_0_rgba(31,38,135,0.05)] relative group/icon overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-tr from-white/40 to-transparent pointer-events-none" />
+                    <img 
+                      src={tier.icon} 
+                      alt={tier.name} 
+                      className="w-full h-full object-contain drop-shadow-[0_12px_20px_rgba(0,0,0,0.12)] relative z-10 transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-3" 
+                    />
+                  </div>
                   {tier.badge && !isCurrentPlan && (
                     <span className="text-[10px] uppercase tracking-widest font-bold bg-amber-100 text-amber-700 px-3 py-1 rounded-full">
                       {tier.badge}
                     </span>
                   )}
+                </div>
+
+                <h3 className="text-xl font-bold mb-2">
+                  {tier.name}
                 </h3>
                 
                 <div className="text-4xl font-black mb-6">

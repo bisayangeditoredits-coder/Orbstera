@@ -56,8 +56,8 @@ export async function GET() {
     };
 
     return NextResponse.json(
-      { ok: true, summary: { ...summary, usagePct }, estimates, canAfford },
-      { headers: { 'Cache-Control': 'private, no-store' } },
+      { ok: true, userId: user.id, summary: { ...summary, usagePct }, estimates, canAfford },
+      { headers: { 'Cache-Control': 'private, no-store, max-age=0' } },
     );
   } catch {
     return NextResponse.json({ ok: false, error: 'server_error' }, { status: 500 });

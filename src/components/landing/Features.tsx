@@ -7,32 +7,32 @@ const features = [
   {
     title: "Cinematic Generation",
     description: "Multi-model AI architecture utilizing GPT-5.5 and DeepSeek R1 to craft deep narratives and striking visuals.",
-    icon: <Wand2 className="text-primary" size={24} />
+    icon: "/3d_icons/Lamp and Brain.png"
   },
   {
     title: "Pro-Grade Canvas",
     description: "Built on Fabric.js for 60fps drag-and-drop editing. Layer management, snapping, and rich text support.",
-    icon: <Layers className="text-secondary" size={24} />
+    icon: "/3d_icons/Notebook.png"
   },
   {
     title: "Flawless PPTX Export",
     description: "Pixel-perfect export to Microsoft PowerPoint. No missing fonts, broken layouts, or flattened images.",
-    icon: <Download className="text-accent" size={24} />
+    icon: "/3d_icons/Exam Paper.png"
   },
   {
     title: "Lightning Fast",
     description: "Edge-cached generations and GPU-accelerated compositing means you never wait for your ideas to manifest.",
-    icon: <Zap className="text-primary" size={24} />
+    icon: "/3d_icons/Rocket 2.png"
   },
   {
     title: "Fluid Animations",
     description: "Every element supports micro-animations and slide transitions that rival high-end video production.",
-    icon: <Presentation className="text-secondary" size={24} />
+    icon: "/3d_icons/Globe.png"
   },
   {
     title: "Real-time Collaboration",
     description: "Work with your team in the same canvas simultaneously with instant sync and conflict resolution.",
-    icon: <MousePointer2 className="text-accent" size={24} />
+    icon: "/3d_icons/Pencil and Paper.png"
   }
 ];
 
@@ -67,10 +67,15 @@ export function Features() {
               transition={{ delay: i * 0.1 }}
               className="bg-white border border-borderSubtle p-10 rounded-[32px] hover:border-primary/30 transition-all group cursor-default shadow-sm hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1"
             >
-              <div className="bg-panel w-14 h-14 rounded-2xl flex items-center justify-center mb-8 border border-borderSubtle group-hover:bg-primary group-hover:border-primary transition-all duration-300">
-                <span className="group-hover:text-white transition-colors">
-                  {feature.icon}
-                </span>
+              <div className="w-24 h-24 rounded-[32px] flex items-center justify-center mb-10 border border-white/40 bg-white/30 backdrop-blur-xl transition-all duration-500 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] group-hover:shadow-[0_8px_32px_0_rgba(71,59,240,0.15)] group-hover:border-primary/30 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent pointer-events-none" />
+                <motion.img 
+                  src={feature.icon} 
+                  alt={feature.title}
+                  className="w-16 h-16 object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.1)] relative z-10"
+                  whileHover={{ scale: 1.15, rotate: -5, y: -5 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                />
               </div>
               <h3 className="text-xl font-bold mb-4 text-textMain group-hover:text-primary transition-colors">{feature.title}</h3>
               <p className="text-textSecondary text-[15px] leading-relaxed">{feature.description}</p>
@@ -81,3 +86,4 @@ export function Features() {
     </section>
   );
 }
+

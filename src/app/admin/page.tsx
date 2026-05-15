@@ -38,6 +38,16 @@ export default function AdminDashboard() {
         router.push('/login');
         return;
       }
+      const sessionRes = await fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' });
+      if (!sessionRes.ok) {
+        router.push('/login');
+        return;
+      }
+      const session = await sessionRes.json();
+      if (!session.isAdmin) {
+        router.push('/editor');
+        return;
+      }
       fetchUsers();
     };
     checkAuth();

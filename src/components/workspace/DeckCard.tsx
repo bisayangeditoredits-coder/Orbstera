@@ -14,6 +14,7 @@ export function DeckCard({
   onToggleSelect,
   onDelete,
   onRename,
+  variant = 'default',
 }: {
   deck: DeckMeta;
   selectionMode: boolean;
@@ -21,6 +22,7 @@ export function DeckCard({
   onToggleSelect: () => void;
   onDelete: () => void;
   onRename?: (newTitle: string) => void;
+  variant?: 'default' | 'dashboard';
 }) {
   const [renaming, setRenaming]     = useState(false);
   const [draft,    setDraft]        = useState('');
@@ -75,11 +77,18 @@ export function DeckCard({
     }
   };
 
+  const isDashboard = variant === 'dashboard';
+
   return (
     <article
       className={cn(
         'group flex flex-col border bg-white transition',
-        selected ? 'border-neutral-900 ring-1 ring-neutral-900' : 'border-neutral-200 hover:border-neutral-400',
+        isDashboard && 'overflow-hidden rounded-2xl border-white/80 shadow-sm hover:-translate-y-0.5 hover:shadow-lg',
+        selected
+          ? 'border-neutral-900 ring-1 ring-neutral-900'
+          : isDashboard
+            ? 'border-slate-200/80 hover:border-primary/30'
+            : 'border-neutral-200 hover:border-neutral-400',
       )}
     >
       <div className="relative">

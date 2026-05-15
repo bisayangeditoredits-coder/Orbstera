@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import {
+  assertTrustedOrigin,
+  PRIVATE_API_HEADERS,
+  requireAdminUser,
+  untrustedOriginResponse,
+} from '@/lib/auth/server';
 
 function adminClientOrNull() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -8,27 +14,32 @@ function adminClientOrNull() {
   return createClient(url, key);
 }
 
-export async function GET() {
+export const dynamic = 'force-dynamic';
+
+export async function GET(req: Request) {
+  if (!assertTrustedOrigin(req)) return untrustedOriginResponse();
+
+  const auth = await requireAdminUser();
+  if ('response' in auth) return auth.response;
+
   try {
     const supabaseAdmin = adminClientOrNull();
     if (!supabaseAdmin) {
       return NextResponse.json(
         { error: 'Admin API is disabled: set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.' },
-        { status: 503 },
+        { status: 503, headers: PRIVATE_API_HEADERS },
       );
     }
 
-    // Note: In production, you MUST check if the request is coming from your admin email
-    // e.g. check cookies/session first to ensure regular users can't hit this API!
-    
-    // Fetch all users from auth.users
     const { data: users, error } = await supabaseAdmin.auth.admin.listUsers();
-
     if (error) throw error;
 
-    return NextResponse.json({ users: users.users });
+    return NextResponse.json({ users: users.users }, { headers: PRIVATE_API_HEADERS });
   } catch (error: unknown) {
     console.error('Admin API Error:', error);
-    return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch users' },
+      { status: 500, headers: PRIVATE_API_HEADERS },
+    );
   }
 }

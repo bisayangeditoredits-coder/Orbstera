@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { readClientCache, writeClientCache, removeClientCache } from '@/lib/client-cache';
+import { CLIENT_CACHE_MAX_AGE_MS } from '@/lib/auth/session-policy';
 
 export type CreditEstimates = {
   deck_small:        number;
@@ -37,6 +39,8 @@ export type CreditState = {
   canAfford:    CanAfford;
 };
 
+const CACHE_KEY = 'orbstera_credits_cache';
+
 const DEFAULT_ESTIMATES: CreditEstimates = {
   deck_small:        40,
   deck_medium:       80,
@@ -49,8 +53,6 @@ const DEFAULT_ESTIMATES: CreditEstimates = {
   image_premium:     20,
   animation_enhance: 5,
 };
-
-const LS_KEY = 'orbstera_credits_cache';
 
 const DEFAULT_STATE: CreditState = {
   loading:      true,
@@ -72,15 +74,15 @@ const DEFAULT_STATE: CreditState = {
   },
 };
 
-// Cache in module scope
 let _cache: CreditState | null = null;
+let _cacheUserId: string | null = null;
 let _cacheTs = 0;
 let _inflight: Promise<CreditState> | null = null;
-const CACHE_TTL_MS = 15_000; // 15s internal TTL
+const MEMORY_TTL_MS = 15_000;
 
 async function fetchCredits(): Promise<CreditState> {
   const now = Date.now();
-  if (_cache && now - _cacheTs < CACHE_TTL_MS) return _cache;
+  if (_cache && _cacheUserId && now - _cacheTs < MEMORY_TTL_MS) return _cache;
   if (_inflight) return _inflight;
 
   _inflight = (async () => {
@@ -92,6 +94,8 @@ async function fetchCredits(): Promise<CreditState> {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || 'api_error');
+
+      const userId = typeof json.userId === 'string' ? json.userId : null;
 
       const state: CreditState = {
         loading:      false,
@@ -106,13 +110,13 @@ async function fetchCredits(): Promise<CreditState> {
         estimates:    json.estimates             ?? DEFAULT_ESTIMATES,
         canAfford:    json.canAfford             ?? DEFAULT_STATE.canAfford,
       };
-      
-      _cache  = state;
+
+      _cache = state;
+      _cacheUserId = userId;
       _cacheTs = Date.now();
-      
-      // Persist to localStorage for instant subsequent loads
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(LS_KEY, JSON.stringify({ state, ts: _cacheTs }));
+
+      if (userId) {
+        writeClientCache(CACHE_KEY, userId, state);
       }
 
       return state;
@@ -126,52 +130,74 @@ async function fetchCredits(): Promise<CreditState> {
   return _inflight;
 }
 
-export function invalidateCreditCache() {
-  _cache   = null;
+export function invalidateCreditCache(userId?: string | null) {
+  _cache = null;
+  _cacheUserId = null;
   _cacheTs = 0;
+  if (userId) removeClientCache(CACHE_KEY, userId);
+}
+
+function readInitialState(): CreditState {
+  if (_cache) return _cache;
+
+  if (typeof window !== 'undefined') {
+    try {
+      const legacy = localStorage.getItem(CACHE_KEY);
+      if (legacy) {
+        const { state: s, ts } = JSON.parse(legacy);
+        if (Date.now() - ts < CLIENT_CACHE_MAX_AGE_MS) {
+          const cached: CreditState = { ...s, loading: false };
+          _cache = cached;
+          _cacheTs = ts;
+          localStorage.removeItem(CACHE_KEY);
+          return cached;
+        }
+        localStorage.removeItem(CACHE_KEY);
+      }
+    } catch {
+      /* ignore legacy */
+    }
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith(`${CACHE_KEY}:`)) continue;
+      try {
+        const userId = key.slice(CACHE_KEY.length + 1);
+        const cached = readClientCache<CreditState>(CACHE_KEY, userId, CLIENT_CACHE_MAX_AGE_MS);
+        if (cached) {
+          _cache = cached;
+          _cacheUserId = userId;
+          _cacheTs = Date.now();
+          return cached;
+        }
+      } catch {
+        /* try next */
+      }
+    }
+  }
+
+  return DEFAULT_STATE;
 }
 
 /**
- * useCredits — high-performance hook with localStorage caching and background revalidation.
+ * Credits with memory + localStorage cache (max 3 days, per-user keys).
  */
 export function useCredits(refreshInterval = 60_000): CreditState & { refresh: () => void } {
-  // Try to initialize from memory cache or localStorage for instant UI
-  const [state, setState] = useState<CreditState>(() => {
-    if (_cache) return _cache;
-    
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(LS_KEY);
-      if (saved) {
-        try {
-          const { state: s, ts } = JSON.parse(saved);
-          // Only use if less than 24h old to avoid stale info
-          if (Date.now() - ts < 86_400_000) {
-            const cached: CreditState = { ...s, loading: false };
-            _cache = cached;
-            _cacheTs = ts;
-            return cached;
-          }
-        } catch (_) {}
-      }
-    }
-    return DEFAULT_STATE;
-  });
-
+  const [state, setState] = useState<CreditState>(readInitialState);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
-    invalidateCreditCache();
+    invalidateCreditCache(_cacheUserId);
     const next = await fetchCredits();
     setState(next);
   }, []);
 
   useEffect(() => {
-    // Background revalidation
     fetchCredits().then(setState);
 
     if (refreshInterval > 0) {
       timerRef.current = setInterval(() => {
-        invalidateCreditCache();
+        invalidateCreditCache(_cacheUserId);
         fetchCredits().then(setState);
       }, refreshInterval);
     }

@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { gunzipSync } from 'node:zlib';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { runPresentationSaveFromParsed } from '@/lib/server/run-presentation-save';
+import {
+  assertTrustedOrigin,
+  getApiUser,
+  PRIVATE_API_HEADERS,
+  untrustedOriginResponse,
+} from '@/lib/auth/server';
 
 let s3Client: S3Client | null = null;
 if (
@@ -53,18 +57,7 @@ async function putJsonWithRetry(
   throw last;
 }
 
-const PRIVATE_CACHE_HEADERS = { 'Cache-Control': 'private, no-store, max-age=0' } as const;
-
-async function getAuthUser() {
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } }
-  );
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
-}
+const PRIVATE_CACHE_HEADERS = PRIVATE_API_HEADERS;
 
 // ── GET /api/presentations — list all or fetch one by ?id= ─────────────────
 export async function GET(req: Request) {
@@ -72,7 +65,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
   }
 
-  const user = await getAuthUser();
+  const user = await getApiUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
@@ -99,11 +92,12 @@ export async function GET(req: Request) {
 
 // ── POST /api/presentations — save/update a presentation ───────────────────
 export async function POST(req: Request) {
+  if (!assertTrustedOrigin(req)) return untrustedOriginResponse();
   if (!s3Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) {
     return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
   }
 
-  const user = await getAuthUser();
+  const user = await getApiUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
@@ -171,11 +165,12 @@ async function deleteDeckAssetsUnderPrefix(
 
 // ── DELETE /api/presentations?id= — remove a presentation ──────────────────
 export async function DELETE(req: Request) {
+  if (!assertTrustedOrigin(req)) return untrustedOriginResponse();
   if (!s3Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) {
     return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
   }
 
-  const user = await getAuthUser();
+  const user = await getApiUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
@@ -227,11 +222,12 @@ export async function DELETE(req: Request) {
 
 // ── PATCH /api/presentations — rename a presentation title ──────────────────
 export async function PATCH(req: Request) {
+  if (!assertTrustedOrigin(req)) return untrustedOriginResponse();
   if (!s3Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) {
     return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
   }
 
-  const user = await getAuthUser();
+  const user = await getApiUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);

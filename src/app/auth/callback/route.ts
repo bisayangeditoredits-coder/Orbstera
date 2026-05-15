@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { SESSION_MAX_AGE_SEC, SESSION_STARTED_COOKIE } from '@/lib/auth/session-policy';
 
 function safePostLoginPath(next: string | null, origin: string): string {
   const fallback = '/editor';
@@ -56,7 +57,14 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      return response; // ✅ Return response with session cookies set
+      response.cookies.set(SESSION_STARTED_COOKIE, new Date().toISOString(), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: SESSION_MAX_AGE_SEC,
+      });
+      return response;
     }
 
     console.error('[Auth Callback] exchangeCodeForSession error:', error.message);

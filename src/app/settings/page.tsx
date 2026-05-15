@@ -63,8 +63,9 @@ export default function SettingsPage() {
   }, [supabase, router]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
+    const { signOutAndClearCaches } = await import('@/lib/auth/logout');
+    await signOutAndClearCaches(supabase, user?.id);
+    router.push('/login');
   };
 
   const handleUpgrade = async (planId: string) => {

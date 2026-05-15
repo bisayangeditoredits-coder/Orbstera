@@ -66,7 +66,9 @@ export function Navbar() {
   }, [supabase]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    const { signOutAndClearCaches } = await import('@/lib/auth/logout');
+    await signOutAndClearCaches(supabase, user?.id);
+    router.push('/login');
     router.refresh();
   };
 

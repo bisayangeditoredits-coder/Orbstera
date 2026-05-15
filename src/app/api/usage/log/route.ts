@@ -1,4 +1,10 @@
 import { NextResponse } from 'next/server';
+import {
+  assertTrustedOrigin,
+  getApiUser,
+  PRIVATE_API_HEADERS,
+  untrustedOriginResponse,
+} from '@/lib/auth/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
@@ -10,6 +16,8 @@ export const dynamic = 'force-dynamic';
 type UsageKind = 'genfill_image' | 'magic_edit_image' | 'magic_edit_text';
 
 export async function POST(req: Request) {
+  if (!assertTrustedOrigin(req)) return untrustedOriginResponse();
+
   try {
     const body = (await req.json()) as { kind?: UsageKind; meta?: Record<string, unknown> };
     const kind = body?.kind;
@@ -17,15 +25,20 @@ export async function POST(req: Request) {
 
     if (!kind) return NextResponse.json({ ok: false, error: 'kind_required' }, { status: 400 });
 
+    const user = await getApiUser();
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: 'unauthorized' },
+        { status: 401, headers: PRIVATE_API_HEADERS },
+      );
+    }
+
     const cookieStore = cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } },
     );
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
 
     // Insert into `ai_usage_events` if it exists. Suggested schema:
     // - id uuid pk default gen_random_uuid()
