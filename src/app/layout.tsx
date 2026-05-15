@@ -13,6 +13,11 @@ const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-montserrat
 export const metadata: Metadata = {
   title: "Orbstera — Futuristic Presentation Generation",
   description: "Generate professional, fully designed presentations from a single text prompt using AI. Cinematic decks in seconds.",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
   openGraph: {
     title: "Orbstera",
     description: "AI-powered presentation creation for creative professionals.",
