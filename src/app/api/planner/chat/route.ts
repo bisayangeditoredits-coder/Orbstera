@@ -11,10 +11,10 @@ export const maxDuration = 30;
 // Free users  → Try multiple free models in order (fallback on 429 rate-limit)
 // Pro users   → Gemini 2.5 Flash paid (smarter, faster)
 const FREE_MODELS = [
-  'google/gemini-2.5-flash:free',         // Best free model — try first
-  'meta-llama/llama-3.3-70b-instruct:free', // Fallback #1
-  'mistralai/mistral-7b-instruct:free',   // Fallback #2 (most available)
-  'qwen/qwen3-8b:free',                   // Fallback #3
+  'meta-llama/llama-3.3-70b-instruct:free', // Primary free model
+  'mistralai/mistral-7b-instruct:free',      // Fallback #1
+  'qwen/qwen3-8b:free',                      // Fallback #2
+  'deepseek/deepseek-r1:free',               // Fallback #3
 ] as const;
 
 const PRO_MODEL = 'google/gemini-2.5-flash';

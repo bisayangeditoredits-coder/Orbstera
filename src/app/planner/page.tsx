@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { Send, Loader2, Sparkles, CheckCircle2, ArrowRight, Crown, Zap } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function PlannerPage() {
+function PlannerClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialTopic = searchParams.get('topic') || '';
@@ -249,5 +249,21 @@ export default function PlannerPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Suspense wrapper (required for useSearchParams in Next.js static builds) ──
+export default function PlannerPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen bg-[#FAFAFA]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-2 border-sky-500/30 border-t-sky-500 rounded-full animate-spin" />
+          <p className="text-slate-500 text-sm font-medium">Loading Copilot…</p>
+        </div>
+      </div>
+    }>
+      <PlannerClient />
+    </Suspense>
   );
 }
