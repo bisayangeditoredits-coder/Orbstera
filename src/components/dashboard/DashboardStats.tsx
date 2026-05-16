@@ -23,6 +23,7 @@ type DashboardStatsProps = {
   decks: DeckMeta[];
   userName: string;
   credits: CreditState;
+  onOpenSettings?: () => void;
 };
 
 function SparkBars({ heights, accent = 'primary' }: { heights: number[]; accent?: 'primary' | 'red' }) {
@@ -39,7 +40,7 @@ function SparkBars({ heights, accent = 'primary' }: { heights: number[]; accent?
   );
 }
 
-export function DashboardStats({ decks, userName, credits }: DashboardStatsProps) {
+export function DashboardStats({ decks, userName, credits, onOpenSettings }: DashboardStatsProps) {
   const deckCount = decks.length;
   const slides = totalSlides(decks);
   const activity = computeWeeklyActivity(decks);
@@ -86,12 +87,22 @@ export function DashboardStats({ decks, userName, credits }: DashboardStatsProps
               Upgrade
             </Link>
           )}
-          <Link
-            href="/account"
-            className="rounded-full border border-slate-200 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 transition hover:border-primary hover:text-primary"
-          >
-            Usage details
-          </Link>
+          {onOpenSettings ? (
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="rounded-full border border-slate-200 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 transition hover:border-primary hover:text-primary"
+            >
+              Usage details
+            </button>
+          ) : (
+            <Link
+              href="/my-presentations#settings"
+              className="rounded-full border border-slate-200 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 transition hover:border-primary hover:text-primary"
+            >
+              Usage details
+            </Link>
+          )}
         </div>
       </div>
 
@@ -124,9 +135,14 @@ export function DashboardStats({ decks, userName, credits }: DashboardStatsProps
         <SparkBars heights={activityHeights} />
       </div>
 
-      <div className="group rounded-3xl border border-white/70 bg-white p-6 shadow-sm transition-shadow hover:shadow-lg sm:p-8">
-        <div className="mb-4 flex items-start justify-between gap-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">AI credits</p>
+      {onOpenSettings ? (
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          className="group w-full rounded-3xl border border-white/70 bg-white p-6 text-left shadow-sm transition-shadow hover:border-primary/20 hover:shadow-lg sm:p-8"
+        >
+          <div className="mb-4 flex items-start justify-between gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">AI credits</p>
           <span className="flex items-center gap-1 rounded-lg bg-primary/5 px-2 py-1 text-xs font-bold text-primary">
             <Zap size={14} strokeWidth={1.75} />
             {formatPlanLabel(credits.plan)}
@@ -141,7 +157,27 @@ export function DashboardStats({ decks, userName, credits }: DashboardStatsProps
             : `${credits.used} / ${credits.monthlyLimit} credits this month`}
         </p>
         <SparkBars heights={creditHeights} />
-      </div>
+        </button>
+      ) : (
+        <div className="group rounded-3xl border border-white/70 bg-white p-6 shadow-sm transition-shadow hover:shadow-lg sm:p-8">
+          <div className="mb-4 flex items-start justify-between gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">AI credits</p>
+            <span className="flex items-center gap-1 rounded-lg bg-primary/5 px-2 py-1 text-xs font-bold text-primary">
+              <Zap size={14} strokeWidth={1.75} />
+              {formatPlanLabel(credits.plan)}
+            </span>
+          </div>
+          <p className="font-montserrat text-4xl font-black tabular-nums text-slate-900">
+            {credits.loading ? '—' : `${credits.usagePct}%`}
+          </p>
+          <p className="text-xs text-slate-400">
+            {credits.loading
+              ? 'Loading usage…'
+              : `${credits.used} / ${credits.monthlyLimit} credits this month`}
+          </p>
+          <SparkBars heights={creditHeights} />
+        </div>
+      )}
     </motion.div>
   );
 }

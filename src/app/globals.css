@@ -199,6 +199,28 @@ body {
     0% { opacity: 0; }
     100% { opacity: 1; }
   }
+
+  .planner-markdown p:first-child {
+    margin-top: 0;
+  }
+
+  .planner-markdown p:last-child {
+    margin-bottom: 0;
+  }
+
+  .planner-markdown ul,
+  .planner-markdown ol {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .planner-markdown-stream {
+    transition: opacity 0.12s ease-out;
+  }
+
+  .planner-markdown-stream p {
+    transition: color 0.1s ease-out;
+  }
 }
 
 /* ── Selection colour ── */

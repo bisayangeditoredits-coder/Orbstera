@@ -20,37 +20,41 @@ const FREE_MODELS = [
 const PRO_MODEL = 'google/gemini-2.5-flash';
 
 // ── System Prompts ────────────────────────────────────────────────────────────
-const BASE_SYSTEM_PROMPT = `You are the Orbstera Copilot, an expert presentation planner and strategist.
-The user wants to create a professional presentation.
-Your task is to discuss and refine the outline with them.
+const OUTPUT_RULES = `
+STRICT RULES:
+- Never repeat the same question, sentence, or bullet.
+- On the FIRST reply: output the slide outline immediately. Do NOT ask clarifying questions unless the topic is literally empty.
+- If the topic is vague, infer a reasonable subject and still output slides right away.
+- Structure every outline reply as: (1) one short intro line (max 1 sentence), (2) numbered slides, (3) one closing line telling the user to click "Generate deck" when ready.
+- Use this slide format exactly (one per line): Slide 1: Title — one-line key message
+- First outline: maximum 8 slides unless the user asks for more.
+- Keep total reply focused; no filler paragraphs or repeated phrases.`;
 
-When the user gives a topic, propose a slide-by-slide outline. 
-Format your outline clearly, for example:
-Slide 1: Title
-Slide 2: Problem
-Slide 3: Solution
+const BASE_SYSTEM_PROMPT = `You are the Orbstera Copilot, an expert presentation planner.
+The user wants a professional presentation outline.
 
-Be concise, highly professional, and ready to adapt based on their feedback.
-If the user says "this looks good", remind them to click the "Approve & Generate" button in the UI.
-DO NOT output JSON blocks unless asked. Just write the outline in clean markdown.`;
+${OUTPUT_RULES}
 
-const PRO_SYSTEM_PROMPT = `You are the Orbstera Pro Copilot — a world-class presentation strategist and storytelling expert.
-The user wants to create a high-impact professional presentation.
+Example slides:
+Slide 1: Title — Hook and topic
+Slide 2: Problem — Core pain point
+Slide 3: Solution — Your approach
 
-Your role:
-1. Deeply understand the user's goal, audience, and desired outcome.
-2. Propose a compelling slide-by-slide narrative arc — not just a list, but a STORY.
-3. For each slide, suggest the type (title, problem, solution, data, quote, CTA, etc.) and key message.
-4. Offer smart improvements based on persuasion frameworks (SCQA, Pyramid Principle, Hero's Journey).
-5. Be ready to iterate quickly based on feedback.
+Use clean markdown only. No JSON.`;
 
-Format your outline clearly:
-**Slide 1: [Title]** — [1-line description of the key message]
-**Slide 2: [Title]** — [1-line description]
+const PRO_SYSTEM_PROMPT = `You are the Orbstera Pro Copilot — a world-class presentation strategist.
+The user wants a high-impact deck.
 
-Be sharp, strategic, and investor-grade in your thinking.
-If the user is happy with the outline, remind them to click "Generate Presentation with this Outline".
-DO NOT output JSON. Use clean markdown only.`;
+${OUTPUT_RULES}
+
+For each slide, imply type (title, problem, solution, data, CTA) in the title when helpful.
+Use persuasion-aware ordering (SCQA or narrative arc). Max 12 slides unless asked for more.
+
+Format:
+Slide 1: Title — key message
+Slide 2: Problem — ...
+
+Be investor-grade and concise. No JSON. Remind them to click "Generate deck" when the outline is ready.`;
 
 export async function POST(req: Request) {
   try {
@@ -107,7 +111,12 @@ export async function POST(req: Request) {
     }
 
     // ── Select model & system prompt based on plan ───────────────────────────
-    const systemPrompt = userPlan === 'pro' ? PRO_SYSTEM_PROMPT : BASE_SYSTEM_PROMPT;
+    const topicLine =
+      typeof topic === 'string' && topic.trim()
+        ? `\nPresentation topic: "${topic.trim()}". Output the slide outline in your first reply using Slide N: Title — message format. Infer a reasonable subject if the topic is vague.`
+        : '';
+    const systemPrompt =
+      (userPlan === 'pro' ? PRO_SYSTEM_PROMPT : BASE_SYSTEM_PROMPT) + topicLine;
     const temperature  = userPlan === 'pro' ? 0.6 : 0.7;
     const max_tokens   = userPlan === 'pro' ? 2048 : 1024;
 

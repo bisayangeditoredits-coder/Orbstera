@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { createClient } from '@/lib/supabase';
 import type { DeckMeta } from '@/types/deck-meta';
 import { useCredits } from '@/hooks/useCredits';
@@ -9,7 +10,14 @@ import { DashboardSidebar } from './DashboardSidebar';
 import { DashboardHeader } from './DashboardHeader';
 import { DashboardStats } from './DashboardStats';
 import { PresentationGrid } from './PresentationGrid';
+import { DashboardSettings } from './DashboardSettings';
+import { DashboardQuickTools } from './DashboardQuickTools';
 import { sortByUpdated } from './dashboard-utils';
+import {
+  type DashboardSection,
+  sectionFromHash,
+  hashForSection,
+} from './dashboard-types';
 
 export function DashboardShell() {
   const [presentations, setPresentations] = useState<DeckMeta[]>([]);
@@ -22,8 +30,47 @@ export function DashboardShell() {
   const [userName, setUserName] = useState('Creator');
   const [plan, setPlan] = useState('free');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [section, setSection] = useState<DashboardSection>('overview');
+  const decksRef = useRef<HTMLDivElement | null>(null);
 
   const credits = useCredits();
+
+  const navigateSection = useCallback((next: DashboardSection) => {
+    setSection(next);
+    const hash = hashForSection(next);
+    const url = `/my-presentations${hash}`;
+    if (window.location.pathname + window.location.hash !== url) {
+      window.history.replaceState(null, '', url);
+    }
+    if (next === 'decks') {
+      requestAnimationFrame(() => {
+        decksRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+    if (next === 'settings') {
+      requestAnimationFrame(() => {
+        document.getElementById('settings')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const syncFromHash = () => setSection(sectionFromHash(window.location.hash));
+    syncFromHash();
+    window.addEventListener('hashchange', syncFromHash);
+    return () => window.removeEventListener('hashchange', syncFromHash);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') !== 'success') return;
+    navigateSection('settings');
+    void credits.refresh();
+    params.delete('payment');
+    const qs = params.toString();
+    window.history.replaceState(null, '', `/my-presentations#settings${qs ? `?${qs}` : ''}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once when returning from checkout
+  }, []);
 
   const loadPresentations = useCallback(async () => {
     setLoading(true);
@@ -108,17 +155,27 @@ export function DashboardShell() {
   };
 
   const creditsWarning = !credits.loading && credits.usagePct >= 90;
+  const activePlan = credits.plan || plan;
+  const isFreePlan = activePlan === 'free' || !activePlan;
+  const showLibrary = section === 'overview' || section === 'decks';
+  const showSettings = section === 'settings';
 
   return (
-    <div className="flex min-h-dvh bg-[#F0F7FF] font-sans text-slate-900 selection:bg-primary/10">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex min-h-dvh bg-[#F0F7FF] font-sans text-slate-900 selection:bg-primary/10"
+    >
       <div
         className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_90%_60%_at_50%_-10%,rgba(59,130,246,0.1),transparent)]"
         aria-hidden
       />
       <DashboardSidebar
+        section={section}
+        onNavigate={navigateSection}
         recentDecks={recentDecks}
         userName={userName}
-        plan={credits.plan || plan}
+        plan={activePlan}
         avatarUrl={avatarUrl}
         mobileOpen={mobileMenuOpen}
         onMobileClose={() => setMobileMenuOpen(false)}
@@ -126,18 +183,23 @@ export function DashboardShell() {
 
       <div className="relative flex min-w-0 flex-1 flex-col">
         <DashboardHeader
+          section={section}
           query={query}
           onQueryChange={setQuery}
           onNewDeck={() => setNewDeckOpen(true)}
           onOpenMenu={() => setMobileMenuOpen(true)}
           creditsWarning={creditsWarning}
+          onOpenSettings={() => navigateSection('settings')}
+          onBackToWorkspace={() => navigateSection('overview')}
         />
 
         <main className="flex-1 overflow-y-auto px-4 pb-12 pt-2 sm:px-8 sm:pb-16">
           <NewDeckModal open={newDeckOpen} onClose={() => setNewDeckOpen(false)} />
 
           {deleteTarget && (
-            <div
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               className="fixed inset-0 z-[999] flex items-center justify-center bg-black/35 p-4 backdrop-blur-sm"
               role="presentation"
               onClick={() => !deleting && setDeleteTarget(null)}
@@ -171,13 +233,13 @@ export function DashboardShell() {
                     type="button"
                     disabled={deleting}
                     onClick={handleDelete}
-                    className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-bold text-white transition hover:bg-red-500 disabled:opacity-50 shadow-lg shadow-red-200"
+                    className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-bold text-white shadow-lg shadow-red-200 transition hover:bg-red-500 disabled:opacity-50"
                   >
                     {deleting ? 'Deleting…' : 'Delete'}
                   </button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {loading ? (
@@ -186,24 +248,45 @@ export function DashboardShell() {
                 <div className="h-full w-[40%] animate-pulse bg-primary" />
               </div>
               <p className="mt-6 text-xs font-bold uppercase tracking-widest text-slate-400">
-                Loading library
+                Loading workspace
               </p>
             </div>
+          ) : showSettings ? (
+            <DashboardSettings credits={credits} />
           ) : (
             <div className="space-y-10">
-              <DashboardStats decks={presentations} userName={userName} credits={credits} />
-              <PresentationGrid
-                decks={presentations}
-                query={query}
-                onDeleteRequest={setDeleteTarget}
-                onRename={handleRename}
-                onBulkDeleted={handleBulkDeleted}
-                onNewDeck={() => setNewDeckOpen(true)}
-              />
+              {section === 'overview' && (
+                <>
+                  <DashboardStats
+                    decks={presentations}
+                    userName={userName}
+                    credits={credits}
+                    onOpenSettings={() => navigateSection('settings')}
+                  />
+                  <DashboardQuickTools
+                    onNewDeck={() => setNewDeckOpen(true)}
+                    onOpenSettings={() => navigateSection('settings')}
+                    isFreePlan={isFreePlan}
+                  />
+                </>
+              )}
+
+              {showLibrary && (
+                <div ref={decksRef}>
+                  <PresentationGrid
+                    decks={presentations}
+                    query={query}
+                    onDeleteRequest={setDeleteTarget}
+                    onRename={handleRename}
+                    onBulkDeleted={handleBulkDeleted}
+                    onNewDeck={() => setNewDeckOpen(true)}
+                  />
+                </div>
+              )}
             </div>
           )}
         </main>
       </div>
-    </div>
+    </motion.div>
   );
 }

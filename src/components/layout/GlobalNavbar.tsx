@@ -16,6 +16,7 @@ export function GlobalNavbar() {
     '/my-presentations',
     '/account',
     '/settings',
+    '/planner',
   ];
   const isHidden = hiddenRoutes.some(route => pathname.startsWith(route));
 

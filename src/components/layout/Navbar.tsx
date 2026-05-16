@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { LogOut, ArrowRight, Settings, Command, Menu, X, LayoutGrid } from 'lucide-react';
+import { LogOut, ArrowRight, Menu, X, LayoutGrid } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
@@ -201,25 +201,7 @@ export function Navbar() {
                       className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-gray-700 transition-colors hover:bg-primary/5 hover:text-primary"
                     >
                       <LayoutGrid size={16} className="text-gray-400 group-hover:text-primary" />
-                      My presentations
-                    </Link>
-
-                    <Link
-                      href="/account"
-                      onClick={() => setDropdownOpen(false)}
-                      className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-gray-700 transition-colors hover:bg-primary/5 hover:text-primary"
-                    >
-                      <Command size={16} className="text-gray-400 group-hover:text-primary" />
-                      Account &amp; usage
-                    </Link>
-
-                    <Link
-                      href="/settings"
-                      onClick={() => setDropdownOpen(false)}
-                      className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-gray-700 transition-colors hover:bg-primary/5 hover:text-primary"
-                    >
-                      <Settings size={16} className="text-gray-400 group-hover:text-primary" />
-                      Settings
+                      Dashboard
                     </Link>
 
                     <div className="mx-2 my-1.5 h-px bg-gray-100" />
@@ -251,7 +233,7 @@ export function Navbar() {
             <Link
               href="/my-presentations"
               className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-200/80 bg-gradient-to-br from-primary to-indigo-600 touch-manipulation sm:hidden"
-              aria-label="My presentations"
+              aria-label="Dashboard"
             >
               {avatarUrl ? (
                 <img src={avatarUrl} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
@@ -319,7 +301,7 @@ export function Navbar() {
                     className="rounded-xl px-3 py-3 text-[14px] font-semibold text-gray-800 transition-colors hover:bg-primary/5 hover:text-primary"
                     onClick={() => setMobileNavOpen(false)}
                   >
-                    My presentations
+                    Dashboard
                   </Link>
                 )}
                 <Link
