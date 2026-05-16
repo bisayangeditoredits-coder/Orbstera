@@ -113,7 +113,13 @@ export function PlannerHeader({
           type="button"
           onClick={onGenerate}
           disabled={!canGenerate}
-          className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-[13px] font-bold text-white shadow-lg shadow-primary/25 transition hover:bg-primaryHover disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:px-6"
+          title={!canGenerate ? 'Waiting for Copilot to finish your outline' : 'Generate your presentation'}
+          className={cn(
+            'inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-[13px] font-bold transition sm:w-auto sm:flex-none sm:px-6',
+            canGenerate
+              ? 'bg-primary text-white shadow-lg shadow-primary/25 hover:bg-primaryHover'
+              : 'cursor-not-allowed border border-slate-200/90 bg-white text-slate-500 shadow-sm',
+          )}
         >
           <CheckCircle2 size={17} strokeWidth={1.75} />
           Generate deck

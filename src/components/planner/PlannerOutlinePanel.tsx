@@ -1,6 +1,6 @@
 'use client';
 
-import { LayoutList, Sparkles, Loader2 } from 'lucide-react';
+import { LayoutList, Sparkles, Loader2, CheckCircle2, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { OutlineSlide } from './planner-utils';
 import { getOutlineProgress } from './planner-utils';
@@ -10,6 +10,8 @@ type PlannerOutlinePanelProps = {
   slides: OutlineSlide[];
   loading: boolean;
   topic: string;
+  canGenerate: boolean;
+  onGenerate: () => void;
 };
 
 function SlideSkeleton({ index }: { index: number }) {
@@ -32,7 +34,13 @@ function SlideSkeleton({ index }: { index: number }) {
   );
 }
 
-export function PlannerOutlinePanel({ slides, loading, topic }: PlannerOutlinePanelProps) {
+export function PlannerOutlinePanel({
+  slides,
+  loading,
+  topic,
+  canGenerate,
+  onGenerate,
+}: PlannerOutlinePanelProps) {
   const hasSlides = slides.length > 0;
   const { count, isStreaming, target } = getOutlineProgress(slides, loading);
   const progressPct = Math.min(100, Math.round((count / target) * 100));
@@ -168,11 +176,25 @@ export function PlannerOutlinePanel({ slides, loading, topic }: PlannerOutlinePa
         )}
 
         {hasSlides && !loading && (
-          <p className="mt-6 text-center text-[11px] font-medium text-emerald-600">
-            Ready to build — use Generate deck when you&apos;re happy with this outline.
+          <p className="mt-4 text-center text-[11px] font-medium text-emerald-600">
+            Ready to build — review your slides below.
           </p>
         )}
       </div>
+
+      {canGenerate && (
+        <div className="shrink-0 border-t border-white/60 bg-white/70 p-4 sm:px-5">
+          <button
+            type="button"
+            onClick={onGenerate}
+            className="flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-[13px] font-bold text-white shadow-lg shadow-primary/25 transition hover:bg-primaryHover"
+          >
+            <CheckCircle2 size={18} strokeWidth={1.75} />
+            Generate deck
+            <ArrowRight size={15} className="opacity-80" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

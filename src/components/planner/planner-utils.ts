@@ -69,11 +69,11 @@ function normalizeSlideMatch(
   };
 }
 
-function tryParseSlideLine(line: string): OutlineSlide | null {
+function tryParseStrictSlideLine(line: string): OutlineSlide | null {
   const trimmed = line.trim();
   if (!trimmed) return null;
 
-  for (const re of [SLIDE_LINE, HEADING_SLIDE_LINE, NUMBERED_LINE]) {
+  for (const re of [SLIDE_LINE, HEADING_SLIDE_LINE]) {
     const match = trimmed.match(re);
     if (!match) continue;
 
@@ -85,7 +85,26 @@ function tryParseSlideLine(line: string): OutlineSlide | null {
   return null;
 }
 
-/** True if this line is a parseable slide outline line. */
+function tryParseSlideLine(line: string): OutlineSlide | null {
+  const strict = tryParseStrictSlideLine(line);
+  if (strict) return strict;
+
+  const trimmed = line.trim();
+  if (!trimmed) return null;
+
+  const match = trimmed.match(NUMBERED_LINE);
+  if (!match) return null;
+
+  const num = parseInt(match[1], 10);
+  return normalizeSlideMatch(num, match[2], match[3]);
+}
+
+/** True if line uses explicit Slide N: format (for stripping from summaries only). */
+export function isStrictSlideLine(line: string): boolean {
+  return tryParseStrictSlideLine(line) !== null;
+}
+
+/** True if this line is a parseable slide outline line (includes numbered lists). */
 export function isOutlineSlideLine(line: string): boolean {
   return tryParseSlideLine(line) !== null;
 }
@@ -118,13 +137,13 @@ export function getMergedOutlineSlides(messages: Message[]): OutlineSlide[] {
   return Array.from(byNumber.values()).sort((a, b) => a.number - b.number);
 }
 
-/** Remove slide outline lines for chat display (intro/closing narrative only). */
+/** Remove strict Slide N: lines only (keeps numbered lists). Used for editor context summaries. */
 export function stripOutlineLinesForDisplay(content: string): string {
   if (!content?.trim()) return '';
 
   const kept: string[] = [];
   for (const line of content.split('\n')) {
-    if (isOutlineSlideLine(line)) continue;
+    if (isStrictSlideLine(line)) continue;
     kept.push(line);
   }
 

@@ -1,26 +1,62 @@
 'use client';
 
-import { Send, Loader2 } from 'lucide-react';
+import { Send, Loader2, CheckCircle2, ArrowRight } from 'lucide-react';
 import { QUICK_REPLIES } from './planner-utils';
+import { cn } from '@/lib/cn';
 
 type PlannerComposerProps = {
   input: string;
   loading: boolean;
+  canGenerate: boolean;
+  hasAssistantReply: boolean;
   onInputChange: (value: string) => void;
   onSend: () => void;
   onQuickReply: (text: string) => void;
+  onGenerate: () => void;
 };
 
 export function PlannerComposer({
   input,
   loading,
+  canGenerate,
+  hasAssistantReply,
   onInputChange,
   onSend,
   onQuickReply,
+  onGenerate,
 }: PlannerComposerProps) {
+  const generateLabel = loading
+    ? 'Building outline…'
+    : canGenerate
+      ? 'Generate deck'
+      : hasAssistantReply
+        ? 'Waiting for outline…'
+        : 'Waiting for Copilot…';
+
   return (
     <div className="shrink-0 border-t border-white/50 bg-[#F0F7FF]/95 px-4 py-4 backdrop-blur-md sm:px-6">
       <div className="mx-auto max-w-2xl">
+        <button
+          type="button"
+          onClick={onGenerate}
+          disabled={!canGenerate}
+          title={!canGenerate ? 'Copilot is still planning your outline' : 'Create your presentation in the editor'}
+          className={cn(
+            'mb-3 flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl px-5 py-3 text-[13px] font-bold transition',
+            canGenerate
+              ? 'bg-primary text-white shadow-lg shadow-primary/25 hover:bg-primaryHover'
+              : 'border border-slate-200/80 bg-white text-slate-500',
+          )}
+        >
+          {loading ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : (
+            <CheckCircle2 size={18} strokeWidth={1.75} />
+          )}
+          {generateLabel}
+          {canGenerate && <ArrowRight size={15} className="opacity-80" />}
+        </button>
+
         <div className="mb-3 flex flex-wrap gap-2">
           {QUICK_REPLIES.map((label) => (
             <button
@@ -48,7 +84,7 @@ export function PlannerComposer({
               }}
               placeholder="E.g. Add a slide for market research…"
               rows={1}
-              className="w-full resize-none border-none bg-transparent py-3.5 pl-4 pr-14 text-[14px] font-medium text-textMain placeholder:text-textMuted focus:outline-none focus:ring-4 focus:ring-primary/10 rounded-[18px]"
+              className="w-full resize-none rounded-[18px] border-none bg-transparent py-3.5 pl-4 pr-14 text-[14px] font-medium text-textMain placeholder:text-textMuted focus:outline-none focus:ring-4 focus:ring-primary/10"
             />
             <button
               type="button"

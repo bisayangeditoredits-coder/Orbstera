@@ -13,7 +13,6 @@ import {
   type OutlineSlide,
   getMergedOutlineSlides,
   formatOutlineForContext,
-  stripOutlineLinesForDisplay,
 } from './planner-utils';
 import { cn } from '@/lib/cn';
 
@@ -39,8 +38,10 @@ export function PlannerShell() {
   const prevSlideCountRef = useRef(0);
 
   const hasAssistantReply = messages.some((m) => m.role === 'assistant' && m.content.trim());
-  const canGenerate = outlineSlides.length > 0;
+  const canGenerate = outlineSlides.length > 0 || (hasAssistantReply && !loading);
   const stepIndex = !hasAssistantReply ? 0 : outlineSlides.length > 0 ? 2 : 1;
+  const showMobileOutlineBanner =
+    outlineSlides.length > 0 && mobileTab === 'chat';
 
   // Sticky outline: merge across messages, never flash empty while loading
   useEffect(() => {
@@ -227,11 +228,7 @@ export function PlannerShell() {
 
   const handleGenerate = () => {
     const chatContext = messages
-      .map((m) => {
-        const content =
-          m.role === 'assistant' ? stripOutlineLinesForDisplay(m.content) : m.content;
-        return `${m.role.toUpperCase()}: ${content}`;
-      })
+      .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
       .filter((block) => block.split(': ')[1]?.trim())
       .join('\n\n');
 
@@ -292,12 +289,27 @@ export function PlannerShell() {
           )}
         >
           <PlannerChat messages={messages} loading={loading} topic={topic} />
+
+          {showMobileOutlineBanner && (
+            <button
+              type="button"
+              onClick={() => setMobileTab('outline')}
+              className="mx-4 mb-2 flex min-h-[40px] items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/10 px-4 text-xs font-bold text-primary md:hidden"
+            >
+              {outlineSlides.length} slide{outlineSlides.length === 1 ? '' : 's'} ready — View
+              outline
+            </button>
+          )}
+
           <PlannerComposer
             input={input}
             loading={loading}
+            canGenerate={canGenerate}
+            hasAssistantReply={hasAssistantReply}
             onInputChange={setInput}
             onSend={handleSend}
             onQuickReply={handleQuickReply}
+            onGenerate={handleGenerate}
           />
         </div>
 
@@ -312,6 +324,8 @@ export function PlannerShell() {
             slides={outlineSlides}
             loading={loading}
             topic={topic}
+            canGenerate={canGenerate}
+            onGenerate={handleGenerate}
           />
         </div>
       </div>
