@@ -41,10 +41,10 @@ export function Features() {
     <section id="features" className="w-full py-32 px-6 bg-surface relative overflow-hidden">
       {/* Decorative background element */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2" />
-      
+
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="text-center mb-24">
-          <motion.span 
+          <motion.span
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             className="text-[11px] font-bold text-primary uppercase tracking-[0.2em] mb-4 block"
@@ -65,20 +65,23 @@ export function Features() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="bg-white border border-borderSubtle p-10 rounded-[32px] hover:border-primary/30 transition-all group cursor-default shadow-sm hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1"
+              className="bg-gradient-to-br from-white/90 via-white/85 to-[#F3F8FF]/50 backdrop-blur-xl border border-[#E1EEFC] p-10 rounded-[32px] hover:border-primary/40 hover:bg-white transition-all duration-300 group cursor-default shadow-sm hover:shadow-[0_20px_50px_rgba(59,130,246,0.12)] hover:-translate-y-1.5 relative overflow-hidden"
             >
-              <div className="w-24 h-24 rounded-[32px] flex items-center justify-center mb-10 border border-white/40 bg-white/30 backdrop-blur-xl transition-all duration-500 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] group-hover:shadow-[0_8px_32px_0_rgba(71,59,240,0.15)] group-hover:border-primary/30 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent pointer-events-none" />
-                <motion.img 
-                  src={feature.icon} 
+              {/* Premium Top-Left Blue Glowing Orb */}
+              <div className="absolute -top-16 -left-16 w-32 h-32 bg-primary/[0.03] rounded-full blur-2xl group-hover:bg-primary/[0.09] group-hover:scale-125 transition-all duration-700 pointer-events-none" />
+
+              <div className="w-24 h-24 rounded-[32px] flex items-center justify-center mb-10 border border-primary/20 bg-primary/[0.06] backdrop-blur-xl transition-all duration-500 shadow-[0_12px_32px_rgba(59,130,246,0.08),inset_0_1px_0_rgba(255,255,255,0.5)] group-hover:shadow-[0_16px_40px_rgba(59,130,246,0.22),inset_0_1px_0_rgba(255,255,255,0.6)] group-hover:border-primary/45 group-hover:bg-primary/[0.12] relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tr from-primary/15 via-white/20 to-transparent pointer-events-none" />
+                <motion.img
+                  src={feature.icon}
                   alt={feature.title}
-                  className="w-16 h-16 object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.1)] relative z-10"
+                  className="w-14 h-14 object-contain drop-shadow-[0_12px_20px_rgba(0,0,0,0.15)] relative z-10"
                   whileHover={{ scale: 1.15, rotate: -5, y: -5 }}
                   transition={{ type: "spring", stiffness: 300, damping: 15 }}
                 />
               </div>
-              <h3 className="text-xl font-bold mb-4 text-textMain group-hover:text-primary transition-colors">{feature.title}</h3>
-              <p className="text-textSecondary text-[15px] leading-relaxed">{feature.description}</p>
+              <h3 className="text-xl font-bold mb-4 text-textMain group-hover:text-primary transition-colors relative z-10">{feature.title}</h3>
+              <p className="text-textSecondary text-[15px] leading-relaxed relative z-10">{feature.description}</p>
             </motion.div>
           ))}
         </div>

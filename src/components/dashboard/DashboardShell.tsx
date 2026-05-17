@@ -272,13 +272,59 @@ export function DashboardShell() {
           )}
 
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-32">
-              <div className="h-1 w-20 overflow-hidden rounded-full bg-primary/20">
-                <div className="h-full w-[40%] animate-pulse bg-primary" />
+            <div className="space-y-10">
+              {/* Dashboard Welcome & Stats Mock */}
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <div className="h-8 w-48 bg-slate-300/45 rounded-xl animate-pulse" />
+                  <div className="h-4 w-64 bg-slate-300/35 rounded-lg animate-pulse" />
+                </div>
+
+                {/* Stats Grid */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="rounded-3xl border border-white/50 bg-white/60 p-6 shadow-sm flex items-center justify-between">
+                      <div className="space-y-3">
+                        <div className="h-3 w-20 bg-slate-300/35 rounded animate-pulse" />
+                        <div className="h-8 w-16 bg-slate-300/45 rounded-lg animate-pulse" />
+                      </div>
+                      <div className="h-12 w-12 rounded-2xl bg-slate-300/30 animate-pulse" />
+                    </div>
+                  ))}
+                </div>
               </div>
-              <p className="mt-6 text-xs font-bold uppercase tracking-widest text-slate-400">
-                Loading workspace
-              </p>
+
+              {/* Deck Library Skeleton Section */}
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="h-6 w-32 bg-slate-300/40 rounded-lg animate-pulse" />
+                  <div className="h-4 w-20 bg-slate-300/30 rounded animate-pulse" />
+                </div>
+
+                {/* Slide Grid skeleton */}
+                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                    <div key={i} className="group overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-3 shadow-sm hover:shadow-md transition-all flex flex-col gap-3">
+                       {/* Card Thumbnail Mock - Premium Blue Glassmorphism */}
+                      <div className="aspect-[16/9] w-full rounded-2xl border border-primary/10 bg-primary/[0.03] backdrop-blur-sm animate-pulse relative overflow-hidden flex items-center justify-center">
+                        <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 via-white/10 to-transparent pointer-events-none" />
+                        <div className="h-10 w-10 rounded-full border border-primary/20 bg-primary/5 flex items-center justify-center relative">
+                          <div className="h-3.5 w-3.5 rounded-full bg-primary/25 animate-ping absolute" />
+                          <div className="h-2 w-2 rounded-full bg-primary/40" />
+                        </div>
+                      </div>
+                      {/* Card Meta Mock */}
+                      <div className="px-1 py-1 space-y-2">
+                        <div className="h-4 w-3/4 bg-slate-300/40 rounded animate-pulse" />
+                        <div className="flex justify-between items-center">
+                          <div className="h-3 w-16 bg-slate-300/30 rounded animate-pulse" />
+                          <div className="h-3 w-8 bg-slate-300/30 rounded animate-pulse" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : showSettings ? (
             <DashboardSettings credits={credits} />

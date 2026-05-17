@@ -72,7 +72,11 @@ const tiers = [
   },
 ];
 
-export function Pricing() {
+interface PricingProps {
+  isStandalone?: boolean;
+}
+
+export function Pricing({ isStandalone = false }: PricingProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [currency, setCurrency] = useState<'USD' | 'PHP'>('USD');
   const [currentPlan, setCurrentPlan] = useState<string>('free');
@@ -126,7 +130,7 @@ export function Pricing() {
   };
 
   return (
-    <section id="pricing" className="w-full py-16 sm:py-24 md:py-32 px-4 sm:px-6 bg-[#F8FAFC] text-slate-900 relative overflow-x-clip">
+    <section id="pricing" className={`w-full ${isStandalone ? 'py-4 sm:py-6 md:py-8' : 'py-16 sm:py-24 md:py-32'} px-4 sm:px-6 bg-[#F8FAFC] text-slate-900 relative overflow-x-clip`}>
       {/* Background */}
       <div 
         className="absolute top-0 left-0 right-0 h-full z-0 pointer-events-none overflow-hidden"
@@ -150,68 +154,71 @@ export function Pricing() {
         </div>
       </div>
       <div className="max-w-7xl mx-auto relative z-10 w-full min-w-0">
-        <div className="text-center mb-12 sm:mb-20 px-1">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-4 sm:mb-6 text-slate-900 text-balance">Fair Pricing, Real Power.</h2>
-          <p className="text-slate-500 text-base sm:text-lg mb-8">Choose the plan that fits your vision.</p>
+        <div className={`text-center ${isStandalone ? 'mb-6 sm:mb-8' : 'mb-12 sm:mb-20'} px-1`}>
+          <h2 className={`${isStandalone ? 'text-2xl sm:text-3xl md:text-4xl' : 'text-3xl sm:text-4xl md:text-5xl lg:text-6xl'} font-black mb-2 sm:mb-3 text-slate-900 text-balance`}>Fair Pricing, Real Power.</h2>
+          <p className={`text-slate-500 ${isStandalone ? 'text-xs sm:text-sm mb-4 sm:mb-6' : 'text-base sm:text-lg mb-8'}`}>Choose the plan that fits your vision.</p>
           
           {/* Currency Toggle */}
-          <div className="inline-flex items-center gap-1 bg-white border border-slate-200 p-1.5 rounded-full shadow-sm">
+          <div className="inline-flex items-center gap-1 bg-white border border-slate-200 p-1 rounded-full shadow-sm">
             <button
               onClick={() => setCurrency('USD')}
-              className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${currency === 'USD' ? 'bg-primary text-white shadow-md' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+              className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold transition-colors ${currency === 'USD' ? 'bg-primary text-white shadow-md' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
             >
               USD ($)
             </button>
             <button
               onClick={() => setCurrency('PHP')}
-              className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${currency === 'PHP' ? 'bg-primary text-white shadow-md' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+              className={`px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-bold transition-colors ${currency === 'PHP' ? 'bg-primary text-white shadow-md' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
             >
               PHP (₱)
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-8">
+        <div className={`grid grid-cols-1 md:grid-cols-3 ${isStandalone ? 'gap-4 sm:gap-6' : 'gap-5 sm:gap-8'}`}>
           {tiers.map((tier, i) => {
             const isCurrentPlan = currentPlan === tier.planId;
             const displayPrice = tier.prices[currency];
 
             return (
-              <div key={i} className={`bg-white p-6 sm:p-8 rounded-[24px] sm:rounded-[32px] border ${isCurrentPlan ? 'border-primary ring-2 ring-primary/20' : 'border-slate-200'} shadow-sm flex flex-col min-w-0 relative overflow-hidden`}>
+              <div key={i} className={`bg-white ${isStandalone ? 'p-5 sm:p-6' : 'p-6 sm:p-8'} rounded-[24px] sm:rounded-[32px] border ${isCurrentPlan ? 'border-primary ring-2 ring-primary/20' : 'border-slate-200'} shadow-sm flex flex-col min-w-0 relative overflow-hidden`}>
                 
                 {isCurrentPlan && (
                   <div className="absolute top-0 inset-x-0 h-1.5 bg-primary" />
                 )}
 
-                <div className="mb-8 flex justify-between items-start">
-                  <div className="w-24 h-24 rounded-[32px] bg-white/40 backdrop-blur-xl border border-white/60 flex items-center justify-center p-4 shadow-[0_8px_32px_0_rgba(31,38,135,0.05)] relative group/icon overflow-hidden">
+                {tier.badge && !isCurrentPlan && (
+                  <span className={`absolute ${isStandalone ? 'top-4 right-4' : 'top-5 right-5'} z-20 text-[9px] sm:text-[10px] uppercase tracking-widest font-black bg-amber-100 text-amber-700 ${isStandalone ? 'px-3 py-0.5' : 'px-3.5 py-1'} rounded-full shadow-sm`}>
+                    {tier.badge}
+                  </span>
+                )}
+
+                <div className={`${isStandalone ? 'mb-4' : 'mb-8'} flex flex-col items-center justify-center w-full relative`}>
+                  <div className={`${isStandalone ? 'w-20 h-20 sm:w-24 sm:h-24' : 'w-28 h-28 sm:w-32 sm:h-32'} rounded-[28px] sm:rounded-[36px] bg-white/40 backdrop-blur-xl border border-white/60 flex items-center justify-center p-2.5 shadow-[0_12px_40px_rgba(31,38,135,0.08),inset_0_1px_0_rgba(255,255,255,0.6)] relative group/icon overflow-hidden`}>
                     <div className="absolute inset-0 bg-gradient-to-tr from-white/40 to-transparent pointer-events-none" />
                     <img 
                       src={tier.icon} 
                       alt={tier.name} 
-                      className="w-full h-full object-contain drop-shadow-[0_12px_20px_rgba(0,0,0,0.12)] relative z-10 transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-3" 
+                      className="w-[82%] h-[82%] object-contain drop-shadow-[0_16px_28px_rgba(0,0,0,0.18)] relative z-10 transition-all duration-500 group-hover:scale-115 group-hover:-rotate-3 group-hover:drop-shadow-[0_20px_35px_rgba(0,0,0,0.22)]" 
                     />
                   </div>
-                  {tier.badge && !isCurrentPlan && (
-                    <span className="text-[10px] uppercase tracking-widest font-bold bg-amber-100 text-amber-700 px-3 py-1 rounded-full">
-                      {tier.badge}
-                    </span>
-                  )}
                 </div>
 
-                <h3 className="text-xl font-bold mb-2">
-                  {tier.name}
-                </h3>
-                
-                <div className="text-4xl font-black mb-6">
-                  {displayPrice}<span className="text-sm text-slate-400">{tier.period}</span>
+                <div className="text-center">
+                  <h3 className={`${isStandalone ? 'text-lg sm:text-xl' : 'text-2xl'} font-black mb-1 sm:mb-2 text-slate-900 tracking-tight`}>
+                    {tier.name}
+                  </h3>
+                  
+                  <div className={`${isStandalone ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-5xl'} font-black ${isStandalone ? 'mb-4' : 'mb-6'} text-slate-900 tracking-tight`}>
+                    {displayPrice}<span className="text-sm font-bold text-slate-400 tracking-normal">{tier.period}</span>
+                  </div>
                 </div>
                 
-                <ul className="space-y-4 mb-8 flex-1">
+                <ul className={`space-y-2 sm:space-y-3 ${isStandalone ? 'mb-6' : 'mb-8'} flex-1`}>
                   {tier.features.map((f, j) => (
-                    <li key={j} className="flex items-center gap-2 text-sm text-slate-600">
-                      {f.included ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-slate-300" />}
-                      {f.text}
+                    <li key={j} className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
+                      {f.included ? <Check size={16} className="text-green-500 shrink-0" /> : <X size={16} className="text-slate-300 shrink-0" />}
+                      <span className="truncate">{f.text}</span>
                     </li>
                   ))}
                 </ul>
@@ -219,7 +226,7 @@ export function Pricing() {
                 {isCurrentPlan ? (
                   <button 
                     disabled
-                    className="w-full py-4 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-2xl font-bold flex items-center justify-center gap-2"
+                    className={`w-full ${isStandalone ? 'py-3' : 'py-4'} bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-2xl font-bold flex items-center justify-center gap-2`}
                   >
                     <ShieldCheck size={18} />
                     Your Current Plan
@@ -228,7 +235,7 @@ export function Pricing() {
                   <button 
                     onClick={() => tier.planId === 'free' ? window.location.href = tier.href : handleCheckout(tier)}
                     disabled={loading === tier.planId}
-                    className="w-full py-4 bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-colors"
+                    className={`w-full ${isStandalone ? 'py-3' : 'py-4'} bg-primary text-white rounded-2xl font-bold hover:bg-primary/90 transition-colors`}
                   >
                     {loading === tier.planId ? 'Loading...' : tier.planId === 'free' ? 'Get Started Free' : 'Upgrade Now'}
                   </button>
