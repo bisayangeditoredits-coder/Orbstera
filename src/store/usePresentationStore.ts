@@ -50,6 +50,8 @@ interface PresentationStore {
   setPanelOpen: (open: boolean) => void;
 
   // ─── Streaming & Live Generation ───────────────────────────────────────────
+  initGenerationPlaceholders: (count: number) => void;
+  markGenerationPlaceholdersComposing: () => void;
   streamSlide: (slide: Slide) => void;
   /** Bounded / tracked /api/generate-image work for accurate generation progress */
   trackDeckGenerationImage: (work: () => Promise<void>) => void;
@@ -672,6 +674,10 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     pan: { x: 0, y: 0 },
     orchestrationPhase: '',
     activeModelLabel: '',
+    orchestrationMessage: '',
+    freeTasteActive: false,
+    freeTasteImagesRemaining: 0,
+    generationGalleryOpen: false,
     cloudSyncStatus: 'idle',
     cloudSyncMessage: undefined,
     copilotContext: '',
@@ -737,6 +743,68 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   isPanelOpen: true,
   setPanelOpen: (open) => set({ isPanelOpen: open }),
 
+  initGenerationPlaceholders: (count) => {
+    const n = Math.max(1, Math.min(40, Math.round(count || 1)));
+    const base = get().presentation;
+    const palette = base?.colorPalette || ['#05050A', '#FFFFFF', '#3B82F6', '#94A3B8'];
+    const placeholders: Slide[] = Array.from({ length: n }, (_, i) => ({
+      id: `gen-slot-${i}`,
+      type: 'content',
+      title: `Slide ${i + 1}`,
+      subtitle: 'Waiting for AI…',
+      bullets: [],
+      elements: [
+        {
+          id: `gen-ph-${i}`,
+          type: 'text',
+          x: 120,
+          y: 300,
+          width: 1040,
+          height: 72,
+          content: 'AI is composing this slide…',
+          zIndex: 1,
+          visible: true,
+          textStyle: {
+            fontFamily: 'Inter, sans-serif',
+            fontSize: 22,
+            fontWeight: 'normal',
+            color: palette[3] || '#94A3B8',
+            textAlign: 'center',
+          },
+        },
+      ],
+      isGeneratingPlaceholder: true,
+      generationStatus: 'queued',
+    }));
+    set({
+      presentation: {
+        title: base?.title && base.title !== 'Generating...' ? base.title : 'Generating...',
+        theme: base?.theme || 'modern-dark',
+        colorPalette: palette,
+        fontPairing: base?.fontPairing || { heading: 'Space Grotesk', body: 'Inter' },
+        animationStyle: base?.animationStyle || 'cinematic-reveal',
+        slides: placeholders,
+      },
+      currentSlideIndex: 0,
+    });
+  },
+
+  markGenerationPlaceholdersComposing: () => {
+    set((state) => {
+      if (!state.presentation?.slides?.length) return state;
+      return {
+        presentation: {
+          ...state.presentation,
+          slides: state.presentation.slides.map((s) =>
+            s.isGeneratingPlaceholder
+              ? { ...s, generationStatus: 'composing' as const, subtitle: 'Composing…' }
+              : s,
+          ),
+        },
+      };
+    });
+  },
+
   trackDeckGenerationImage: (work) => {
     const epochSnapshot = get().editor.generationEpoch;
     let scheduled = false;
@@ -777,11 +845,26 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       set({ presentation: { title: "Generating...", theme: "modern-dark", colorPalette: ["#05050A", "#FFFFFF", "#3B82F6", "#94A3B8"], fontPairing: { heading: "Space Grotesk", body: "Inter" }, animationStyle: "cinematic-reveal", slides: [] } });
     }
 
+    const scheduleDeckImage = (work: () => Promise<void>) => {
+      const ed = get().editor;
+      if (ed.freeTasteActive && (ed.freeTasteImagesRemaining ?? 0) <= 0) return;
+      if (ed.freeTasteActive) {
+        set({
+          editor: {
+            ...ed,
+            freeTasteImagesRemaining: Math.max(0, (ed.freeTasteImagesRemaining ?? 0) - 1),
+          },
+        });
+      }
+      get().trackDeckGenerationImage(work);
+    };
+
     const currentPres = get().presentation!;
     const palette     = currentPres.colorPalette || ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'];
     const headingFont = currentPres.fontPairing?.heading || 'Space Grotesk';
     const bodyFont    = currentPres.fontPairing?.body    || 'Inter';
-    const sIdx        = currentPres.slides.length;
+    const placeholderIdx = currentPres.slides.findIndex((s) => s.isGeneratingPlaceholder);
+    const sIdx = placeholderIdx >= 0 ? placeholderIdx : currentPres.slides.length;
 
     const uid = (prefix: string) => `${prefix}-${sIdx}-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
     const elements: SlideElement[] = [];
@@ -802,8 +885,9 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     if (isHero) {
         if (slideData.imagePrompt) {
           const bgId = uid('el-bg-image');
+          const slideId = slideData.id || `slide-${sIdx}`;
           elements.unshift({ id: bgId, type: 'image', src: '', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: 0, visible: true, opacity: 0.35, animation: { entrance: 'fadeIn', duration: 1500, delay: 0 } });
-          (async () => {
+          scheduleDeckImage(async () => {
             try {
               const res = await fetch('/api/generate-image', {
                 method: 'POST',
@@ -813,12 +897,13 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
                   width: 1280,
                   height: 720,
                   visualProfile: 'typography',
+                  task: 'image_generate',
                 }),
               });
               const json = await res.json();
-              if (json.url) get().updateElement(slideData.id, bgId, { src: json.url });
+              if (json.url) get().updateElement(slideId, bgId, { src: json.url });
             } catch (e) {}
-          })();
+          });
         }
         elements.push({ id: uid('el-hero-overlay'), type: 'shape', shapeType: 'rect', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(5, 5, 10, 0.65)', stroke: 'transparent', strokeWidth: 0 }, animation: { entrance: 'fadeIn', duration: 1000 } });
         if (slideData.title) elements.push({ id: uid('el-title'), type: 'text', x: 80, y: CANVAS_H / 2 - 80, width: CANVAS_W-160, height: 160, content: slideData.title, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 84, fontWeight: 'bold', color: palette[1], textAlign: 'center', lineHeight: 1.1 }, animation: { entrance: 'fadeSlideUp', duration: 800 } });
@@ -849,7 +934,8 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         animation: { entrance: 'zoomIn', duration: 800, delay: 400 },
       });
       if (slideData.imagePrompt) {
-        (async () => {
+        const slideId = slideData.id || `slide-${sIdx}`;
+        scheduleDeckImage(async () => {
           try {
             const res = await fetch('/api/generate-image', {
               method: 'POST',
@@ -859,12 +945,13 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
                 width: 800,
                 height: 900,
                 visualProfile: 'cinematic',
+                task: 'image_generate',
               }),
             });
             const json = await res.json();
-            if (json.url) get().updateElement(slideData.id, imgId, { src: json.url });
+            if (json.url) get().updateElement(slideId, imgId, { src: json.url });
           } catch (e) {}
-        })();
+        });
       }
     } else if (isQuote) {
       elements.push({ id: uid('el-quote-bg'), type: 'shape', shapeType: 'rect', x: 80, y: 100, width: CANVAS_W - 160, height: CANVAS_H - 200, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.03)', stroke: 'rgba(255, 255, 255, 0.06)', strokeWidth: 1, cornerRadius: 32 }, animation: { entrance: 'zoomIn', duration: 800 } });
@@ -896,10 +983,15 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       }
     }
 
+    const slideId =
+      slideData.id || (placeholderIdx >= 0 ? currentPres.slides[placeholderIdx].id : `slide-${sIdx}`);
     const rawSlide: Slide = {
       ...slideData,
+      id: slideId,
       bullets: mergedBullets.length ? mergedBullets : slideData.bullets,
       elements,
+      isGeneratingPlaceholder: false,
+      generationStatus: slideData.imagePrompt ? 'visuals' : 'ready',
     };
     const newSlide = finalizeSlideMotion(rawSlide, {
       animationStyle: currentPres.animationStyle,
@@ -907,10 +999,19 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       styleMode: currentPres.styleMode,
       defaultSlideTransition: currentPres.defaultSlideTransition,
     });
-    set((state) => ({
-      presentation: { ...state.presentation!, slides: [...state.presentation!.slides, newSlide] },
-      currentSlideIndex: sIdx,
-    }));
+    set((state) => {
+      if (!state.presentation) return state;
+      const slides = [...state.presentation.slides];
+      if (placeholderIdx >= 0) {
+        slides[placeholderIdx] = newSlide;
+      } else {
+        slides.push(newSlide);
+      }
+      return {
+        presentation: { ...state.presentation, slides },
+        currentSlideIndex: placeholderIdx >= 0 ? placeholderIdx : slides.length - 1,
+      };
+    });
   },
 
   // ─── Onboarding ────────────────────────────────────────────────────────────

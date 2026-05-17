@@ -187,14 +187,14 @@ function deriveDnaFromDirector(
 
 /**
  * Lightweight pipeline: GPT intent → Claude spine → optional DeepSeek → brief for composer.
- * Does not run every model; DeepSeek only when intent.needsDeepReasoning is true.
+ * Optional Sonnet strategy pass when intent.needsDeepReasoning is true (paid tiers).
  */
 export async function runOpenRouterOrchestration(
   appUrl: string,
   rawUserPrompt: string,
   meta: { slideCount: number; tone: string; language: string },
   onProgress?: OrchestrationProgress,
-  opts?: { plan?: string; spendState?: { forcedEconomyMode: boolean } }
+  opts?: { plan?: string; spendState?: { forcedEconomyMode: boolean }; freeTaste?: boolean }
 ): Promise<{ dossierText: string; refinedBrief: string; preflightSummary: string }> {
   const plan = String(opts?.plan || 'free').toLowerCase();
   const orchKey = makeAiCacheKey({
@@ -223,6 +223,7 @@ export async function runOpenRouterOrchestration(
     task: 'deck_intent',
     complexity: { promptChars: rawUserPrompt.length, slideCount: meta.slideCount },
     spendState: opts?.spendState,
+    freeTaste: opts?.freeTaste,
   });
   const intentOut = await step(
     appUrl,
@@ -245,6 +246,7 @@ export async function runOpenRouterOrchestration(
     needsDeepReasoning: needsDeep,
     slideCount: meta.slideCount,
     spendState: opts?.spendState,
+    freeTaste: opts?.freeTaste,
   });
   if (allowDeep) {
     onProgress?.('reasoning', 'Adding strategic depth…');
@@ -253,6 +255,7 @@ export async function runOpenRouterOrchestration(
       task: 'deck_reason',
       complexity: { promptChars: rawUserPrompt.length, slideCount: meta.slideCount, needsDeepReasoning: true },
       spendState: opts?.spendState,
+      freeTaste: opts?.freeTaste,
     });
     reasonOut = await step(
       appUrl,
@@ -277,6 +280,7 @@ export async function runOpenRouterOrchestration(
       presentationType: typeof intent.presentationType === 'string' ? intent.presentationType : undefined,
     },
     spendState: opts?.spendState,
+    freeTaste: opts?.freeTaste,
   });
   const structOut = await step(
     appUrl,

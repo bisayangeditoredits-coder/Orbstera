@@ -61,15 +61,15 @@ export async function POST(req: Request) {
     const isPaid = plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro' || plan === 'admin';
 
     if (!isPaid) {
-      const FREE_FILL_LIMIT = 5;
+      const { FREE_TIER } = await import('@/lib/billing/free-tier-limits');
       const usage = await readFreeTierUsage(user.id);
-      if (usage.free_generative_fill_uses >= FREE_FILL_LIMIT) {
+      if (usage.free_generative_fill_uses >= FREE_TIER.generativeFillUses) {
         return NextResponse.json(
           {
             error: 'FREE_LIMIT_REACHED',
-            message: `Free accounts are limited to ${FREE_FILL_LIMIT} Generative Fill uses. Upgrade to Pro for unlimited access.`,
+            message: `Free accounts are limited to ${FREE_TIER.generativeFillUses} Generative Fill uses. Upgrade to Pro for unlimited access.`,
             used: usage.free_generative_fill_uses,
-            limit: FREE_FILL_LIMIT,
+            limit: FREE_TIER.generativeFillUses,
           },
           { status: 403 },
         );

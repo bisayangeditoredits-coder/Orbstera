@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { AGENT_MODELS } from '@/lib/ai/agent-models';
 import { OR_MODELS } from '@/lib/ai/models';
 import { openRouterComplete, extractJsonObject } from '@/lib/ai/openrouter';
 import { normalizePresentationPayload } from '@/lib/ai/orchestration';
+import { selectTextModel } from '@/lib/ai/router';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
+import { getBillingPlan } from '@/lib/billing/resolve-plan';
+import { getSpendState } from '@/lib/ai/spend';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -69,6 +71,20 @@ export async function POST(req: Request) {
     }
 
     const body = JSON.stringify(presentation);
+    const plan = await getBillingPlan(user.id);
+    const spend = await getSpendState({ supabase });
+    const polishPrimary = selectTextModel({
+      plan,
+      task: 'deck_polish',
+      complexity: { promptChars: body.length, slideCount: Array.isArray(presentation.slides) ? presentation.slides.length : 10 },
+      spendState: { forcedEconomyMode: spend.forcedEconomyMode },
+    });
+    const polishFallback = selectTextModel({
+      plan: 'student_pro',
+      task: 'deck_polish',
+      complexity: { promptChars: body.length, slideCount: 10 },
+      spendState: { forcedEconomyMode: false },
+    });
 
     const runPolish = async (model: string) => {
       const text = await openRouterComplete(APP_URL, {
@@ -77,15 +93,21 @@ export async function POST(req: Request) {
           { role: 'system', content: POLISH_SYSTEM },
           { role: 'user', content: body },
         ],
+        max_tokens: polishPrimary.maxTokens,
+        temperature: polishPrimary.temperature,
       });
       return extractJsonObject(text);
     };
 
     let polished: Record<string, unknown> | null = null;
     try {
-      polished = await runPolish(AGENT_MODELS.gptOrchestrator);
+      polished = await runPolish(polishPrimary.model);
     } catch {
-      polished = await runPolish(OR_MODELS.composerFallback);
+      const fb =
+        polishFallback.model !== polishPrimary.model
+          ? polishFallback.model
+          : OR_MODELS.composerFallback;
+      polished = await runPolish(fb);
     }
 
     if (!polished) {

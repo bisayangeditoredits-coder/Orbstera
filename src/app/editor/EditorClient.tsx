@@ -181,6 +181,13 @@ export default function EditorClient() {
     if (!isMdUp) setMobileGalleryOpen(false);
   }, [isMdUp]);
 
+  const generationGalleryOpen = usePresentationStore((s) => s.editor.generationGalleryOpen);
+  useEffect(() => {
+    if (generationGalleryOpen && !isMdUp) {
+      setMobileGalleryOpen(true);
+    }
+  }, [generationGalleryOpen, isMdUp]);
+
   // Global keyboard shortcuts
   useHotkeys('ctrl+z, meta+z', (e) => { e.preventDefault(); undo(); }, [undo]);
   useHotkeys('ctrl+y, meta+y, ctrl+shift+z', (e) => { e.preventDefault(); redo(); }, [redo]);

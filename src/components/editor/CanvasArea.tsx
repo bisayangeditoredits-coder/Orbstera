@@ -58,6 +58,29 @@ function deriveGenerationUi(
   }
 }
 
+function GenerationStatusChip() {
+  const editor = usePresentationStore((s) => s.editor);
+  if (!editor.isGenerating || editor.generationBlockingOverlay) return null;
+  const msg = editor.orchestrationMessage?.trim();
+  if (!msg) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="pointer-events-none absolute top-[max(0.75rem,env(safe-area-inset-top))] left-1/2 z-[91] flex -translate-x-1/2 max-w-[min(92vw,520px)] items-center gap-2 rounded-full border border-primary/20 bg-white/95 px-4 py-2 shadow-lg backdrop-blur-md"
+      role="status"
+      aria-live="polite"
+    >
+      <span className="h-2 w-2 shrink-0 rounded-full bg-primary animate-pulse" />
+      <span className="text-[11px] font-semibold text-black/80 truncate">
+        {editor.activeModelLabel ? `${editor.activeModelLabel} — ` : ''}
+        {msg}
+      </span>
+    </motion.div>
+  );
+}
+
 function GenerationAssetsBanner() {
   const editor = usePresentationStore((s) => s.editor);
   const total = editor.generationImageJobsTotal;
@@ -504,6 +527,7 @@ export function CanvasArea() {
     >
       <AnimatePresence>
         {isGenerating && generationBlockingOverlay && <GenerationLoader />}
+        {isGenerating && !generationBlockingOverlay && <GenerationStatusChip key="status-chip" />}
         {isGenerating && !generationBlockingOverlay && <GenerationAssetsBanner key="asset-banner" />}
       </AnimatePresence>
 

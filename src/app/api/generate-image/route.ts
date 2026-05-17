@@ -27,12 +27,14 @@ export async function POST(req: Request) {
       height = 1024,
       polish = true,
       visualProfile = 'cinematic',
+      task = 'image_generate',
     } = body as {
       prompt?: string;
       width?: number;
       height?: number;
       polish?: boolean;
       visualProfile?: ImageVisualProfile;
+      task?: 'image_generate' | 'genfill_image' | 'magic_edit_image';
     };
 
     if (!prompt) {
@@ -64,7 +66,11 @@ export async function POST(req: Request) {
     const plan = await getBillingPlan(user.id);
 
     const creditConfig = await getCreditConfig(supabase);
-    const premiumRequested = visualProfile === 'cinematic' && (plan === 'creator_pro' || plan === 'admin');
+    const isPaidPlan =
+      plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro' || plan === 'admin';
+    const freeTaste = plan === 'free';
+    const premiumRequested =
+      visualProfile === 'cinematic' && (plan === 'creator_pro' || plan === 'admin');
     const imageCost = premiumRequested ? creditConfig.costs.image_premium : creditConfig.costs.image_standard;
     const credit = await ensureCredits({
       supabase,
@@ -90,6 +96,8 @@ export async function POST(req: Request) {
       visualProfile,
       premiumRequested,
       spendState,
+      task,
+      freeTaste,
       hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY?.trim()),
       hasClaidKey: Boolean(process.env.CLAID_API_KEY?.trim()),
       hasPollinationsKey: Boolean(process.env.POLLINATIONS_API_KEY?.trim()),
@@ -101,6 +109,9 @@ export async function POST(req: Request) {
         prompt: text,
         size: `${w}x${h}`,
         visualProfile,
+        model: sel.model,
+        modelCascade: sel.modelCascade,
+        qualityBoost: isPaidPlan,
       });
       if (result.ok && result.url) {
         const seed = Math.floor(Math.random() * 1_000_000);

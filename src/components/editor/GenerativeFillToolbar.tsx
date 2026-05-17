@@ -137,6 +137,7 @@ export function GenerativeFillToolbar() {
           polish,
           transparent,
           visualProfile: 'cinematic',
+          task: 'genfill_image',
         }),
       });
       const data = await res.json();

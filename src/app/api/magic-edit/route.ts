@@ -3,10 +3,13 @@ import { SlideElement } from '@/types';
 import { generateClaidImageUrl } from '@/lib/claid-image';
 import { generatePollinationsImageUrl } from '@/lib/pollinations-image';
 import { openRouterImageGeneration } from '@/lib/ai/openrouter-image';
+import { getMagicEditTextModels, selectImageProvider } from '@/lib/ai/router';
+import { getSpendState } from '@/lib/ai/spend';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
 import { getBillingPlan } from '@/lib/billing/resolve-plan';
+import { FREE_TIER } from '@/lib/billing/free-tier-limits';
 import { incrementFreeTierUsage, readFreeTierUsage } from '@/lib/billing/free-tier-usage';
 import { enforceAiRateLimit } from '@/lib/rate-limit-server';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
@@ -96,15 +99,14 @@ export async function POST(req: Request) {
     const isPaid = plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro' || plan === 'admin';
 
     if (!isPaid) {
-      const FREE_MAGIC_LIMIT = 10;
       const usage = await readFreeTierUsage(userId);
-      if (usage.free_magic_edit_uses >= FREE_MAGIC_LIMIT) {
+      if (usage.free_magic_edit_uses >= FREE_TIER.magicEditUses) {
         return NextResponse.json(
           {
             error: 'FREE_LIMIT_REACHED',
-            message: `Free accounts are limited to ${FREE_MAGIC_LIMIT} AI Magic Edit uses. Upgrade to Pro for unlimited access.`,
+            message: `Free accounts are limited to ${FREE_TIER.magicEditUses} AI Magic Edit uses. Upgrade to Pro for unlimited access.`,
             used: usage.free_magic_edit_uses,
-            limit: FREE_MAGIC_LIMIT,
+            limit: FREE_TIER.magicEditUses,
           },
           { status: 403 },
         );
@@ -155,12 +157,9 @@ User request: "${String(prompt).trim()}"
 
 Return the modified element JSON only.`;
 
-    const models = [
-      'google/gemini-2.5-flash',
-      'anthropic/claude-sonnet-latest',
-      'openai/gpt-5-mini',
-      'deepseek/deepseek-chat',
-    ];
+    const spend = await getSpendState({ supabase });
+    const spendState = { forcedEconomyMode: spend.forcedEconomyMode };
+    const models = getMagicEditTextModels({ plan, spendState });
 
     let response: Response | null = null;
 
@@ -230,27 +229,45 @@ Return the modified element JSON only.`;
       );
       const hasClaid = Boolean(process.env.CLAID_API_KEY?.trim());
       const hasPollinations = Boolean(process.env.POLLINATIONS_API_KEY?.trim());
+      const hasOpenRouter = Boolean(process.env.OPENROUTER_API_KEY?.trim());
 
-      if (!hasClaid && !hasPollinations) {
+      if (!hasOpenRouter && !hasClaid && !hasPollinations) {
         return NextResponse.json(
           {
             error:
-              'Image generation is not configured. Set CLAID_API_KEY or POLLINATIONS_API_KEY for Magic Edit images.',
+              'Image generation is not configured. Set OPENROUTER_API_KEY, CLAID_API_KEY, or POLLINATIONS_API_KEY.',
           },
           { status: 503 }
         );
       }
       try {
-        const result = await openRouterImageGeneration({
-          prompt: promptText,
-          size: `${width}x${height}`,
+        const imgSel = selectImageProvider({
+          plan,
           visualProfile: 'cinematic',
+          premiumRequested: plan === 'creator_pro' || plan === 'admin',
+          spendState,
+          task: 'magic_edit_image',
+          hasOpenRouterKey: hasOpenRouter,
+          hasClaidKey: hasClaid,
+          hasPollinationsKey: hasPollinations,
         });
 
-        if (result.ok && result.url) {
-          updatedElement.src = result.url;
-        } else {
-          // Fallback to Claid/Pollinations if OpenRouter Image fails
+        if (imgSel.provider === 'openrouter' && hasOpenRouter) {
+          const result = await openRouterImageGeneration({
+            prompt: promptText,
+            size: `${width}x${height}`,
+            visualProfile: 'cinematic',
+            model: imgSel.model,
+            modelCascade: imgSel.modelCascade,
+            qualityBoost: true,
+          });
+          if (result.ok && result.url) {
+            updatedElement.src = result.url;
+          }
+        }
+
+        const src = String(updatedElement.src || '');
+        if (!src.startsWith('http') && !src.startsWith('data:')) {
           updatedElement.src = hasClaid
             ? await generateClaidImageUrl({ prompt: promptText, polish: true, width, height })
             : await generatePollinationsImageUrl({

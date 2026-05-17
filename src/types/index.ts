@@ -163,6 +163,9 @@ export interface Slide {
   backgroundColor?: string;
   speakerNotes?: string;
   visualDirection?: string;
+  /** Skeleton slot while the deck is streaming in */
+  isGeneratingPlaceholder?: boolean;
+  generationStatus?: 'queued' | 'composing' | 'ready' | 'visuals';
 }
 
 // ─── Presentation Types ───────────────────────────────────────────────────────
@@ -290,6 +293,13 @@ export interface EditorState {
   /** Multi-model orchestration UI */
   orchestrationPhase: string;
   activeModelLabel: string;
+  /** Human-readable orchestration status for gallery + loader */
+  orchestrationMessage?: string;
+  /** Free-tier premium taste: cap AI images per deck */
+  freeTasteActive?: boolean;
+  freeTasteImagesRemaining?: number;
+  /** Keep slide gallery visible during generation (mobile drawer) */
+  generationGalleryOpen?: boolean;
   /** Cloud autosave / sync indicator */
   cloudSyncStatus: 'idle' | 'saving' | 'saved' | 'error' | 'conflict' | 'retrying';
   cloudSyncMessage?: string;

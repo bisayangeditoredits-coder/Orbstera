@@ -537,20 +537,26 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
       // For 'replace' mode, wipe the existing presentation immediately
       if (appendMode === 'replace') {
-        setPresentation(createEditorGeneratingShell());
+        usePresentationStore.getState().initGenerationPlaceholders(slideCount);
       }
 
       const nextEpoch = usePresentationStore.getState().editor.generationEpoch + 1;
       setEditorState({
         isGenerating: true,
         generationEpoch: nextEpoch,
-        generationBlockingOverlay: true,
+        generationBlockingOverlay: false,
+        generationGalleryOpen: true,
         generationTargetSlides: slideCount,
         generationPendingImages: 0,
         generationImageJobsTotal: 0,
         generationImageJobsCompleted: 0,
         deckGenerationLifecycle: 'connecting',
+        orchestrationMessage: 'Connecting to AI…',
+        freeTasteActive: false,
+        freeTasteImagesRemaining: 0,
       });
+      setActivePanel('layers');
+      if (onClose) onClose();
       setError('');
       setStreamedSlides([]);
       setInterviewSummary(null);
@@ -620,10 +626,27 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
                 if (json.orb) {
                   const orb = json.orb as Record<string, unknown>;
+                  const phase = String(orb.phase || '');
+                  if (phase === 'streaming') {
+                    usePresentationStore.getState().markGenerationPlaceholdersComposing();
+                  }
                   setEditorState({
-                    orchestrationPhase: String(orb.phase || ''),
-                    activeModelLabel: '',
+                    orchestrationPhase: phase,
+                    activeModelLabel:
+                      typeof orb.modelLabel === 'string' ? orb.modelLabel : '',
+                    orchestrationMessage:
+                      typeof orb.message === 'string' ? orb.message : '',
                     reasoning: typeof orb.message === 'string' ? orb.message : '',
+                    ...(orb.freeTaste === true
+                      ? {
+                          freeTasteActive: true,
+                          freeTasteImagesRemaining:
+                            typeof orb.maxImages === 'number' ? orb.maxImages : 2,
+                        }
+                      : {}),
+                    ...(typeof orb.targetSlides === 'number'
+                      ? { generationTargetSlides: orb.targetSlides }
+                      : {}),
                   });
                   if (orb.phase === 'preflight_complete') {
                     const summary: InterviewSummary = {
@@ -794,6 +817,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           setEditorState({
             isGenerating: false,
             generationBlockingOverlay: false,
+            generationGalleryOpen: false,
             deckGenerationLifecycle: 'idle',
             generationTargetSlides: 0,
             generationPendingImages: 0,
@@ -801,6 +825,9 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             generationImageJobsCompleted: 0,
             orchestrationPhase: '',
             activeModelLabel: '',
+            orchestrationMessage: '',
+            freeTasteActive: false,
+            freeTasteImagesRemaining: 0,
           });
         }
         setShowInterviewSummary(false);

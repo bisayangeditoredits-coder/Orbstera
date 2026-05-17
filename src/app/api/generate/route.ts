@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { buildComposerMessages } from '@/lib/ai/orchestration';
 import { runOpenRouterOrchestration } from '@/lib/ai/prompt-chain';
 import { openRouterStream } from '@/lib/ai/openrouter';
-import { selectTextModel } from '@/lib/ai/router';
+import { getComposeFallbackModels, selectTextModel } from '@/lib/ai/router';
 import {
   consumeCreditsForUser,
   estimateDeckCostCredits,
@@ -13,6 +13,8 @@ import {
   refundCreditsForUser,
 } from '@/lib/billing/credits';
 import { getBillingPlan } from '@/lib/billing/resolve-plan';
+import { FREE_TIER } from '@/lib/billing/free-tier-limits';
+import { incrementFreeTierUsage, readFreeTierUsage } from '@/lib/billing/free-tier-usage';
 import { addEstimatedSpend, getSpendState } from '@/lib/ai/spend';
 import { requireAiUser } from '@/lib/auth/require-ai-route';
 import { createJobRecord, enqueueGenerateJob, updateJobRecord } from '@/lib/jobs/redis-job-queue';
@@ -60,15 +62,33 @@ export async function POST(req: Request) {
     );
 
     const plan = await getBillingPlan(user.id);
+    const isFreePlan = plan === 'free';
+    let freeTaste = false;
+
+    if (isFreePlan) {
+      const freeUsage = await readFreeTierUsage(user.id);
+      if (freeUsage.free_ai_deck_generations >= FREE_TIER.lifetimeAiDecks) {
+        return NextResponse.json(
+          {
+            error: 'LIMIT_REACHED',
+            message: `You've used all ${FREE_TIER.lifetimeAiDecks} free AI presentations. Upgrade to Student Pro for unlimited cinematic decks.`,
+            used: freeUsage.free_ai_deck_generations,
+            limit: FREE_TIER.lifetimeAiDecks,
+          },
+          { status: 403 },
+        );
+      }
+      freeTaste = true;
+    }
 
     const MAX_SLIDES: Record<string, number> = {
-      free: 5,
+      free: FREE_TIER.maxSlidesPerDeck,
       pro: 25,
       student_pro: 25,
       creator_pro: 40,
     };
 
-    const maxSlides = MAX_SLIDES[plan] || 5;
+    const maxSlides = MAX_SLIDES[plan] || FREE_TIER.maxSlidesPerDeck;
     const finalSlideCount = Math.min(Math.max(1, slideCount), maxSlides);
 
     const userPrompt = String(prompt || '').trim();
@@ -188,7 +208,12 @@ export async function POST(req: Request) {
           sendOrb({
             orb: {
               phase: 'starting',
-              message: 'Analyzing narrative architecture...',
+              message: freeTaste
+                ? 'Premium preview — elite models composing your deck…'
+                : 'Analyzing narrative architecture...',
+              freeTaste,
+              maxImages: freeTaste ? FREE_TIER.maxImagesPerDeck : undefined,
+              targetSlides: finalSlideCount,
             },
           });
 
@@ -219,7 +244,7 @@ export async function POST(req: Request) {
                 },
               });
             },
-            { plan, spendState },
+            { plan, spendState, freeTaste },
           );
 
           sendOrb({
@@ -270,13 +295,22 @@ export async function POST(req: Request) {
             task: 'deck_compose',
             complexity: { promptChars: userPrompt.length, slideCount: finalSlideCount },
             spendState,
+            freeTaste,
           });
 
-          const composerFallback = selectTextModel({
-            plan: 'creator_pro', // fallback is allowed to be slightly stronger; still gated by availability
-            task: 'deck_compose',
-            complexity: { promptChars: userPrompt.length, slideCount: finalSlideCount },
+          sendOrb({
+            orb: {
+              phase: 'streaming',
+              message: `Composing with ${composerPrimary.label}…`,
+              modelLabel: composerPrimary.label,
+              targetSlides: finalSlideCount,
+            },
+          });
+
+          const composeFallbackModels = getComposeFallbackModels({
+            plan,
             spendState,
+            freeTaste,
           });
 
           async function tryStream(model: string): Promise<boolean> {
@@ -302,14 +336,18 @@ export async function POST(req: Request) {
           }
 
           let ok = await tryStream(composerPrimary.model);
-          if (!ok && composerFallback.model && composerFallback.model !== composerPrimary.model) {
-            sendOrb({
-              orb: {
-                phase: 'fallback',
-                message: 'Continuing with an alternate composer…',
-              },
-            });
-            ok = await tryStream(composerFallback.model);
+          if (!ok) {
+            for (const fallbackModel of composeFallbackModels) {
+              if (fallbackModel === composerPrimary.model) continue;
+              sendOrb({
+                orb: {
+                  phase: 'fallback',
+                  message: 'Continuing with an alternate composer…',
+                },
+              });
+              ok = await tryStream(fallbackModel);
+              if (ok) break;
+            }
           }
           if (!ok) {
             sendOrb({
@@ -318,6 +356,9 @@ export async function POST(req: Request) {
             await refundIfNeeded();
             void updateJobRecord(jobId, { status: 'failed', error: 'Stream failed' });
           } else {
+            if (freeTaste) {
+              void incrementFreeTierUsage(user.id, 'free_ai_deck_generations');
+            }
             void updateJobRecord(jobId, { status: 'completed', progress: 100 });
           }
         } catch (e: unknown) {

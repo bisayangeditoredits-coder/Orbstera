@@ -25,31 +25,40 @@ export type SpendState = {
 export type ComplexitySignals = {
   promptChars: number;
   slideCount: number;
-  /** Derived by orchestration intent step (or heuristic) */
   needsDeepReasoning?: boolean;
-  /** Optional categorization signal (startup_pitch, education, etc.) */
   presentationType?: string;
 };
 
 export type SelectedTextModel = {
   provider: TextProvider;
-  /** Provider model ID (not user-facing). */
   model: string;
-  /** A short label suitable for UI (no raw provider IDs). */
   label: string;
-  /** Token budget guidance (caller may override). */
   maxTokens?: number;
   temperature?: number;
 };
 
 export type SelectedImageProvider = {
   provider: ImageProvider;
-  model?: string; // only for openrouter images
+  model?: string;
+  /** OpenRouter model cascade (first success wins). */
+  modelCascade?: string[];
   label: string;
   visualProfile: ImageVisualProfile;
-  /** When true, charge premium image credits and prefer premium provider/model */
   premium: boolean;
 };
+
+type QualityTier = 'economy' | 'free' | 'student' | 'creator';
+
+const TEXT_LABELS = {
+  economy: 'Gemini Flash',
+  gpt55: 'GPT-5.5',
+  gpt5: 'GPT-5',
+  sonnet: 'Claude Sonnet',
+  sonnetStrategy: 'Claude Sonnet · Strategy',
+  opus: 'Claude Opus',
+  opusStrategy: 'Claude Opus · Strategy',
+  geminiPro: 'Gemini Pro',
+} as const;
 
 function normalizePlan(plan: string | null | undefined): PlanTier {
   const p = String(plan || '').toLowerCase();
@@ -64,24 +73,73 @@ function isPaid(plan: PlanTier): boolean {
   return plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro' || plan === 'admin';
 }
 
-function complexityScore(s: ComplexitySignals): number {
-  // 0..100-ish, dynamically scoring prompt depth, presentation type, and reasoning requirements.
-  const slide = Math.min(40, Math.max(1, s.slideCount || 1));
-  const prompt = Math.min(8000, Math.max(0, s.promptChars || 0));
-  let score = 0;
-  score += slide <= 5 ? 8 : slide <= 10 ? 18 : slide <= 20 ? 32 : 45;
-  score += prompt < 300 ? 6 : prompt < 900 ? 14 : prompt < 1800 ? 24 : 34;
-  if (s.needsDeepReasoning) score += 22;
-  
-  // DYNAMIC MODEL ACTIVATION adjustment based on presentation type
-  const pt = String(s.presentationType || '').toLowerCase();
-  if (pt.includes('data') || pt.includes('analytics') || pt.includes('investor') || pt.includes('pitch') || pt.includes('business')) {
-    score += 15;
+function isCreatorTier(plan: PlanTier): boolean {
+  return plan === 'creator_pro' || plan === 'admin';
+}
+
+function resolveQualityTier(plan: PlanTier, economy: boolean, freeTaste?: boolean): QualityTier {
+  if (economy) return 'economy';
+  if (freeTaste) return 'student';
+  if (plan === 'free') return 'free';
+  if (isCreatorTier(plan)) return 'creator';
+  if (isPaid(plan)) return 'student';
+  return 'free';
+}
+
+function uniqueModels(models: string[]): string[] {
+  const seen = new Set<string>();
+  return models.filter((m) => {
+    if (!m || seen.has(m)) return false;
+    seen.add(m);
+    return true;
+  });
+}
+
+function openRouterImageCascade(args: {
+  tier: QualityTier;
+  visualProfile: ImageVisualProfile;
+  premium: boolean;
+  task?: AiTask;
+}): string[] {
+  const isTypo = args.visualProfile === 'typography';
+  const isGenfill = args.task === 'genfill_image' || args.task === 'magic_edit_image';
+
+  if (args.tier === 'creator') {
+    if (isTypo) {
+      return uniqueModels([
+        IMAGE_MODELS.typographyPremium,
+        IMAGE_MODELS.typography,
+        IMAGE_MODELS.fluxCinematic,
+        IMAGE_MODELS.fallback,
+      ]);
+    }
+    if (args.premium || isGenfill) {
+      return uniqueModels([
+        IMAGE_MODELS.fluxUltra,
+        IMAGE_MODELS.fluxCinematic,
+        IMAGE_MODELS.flux,
+        IMAGE_MODELS.fallback,
+      ]);
+    }
+    return uniqueModels([
+      IMAGE_MODELS.fluxCinematic,
+      IMAGE_MODELS.flux,
+      IMAGE_MODELS.fallback,
+    ]);
   }
-  if (pt.includes('school') || pt.includes('education') || pt.includes('simple')) {
-    score -= 15;
+
+  if (args.tier === 'student') {
+    if (isTypo) {
+      return uniqueModels([IMAGE_MODELS.typography, IMAGE_MODELS.flux, IMAGE_MODELS.fallback]);
+    }
+    return uniqueModels([
+      IMAGE_MODELS.flux,
+      IMAGE_MODELS.fluxCinematic,
+      IMAGE_MODELS.fallback,
+    ]);
   }
-  return score;
+
+  return uniqueModels([IMAGE_MODELS.fallback, IMAGE_MODELS.flux]);
 }
 
 export function shouldRunDeepReasoning(args: {
@@ -90,21 +148,50 @@ export function shouldRunDeepReasoning(args: {
   slideCount: number;
   spendState?: SpendState;
   presentationType?: string;
+  /** Free users on premium taste pass (strict lifetime cap enforced server-side). */
+  freeTaste?: boolean;
 }): boolean {
   const planTier = normalizePlan(args.plan);
   if (!args.needsDeepReasoning) return false;
   if (args.spendState?.forcedEconomyMode) return false;
-  if (planTier === 'free') return false; // Free users: Do NOT use expensive frontier/reasoning models.
+  if (planTier === 'free' && !args.freeTaste) return false;
 
   const pt = String(args.presentationType || '').toLowerCase();
   if (pt.includes('school') || pt.includes('simple')) return false;
 
-  // Student pro users: Optional/conditional routing. Only on larger/technical decks.
-  if (planTier === 'student_pro') {
-    return args.slideCount >= 10 || pt.includes('analytics') || pt.includes('technical');
-  }
-  // Creator pro / Admin users: activate expensive reasoning models when necessary
   return true;
+}
+
+/** Ordered text models for Magic Edit element JSON (first success wins). */
+export function getMagicEditTextModels(args: {
+  plan: string | null | undefined;
+  spendState?: SpendState;
+  freeTaste?: boolean;
+}): string[] {
+  const tier = resolveQualityTier(
+    normalizePlan(args.plan),
+    Boolean(args.spendState?.forcedEconomyMode),
+    args.freeTaste,
+  );
+
+  if (tier === 'economy' || tier === 'free') {
+    return uniqueModels([OR_MODELS.coach, AGENT_MODELS.claudeStructure, 'google/gemini-2.5-flash']);
+  }
+  if (tier === 'creator') {
+    return uniqueModels([
+      AGENT_MODELS.gptOrchestrator,
+      AGENT_MODELS.claudeOpus,
+      AGENT_MODELS.claudeStructure,
+      AGENT_MODELS.gptOrchestratorAlt,
+      AGENT_MODELS.geminiPro,
+    ]);
+  }
+  return uniqueModels([
+    AGENT_MODELS.gptOrchestrator,
+    AGENT_MODELS.claudeStructure,
+    AGENT_MODELS.gptOrchestratorAlt,
+    'google/gemini-2.5-flash',
+  ]);
 }
 
 export function selectTextModel(args: {
@@ -112,143 +199,263 @@ export function selectTextModel(args: {
   task: AiTask;
   complexity: ComplexitySignals;
   spendState?: SpendState;
+  freeTaste?: boolean;
 }): SelectedTextModel {
   const planTier = normalizePlan(args.plan);
-  const paid = isPaid(planTier);
-  const score = complexityScore(args.complexity);
-  const economy = Boolean(args.spendState?.forcedEconomyMode);
+  const tier = resolveQualityTier(planTier, Boolean(args.spendState?.forcedEconomyMode), args.freeTaste);
+  const isFreeTaste = Boolean(args.freeTaste);
 
-  // FREE USERS & low-cost fallback: Primary Gemini 2.5 Flash, lightweight generation, low-cost inference.
   const lowCost: SelectedTextModel = {
     provider: 'openrouter',
-    model: OR_MODELS.coach, // gemini-2.5-flash
-    label: 'Flash',
+    model: OR_MODELS.coach,
+    label: TEXT_LABELS.economy,
     maxTokens: args.task === 'deck_compose' ? 16_000 : 4096,
     temperature: 0.25,
   };
 
-  // AI COST PROTECTION SYSTEM: If total monthly AI spend reaches a predefined threshold (forcedEconomyMode), switch lightweight tasks to Gemini Flash.
-  if (!paid || economy) {
-    // Free users: never use frontier models.
+  if (tier === 'economy' || tier === 'free') {
     return lowCost;
   }
 
-  // STUDENT PRO USERS: Primary: Gemini 2.5 Flash. Optional: limited GPT-5 polish, limited Claude refinement on higher complexity.
-  if (planTier === 'student_pro') {
-    if (args.task === 'deck_intent') {
-      return score >= 60
-        ? { provider: 'openrouter', model: AGENT_MODELS.gptOrchestrator, label: 'Orchestrator', maxTokens: 2400, temperature: 0.22 }
-        : lowCost;
-    }
-    if (args.task === 'deck_structure') {
-      return score >= 50
-        ? { provider: 'openrouter', model: AGENT_MODELS.claudeStructure, label: 'Structure', maxTokens: 3600, temperature: 0.25 }
-        : lowCost;
-    }
-    if (args.task === 'deck_reason') {
-      return { provider: 'openrouter', model: AGENT_MODELS.deepseekReason, label: 'Reasoning', maxTokens: 2400, temperature: 0.35 };
-    }
-    if (args.task === 'deck_compose') {
-      // Use hybrid routing to reduce costs while maintaining quality
-      return score >= 55
-        ? { provider: 'openrouter', model: OR_MODELS.composerPrimary, label: 'Composer', maxTokens: 24_000, temperature: 0.28 }
-        : lowCost;
-    }
-    return lowCost;
-  }
+  const isCreator = tier === 'creator';
 
-  // CREATOR PRO USERS & Admin: Use: GPT-5.5, Claude Sonnet, DeepSeek R1 (when required)
   if (args.task === 'deck_intent') {
-    return { provider: 'openrouter', model: AGENT_MODELS.gptOrchestrator, label: 'Orchestrator', maxTokens: 2400, temperature: 0.22 };
+    return {
+      provider: 'openrouter',
+      model: AGENT_MODELS.gptOrchestrator,
+      label: TEXT_LABELS.gpt55,
+      maxTokens: isCreator ? 2800 : 2400,
+      temperature: 0.22,
+    };
   }
 
   if (args.task === 'deck_structure') {
-    return { provider: 'openrouter', model: AGENT_MODELS.claudeStructure, label: 'Structure', maxTokens: 3600, temperature: 0.25 };
+    return isCreator
+      ? {
+          provider: 'openrouter',
+          model: AGENT_MODELS.claudeOpus,
+          label: TEXT_LABELS.opus,
+          maxTokens: 4000,
+          temperature: 0.25,
+        }
+      : {
+          provider: 'openrouter',
+          model: AGENT_MODELS.claudeStructure,
+          label: TEXT_LABELS.sonnet,
+          maxTokens: 3600,
+          temperature: 0.25,
+        };
   }
 
   if (args.task === 'deck_reason') {
-    return { provider: 'openrouter', model: AGENT_MODELS.deepseekReason, label: 'Reasoning', maxTokens: 2400, temperature: 0.35 };
+    return isCreator
+      ? {
+          provider: 'openrouter',
+          model: AGENT_MODELS.claudeOpus,
+          label: TEXT_LABELS.opusStrategy,
+          maxTokens: 2800,
+          temperature: 0.35,
+        }
+      : {
+          provider: 'openrouter',
+          model: AGENT_MODELS.claudeStructure,
+          label: TEXT_LABELS.sonnetStrategy,
+          maxTokens: 2400,
+          temperature: 0.35,
+        };
   }
 
   if (args.task === 'deck_compose') {
     return {
       provider: 'openrouter',
       model: OR_MODELS.composerPrimary,
-      label: 'Composer',
-      maxTokens: 24_000,
+      label: isFreeTaste ? `${TEXT_LABELS.gpt55} · Preview` : TEXT_LABELS.gpt55,
+      maxTokens: isCreator ? 28_000 : isFreeTaste ? 12_000 : 24_000,
       temperature: 0.28,
     };
   }
 
-  return {
-    provider: 'openrouter',
-    model: OR_MODELS.refineFallback,
-    label: 'Refine',
-    maxTokens: 6000,
-    temperature: 0.25,
-  };
+  if (args.task === 'magic_edit_text') {
+    return isCreator
+      ? {
+          provider: 'openrouter',
+          model: AGENT_MODELS.gptOrchestrator,
+          label: TEXT_LABELS.gpt55,
+          maxTokens: 3200,
+          temperature: 0.15,
+        }
+      : {
+          provider: 'openrouter',
+          model: AGENT_MODELS.claudeStructure,
+          label: TEXT_LABELS.sonnet,
+          maxTokens: 2800,
+          temperature: 0.15,
+        };
+  }
+
+  if (args.task === 'deck_polish') {
+    return isCreator
+      ? {
+          provider: 'openrouter',
+          model: OR_MODELS.refineOpus,
+          label: TEXT_LABELS.opus,
+          maxTokens: 8000,
+          temperature: 0.22,
+        }
+      : {
+          provider: 'openrouter',
+          model: OR_MODELS.refineFallback,
+          label: TEXT_LABELS.sonnet,
+          maxTokens: 6000,
+          temperature: 0.25,
+        };
+  }
+
+  return isCreator
+    ? {
+        provider: 'openrouter',
+        model: OR_MODELS.refineOpus,
+        label: TEXT_LABELS.opus,
+        maxTokens: 6000,
+        temperature: 0.25,
+      }
+    : {
+        provider: 'openrouter',
+        model: OR_MODELS.refineFallback,
+        label: TEXT_LABELS.sonnet,
+        maxTokens: 6000,
+        temperature: 0.25,
+      };
+}
+
+/** Compose fallback chain when primary stream fails. */
+export function getComposeFallbackModels(args: {
+  plan: string | null | undefined;
+  spendState?: SpendState;
+  freeTaste?: boolean;
+}): string[] {
+  const tier = resolveQualityTier(
+    normalizePlan(args.plan),
+    Boolean(args.spendState?.forcedEconomyMode),
+    args.freeTaste,
+  );
+  if (tier === 'economy' || tier === 'free') {
+    return uniqueModels([OR_MODELS.coach]);
+  }
+  if (tier === 'creator') {
+    return uniqueModels([
+      OR_MODELS.composerFallback,
+      AGENT_MODELS.claudeOpus,
+      AGENT_MODELS.geminiPro,
+      OR_MODELS.refineFallback,
+    ]);
+  }
+  return uniqueModels([
+    OR_MODELS.composerFallback,
+    AGENT_MODELS.claudeStructure,
+    AGENT_MODELS.geminiPro,
+  ]);
 }
 
 export function selectImageProvider(args: {
   plan: string | null | undefined;
   visualProfile: ImageVisualProfile;
-  /** If true, allow premium model/provider routing */
   premiumRequested: boolean;
   spendState?: SpendState;
-  /** Whether OpenRouter images are available */
+  task?: AiTask;
+  freeTaste?: boolean;
   hasOpenRouterKey: boolean;
-  /** Whether Claid is configured */
   hasClaidKey: boolean;
-  /** Whether Pollinations is configured */
   hasPollinationsKey: boolean;
 }): SelectedImageProvider {
   const planTier = normalizePlan(args.plan);
-  const paid = isPaid(planTier);
-  const economy = Boolean(args.spendState?.forcedEconomyMode);
-
-  const premiumAllowed = (planTier === 'creator_pro' || planTier === 'admin') && !economy;
+  const tier = resolveQualityTier(
+    planTier,
+    Boolean(args.spendState?.forcedEconomyMode),
+    args.freeTaste,
+  );
+  const premiumAllowed = isCreatorTier(planTier) && tier === 'creator';
   const premium = Boolean(args.premiumRequested && premiumAllowed);
+  const isTypo = args.visualProfile === 'typography';
 
-  // Prefer OpenRouter (Flux) when available for premium tiers; otherwise fall back.
-  if (args.hasOpenRouterKey && (premium || paid)) {
-    const model =
-      args.visualProfile === 'typography' ? IMAGE_MODELS.typography : IMAGE_MODELS.flux;
+  const labelForTier = (): string => {
+    if (tier === 'creator') return premium ? 'Cinematic HD' : 'Pro Studio';
+    if (tier === 'student') return 'Studio HD';
+    return 'Standard';
+  };
+
+  const cascade = openRouterImageCascade({
+    tier,
+    visualProfile: args.visualProfile,
+    premium,
+    task: args.task,
+  });
+  const primaryModel = cascade[0];
+
+  if (args.hasOpenRouterKey && (tier === 'student' || tier === 'creator')) {
     return {
       provider: 'openrouter',
-      model,
-      label: premium ? 'Cinematic' : 'Standard',
+      model: primaryModel,
+      modelCascade: cascade,
+      label: labelForTier(),
       visualProfile: args.visualProfile,
       premium,
     };
   }
 
-  // Non-OpenRouter providers (hybrid direct): Claid first, then Pollinations.
-  if (args.hasClaidKey) {
+  if (tier === 'free' || tier === 'economy') {
+    if (args.hasPollinationsKey) {
+      return {
+        provider: 'pollinations',
+        label: 'Standard',
+        visualProfile: args.visualProfile,
+        premium: false,
+      };
+    }
+    if (args.hasClaidKey) {
+      return {
+        provider: 'claid',
+        label: 'Standard',
+        visualProfile: args.visualProfile,
+        premium: false,
+      };
+    }
+  }
+
+  if (args.hasClaidKey && tier !== 'free') {
     return {
       provider: 'claid',
-      label: premium ? 'Cinematic' : 'Standard',
+      label: labelForTier(),
       visualProfile: args.visualProfile,
       premium,
     };
   }
-  if (args.hasPollinationsKey) {
+  if (args.hasPollinationsKey && tier === 'free') {
     return {
       provider: 'pollinations',
-      label: premium ? 'Cinematic' : 'Standard',
+      label: 'Standard',
+      visualProfile: args.visualProfile,
+      premium: false,
+    };
+  }
+
+  if (args.hasOpenRouterKey) {
+    return {
+      provider: 'openrouter',
+      model: primaryModel,
+      modelCascade: cascade,
+      label: labelForTier(),
       visualProfile: args.visualProfile,
       premium,
     };
   }
 
-  // Last resort: return OpenRouter selection even without key; caller will error cleanly.
-  const model =
-    args.visualProfile === 'typography' ? IMAGE_MODELS.typography : IMAGE_MODELS.flux;
   return {
     provider: 'openrouter',
-    model,
-    label: premium ? 'Cinematic' : 'Standard',
+    model: primaryModel,
+    modelCascade: cascade,
+    label: labelForTier(),
     visualProfile: args.visualProfile,
     premium,
   };
 }
-

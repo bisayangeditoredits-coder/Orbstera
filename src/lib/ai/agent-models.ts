@@ -8,17 +8,31 @@
 export const AGENT_MODELS = {
   /** Intent, merge, final polish, cinematic hierarchy */
   gptOrchestrator: process.env.OPENROUTER_AGENT_GPT5 ?? 'openai/gpt-5.5',
-  /** Slide spine, educational flow, long-form structure */
+  /** Creator-tier orchestrator fallback */
+  gptOrchestratorAlt:
+    process.env.OPENROUTER_AGENT_GPT5_ALT ?? 'openai/gpt-5',
+  /** Slide spine, educational flow, long-form structure (Student Pro + fallback) */
   claudeStructure: process.env.OPENROUTER_AGENT_CLAUDE ?? 'anthropic/claude-sonnet-latest',
-  /** Optional — technical / analytical depth only */
+  /** Creator Pro — structure, strategy, elite polish */
+  claudeOpus: process.env.OPENROUTER_AGENT_CLAUDE_OPUS ?? 'anthropic/claude-opus-4',
+  /** Optional — technical / analytical depth (retained for env overrides / legacy) */
   deepseekReason: process.env.OPENROUTER_AGENT_DEEPSEEK ?? 'deepseek/deepseek-r1',
+  /** Long-context compose assist (Creator fallback) */
+  geminiPro: process.env.OPENROUTER_AGENT_GEMINI_PRO ?? 'google/gemini-2.5-pro',
 } as const;
 
 export const IMAGE_MODELS = {
-  /** Cinematic slide imagery (Flux on OpenRouter) */
+  /** Studio-grade slide imagery (Student Pro, standard paid decks) */
   flux: process.env.OPENROUTER_IMAGE_FLUX ?? 'black-forest-labs/flux-1.1-pro',
-  /** Title / typographic hero art — Flux as reliable primary since Ideogram isn't on OpenRouter */
+  /** Cinematic / Creator Pro premium slides & gen-fill */
+  fluxCinematic:
+    process.env.OPENROUTER_IMAGE_FLUX_CINEMATIC ?? 'black-forest-labs/flux-pro',
+  /** Ultra fallback when cinematic fails */
+  fluxUltra: process.env.OPENROUTER_IMAGE_FLUX_ULTRA ?? 'black-forest-labs/flux-1.1-pro-ultra',
+  /** Title / typographic hero art */
   typography: process.env.OPENROUTER_IMAGE_IDEOGRAM ?? 'black-forest-labs/flux-1.1-pro',
+  typographyPremium:
+    process.env.OPENROUTER_IMAGE_TYPOGRAPHY_PREMIUM ?? 'black-forest-labs/flux-pro',
   fallback: process.env.OPENROUTER_IMAGE_FALLBACK ?? 'black-forest-labs/flux-1.1-pro',
 } as const;
 
