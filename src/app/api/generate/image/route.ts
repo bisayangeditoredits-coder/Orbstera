@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { ImageVisualProfile } from '@/lib/ai/agent-models';
 import { openRouterImageGeneration } from '@/lib/ai/openrouter-image';
-import { enforceAiRateLimit } from '@/lib/rate-limit-server';
+import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
@@ -35,10 +35,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured.' }, { status: 503 });
     }
 
-    const limited = await enforceAiRateLimit(req, null, 'default');
-    if (limited) return limited;
+    const auth = await requireAiUser(req, 'default');
+    if ('response' in auth) {
+      if (auth.response.status === 401) {
+        return aiUnauthorized('Please sign in to generate images.');
+      }
+      return auth.response;
+    }
+    const user = auth.user;
 
-    // --- CREDIT DEDUCTION LOGIC ---
     const { createServerClient } = await import('@supabase/ssr');
     const { cookies } = await import('next/headers');
     const { ensureCredits, getCreditConfig } = await import('@/lib/billing/credits');
@@ -49,66 +54,50 @@ export async function POST(req: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } }
     );
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('plan, free_generative_fill_uses')
-        .eq('id', user.id)
-        .maybeSingle();
-      const plan = profile?.plan?.toLowerCase() || user.user_metadata?.plan?.toLowerCase() || 'free';
-      const isPaid = plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro' || plan === 'admin';
 
-      // ── FREE-TIER HARD LIMIT: 5 Generative Fill uses/month ──────────────────
-      if (!isPaid) {
-        const FREE_FILL_LIMIT = 5;
-        const usedFill = typeof profile?.free_generative_fill_uses === 'number' ? profile.free_generative_fill_uses : 0;
-        if (usedFill >= FREE_FILL_LIMIT) {
-          return NextResponse.json(
-            {
-              error: 'FREE_LIMIT_REACHED',
-              message: `Free accounts are limited to ${FREE_FILL_LIMIT} Generative Fill uses. Upgrade to Pro for unlimited access.`,
-              used: usedFill,
-              limit: FREE_FILL_LIMIT,
-            },
-            { status: 403 },
-          );
-        }
-        // Increment counter (best-effort)
-        try {
-          await supabase
-            .from('profiles')
-            .update({ free_generative_fill_uses: usedFill + 1 })
-            .eq('id', user.id);
-        } catch { /* ignore */ }
-      }
-      // ────────────────────────────────────────────────────────────────────────
+    const { getBillingPlan } = await import('@/lib/billing/resolve-plan');
+    const { readFreeTierUsage, incrementFreeTierUsage } = await import('@/lib/billing/free-tier-usage');
+    const plan = await getBillingPlan(user.id);
+    const isPaid = plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro' || plan === 'admin';
 
-      const creditConfig = await getCreditConfig(supabase);
-      const cost = creditConfig.costs.image_standard || 10;
-      
-      const creditCheck = await ensureCredits({
-        supabase,
-        userId: user.id,
-        planRaw: plan,
-        cost,
-        action: 'image_standard',
-      });
-
-      if (!creditCheck.ok) {
+    if (!isPaid) {
+      const FREE_FILL_LIMIT = 5;
+      const usage = await readFreeTierUsage(user.id);
+      if (usage.free_generative_fill_uses >= FREE_FILL_LIMIT) {
         return NextResponse.json(
           {
-            error: 'INSUFFICIENT_CREDITS',
-            message: `Not enough credits to generate image.`,
-            credits: creditCheck.summary,
-            required: cost,
+            error: 'FREE_LIMIT_REACHED',
+            message: `Free accounts are limited to ${FREE_FILL_LIMIT} Generative Fill uses. Upgrade to Pro for unlimited access.`,
+            used: usage.free_generative_fill_uses,
+            limit: FREE_FILL_LIMIT,
           },
-          { status: 402 },
+          { status: 403 },
         );
       }
+      await incrementFreeTierUsage(user.id, 'free_generative_fill_uses');
     }
-    // -----------------------------
+
+    const creditConfig = await getCreditConfig(supabase);
+    const cost = creditConfig.costs.image_standard || 10;
+
+    const creditCheck = await ensureCredits({
+      supabase,
+      userId: user.id,
+      cost,
+      action: 'image_standard',
+    });
+
+    if (!creditCheck.ok) {
+      return NextResponse.json(
+        {
+          error: 'INSUFFICIENT_CREDITS',
+          message: 'Not enough credits to generate image.',
+          credits: creditCheck.summary,
+          required: cost,
+        },
+        { status: 402 },
+      );
+    }
 
     let size = typeof sizeIn === 'string' && sizeIn.includes('x') ? sizeIn : '1024x1024';
     if (typeof width === 'number' && typeof height === 'number' && width > 0 && height > 0) {

@@ -14,7 +14,7 @@ const tiers = [
     badge: null,
     icon: "/3d_icons/Pencil.png",
     features: [
-      { text: '3 AI-generated presentations (lifetime on Free)', included: true },
+      { text: '~100 credits/month (~1 small AI deck)', included: true },
       { text: 'Maximum 5 slides per presentation', included: true },
       { text: 'Automatic cinematic layout & motion', included: true },
       { text: 'PPTX export with watermark', included: true },
@@ -36,7 +36,7 @@ const tiers = [
     badge: 'Most Popular',
     icon: "/3d_icons/Graduation Hat.png",
     features: [
-      { text: '10 premium AI presentations per month', included: true },
+      { text: '~1,400 credits/month (~10 AI decks with imagery)', included: true },
       { text: 'Up to 25 slides per presentation', included: true },
       { text: 'Premium automatic AI orchestration', included: true },
       { text: 'PPTX export — no watermark', included: true },
@@ -57,7 +57,7 @@ const tiers = [
     badge: 'Best Value',
     icon: "/3d_icons/Trophy.png",
     features: [
-      { text: '40 premium AI presentations per month', included: true },
+      { text: '~5,500 credits/month (~23 premium Creator decks)', included: true },
       { text: 'Up to 40 slides per presentation', included: true },
       { text: 'Maximum quality automatic orchestration', included: true },
       { text: 'PPTX export — no watermark, custom branding', included: true },
@@ -107,7 +107,7 @@ export function Pricing() {
       });
       
       if (res.status === 401) {
-        window.location.href = '/login?next=#pricing';
+        window.location.href = '/login?next=/pricing';
         return;
       }
 

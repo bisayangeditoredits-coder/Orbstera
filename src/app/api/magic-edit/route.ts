@@ -6,6 +6,8 @@ import { openRouterImageGeneration } from '@/lib/ai/openrouter-image';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
+import { getBillingPlan } from '@/lib/billing/resolve-plan';
+import { incrementFreeTierUsage, readFreeTierUsage } from '@/lib/billing/free-tier-usage';
 import { enforceAiRateLimit } from '@/lib/rate-limit-server';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
@@ -90,32 +92,24 @@ export async function POST(req: Request) {
     const limited = await enforceAiRateLimit(req, userId, 'default');
     if (limited) return limited;
 
-    const { data: profile } = await supabase.from('profiles').select('plan, free_magic_edit_uses').eq('id', userId).maybeSingle();
-    const plan = profile?.plan?.toLowerCase() || user?.user_metadata?.plan?.toLowerCase() || 'free';
+    const plan = await getBillingPlan(userId);
     const isPaid = plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro' || plan === 'admin';
 
-    // ── FREE-TIER HARD LIMIT: 10 Magic Edit uses/month ──────────────────────
     if (!isPaid) {
       const FREE_MAGIC_LIMIT = 10;
-      const usedMagic = typeof profile?.free_magic_edit_uses === 'number' ? profile.free_magic_edit_uses : 0;
-      if (usedMagic >= FREE_MAGIC_LIMIT) {
+      const usage = await readFreeTierUsage(userId);
+      if (usage.free_magic_edit_uses >= FREE_MAGIC_LIMIT) {
         return NextResponse.json(
           {
             error: 'FREE_LIMIT_REACHED',
             message: `Free accounts are limited to ${FREE_MAGIC_LIMIT} AI Magic Edit uses. Upgrade to Pro for unlimited access.`,
-            used: usedMagic,
+            used: usage.free_magic_edit_uses,
             limit: FREE_MAGIC_LIMIT,
           },
           { status: 403 },
         );
       }
-      // Increment counter (best-effort)
-      try {
-        await supabase
-          .from('profiles')
-          .update({ free_magic_edit_uses: usedMagic + 1 })
-          .eq('id', userId);
-      } catch { /* ignore */ }
+      await incrementFreeTierUsage(userId, 'free_magic_edit_uses');
     }
     // ────────────────────────────────────────────────────────────────────────
 
@@ -127,7 +121,6 @@ export async function POST(req: Request) {
     const creditCheck = await ensureCredits({
       supabase,
       userId,
-      planRaw: plan,
       cost,
       action: creditAction,
       meta: { elementType: element.type, elementId: element.id },

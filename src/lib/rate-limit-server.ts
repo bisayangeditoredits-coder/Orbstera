@@ -10,7 +10,22 @@ function clientIp(req: Request): string {
   return 'unknown';
 }
 
-type AiTier = 'default' | 'heavy';
+export type AiTier = 'default' | 'heavy';
+
+/** Fail closed in production when Upstash is not configured. */
+export function requireRateLimitInfrastructure(): NextResponse | null {
+  if (process.env.NODE_ENV !== 'production') return null;
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+  if (url && token && redis) return null;
+  return NextResponse.json(
+    {
+      error: 'SERVICE_UNAVAILABLE',
+      message: 'Rate limiting is not configured. Please try again later.',
+    },
+    { status: 503 },
+  );
+}
 
 const userMax: Record<AiTier, number> = { default: 12, heavy: 6 };
 const ipMax: Record<AiTier, number> = { default: 45, heavy: 24 };

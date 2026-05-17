@@ -6,14 +6,18 @@ import { runOpenRouterOrchestration } from '@/lib/ai/prompt-chain';
 import { openRouterStream } from '@/lib/ai/openrouter';
 import { selectTextModel } from '@/lib/ai/router';
 import {
-  consumeCreditsAtomic,
+  consumeCreditsForUser,
   estimateDeckCostCredits,
   getCreditConfig,
-  getCreditSummary,
+  getCreditSummaryForUser,
+  refundCreditsForUser,
 } from '@/lib/billing/credits';
+import { getBillingPlan } from '@/lib/billing/resolve-plan';
 import { addEstimatedSpend, getSpendState } from '@/lib/ai/spend';
-import { enforceAiRateLimit } from '@/lib/rate-limit-server';
+import { requireAiUser } from '@/lib/auth/require-ai-route';
+import { createJobRecord, enqueueGenerateJob, updateJobRecord } from '@/lib/jobs/redis-job-queue';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
+import { v4 as uuidv4 } from 'uuid';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -44,28 +48,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured.' }, { status: 500 });
     }
 
+    const auth = await requireAiUser(req, 'heavy');
+    if ('response' in auth) return auth.response;
+    const user = auth.user;
+
     const cookieStore = cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } }
     );
-    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: 'Please sign in to generate presentations.' }, { status: 401 });
-    }
-
-    const limited = await enforceAiRateLimit(req, user.id, 'default');
-    if (limited) return limited;
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('plan')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    const plan = profile?.plan?.toLowerCase() || user.user_metadata?.plan?.toLowerCase() || 'free';
+    const plan = await getBillingPlan(user.id);
 
     const MAX_SLIDES: Record<string, number> = {
       free: 5,
@@ -93,7 +87,7 @@ export async function POST(req: Request) {
     const deckCreditAction =
       finalSlideCount <= 6 ? 'deck_small' : finalSlideCount <= 15 ? 'deck_medium' : 'deck_large';
 
-    const creditPreview = await getCreditSummary({ supabase, userId: user.id, planRaw: plan });
+    const creditPreview = await getCreditSummaryForUser({ supabase, userId: user.id });
     if (creditPreview.remaining < estimatedCredits) {
       return NextResponse.json(
         {
@@ -106,6 +100,43 @@ export async function POST(req: Request) {
       );
     }
 
+    const charged = await consumeCreditsForUser({
+      userId: user.id,
+      cost: estimatedCredits,
+      action: deckCreditAction,
+      meta: { slides: finalSlideCount, estimatedCredits, route: 'generate' },
+      idempotencyKey: requestId,
+      supabase,
+    });
+
+    if (!charged.ok) {
+      const status = charged.error === 'INSUFFICIENT_CREDITS' ? 402 : 503;
+      return NextResponse.json(
+        {
+          error: charged.error,
+          message:
+            charged.error === 'INSUFFICIENT_CREDITS'
+              ? `You don't have enough credits for this generation.`
+              : 'Billing is temporarily unavailable.',
+          credits: charged.summary,
+          required: estimatedCredits,
+        },
+        { status },
+      );
+    }
+
+    let creditsRefunded = false;
+    const refundIfNeeded = async () => {
+      if (creditsRefunded) return;
+      creditsRefunded = true;
+      await refundCreditsForUser({
+        userId: user.id,
+        cost: estimatedCredits,
+        idempotencyKey: requestId,
+        reason: 'generate_failed',
+      });
+    };
+
     // Estimated spend tracking (credit-based approximation for protection).
     // Best-effort only; must never break generation.
     const usdPerCredit = typeof creditConfig.usdPerCredit === 'number' ? creditConfig.usdPerCredit : 0;
@@ -113,37 +144,44 @@ export async function POST(req: Request) {
       void addEstimatedSpend({ supabase, usdDelta: estimatedCredits * usdPerCredit });
     }
 
+    const jobId = uuidv4();
+    if (process.env.GENERATE_USE_JOB_QUEUE === 'true') {
+      const queued = await enqueueGenerateJob({
+        jobId,
+        userId: user.id,
+        body: {
+          prompt: userPrompt,
+          slideCount: finalSlideCount,
+          tone,
+          language,
+          styleMode,
+          plan,
+          estimatedCredits,
+          deckCreditAction,
+        },
+      });
+      if (queued) {
+        return NextResponse.json(
+          { jobId, status: 'queued', message: 'Generation queued. Poll GET /api/jobs/[id] for status.' },
+          { status: 202 },
+        );
+      }
+    }
+
+    void createJobRecord({
+      id: jobId,
+      userId: user.id,
+      type: 'deck_generate',
+      status: 'running',
+      progress: 0,
+    });
+
     const encoder = new TextEncoder();
 
     const stream = new ReadableStream({
       async start(controller) {
         const sendOrb = (payload: Record<string, unknown>) => {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
-        };
-
-        const finalizeCreditsIfStreamOk = async (streamOk: boolean) => {
-          if (!streamOk) return;
-          try {
-            const cookieStore = cookies();
-            const sb = createServerClient(
-              process.env.NEXT_PUBLIC_SUPABASE_URL!,
-              process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-              { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } },
-            );
-            const spent = await consumeCreditsAtomic({
-              supabase: sb,
-              userId: user.id,
-              planRaw: plan,
-              cost: estimatedCredits,
-              action: deckCreditAction,
-              meta: { slides: finalSlideCount, estimatedCredits },
-            });
-            if (!spent.ok) {
-              console.error('[Generate] Credit finalization failed after successful stream', spent);
-            }
-          } catch (e) {
-            console.error('[Generate] Credit finalization error:', e);
-          }
         };
 
         try {
@@ -277,12 +315,19 @@ export async function POST(req: Request) {
             sendOrb({
               orb: { phase: 'error', message: 'Generation could not complete. Try again shortly.' },
             });
+            await refundIfNeeded();
+            void updateJobRecord(jobId, { status: 'failed', error: 'Stream failed' });
           } else {
-            await finalizeCreditsIfStreamOk(true);
+            void updateJobRecord(jobId, { status: 'completed', progress: 100 });
           }
         } catch (e: unknown) {
           console.error('[Generate] stream error:', e);
           captureApiException(e, { requestId, route: 'POST /api/generate stream' });
+          await refundIfNeeded();
+          void updateJobRecord(jobId, {
+            status: 'failed',
+            error: e instanceof Error ? e.message : 'Stream failed',
+          });
           sendOrb({
             orb: {
               phase: 'error',

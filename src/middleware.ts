@@ -104,7 +104,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/account') ||
     pathname.startsWith('/my-presentations') ||
     pathname.startsWith('/settings') ||
-    pathname.startsWith('/admin');
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/planner');
 
   if (isProtectedRoute && !user) {
     const url = request.nextUrl.clone();
@@ -126,13 +127,9 @@ export async function middleware(request: NextRequest) {
       .filter(Boolean);
     const emailAdmin = email ? adminEmails.includes(email) : false;
     if (!emailAdmin) {
-      // plan=admin checked on page/API; block obvious non-admins without DB round-trip
-      const metaPlan = String(user.user_metadata?.plan ?? '').toLowerCase();
-      if (metaPlan !== 'admin') {
-        const url = request.nextUrl.clone();
-        url.pathname = '/editor';
-        return applySecurityHeaders(NextResponse.redirect(url));
-      }
+      const url = request.nextUrl.clone();
+      url.pathname = '/editor';
+      return applySecurityHeaders(NextResponse.redirect(url));
     }
   }
 
@@ -147,7 +144,15 @@ export const config = {
     '/my-presentations/:path*',
     '/settings/:path*',
     '/admin/:path*',
+    '/planner/:path*',
     '/login',
     '/api/admin/:path*',
+    '/api/generate/:path*',
+    '/api/planner/:path*',
+    '/api/enhance-ppt',
+    '/api/enhance-prompt',
+    '/api/magic-edit',
+    '/api/coach',
+    '/api/generate-image',
   ],
 };

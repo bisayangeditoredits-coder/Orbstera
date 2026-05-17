@@ -74,9 +74,18 @@ export function PlannerShell() {
         const tier = res.headers.get('X-Planner-Plan');
         if (tier === 'pro' || tier === 'free') setPlanTier(tier);
 
+        if (res.status === 401) {
+          window.location.href = '/login?next=/planner';
+          return;
+        }
         if (!res.ok) {
           const errData = await res.json().catch(() => ({ error: 'Unknown error' }));
-          throw new Error(errData.detail || errData.error || 'Chat API failed');
+          if (res.status === 402) {
+            throw new Error(
+              errData.message || 'Not enough credits. Open your dashboard to upgrade or wait for reset.',
+            );
+          }
+          throw new Error(errData.detail || errData.message || errData.error || 'Chat API failed');
         }
         if (!res.body) throw new Error('No response body');
 

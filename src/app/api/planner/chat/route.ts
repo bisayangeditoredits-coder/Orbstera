@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
+import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
+import { getBillingPlan } from '@/lib/billing/resolve-plan';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
@@ -64,32 +67,48 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Messages array is required' }, { status: 400 });
     }
 
-    // ── Detect user plan (best-effort; defaults to free if unauthenticated) ──
-    let userPlan: 'free' | 'pro' = 'free';
-    let userId: string | null = null;
-
-    try {
-      const cookieStore = cookies();
-      const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } }
-      );
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        userId = user.id;
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('plan')
-          .eq('id', user.id)
-          .maybeSingle();
-        const plan = (profile?.plan || user.user_metadata?.plan || 'free').toLowerCase();
-        if (plan === 'pro' || plan === 'student_pro' || plan === 'creator_pro' || plan === 'admin') {
-          userPlan = 'pro';
-        }
+    const auth = await requireAiUser(req, 'default');
+    if ('response' in auth) {
+      if (auth.response.status === 401) {
+        return aiUnauthorized('Please sign in to use the presentation planner.');
       }
-    } catch {
-      // If plan detection fails, default to free — never block the user
+      return auth.response;
+    }
+    const user = auth.user;
+    const userId = user.id;
+
+    const cookieStore = cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } }
+    );
+
+    const plan = await getBillingPlan(user.id);
+    const userPlan: 'free' | 'pro' =
+      plan === 'pro' || plan === 'student_pro' || plan === 'creator_pro' || plan === 'admin'
+        ? 'pro'
+        : 'free';
+
+    const creditConfig = await getCreditConfig(supabase);
+    const plannerCost = creditConfig.costs.rewrite ?? 3;
+    const creditCheck = await ensureCredits({
+      supabase,
+      userId: user.id,
+      cost: plannerCost,
+      action: 'rewrite',
+      meta: { route: 'planner/chat' },
+    });
+    if (!creditCheck.ok) {
+      return NextResponse.json(
+        {
+          error: 'INSUFFICIENT_CREDITS',
+          message: 'Not enough credits for planner messages.',
+          credits: creditCheck.summary,
+          required: plannerCost,
+        },
+        { status: 402 },
+      );
     }
 
     // ── Save user message to DB (best-effort, non-blocking) ──────────────────

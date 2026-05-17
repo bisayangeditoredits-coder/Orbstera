@@ -89,6 +89,10 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ planId }),
       });
+      if (res.status === 401) {
+        window.location.href = '/login?next=/my-presentations%23settings';
+        return;
+      }
       const data = await res.json();
       if (data.url) window.location.href = data.url;
       else throw new Error(data.error);
@@ -340,7 +344,7 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
                   <div className="flex flex-col rounded-3xl border border-white/70 bg-white p-6 shadow-sm transition hover:shadow-md sm:p-7">
                     <h3 className="text-lg font-semibold text-slate-900">Student Pro</h3>
                     <p className="mt-2 flex-1 text-[13px] leading-relaxed text-slate-500">
-                      Watermark-free exports and more generations for coursework and side projects.
+                      Watermark-free exports and ~1,400 monthly credits for coursework and side projects.
                     </p>
                     <motion.div
                       initial={{ opacity: 0, y: 8 }}
@@ -377,7 +381,7 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
                       <Crown size={17} className="shrink-0 text-amber-500" strokeWidth={1.75} />
                     </h3>
                     <p className="mt-2 flex-1 text-[13px] leading-relaxed text-primary/90">
-                      Top-tier models and 100 generations per month for serious creators.
+                      Top-tier models and ~5,500 credits/month (~23 premium Creator decks).
                     </p>
                     <div className="mb-6 mt-6 flex items-baseline gap-1">
                       <span className="text-3xl font-bold text-slate-900">$19</span>
@@ -410,7 +414,7 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
                       <Crown size={18} className="text-amber-500" strokeWidth={1.75} />
                     </h3>
                     <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-600">
-                      Unlock premium intelligence and 100 monthly generations for $19/mo.
+                      Unlock premium intelligence and ~5,500 monthly credits for $19/mo.
                     </p>
                   </div>
                   <button

@@ -3,7 +3,8 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { OR_MODELS } from '@/lib/ai/models';
 import { openRouterComplete } from '@/lib/ai/openrouter';
-import { enforceAiRateLimit } from '@/lib/rate-limit-server';
+import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
+import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -14,17 +15,45 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
   try {
+    const auth = await requireAiUser(req, 'default');
+    if ('response' in auth) {
+      if (auth.response.status === 401) {
+        return aiUnauthorized('Please sign in to use the presentation coach.');
+      }
+      return auth.response;
+    }
+    const user = auth.user;
+
     const cookieStore = cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } }
+      { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } },
     );
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const limited = await enforceAiRateLimit(req, user.id, 'default');
-    if (limited) return limited;
+    const creditConfig = await getCreditConfig(supabase);
+    const coachCost = creditConfig.costs.rewrite ?? 3;
+
+    const creditCheck = await ensureCredits({
+      supabase,
+      userId: user.id,
+      cost: coachCost,
+      action: 'rewrite',
+      meta: { route: 'coach' },
+      idempotencyKey: requestId,
+    });
+
+    if (!creditCheck.ok) {
+      return NextResponse.json(
+        {
+          error: 'INSUFFICIENT_CREDITS',
+          message: 'Not enough credits for coaching.',
+          credits: creditCheck.summary,
+          required: coachCost,
+        },
+        { status: 402 },
+      );
+    }
 
     const { slideTitle, speakerNotes, presentationTitle } = await req.json();
 
@@ -38,17 +67,15 @@ export async function POST(req: Request) {
         },
         {
           role: 'user',
-          content: `Deck: ${presentationTitle || 'Untitled'}\nSlide: ${slideTitle || ''}\nNotes: ${speakerNotes || '(none)'}`,
+          content: `Deck: ${presentationTitle || 'Presentation'}\nSlide: ${slideTitle || 'Untitled'}\nNotes: ${speakerNotes || '(none)'}`,
         },
       ],
-      temperature: 0.4,
-      max_tokens: 1024,
     });
 
-    return NextResponse.json({ tips: text.trim() });
-  } catch (e) {
-    console.error('[Coach]', e);
-    captureApiException(e, { requestId, route: 'POST /api/coach' });
-    return NextResponse.json({ error: 'Coach unavailable' }, { status: 500 });
+    return NextResponse.json({ tips: text });
+  } catch (error) {
+    console.error('[Coach] Error:', error);
+    captureApiException(error, { requestId, route: 'POST /api/coach' });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

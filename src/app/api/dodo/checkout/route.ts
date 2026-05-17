@@ -1,30 +1,45 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { DodoPayments } from 'dodopayments';
+import { requireApiUser, PRIVATE_API_HEADERS } from '@/lib/auth/server';
+import { enforceAiRateLimit, requireRateLimitInfrastructure } from '@/lib/rate-limit-server';
 
 export async function POST(req: Request) {
   try {
-    const cookieStore = cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } }
-    );
+    const infra = requireRateLimitInfrastructure();
+    if (infra) return infra;
 
-    let { data: { user } } = await supabase.auth.getUser();
-    
-    // TEMPORARY: Allow guest checkout for testing purposes
-    const customerEmail = user?.email || 'guest@example.com';
-    const customerName = user?.user_metadata?.full_name || 'Guest User';
-    const userId = user?.id || 'guest_test';
+    const auth = await requireApiUser();
+    if ('response' in auth) {
+      return NextResponse.json(
+        { error: 'SIGN_IN_REQUIRED', message: 'Please sign in before checkout.' },
+        { status: 401, headers: PRIVATE_API_HEADERS },
+      );
+    }
+
+    const limited = await enforceAiRateLimit(req, auth.user.id, 'default');
+    if (limited) return limited;
+
+    const user = auth.user;
+    const customerEmail = user.email;
+    if (!customerEmail) {
+      return NextResponse.json(
+        { error: 'EMAIL_REQUIRED', message: 'Your account needs an email address for billing.' },
+        { status: 400 },
+      );
+    }
+
+    const customerName =
+      (typeof user.user_metadata?.full_name === 'string' && user.user_metadata.full_name) ||
+      customerEmail.split('@')[0] ||
+      'Customer';
+    const userId = user.id;
 
     const { planId, productId } = await req.json();
 
     const PRODUCT_MAP: Record<string, string> = {
-      'student_pro': process.env.DODO_STUDENT_PRO_ID || '',
-      'creator_pro': process.env.DODO_CREATOR_PRO_ID || '',
-      'one_time_export': process.env.DODO_ONE_TIME_EXPORT_ID || 'pdt_0NeTHnd7mchKsmRaOBa1S',
+      student_pro: process.env.DODO_STUDENT_PRO_ID || '',
+      creator_pro: process.env.DODO_CREATOR_PRO_ID || '',
+      one_time_export: process.env.DODO_ONE_TIME_EXPORT_ID || 'pdt_0NeTHnd7mchKsmRaOBa1S',
     };
 
     const targetProductId = productId || PRODUCT_MAP[planId];
@@ -33,16 +48,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid product or plan ID' }, { status: 400 });
     }
 
-    // Initialize inside the handler to ensure fresh env variables
     const apiKey = (process.env.DODO_PAYMENTS_API_KEY || '').trim();
     const isTest = process.env.DODO_PAYMENTS_ENDPOINT?.includes('test');
-    
-    console.log('[Dodo] Initializing checkout:', { 
-      planId, 
-      productId: targetProductId, 
-      mode: isTest ? 'test_mode' : 'live_mode',
-      keyPrefix: apiKey.substring(0, 5) 
-    });
 
     const dodo = new DodoPayments({
       bearerToken: apiKey,
@@ -58,29 +65,29 @@ export async function POST(req: Request) {
         {
           product_id: targetProductId,
           quantity: 1,
-        }
+        },
       ],
       metadata: {
-        userId: userId,
-        planId: planId,
+        userId,
+        planId,
       },
     };
 
-    // Generate secure signature for the return URL
     const crypto = await import('crypto');
     const secret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET || 'dev';
     const sig = crypto.createHmac('sha256', secret).update(`${userId}:${planId}`).digest('hex');
 
-    const sessionPayload: any = {
+    const sessionPayload = {
       ...basePayload,
       return_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/dodo/sync?userId=${userId}&planId=${planId}&sig=${sig}`,
     };
 
-    const session = await dodo.checkoutSessions.create(sessionPayload);
+    const session = await dodo.checkoutSessions.create(sessionPayload as Parameters<typeof dodo.checkoutSessions.create>[0]);
 
     return NextResponse.json({ url: session.checkout_url });
-  } catch (error: any) {
-    console.error('[Dodo] Checkout Error:', error.message || error);
-    return NextResponse.json({ error: error.message || 'Failed to create checkout session' }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to create checkout session';
+    console.error('[Dodo] Checkout Error:', message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

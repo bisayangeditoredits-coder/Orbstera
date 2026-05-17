@@ -1,7 +1,17 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
-import { getCreditSummary, getCreditConfig, estimateDeckCostCredits } from '@/lib/billing/credits';
+import {
+  getCreditSummaryForUser,
+  getCreditConfig,
+  estimateDeckCostCredits,
+  normalizePlanTier,
+} from '@/lib/billing/credits';
+import { getBillingPlan } from '@/lib/billing/resolve-plan';
+
+function normalizePlanForFree(plan: unknown): string {
+  return normalizePlanTier(plan);
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -19,13 +29,13 @@ export async function GET() {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('plan')
+      .select('plan, free_generative_fill_uses, free_magic_edit_uses')
       .eq('id', user.id)
       .maybeSingle();
 
-    const plan = profile?.plan ?? user.user_metadata?.plan ?? 'free';
+    const plan = await getBillingPlan(user.id);
     const [summary, config] = await Promise.all([
-      getCreditSummary({ supabase, userId: user.id, planRaw: plan }),
+      getCreditSummaryForUser({ supabase, userId: user.id }),
       getCreditConfig(supabase),
     ]);
 
@@ -55,8 +65,34 @@ export async function GET() {
       image:       summary.remaining >= estimates.image_standard,
     };
 
+    const freeTier =
+      normalizePlanForFree(profile?.plan ?? plan) === 'free'
+        ? {
+            generativeFillUsed: profile?.free_generative_fill_uses ?? 0,
+            generativeFillLimit: 5,
+            magicEditUsed: profile?.free_magic_edit_uses ?? 0,
+            magicEditLimit: 10,
+          }
+        : null;
+
     return NextResponse.json(
-      { ok: true, userId: user.id, summary: { ...summary, usagePct }, estimates, canAfford },
+      {
+        ok: true,
+        userId: user.id,
+        summary: { ...summary, usagePct },
+        estimates,
+        canAfford,
+        freeTier,
+        decksRemainingEstimate: Math.floor(
+          summary.remaining /
+            estimateDeckCostCredits({
+              slideCount: 10,
+              includeImages: true,
+              premiumImages: String(plan).toLowerCase() === 'creator_pro',
+              config,
+            }),
+        ),
+      },
       { headers: { 'Cache-Control': 'private, no-store, max-age=0' } },
     );
   } catch {

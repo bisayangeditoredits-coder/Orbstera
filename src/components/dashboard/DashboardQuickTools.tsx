@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Plus, Wand2, LayoutTemplate, Zap, Home } from 'lucide-react';
+import { Plus, Wand2, LayoutTemplate, Zap, Home, Map, Upload } from 'lucide-react';
 
 type DashboardQuickToolsProps = {
   onNewDeck: () => void;
   onOpenSettings: () => void;
   isFreePlan: boolean;
+  isAdmin?: boolean;
 };
 
 const tools = [
@@ -35,6 +36,22 @@ const tools = [
     href: '/#templates',
   },
   {
+    id: 'planner',
+    label: 'Planner',
+    description: 'Outline decks with AI copilot',
+    icon: Map,
+    accent: 'violet' as const,
+    href: '/planner',
+  },
+  {
+    id: 'import',
+    label: 'Import',
+    description: 'Upload an existing deck',
+    icon: Upload,
+    accent: 'slate' as const,
+    href: '/editor',
+  },
+  {
     id: 'home',
     label: 'Product tour',
     description: 'See what Orbstera can do',
@@ -55,7 +72,21 @@ export function DashboardQuickTools({
   onNewDeck,
   onOpenSettings,
   isFreePlan,
+  isAdmin = false,
 }: DashboardQuickToolsProps) {
+  const toolsList = isAdmin
+    ? [
+        ...tools,
+        {
+          id: 'admin',
+          label: 'Admin',
+          description: 'Manage users and plans',
+          icon: Zap,
+          accent: 'primary' as const,
+          href: '/admin',
+        },
+      ]
+    : tools;
   return (
     <motion.section
       initial={{ opacity: 0, y: 10 }}
@@ -86,8 +117,8 @@ export function DashboardQuickTools({
         )}
       </motion.div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-        {tools.map((tool, i) => {
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 sm:gap-4">
+        {toolsList.map((tool, i) => {
           const Icon = tool.icon;
           const inner = (
             <>

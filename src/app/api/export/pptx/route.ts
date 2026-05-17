@@ -7,7 +7,7 @@ import { cookies } from 'next/headers';
 import { PresentationData, Slide, SlideElement, SlideTransition } from '@/types';
 import { findDeckBackgroundElement, isSlideDeckBackgroundImage } from '@/lib/slide-background';
 import { tryExtractR2ObjectKeyFromPublicUrl } from '@/lib/r2-public-url';
-import { enforceAiRateLimit } from '@/lib/rate-limit-server';
+import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import fs from 'fs';
 import path from 'path';
@@ -227,6 +227,15 @@ export const maxDuration = 120;
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
   try {
+    const auth = await requireAiUser(req, 'default');
+    if ('response' in auth) {
+      if (auth.response.status === 401) {
+        return aiUnauthorized('Please sign in to export presentations.');
+      }
+      return auth.response;
+    }
+    const authedUserId = auth.user.id;
+
     const encoding = (req.headers.get('content-encoding') || '').toLowerCase();
     const contentType = (req.headers.get('content-type') || '').toLowerCase();
     const raw = Buffer.from(await req.arrayBuffer());
@@ -305,7 +314,7 @@ export async function POST(req: Request) {
     // ── Check user plan for watermark ─────────────────────────────────────────
     let isPaidUser = false;
     let exportCredits = 0;
-    let userId = null;
+    const userId = authedUserId;
 
     try {
       const cookieStore = cookies();
@@ -316,7 +325,6 @@ export async function POST(req: Request) {
       );
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        userId = user.id;
         exportCredits = user.user_metadata?.watermark_free_exports || 0;
 
         const { data: profile } = await supabase
@@ -327,10 +335,9 @@ export async function POST(req: Request) {
         const plan = profile?.plan?.toLowerCase() || 'free';
         isPaidUser = plan === 'pro' || plan === 'creator_pro' || plan === 'student_pro';
       }
-    } catch (_) { /* If auth fails, default to watermark */ }
-
-    const limited = await enforceAiRateLimit(req, userId, 'default');
-    if (limited) return limited;
+    } catch {
+      /* default to watermark */
+    }
 
     // Use a credit if they are not a paid user but have credits
     const useCredit = !isPaidUser && exportCredits > 0;

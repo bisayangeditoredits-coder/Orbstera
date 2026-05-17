@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
+import {
+  applySubscriptionUpgrade,
+  markWebhookEventProcessed,
+} from '@/lib/billing/subscription';
 
-// Ensure the route is treated as dynamic
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
@@ -11,7 +14,6 @@ export async function POST(req: Request) {
     const body = await req.text();
     const signature = req.headers.get('x-dodo-signature');
 
-    // Initialize Supabase inside the handler to avoid build-time errors
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -46,63 +48,40 @@ export async function POST(req: Request) {
       }
     }
 
-    // Parse webhook payload
     const payload = JSON.parse(body);
     const eventType = payload.type;
     const data = payload.data;
+    const eventId = String(payload.id || payload.event_id || `${eventType}:${data?.id || ''}`);
 
     console.log(`[Dodo Webhook] Received event: ${eventType}`);
 
-    if (eventType === 'subscription.active' || eventType === 'subscription.renewed' || eventType === 'payment.succeeded') {
+    if (
+      eventType === 'subscription.active' ||
+      eventType === 'subscription.renewed' ||
+      eventType === 'payment.succeeded'
+    ) {
+      const shouldProcess = await markWebhookEventProcessed(supabaseAdmin, eventId);
+      if (!shouldProcess) {
+        console.log(`[Dodo Webhook] Duplicate event ${eventId}, skipping`);
+        return NextResponse.json({ received: true, duplicate: true });
+      }
+
       const metadata = data.metadata || {};
       const userId = metadata.userId;
       const planId = metadata.planId;
 
       if (userId && planId) {
-        const creditLimits: Record<string, number> = {
-          'free': 100,
-          'student_pro': 1500,
-          'pro': 2500,
-          'creator_pro': 8000
-        };
-        const newLimit = creditLimits[planId.toLowerCase()] || 100;
-
-        // 1. Upsert public.profiles table (Primary source for UI)
-        const { error: profileError } = await supabaseAdmin
-          .from('profiles')
-          .upsert({ 
-            id: userId,
-            plan: planId,
-            credits_used_month: 0, // Reset usage on payment/renewal
-            credits_monthly_limit: newLimit,
-            credits_reset_at: new Date().toISOString(),
-            updated_at: new Date().toISOString() 
-          }, { onConflict: 'id' });
-
-        if (profileError) {
-          console.error('[Dodo Webhook] Profiles Update Error:', profileError);
+        const result = await applySubscriptionUpgrade({
+          supabaseAdmin,
+          userId,
+          planId,
+          eventType,
+          dodoData: data,
+          resetCredits: true,
+        });
+        if (!result.ok) {
+          console.error('[Dodo Webhook] Upgrade failed:', result.error);
           return NextResponse.json({ error: 'Database update failed' }, { status: 500 });
-        }
-
-        // 2. Add entry to credit_ledger for audit trail
-        const { error: ledgerError } = await supabaseAdmin.from('credit_ledger').insert({
-          user_id: userId,
-          delta: newLimit,
-          reason: `subscription_${eventType}_${planId}`,
-          meta: { planId, eventType, dodoData: data },
-        });
-        if (ledgerError) {
-          console.error('[Dodo Webhook] Ledger Error:', ledgerError);
-        }
-
-        // 3. Update auth.user_metadata (Secondary source for quick access)
-        const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-          user_metadata: { plan: planId }
-        });
-
-        if (authError) {
-          console.error('[Dodo Webhook] Auth Metadata Update Error:', authError);
-          // We don't return 500 here because the profiles table was updated successfully
         }
       }
     }

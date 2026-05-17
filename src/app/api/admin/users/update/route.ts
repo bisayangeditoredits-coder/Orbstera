@@ -1,18 +1,12 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import {
   assertTrustedOrigin,
   PRIVATE_API_HEADERS,
   requireAdminUser,
   untrustedOriginResponse,
 } from '@/lib/auth/server';
-
-function adminClientOrNull() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!url || !key) return null;
-  return createClient(url, key);
-}
+import { getServiceSupabase } from '@/lib/billing/supabase-admin';
+import { applySubscriptionUpgrade } from '@/lib/billing/subscription';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +26,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const supabaseAdmin = adminClientOrNull();
+    const supabaseAdmin = getServiceSupabase();
     if (!supabaseAdmin) {
       return NextResponse.json(
         { error: 'Admin API is disabled: set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.' },
@@ -40,25 +34,36 @@ export async function POST(req: Request) {
       );
     }
 
-    const { data: user, error: authError } = await supabaseAdmin.auth.admin.updateUserById(
-      targetUserId,
-      { user_metadata: { plan: newPlan } },
-    );
-
-    if (authError) throw authError;
-
-    const { error: profileError } = await supabaseAdmin.from('profiles').upsert(
-      {
+    const normalized = newPlan.toLowerCase();
+    if (normalized === 'free') {
+      await supabaseAdmin.from('profiles').upsert({
         id: targetUserId,
-        plan: newPlan,
+        plan: 'free',
+        credits_monthly_limit: 100,
+        credits_used_month: 0,
+        credits_reset_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'id' },
-    );
-
-    if (profileError) {
-      console.error('Profile update error (plan changed in auth but failed in profiles):', profileError);
+      });
+      await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
+        user_metadata: { plan: 'free' },
+      });
+    } else {
+      const result = await applySubscriptionUpgrade({
+        supabaseAdmin,
+        userId: targetUserId,
+        planId: normalized,
+        eventType: 'admin_update',
+        resetCredits: true,
+      });
+      if (!result.ok) {
+        return NextResponse.json(
+          { error: result.error },
+          { status: 400, headers: PRIVATE_API_HEADERS },
+        );
+      }
     }
+
+    const { data: user } = await supabaseAdmin.auth.admin.getUserById(targetUserId);
 
     return NextResponse.json({ success: true, user }, { headers: PRIVATE_API_HEADERS });
   } catch (error: unknown) {

@@ -133,15 +133,14 @@ export async function POST(req: Request) {
     const limited = await enforceAiRateLimit(req, user.id, 'heavy');
     if (limited) return limited;
 
-    const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).maybeSingle();
-    const plan = profile?.plan?.toLowerCase() || user.user_metadata?.plan?.toLowerCase() || 'free';
+    const { getBillingPlan } = await import('@/lib/billing/resolve-plan');
+    const plan = await getBillingPlan(user.id);
 
     const creditConfig = await getCreditConfig(supabase);
     const cost = creditConfig.costs.deck_medium || 80;
     const creditCheck = await ensureCredits({
       supabase,
       userId: user.id,
-      planRaw: plan,
       cost,
       action: 'deck_medium',
       meta: { fileName: file.name },

@@ -12,6 +12,8 @@ import { DashboardStats } from './DashboardStats';
 import { PresentationGrid } from './PresentationGrid';
 import { DashboardSettings } from './DashboardSettings';
 import { DashboardQuickTools } from './DashboardQuickTools';
+import { DashboardCreditBreakdown } from './DashboardCreditBreakdown';
+import { DashboardUsageHistory } from './DashboardUsageHistory';
 import { sortByUpdated } from './dashboard-utils';
 import {
   type DashboardSection,
@@ -29,11 +31,38 @@ export function DashboardShell() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userName, setUserName] = useState('Creator');
   const [plan, setPlan] = useState('free');
+  const [freeTier, setFreeTier] = useState<{
+    generativeFillUsed: number;
+    generativeFillLimit: number;
+    magicEditUsed: number;
+    magicEditLimit: number;
+  } | null>(null);
+  const [decksRemainingEstimate, setDecksRemainingEstimate] = useState<number | undefined>();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [section, setSection] = useState<DashboardSection>('overview');
   const decksRef = useRef<HTMLDivElement | null>(null);
 
   const credits = useCredits();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/credits/summary', { credentials: 'include' });
+        if (!res.ok || cancelled) return;
+        const json = await res.json();
+        if (json.freeTier) setFreeTier(json.freeTier);
+        if (typeof json.decksRemainingEstimate === 'number') {
+          setDecksRemainingEstimate(json.decksRemainingEstimate);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [credits.used, credits.remaining]);
 
   const navigateSection = useCallback((next: DashboardSection) => {
     setSection(next);
@@ -263,10 +292,17 @@ export function DashboardShell() {
                     credits={credits}
                     onOpenSettings={() => navigateSection('settings')}
                   />
+                  <DashboardCreditBreakdown
+                    credits={credits}
+                    decksRemainingEstimate={decksRemainingEstimate}
+                    onOpenSettings={() => navigateSection('settings')}
+                  />
+                  <DashboardUsageHistory freeTier={freeTier} />
                   <DashboardQuickTools
                     onNewDeck={() => setNewDeckOpen(true)}
                     onOpenSettings={() => navigateSection('settings')}
                     isFreePlan={isFreePlan}
+                    isAdmin={activePlan === 'admin'}
                   />
                 </>
               )}

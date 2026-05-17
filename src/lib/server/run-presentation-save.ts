@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { GetObjectCommand, PutObjectCommand, type S3Client } from '@aws-sdk/client-s3';
 import { deriveDeckIndexThumbFields } from '@/lib/deck-index-meta';
+import { readIndexMeta, writeIndexWithMeta } from '@/lib/server/r2-index';
 
 async function streamToString(stream: any): Promise<string> {
   const chunks: Buffer[] = [];
@@ -80,11 +81,16 @@ export async function runPresentationSaveFromParsed(
 
   await putJsonWithRetry(s3Client, bucket, deckKey, JSON.stringify(presentation));
 
-  let index: unknown[] = [];
-  for (let attempt = 0; attempt < 3; attempt++) {
+  const indexKey = `${prefix}/index.json`;
+  const metaKey = `${prefix}/index.meta.json`;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
     try {
+      const { version: indexVersion } = await readIndexMeta(s3Client, bucket, metaKey);
+
+      let index: unknown[] = [];
       try {
-        const res = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: `${prefix}/index.json` }));
+        const res = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: indexKey }));
         const body = await streamToString(res.Body);
         index = JSON.parse(body) as unknown[];
       } catch (e: unknown) {
@@ -110,10 +116,21 @@ export async function runPresentationSaveFromParsed(
       if (existingIndex >= 0) index[existingIndex] = metadata;
       else index.unshift(metadata);
 
-      await putJsonWithRetry(s3Client, bucket, `${prefix}/index.json`, JSON.stringify(index));
+      const written = await writeIndexWithMeta({
+        client: s3Client,
+        bucket,
+        indexKey,
+        metaKey,
+        index,
+        expectedVersion: indexVersion,
+      });
+      if (!written.ok) {
+        await new Promise((r) => setTimeout(r, 80 * (attempt + 1)));
+        continue;
+      }
       break;
     } catch (e) {
-      if (attempt === 2) throw e;
+      if (attempt === 4) throw e;
       await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
     }
   }
