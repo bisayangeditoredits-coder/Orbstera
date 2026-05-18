@@ -424,13 +424,13 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
                         transition={{ duration: 1.2, repeat: Infinity }}
                       />
                     )}
-                  </motion.div>
+                  </div>
                 </motion.div>
               );
             })
           )}
         </AnimatePresence>
-      </motion.div>
+      </div>
     </aside>
   );
 }
