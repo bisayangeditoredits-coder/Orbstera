@@ -15,9 +15,9 @@ LANGUAGE sql
 IMMUTABLE
 AS $$
   SELECT CASE lower(coalesce(p_plan, 'free'))
-    WHEN 'student_pro' THEN 1400
-    WHEN 'pro' THEN 2500
-    WHEN 'creator_pro' THEN 5500
+    WHEN 'student_pro' THEN 900
+    WHEN 'pro' THEN 900
+    WHEN 'creator_pro' THEN 3500
     WHEN 'admin' THEN 100000
     ELSE 100
   END;
@@ -36,8 +36,8 @@ AS $$
     WHEN 'deck_polish' THEN p_cost >= 40 AND p_cost <= 240
     WHEN 'magic_edit' THEN p_cost = 5
     WHEN 'rewrite' THEN p_cost = 3
-    WHEN 'image_standard' THEN p_cost = 10
-    WHEN 'image_premium' THEN p_cost = 20
+    WHEN 'image_standard' THEN p_cost = 30
+    WHEN 'image_premium' THEN p_cost = 45
     WHEN 'animation_enhance' THEN p_cost = 5
     ELSE false
   END;
