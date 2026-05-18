@@ -320,7 +320,7 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
               <p className="text-[11px] font-bold uppercase tracking-widest leading-relaxed">
                 {isLiveGenerating ? 'Preparing slides…' : 'Vault Empty'}
               </p>
-            </motion.div>
+            </div>
           ) : (
             slides.map((slide, index) => {
               const isActive = index === currentSlideIndex;
