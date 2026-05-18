@@ -57,10 +57,10 @@ async function r2ObjectToBuffer(key: string): Promise<{ buf: Buffer; mime: strin
 }
 
 // ── Canvas → PPTX coordinate system ──────────────────────────────────────────
-// Canvas: 1280 × 720 px  →  PPTX: 10 × 5.625 inches  (same 16:9 ratio)
-const PPTX_W = 10;
-const PPTX_H = 5.625;
-const SCALE  = PPTX_W / 1280; // 0.0078125 in/px
+// Canvas: 1280 × 720 px  →  PPTX: 13.333 × 7.5 inches (96 DPI exact match)
+const PPTX_W = 13.3333333;
+const PPTX_H = 7.5;
+const SCALE  = 1 / 96; // 1px = 1/96 inch
 
 const px = (v: number) => parseFloat((v * SCALE).toFixed(4));
 
@@ -366,7 +366,8 @@ export async function POST(req: Request) {
     pptx.author  = 'Orbstera AI';
     pptx.company = 'Orbstera';
     pptx.title   = title || 'Generated Presentation';
-    pptx.layout  = 'LAYOUT_16x9';
+    pptx.defineLayout({ name: 'ORBSTERA_16x9', width: PPTX_W, height: PPTX_H });
+    pptx.layout  = 'ORBSTERA_16x9';
 
     // ── Pre-fetch ALL images in parallel ─────────────────────────────────────
     // Collect every image URL across all slides first, then fetch concurrently
@@ -463,7 +464,8 @@ export async function POST(req: Request) {
         // ── TEXT ──────────────────────────────────────────────────────────
         if (el.type === 'text' && el.content) {
           const ts       = el.textStyle || {};
-          const fontSize = Math.max(6, Math.round((ts.fontSize || 24) * 0.5625));
+          // Convert from px to pt (72pt = 96px -> factor of 0.75)
+          const fontSize = Math.max(6, Math.round((ts.fontSize || 24) * 0.75));
           const bold     = ts.fontWeight === 'bold' || Number(ts.fontWeight) >= 700;
           const italic   = ts.fontStyle === 'italic';
           const align    = (ts.textAlign || 'left') as 'left' | 'center' | 'right' | 'justify';

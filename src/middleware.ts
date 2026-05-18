@@ -138,12 +138,19 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/editor',
     '/editor/:path*',
+    '/dashboard',
     '/dashboard/:path*',
+    '/account',
     '/account/:path*',
+    '/my-presentations',
     '/my-presentations/:path*',
+    '/settings',
     '/settings/:path*',
+    '/admin',
     '/admin/:path*',
+    '/planner',
     '/planner/:path*',
     '/login',
     '/api/admin/:path*',

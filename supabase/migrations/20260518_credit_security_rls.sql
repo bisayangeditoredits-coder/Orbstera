@@ -106,8 +106,7 @@ BEGIN
 
   UPDATE public.profiles p
   SET
-    credits_used_month = p.credits_used_month + p_cost,
-    updated_at = now()
+    credits_used_month = p.credits_used_month + p_cost
   WHERE p.id = p_user_id
   RETURNING p.credits_used_month INTO v_new_used;
 
@@ -154,8 +153,7 @@ BEGIN
 
   UPDATE public.profiles p
   SET
-    credits_used_month = greatest(0, p.credits_used_month - p_cost),
-    updated_at = now()
+    credits_used_month = greatest(0, p.credits_used_month - p_cost)
   WHERE p.id = p_user_id
   RETURNING p.credits_used_month INTO v_new_used;
 

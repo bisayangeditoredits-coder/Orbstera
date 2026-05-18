@@ -25,20 +25,37 @@ const STUDENT_PRO_MODEL = 'anthropic/claude-sonnet-4-5';  // Fast + smart narrat
 const CREATOR_PRO_MODEL = 'openai/gpt-5.5';               // Frontier — investor-grade
 
 // ── System Prompts ────────────────────────────────────────────────────────────
-const OUTPUT_RULES = `
+function getOutputRules(brandKit?: any) {
+  if (brandKit && brandKit.primary_color) {
+    return `
 STRICT RULES:
 - Never repeat the same question, sentence, or bullet.
-- On the FIRST reply: output the slide outline immediately. Do NOT ask clarifying questions unless the topic is literally empty.
-- If the topic is vague, infer a reasonable subject and still output slides right away.
-- Structure every outline reply as: (1) one short intro line (max 1 sentence), (2) numbered slides, (3) one closing line telling the user to click "Generate deck" when ready.
+- [GLOBAL BRAND KIT ACTIVE] The user already has their brand kit defined (Primary Color: ${brandKit.primary_color}${brandKit.font ? `, Font: ${brandKit.font}` : ''}).
+- On the FIRST reply: DO NOT output an outline immediately! You MUST ask the user 1 short, engaging question:
+  1) Ask how many slides they want for the presentation.
+- Do NOT ask for their brand color, because it is automatically applied from their brand kit.
+- Do NOT output the slide outline until the user has answered or explicitly asked you to just build it.
+- Once ready to build, structure your outline reply as: (1) one short intro line, (2) numbered slides, (3) one closing line telling the user to click "Generate deck".
 - Use this slide format exactly (one per line): Slide 1: Title — one-line key message
-- First outline: maximum 8 slides unless the user asks for more.
 - Keep total reply focused; no filler paragraphs or repeated phrases.`;
+  }
 
-const BASE_SYSTEM_PROMPT = `You are the Orbstera Copilot, an expert presentation planner.
+  return `
+STRICT RULES:
+- Never repeat the same question, sentence, or bullet.
+- On the FIRST reply: DO NOT output an outline immediately! You MUST ask the user 2 short, engaging questions before proceeding:
+  1) Ask how many slides they want for the presentation.
+  2) Ask what specific brand color or hex code they want to use for the design.
+- Do NOT output the slide outline until the user has answered or explicitly asked you to just build it.
+- Once ready to build, structure your outline reply as: (1) one short intro line, (2) numbered slides, (3) one closing line telling the user to click "Generate deck".
+- Use this slide format exactly (one per line): Slide 1: Title — one-line key message
+- Keep total reply focused; no filler paragraphs or repeated phrases.`;
+}
+
+const getBaseSystemPrompt = (brandKit: any) => \`You are the Orbstera Copilot, an expert presentation planner.
 The user wants a professional presentation outline.
 
-${OUTPUT_RULES}
+\${getOutputRules(brandKit)}
 
 IMPORTANT — understand these shortcut messages immediately:
 - "6 slides" / "10 slides" / "15 slides" → adjust the outline to that exact count
@@ -53,12 +70,12 @@ Slide 1: Title — Hook and topic
 Slide 2: Problem — Core pain point
 Slide 3: Solution — Your approach
 
-Use clean markdown only. No JSON.`;
+Use clean markdown only. No JSON.\`;
 
-const STUDENT_PRO_SYSTEM_PROMPT = `You are the Orbstera Pro Planner — a sharp presentation strategist with the instincts of a top consultant.
+const getStudentProSystemPrompt = (brandKit: any) => \`You are the Orbstera Pro Planner — a sharp presentation strategist with the instincts of a top consultant.
 The user wants a compelling, well-structured deck.
 
-${OUTPUT_RULES}
+\${getOutputRules(brandKit)}
 
 For each slide, use proven narrative frameworks (problem-solution, SCQA, hero's journey, or data-driven storytelling).
 Make titles punchy and benefit-led. Max 10 slides unless asked for more.
@@ -67,12 +84,12 @@ Format:
 Slide 1: Title — key message
 Slide 2: Problem — ...
 
-Be sharp, clear, and persuasive. Remind them to click "Generate deck" when the outline is ready.`;
+Be sharp, clear, and persuasive. Remind them to click "Generate deck" when the outline is ready.\`;
 
-const CREATOR_PRO_SYSTEM_PROMPT = `You are the Orbstera Creator Strategist — a world-class presentation director with the strategic depth of McKinsey and the storytelling of TED.
+const getCreatorProSystemPrompt = (brandKit: any) => \`You are the Orbstera Creator Strategist — a world-class presentation director with the strategic depth of McKinsey and the storytelling of TED.
 The user wants a high-impact, investor-grade or agency-ready deck.
 
-${OUTPUT_RULES}
+\${getOutputRules(brandKit)}
 
 Apply the best narrative arc for the context:
 - Investor decks: Problem → Market → Solution → Traction → Team → Ask
@@ -85,7 +102,7 @@ For each slide:
 - Imply the slide type in the title when helpful (data, quote, split, hero, chart)
 
 Max 12 slides unless asked for more. Be precise and investor-grade. No JSON.
-Remind them to click "Generate deck" when ready.`;
+Remind them to click "Generate deck" when ready.\`;
 
 export async function POST(req: Request) {
   try {
@@ -111,6 +128,15 @@ export async function POST(req: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } }
     );
+
+    // Fetch brand kit if exists
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('brand_kit')
+      .eq('id', user.id)
+      .single();
+    
+    const brandKit = profileData?.brand_kit as any;
 
     const plan = await getBillingPlan(user.id);
     const planTier: 'free' | 'student' | 'creator' =
@@ -171,20 +197,20 @@ export async function POST(req: Request) {
     let max_tokens: number;
 
     if (planTier === 'creator') {
-      systemPrompt = CREATOR_PRO_SYSTEM_PROMPT + topicLine;
+      systemPrompt = getCreatorProSystemPrompt(brandKit) + topicLine;
       modelsToTry = [CREATOR_PRO_MODEL, STUDENT_PRO_MODEL]; // GPT-5.5 → Claude fallback
       temperature = 0.55;
       max_tokens = 2500;
     } else if (planTier === 'student') {
-      systemPrompt = STUDENT_PRO_SYSTEM_PROMPT + topicLine;
-      modelsToTry = [STUDENT_PRO_MODEL];                    // Claude Sonnet only
+      systemPrompt = getStudentProSystemPrompt(brandKit) + topicLine;
+      modelsToTry = [STUDENT_PRO_MODEL, ...FREE_MODELS];
       temperature = 0.6;
       max_tokens = 2000;
     } else {
-      systemPrompt = BASE_SYSTEM_PROMPT + topicLine;
-      modelsToTry = [...FREE_MODELS];                       // LLaMA → Mistral → Qwen cascade
+      systemPrompt = getBaseSystemPrompt(brandKit) + topicLine;
+      modelsToTry = [...FREE_MODELS];
       temperature = 0.7;
-      max_tokens = 1024;
+      max_tokens = 1500;
     }
 
     let response: Response | null = null;

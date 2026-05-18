@@ -228,9 +228,20 @@ export async function POST(req: Request) {
             },
           });
 
+          // Inject Brand Kit into the prompt if present
+          let finalPrompt = userPrompt;
+          const { data: profileData } = await supabase.from('profiles').select('brand_kit').eq('id', user.id).single();
+          const brandKit = profileData?.brand_kit as any;
+          if (brandKit && brandKit.primary_color) {
+            finalPrompt += `\n\n[USER BRAND KIT]\nPlease STRICTLY apply the following brand kit rules to the generated JSON output:
+- Primary Color: ${brandKit.primary_color} (Must be the dominant color in colorPalette)
+- Font: ${brandKit.font || 'Default'}
+- Brand Name/Company: ${brandKit.name || 'User Company'} (Use this anywhere a company name is needed in the slide titles or content)`;
+          }
+
           const { dossierText, refinedBrief, preflightSummary } = await runOpenRouterOrchestration(
             APP_URL,
-            userPrompt,
+            finalPrompt,
             {
               slideCount: finalSlideCount,
               tone: String(tone),

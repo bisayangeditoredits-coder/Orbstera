@@ -16,8 +16,9 @@ import { createClient } from '@/lib/supabase';
 import type { CreditState } from '@/hooks/useCredits';
 import { formatPlanLabel } from './dashboard-utils';
 import { cn } from '@/lib/cn';
+import { BrandKitSettings } from './BrandKitSettings';
 
-type SettingsTab = 'profile' | 'billing';
+type SettingsTab = 'profile' | 'billing' | 'brand';
 
 type DashboardSettingsProps = {
   credits: CreditState;
@@ -174,6 +175,14 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
                 className={activeTab === 'billing' ? 'text-white' : 'text-slate-400'}
               />
               Plan &amp; usage
+            </button>
+            <button type="button" onClick={() => setActiveTab('brand')} className={tabClass('brand')}>
+              <Sparkles
+                size={18}
+                strokeWidth={1.75}
+                className={activeTab === 'brand' ? 'text-white' : 'text-slate-400'}
+              />
+              Brand Kit
             </button>
           </nav>
         </aside>
@@ -435,6 +444,10 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
                 </div>
               )}
             </>
+          )}
+
+          {activeTab === 'brand' && (
+            <BrandKitSettings />
           )}
         </motion.div>
       </motion.div>

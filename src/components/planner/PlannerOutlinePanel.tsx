@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { LayoutList, Sparkles, Loader2, CheckCircle2, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { OutlineSlide } from './planner-utils';
