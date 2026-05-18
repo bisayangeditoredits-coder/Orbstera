@@ -59,7 +59,7 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
           {slide.title && (
             <p className="text-[10px] font-semibold text-white/60 line-clamp-2">{slide.title}</p>
           )}
-        </motion.div>
+        </div>
         <motion.div
           className="absolute bottom-0 left-0 h-0.5 bg-primary"
           initial={{ width: '0%' }}
@@ -204,11 +204,11 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
         <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-sky-500/90 text-[7px] font-black uppercase tracking-wider text-white flex items-center gap-1">
           <Loader2 size={8} className="animate-spin" />
           Visuals
-        </motion.div>
+        </div>
       )}
       <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/50 text-[7px] font-bold text-white/70 backdrop-blur-sm">
         {index + 1}
-      </motion.div>
+      </div>
     </motion.div>
   );
 }
