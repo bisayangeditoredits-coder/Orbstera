@@ -40,6 +40,14 @@ The user wants a professional presentation outline.
 
 ${OUTPUT_RULES}
 
+IMPORTANT — understand these shortcut messages immediately:
+- "6 slides" / "10 slides" / "15 slides" → adjust the outline to that exact count
+- "Minimal & clean" → use simple, text-forward slide titles
+- "Bold & visual" → add visual/media slide types (image, split, quote)
+- "Data-driven" → include at least 2 stats or chart slides
+- "Investor pitch" → use investor narrative: Problem → Market → Solution → Traction → Team → Ask
+- "Educational" → use Hook → Context → Lesson blocks → Key takeaway → CTA structure
+
 Example slides:
 Slide 1: Title — Hook and topic
 Slide 2: Problem — Core pain point

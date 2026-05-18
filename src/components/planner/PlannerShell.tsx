@@ -313,12 +313,10 @@ export function PlannerShell() {
           <PlannerComposer
             input={input}
             loading={loading}
-            canGenerate={canGenerate}
             hasAssistantReply={hasAssistantReply}
             onInputChange={setInput}
             onSend={handleSend}
             onQuickReply={handleQuickReply}
-            onGenerate={handleGenerate}
           />
         </div>
 

@@ -1,76 +1,75 @@
 'use client';
 
-import { Send, Loader2, CheckCircle2, ArrowRight } from 'lucide-react';
-import { QUICK_REPLIES } from './planner-utils';
-import { cn } from '@/lib/cn';
+import { Send, Loader2 } from 'lucide-react';
 
 type PlannerComposerProps = {
   input: string;
   loading: boolean;
-  canGenerate: boolean;
   hasAssistantReply: boolean;
   onInputChange: (value: string) => void;
   onSend: () => void;
   onQuickReply: (text: string) => void;
-  onGenerate: () => void;
 };
 
 export function PlannerComposer({
   input,
   loading,
-  canGenerate,
   hasAssistantReply,
   onInputChange,
   onSend,
   onQuickReply,
-  onGenerate,
 }: PlannerComposerProps) {
-  const generateLabel = loading
-    ? 'Building outline…'
-    : canGenerate
-      ? 'Generate deck'
-      : hasAssistantReply
-        ? 'Waiting for outline…'
-        : 'Waiting for Copilot…';
+  // ── Smart quick-reply chip groups ──────────────────────────────────────────
+  // Before first AI reply: help the user shape their deck preferences
+  // After reply: refine/adjust chips
+  const preReplyChips = [
+    { label: '6 slides', icon: '📄' },
+    { label: '10 slides', icon: '📑' },
+    { label: '15 slides', icon: '📋' },
+    { label: 'Minimal & clean', icon: '✦' },
+    { label: 'Bold & visual', icon: '🎨' },
+    { label: 'Data-driven', icon: '📊' },
+    { label: 'Investor pitch', icon: '💼' },
+    { label: 'Educational', icon: '🎓' },
+  ];
+
+  const postReplyChips = [
+    { label: 'Make it shorter', icon: '✂️' },
+    { label: 'Add a data slide', icon: '📊' },
+    { label: 'Stronger opening', icon: '🚀' },
+    { label: 'Target investors', icon: '💼' },
+    { label: 'More visual slides', icon: '🎨' },
+    { label: 'Add case study', icon: '📌' },
+  ];
+
+  const chips = hasAssistantReply ? postReplyChips : preReplyChips;
 
   return (
     <div className="shrink-0 border-t border-white/50 bg-[#F0F7FF]/95 px-4 py-4 backdrop-blur-md sm:px-6">
       <div className="mx-auto max-w-2xl">
-        <button
-          type="button"
-          onClick={onGenerate}
-          disabled={!canGenerate}
-          title={!canGenerate ? 'Copilot is still planning your outline' : 'Create your presentation in the editor'}
-          className={cn(
-            'mb-3 flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl px-5 py-3 text-[13px] font-bold transition',
-            canGenerate
-              ? 'bg-primary text-white shadow-lg shadow-primary/25 hover:bg-primaryHover'
-              : 'border border-slate-200/80 bg-white text-slate-500',
-          )}
-        >
-          {loading ? (
-            <Loader2 size={18} className="animate-spin" />
-          ) : (
-            <CheckCircle2 size={18} strokeWidth={1.75} />
-          )}
-          {generateLabel}
-          {canGenerate && <ArrowRight size={15} className="opacity-80" />}
-        </button>
 
+        {/* Smart chip hints */}
+        {!hasAssistantReply && (
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            Customize your deck →
+          </p>
+        )}
         <div className="mb-3 flex flex-wrap gap-2">
-          {QUICK_REPLIES.map((label) => (
+          {chips.map(({ label, icon }) => (
             <button
               key={label}
               type="button"
               disabled={loading}
               onClick={() => onQuickReply(label)}
-              className="rounded-full border border-white/80 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:border-primary/30 hover:text-primary disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-full border border-white/80 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:border-primary/30 hover:bg-primary/5 hover:text-primary disabled:opacity-50"
             >
+              <span>{icon}</span>
               {label}
             </button>
           ))}
         </div>
 
+        {/* Text input */}
         <div className="animated-border shadow-[0_24px_48px_-20px_rgba(59,130,246,0.22)]">
           <div className="relative rounded-[20px] bg-white p-1">
             <textarea
@@ -82,7 +81,7 @@ export function PlannerComposer({
                   onSend();
                 }
               }}
-              placeholder="E.g. Add a slide for market research…"
+              placeholder={hasAssistantReply ? 'Refine the outline… (e.g. add a slide about ROI)' : 'Describe your topic… (e.g. AI in healthcare for doctors)'}
               rows={1}
               className="w-full resize-none rounded-[18px] border-none bg-transparent py-3.5 pl-4 pr-14 text-[14px] font-medium text-textMain placeholder:text-textMuted focus:outline-none focus:ring-4 focus:ring-primary/10"
             />
