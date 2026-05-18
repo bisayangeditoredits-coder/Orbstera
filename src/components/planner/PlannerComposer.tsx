@@ -1,6 +1,10 @@
 'use client';
 
-import { Send, Loader2 } from 'lucide-react';
+import { 
+  Send, Loader2, FileText, Copy, Layers, Sparkles, 
+  Palette, BarChart3, Briefcase, GraduationCap, 
+  Scissors, Rocket, Pin 
+} from 'lucide-react';
 
 type PlannerComposerProps = {
   input: string;
@@ -23,23 +27,23 @@ export function PlannerComposer({
   // Before first AI reply: help the user shape their deck preferences
   // After reply: refine/adjust chips
   const preReplyChips = [
-    { label: '6 slides', icon: '📄' },
-    { label: '10 slides', icon: '📑' },
-    { label: '15 slides', icon: '📋' },
-    { label: 'Minimal & clean', icon: '✦' },
-    { label: 'Bold & visual', icon: '🎨' },
-    { label: 'Data-driven', icon: '📊' },
-    { label: 'Investor pitch', icon: '💼' },
-    { label: 'Educational', icon: '🎓' },
+    { label: '6 slides', icon: FileText },
+    { label: '10 slides', icon: Copy },
+    { label: '15 slides', icon: Layers },
+    { label: 'Minimal & clean', icon: Sparkles },
+    { label: 'Bold & visual', icon: Palette },
+    { label: 'Data-driven', icon: BarChart3 },
+    { label: 'Investor pitch', icon: Briefcase },
+    { label: 'Educational', icon: GraduationCap },
   ];
 
   const postReplyChips = [
-    { label: 'Make it shorter', icon: '✂️' },
-    { label: 'Add a data slide', icon: '📊' },
-    { label: 'Stronger opening', icon: '🚀' },
-    { label: 'Target investors', icon: '💼' },
-    { label: 'More visual slides', icon: '🎨' },
-    { label: 'Add case study', icon: '📌' },
+    { label: 'Make it shorter', icon: Scissors },
+    { label: 'Add a data slide', icon: BarChart3 },
+    { label: 'Stronger opening', icon: Rocket },
+    { label: 'Target investors', icon: Briefcase },
+    { label: 'More visual slides', icon: Palette },
+    { label: 'Add case study', icon: Pin },
   ];
 
   const chips = hasAssistantReply ? postReplyChips : preReplyChips;
@@ -55,15 +59,15 @@ export function PlannerComposer({
           </p>
         )}
         <div className="mb-3 flex flex-wrap gap-2">
-          {chips.map(({ label, icon }) => (
+          {chips.map(({ label, icon: Icon }) => (
             <button
               key={label}
               type="button"
               disabled={loading}
               onClick={() => onQuickReply(label)}
-              className="flex items-center gap-1.5 rounded-full border border-white/80 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:border-primary/30 hover:bg-primary/5 hover:text-primary disabled:opacity-50"
+              className="group flex items-center gap-1.5 rounded-full border border-white/80 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:border-primary/30 hover:bg-primary/5 hover:text-primary disabled:opacity-50"
             >
-              <span>{icon}</span>
+              <Icon size={14} className="text-slate-500 transition-colors group-hover:text-primary" />
               {label}
             </button>
           ))}

@@ -50,28 +50,31 @@ export function PlannerHeader({
         </Link>
 
         <div className="min-w-0 border-l border-slate-200/80 pl-3 sm:pl-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-md shadow-primary/25">
-              <Sparkles size={16} strokeWidth={1.75} />
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/12 to-primary/5 border border-primary/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+              <Sparkles size={18} strokeWidth={1.75} className="text-primary" />
             </div>
-            <div className="min-w-0">
-              <h1 className="font-space-grotesk text-sm font-bold text-slate-900 sm:text-[15px]">
+            <div className="min-w-0 pt-0.5">
+              <h1 className="text-[15px] font-semibold tracking-tight text-slate-900 leading-tight">
                 Presentation Copilot
               </h1>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2 mt-1">
                 {planTier === 'pro' ? (
-                  <span className="inline-flex items-center gap-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-2 py-0.5 text-[9px] font-bold text-white">
-                    <Crown size={8} /> PRO
+                  <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600 ring-1 ring-inset ring-amber-500/20">
+                    <Crown size={9} strokeWidth={2.5} /> PRO
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-0.5 rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-semibold text-slate-500">
-                    <Zap size={8} /> FREE
+                  <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 ring-1 ring-inset ring-slate-200">
+                    <Zap size={9} strokeWidth={2.5} /> FREE
                   </span>
                 )}
                 {topic && (
-                  <span className="truncate text-[11px] font-medium text-slate-500" title={topic}>
-                    · {topic}
-                  </span>
+                  <>
+                    <span className="h-3 w-[1px] bg-slate-200" aria-hidden="true" />
+                    <span className="truncate text-[11px] font-medium text-slate-400 max-w-[150px] sm:max-w-[300px]" title={topic}>
+                      {topic}
+                    </span>
+                  </>
                 )}
               </div>
             </div>
