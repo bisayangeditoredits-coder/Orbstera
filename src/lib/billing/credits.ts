@@ -53,7 +53,6 @@ export const PLAN_PRICING_USD: Partial<Record<PlanTier, number>> = {
   creator_pro: 19,
 };
 
-/** Default monthly credit caps (profit-aligned; overridable via credit_configs). */
 export const PLAN_MONTHLY_CREDITS: Record<PlanTier, number> = {
   free: 100,
   student_pro: 1400,
@@ -99,8 +98,8 @@ const DEFAULT_CONFIG: CreditConfig = {
     deck_polish: 80,
     magic_edit: 5,
     rewrite: 3,
-    image_standard: 10,
-    image_premium: 20,
+    image_standard: 30,
+    image_premium: 45,
     animation_enhance: 5,
   },
   usdPerCredit: 0.0015,

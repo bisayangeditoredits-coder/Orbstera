@@ -180,7 +180,6 @@ export function getMagicEditTextModels(args: {
   if (tier === 'creator') {
     return uniqueModels([
       AGENT_MODELS.gptOrchestrator,
-      AGENT_MODELS.claudeOpus,
       AGENT_MODELS.claudeStructure,
       AGENT_MODELS.gptOrchestratorAlt,
       AGENT_MODELS.geminiPro,
@@ -233,8 +232,8 @@ export function selectTextModel(args: {
     return isCreator
       ? {
           provider: 'openrouter',
-          model: AGENT_MODELS.claudeOpus,
-          label: TEXT_LABELS.opus,
+          model: AGENT_MODELS.claudeStructure,
+          label: TEXT_LABELS.sonnet,
           maxTokens: 4000,
           temperature: 0.25,
         }
@@ -251,8 +250,8 @@ export function selectTextModel(args: {
     return isCreator
       ? {
           provider: 'openrouter',
-          model: AGENT_MODELS.claudeOpus,
-          label: TEXT_LABELS.opusStrategy,
+          model: AGENT_MODELS.claudeStructure,
+          label: TEXT_LABELS.sonnetStrategy,
           maxTokens: 2800,
           temperature: 0.35,
         }
@@ -297,8 +296,8 @@ export function selectTextModel(args: {
     return isCreator
       ? {
           provider: 'openrouter',
-          model: OR_MODELS.refineOpus,
-          label: TEXT_LABELS.opus,
+          model: OR_MODELS.refineFallback,
+          label: TEXT_LABELS.sonnet,
           maxTokens: 8000,
           temperature: 0.22,
         }
@@ -314,8 +313,8 @@ export function selectTextModel(args: {
   return isCreator
     ? {
         provider: 'openrouter',
-        model: OR_MODELS.refineOpus,
-        label: TEXT_LABELS.opus,
+        model: OR_MODELS.refineFallback,
+        label: TEXT_LABELS.sonnet,
         maxTokens: 6000,
         temperature: 0.25,
       }
@@ -345,7 +344,7 @@ export function getComposeFallbackModels(args: {
   if (tier === 'creator') {
     return uniqueModels([
       OR_MODELS.composerFallback,
-      AGENT_MODELS.claudeOpus,
+      AGENT_MODELS.claudeStructure,
       AGENT_MODELS.geminiPro,
       OR_MODELS.refineFallback,
     ]);

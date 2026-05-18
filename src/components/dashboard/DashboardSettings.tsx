@@ -381,7 +381,7 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
                       <Crown size={17} className="shrink-0 text-amber-500" strokeWidth={1.75} />
                     </h3>
                     <p className="mt-2 flex-1 text-[13px] leading-relaxed text-primary/90">
-                      Top-tier models and ~5,500 credits/month (~23 premium Creator decks).
+                      Top-tier models and ~5,500 credits/month (~11 premium Creator decks).
                     </p>
                     <div className="mb-6 mt-6 flex items-baseline gap-1">
                       <span className="text-3xl font-bold text-slate-900">$19</span>
