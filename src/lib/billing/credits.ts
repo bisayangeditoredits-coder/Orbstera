@@ -55,9 +55,9 @@ export const PLAN_PRICING_USD: Partial<Record<PlanTier, number>> = {
 
 export const PLAN_MONTHLY_CREDITS: Record<PlanTier, number> = {
   free: 100,
-  student_pro: 1400,
-  pro: 2500,
-  creator_pro: 5500,
+  student_pro: 900,
+  pro: 900,
+  creator_pro: 3500,
   admin: 100000,
 };
 

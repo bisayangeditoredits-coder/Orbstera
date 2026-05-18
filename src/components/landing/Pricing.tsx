@@ -36,7 +36,7 @@ const tiers = [
     badge: 'Most Popular',
     icon: "/3d_icons/Graduation Hat.png",
     features: [
-      { text: '~1,400 credits/month (~5-6 premium AI decks with Flux imagery)', included: true },
+      { text: '~900 credits/month (~3-4 premium AI decks with Flux imagery)', included: true },
       { text: 'Up to 25 slides per presentation', included: true },
       { text: 'Premium automatic AI orchestration', included: true },
       { text: 'PPTX export — no watermark', included: true },
@@ -57,7 +57,7 @@ const tiers = [
     badge: 'Best Value',
     icon: "/3d_icons/Trophy.png",
     features: [
-      { text: '~5,500 credits/month (~11 premium Creator decks)', included: true },
+      { text: '~3,500 credits/month (~10 premium Creator decks)', included: true },
       { text: 'Up to 40 slides per presentation', included: true },
       { text: 'Maximum quality automatic orchestration', included: true },
       { text: 'PPTX export — no watermark, custom branding', included: true },
