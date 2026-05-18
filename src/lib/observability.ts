@@ -39,13 +39,13 @@ export function captureApiException(err: unknown, ctx: Record<string, unknown>):
 
 /**
  * Startup connection health-check.
- * Called from instrumentation.ts register() in production.
- * Logs each service's reachability without throwing.
+ * Verifies env-var presence for each service and pings Redis.
+ * Never throws — safe to call from instrumentation.ts register().
  */
 export async function runStartupHealthChecks(): Promise<void> {
   if (process.env.NODE_ENV !== 'production') return;
 
-  // Redis / Upstash
+  // Redis / Upstash — live ping
   try {
     const { pingRedis } = await import('@/lib/redis');
     const ok = await pingRedis();
@@ -58,33 +58,29 @@ export async function runStartupHealthChecks(): Promise<void> {
     console.error('[health] Upstash Redis check failed:', e);
   }
 
-  // Supabase — lightweight meta call
-  try {
-    const { createAdminClient } = await import('@/lib/auth/supabase-admin');
-    const sb = createAdminClient();
-    const { error } = await sb.from('profiles').select('id').limit(1).single();
-    // PGRST116 = no rows, which is OK — means connection works
-    if (error && error.code !== 'PGRST116') {
-      console.warn('[health] Supabase: query error —', error.message);
-    } else {
-      console.log('[health] Supabase: OK');
-    }
-  } catch (e) {
-    console.error('[health] Supabase check failed:', e);
+  // Supabase — check env vars only (no DB call at boot to avoid cold-start latency)
+  const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const sbAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  const sbService = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (sbUrl && sbAnon && sbService) {
+    console.log('[health] Supabase: credentials present ✓');
+  } else {
+    console.error('[health] Supabase: one or more credentials missing — auth/billing broken');
   }
 
-  // Cloudflare R2 — only check if credentials are present
+  // Cloudflare R2
   const r2Endpoint = process.env.CLOUDFLARE_R2_ENDPOINT?.trim();
   const r2Key = process.env.CLOUDFLARE_R2_ACCESS_KEY?.trim();
-  if (r2Endpoint && r2Key) {
+  const r2Secret = process.env.CLOUDFLARE_R2_SECRET_KEY?.trim();
+  const r2Bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME?.trim();
+  if (r2Endpoint && r2Key && r2Secret && r2Bucket) {
     console.log('[health] Cloudflare R2: credentials present ✓');
   } else {
     console.warn('[health] Cloudflare R2: credentials missing — cloud save disabled');
   }
 
   // OpenRouter
-  const orKey = process.env.OPENROUTER_API_KEY?.trim();
-  if (orKey) {
+  if (process.env.OPENROUTER_API_KEY?.trim()) {
     console.log('[health] OpenRouter: API key present ✓');
   } else {
     console.error('[health] OpenRouter: OPENROUTER_API_KEY missing — AI generation disabled');
@@ -93,9 +89,15 @@ export async function runStartupHealthChecks(): Promise<void> {
   // Dodo Payments
   const dodoKey = process.env.DODO_PAYMENTS_API_KEY?.trim();
   const dodoWebhook = process.env.DODO_PAYMENTS_WEBHOOK_SECRET?.trim();
+  const dodoEndpoint = process.env.DODO_PAYMENTS_ENDPOINT?.trim() ?? '';
   if (!dodoKey) console.warn('[health] Dodo Payments: API key missing');
-  if (!dodoWebhook || dodoWebhook === 'dev')
-    console.error('[health] Dodo Payments: webhook secret missing/dev — subscriptions will fail');
-  if (dodoKey && dodoWebhook && dodoWebhook !== 'dev')
+  if (!dodoWebhook || dodoWebhook === 'dev' || dodoWebhook === 'your-webhook-secret') {
+    console.error('[health] Dodo Payments: webhook secret missing/placeholder — subscriptions will fail');
+  }
+  if (dodoEndpoint.includes('test.dodo')) {
+    console.warn('[health] Dodo Payments: test mode endpoint — no real charges');
+  }
+  if (dodoKey && dodoWebhook && dodoWebhook !== 'dev') {
     console.log('[health] Dodo Payments: OK');
+  }
 }
