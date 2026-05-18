@@ -11,8 +11,9 @@ export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 // ── Tiered AI Models ─────────────────────────────────────────────────────────
-// Free users  → Try multiple free models in order (fallback on 429 rate-limit)
-// Pro users   → Gemini 2.5 Flash paid (smarter, faster)
+// Free           → Best available free models (auto-fallback on 429)
+// Student Pro    → Claude Sonnet (smart, fast, great at narrative structure)
+// Creator Pro    → GPT-5.5 (frontier reasoning, investor-grade decks)
 const FREE_MODELS = [
   'meta-llama/llama-3.3-70b-instruct:free', // Primary free model
   'mistralai/mistral-7b-instruct:free',      // Fallback #1
@@ -20,7 +21,8 @@ const FREE_MODELS = [
   'deepseek/deepseek-r1:free',               // Fallback #3
 ] as const;
 
-const PRO_MODEL = 'google/gemini-2.5-flash';
+const STUDENT_PRO_MODEL = 'anthropic/claude-sonnet-4-5';  // Fast + smart narrative
+const CREATOR_PRO_MODEL = 'openai/gpt-5.5';               // Frontier — investor-grade
 
 // ── System Prompts ────────────────────────────────────────────────────────────
 const OUTPUT_RULES = `
@@ -45,19 +47,37 @@ Slide 3: Solution — Your approach
 
 Use clean markdown only. No JSON.`;
 
-const PRO_SYSTEM_PROMPT = `You are the Orbstera Pro Copilot — a world-class presentation strategist.
-The user wants a high-impact deck.
+const STUDENT_PRO_SYSTEM_PROMPT = `You are the Orbstera Pro Planner — a sharp presentation strategist with the instincts of a top consultant.
+The user wants a compelling, well-structured deck.
 
 ${OUTPUT_RULES}
 
-For each slide, imply type (title, problem, solution, data, CTA) in the title when helpful.
-Use persuasion-aware ordering (SCQA or narrative arc). Max 12 slides unless asked for more.
+For each slide, use proven narrative frameworks (problem-solution, SCQA, hero's journey, or data-driven storytelling).
+Make titles punchy and benefit-led. Max 10 slides unless asked for more.
 
 Format:
 Slide 1: Title — key message
 Slide 2: Problem — ...
 
-Be investor-grade and concise. No JSON. Remind them to click "Generate deck" when the outline is ready.`;
+Be sharp, clear, and persuasive. Remind them to click "Generate deck" when the outline is ready.`;
+
+const CREATOR_PRO_SYSTEM_PROMPT = `You are the Orbstera Creator Strategist — a world-class presentation director with the strategic depth of McKinsey and the storytelling of TED.
+The user wants a high-impact, investor-grade or agency-ready deck.
+
+${OUTPUT_RULES}
+
+Apply the best narrative arc for the context:
+- Investor decks: Problem → Market → Solution → Traction → Team → Ask
+- Agency/client: Insight → Strategy → Creative → Results → Next Steps
+- Educational: Hook → Context → Content blocks → Key takeaway → CTA
+
+For each slide:
+- Write a punchy, benefit-driven title (not generic like "Introduction")
+- Add a one-line message that tells the audience exactly what to think
+- Imply the slide type in the title when helpful (data, quote, split, hero, chart)
+
+Max 12 slides unless asked for more. Be precise and investor-grade. No JSON.
+Remind them to click "Generate deck" when ready.`;
 
 export async function POST(req: Request) {
   try {
@@ -85,19 +105,21 @@ export async function POST(req: Request) {
     );
 
     const plan = await getBillingPlan(user.id);
-    const userPlan: 'free' | 'pro' =
-      plan === 'pro' || plan === 'student_pro' || plan === 'creator_pro' || plan === 'admin'
-        ? 'pro'
-        : 'free';
+    const planTier: 'free' | 'student' | 'creator' =
+      plan === 'creator_pro' || plan === 'admin'
+        ? 'creator'
+        : plan === 'pro' || plan === 'student_pro'
+          ? 'student'
+          : 'free';
 
     const creditConfig = await getCreditConfig(supabase);
-    const plannerCost = creditConfig.costs.rewrite ?? 3;
+    const plannerCost = creditConfig.costs.rewrite ?? 1;
     const creditCheck = await ensureCredits({
       supabase,
       userId: user.id,
       cost: plannerCost,
       action: 'rewrite',
-      meta: { route: 'planner/chat' },
+      meta: { route: 'planner/chat', planTier },
     });
     if (!creditCheck.ok) {
       return NextResponse.json(
@@ -134,13 +156,29 @@ export async function POST(req: Request) {
       typeof topic === 'string' && topic.trim()
         ? `\nPresentation topic: "${topic.trim()}". Output the slide outline in your first reply using Slide N: Title — message format. Infer a reasonable subject if the topic is vague.`
         : '';
-    const systemPrompt =
-      (userPlan === 'pro' ? PRO_SYSTEM_PROMPT : BASE_SYSTEM_PROMPT) + topicLine;
-    const temperature  = userPlan === 'pro' ? 0.6 : 0.7;
-    const max_tokens   = userPlan === 'pro' ? 2048 : 1024;
 
-    // ── Try models in order (auto-fallback on 429 rate-limit) ────────────────
-    const modelsToTry = userPlan === 'pro' ? [PRO_MODEL] : [...FREE_MODELS];
+    let systemPrompt: string;
+    let modelsToTry: string[];
+    let temperature: number;
+    let max_tokens: number;
+
+    if (planTier === 'creator') {
+      systemPrompt = CREATOR_PRO_SYSTEM_PROMPT + topicLine;
+      modelsToTry = [CREATOR_PRO_MODEL, STUDENT_PRO_MODEL]; // GPT-5.5 → Claude fallback
+      temperature = 0.55;
+      max_tokens = 2500;
+    } else if (planTier === 'student') {
+      systemPrompt = STUDENT_PRO_SYSTEM_PROMPT + topicLine;
+      modelsToTry = [STUDENT_PRO_MODEL];                    // Claude Sonnet only
+      temperature = 0.6;
+      max_tokens = 2000;
+    } else {
+      systemPrompt = BASE_SYSTEM_PROMPT + topicLine;
+      modelsToTry = [...FREE_MODELS];                       // LLaMA → Mistral → Qwen cascade
+      temperature = 0.7;
+      max_tokens = 1024;
+    }
+
     let response: Response | null = null;
     let selectedModel = modelsToTry[0];
 
@@ -230,7 +268,7 @@ export async function POST(req: Request) {
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
         'X-Planner-Model': selectedModel,
-        'X-Planner-Plan': userPlan,
+        'X-Planner-Plan': planTier,
       },
     });
   } catch (error) {

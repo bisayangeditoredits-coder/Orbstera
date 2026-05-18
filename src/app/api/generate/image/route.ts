@@ -78,13 +78,22 @@ export async function POST(req: Request) {
     }
 
     const creditConfig = await getCreditConfig(supabase);
-    const cost = creditConfig.costs.image_standard || 10;
+    // Tier-based genfill cost — prevents underbilling paid users
+    let creditAction: 'genfill_creator' | 'genfill_pro' | 'genfill_free';
+    if (plan === 'creator_pro' || plan === 'admin') {
+      creditAction = 'genfill_creator';
+    } else if (plan === 'student_pro' || plan === 'pro') {
+      creditAction = 'genfill_pro';
+    } else {
+      creditAction = 'genfill_free';
+    }
+    const cost = creditConfig.costs[creditAction] ?? creditConfig.costs.image_standard ?? 5;
 
     const creditCheck = await ensureCredits({
       supabase,
       userId: user.id,
       cost,
-      action: 'image_standard',
+      action: creditAction,
     });
 
     if (!creditCheck.ok) {

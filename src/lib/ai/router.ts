@@ -104,6 +104,30 @@ function openRouterImageCascade(args: {
   const isTypo = args.visualProfile === 'typography';
   const isGenfill = args.task === 'genfill_image' || args.task === 'magic_edit_image';
 
+  // ── Generative Fill (FLUX Kontext family) ──────────────────────────
+  if (isGenfill) {
+    if (args.tier === 'creator') {
+      return uniqueModels([
+        IMAGE_MODELS.genfillCreator,
+        IMAGE_MODELS.genfillCreatorFallback,
+        IMAGE_MODELS.fluxUltra,
+        IMAGE_MODELS.flux,
+        IMAGE_MODELS.fallback,
+      ]);
+    }
+    if (args.tier === 'student') {
+      return uniqueModels([
+        IMAGE_MODELS.genfillPro,
+        IMAGE_MODELS.flux,
+        IMAGE_MODELS.fluxCinematic,
+        IMAGE_MODELS.fallback,
+      ]);
+    }
+    // free — basic FLUX (rate-limited upstream)
+    return uniqueModels([IMAGE_MODELS.genfillFree, IMAGE_MODELS.fallback]);
+  }
+
+  // ── Standard image generation ─────────────────────────────────────
   if (args.tier === 'creator') {
     if (isTypo) {
       return uniqueModels([
@@ -113,7 +137,7 @@ function openRouterImageCascade(args: {
         IMAGE_MODELS.fallback,
       ]);
     }
-    if (args.premium || isGenfill) {
+    if (args.premium) {
       return uniqueModels([
         IMAGE_MODELS.fluxUltra,
         IMAGE_MODELS.fluxCinematic,
@@ -376,8 +400,14 @@ export function selectImageProvider(args: {
   const premiumAllowed = isCreatorTier(planTier) && tier === 'creator';
   const premium = Boolean(args.premiumRequested && premiumAllowed);
   const isTypo = args.visualProfile === 'typography';
+  const isGenfill = args.task === 'genfill_image' || args.task === 'magic_edit_image';
 
   const labelForTier = (): string => {
+    if (isGenfill) {
+      if (tier === 'creator') return 'Kontext Max · Gen Fill';
+      if (tier === 'student') return 'Kontext Pro · Gen Fill';
+      return 'Standard Gen Fill';
+    }
     if (tier === 'creator') return premium ? 'Cinematic HD' : 'Pro Studio';
     if (tier === 'student') return 'Studio HD';
     return 'Standard';
@@ -391,6 +421,30 @@ export function selectImageProvider(args: {
   });
   const primaryModel = cascade[0];
 
+  // Free gen fill — always use OpenRouter (even economy) so FLUX works
+  if (isGenfill && (tier === 'free' || tier === 'economy')) {
+    if (args.hasOpenRouterKey) {
+      return {
+        provider: 'openrouter',
+        model: primaryModel,
+        modelCascade: cascade,
+        label: labelForTier(),
+        visualProfile: args.visualProfile,
+        premium: false,
+      };
+    }
+    // Absolute fallback: Pollinations (limited but free)
+    if (args.hasPollinationsKey) {
+      return {
+        provider: 'pollinations',
+        label: 'Standard Gen Fill',
+        visualProfile: args.visualProfile,
+        premium: false,
+      };
+    }
+  }
+
+  // Paid tiers — prefer OpenRouter for quality
   if (args.hasOpenRouterKey && (tier === 'student' || tier === 'creator')) {
     return {
       provider: 'openrouter',

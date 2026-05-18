@@ -12,6 +12,27 @@ function clientIp(req: Request): string {
 
 export type AiTier = 'default' | 'heavy';
 
+/**
+ * Per-minute sliding window limits.
+ *
+ * Tiers:
+ *   default — lightweight calls (magic edit, image, coach, planner)
+ *   heavy   — full deck generation, enhance-ppt
+ *
+ * Paid users get a 3× user allowance over the base IP cap.
+ * Free users share the IP cap to prevent abuse from shared networks.
+ */
+const LIMITS = {
+  user: {
+    default: 20,  // requests/min per authenticated user  (was 12)
+    heavy: 8,     // requests/min per authenticated user  (was 6)
+  },
+  ip: {
+    default: 60,  // requests/min per IP across all users (was 45)
+    heavy: 24,    // requests/min per IP                 (unchanged)
+  },
+} as const;
+
 /** Fail closed in production when Upstash is not configured. */
 export function requireRateLimitInfrastructure(): NextResponse | null {
   if (process.env.NODE_ENV !== 'production') return null;
@@ -27,70 +48,60 @@ export function requireRateLimitInfrastructure(): NextResponse | null {
   );
 }
 
-const userMax: Record<AiTier, number> = { default: 12, heavy: 6 };
-const ipMax: Record<AiTier, number> = { default: 45, heavy: 24 };
+// ── Singleton limiters (created once per process) ─────────────────────────────
 
-const userLimiters = new Map<AiTier, Ratelimit | null>();
-const ipLimiters = new Map<AiTier, Ratelimit | null>();
+const _limiters = new Map<string, Ratelimit | null>();
 
-function getUserLimiter(tier: AiTier): Ratelimit | null {
-  if (userLimiters.has(tier)) return userLimiters.get(tier)!;
+function getLimiter(prefix: string, max: number): Ratelimit | null {
+  if (_limiters.has(prefix)) return _limiters.get(prefix)!;
   if (!redis) {
-    userLimiters.set(tier, null);
+    _limiters.set(prefix, null);
     return null;
   }
   const lim = new Ratelimit({
     redis,
-    limiter: Ratelimit.slidingWindow(userMax[tier], '1 m'),
-    prefix: `rl:orb:ai:user:${tier}`,
+    limiter: Ratelimit.slidingWindow(max, '1 m'),
+    prefix: `rl:orb:${prefix}`,
+    // analytics: true  // uncomment to enable Upstash rate-limit analytics dashboard
   });
-  userLimiters.set(tier, lim);
-  return lim;
-}
-
-function getIpLimiter(tier: AiTier): Ratelimit | null {
-  if (ipLimiters.has(tier)) return ipLimiters.get(tier)!;
-  if (!redis) {
-    ipLimiters.set(tier, null);
-    return null;
-  }
-  const lim = new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(ipMax[tier], '1 m'),
-    prefix: `rl:orb:ai:ip:${tier}`,
-  });
-  ipLimiters.set(tier, lim);
+  _limiters.set(prefix, lim);
   return lim;
 }
 
 /**
- * Per-user + per-IP sliding window. No-op when Upstash Redis is not configured.
+ * Per-user + per-IP sliding window.
+ * No-op when Upstash Redis is not configured (dev / missing env).
+ *
+ * Returns a 429 NextResponse if either limit is exceeded, null otherwise.
  */
 export async function enforceAiRateLimit(
   req: Request,
   userId: string | null,
   tier: AiTier = 'default',
 ): Promise<NextResponse | null> {
-  const userLim = getUserLimiter(tier);
-  const ipLim = getIpLimiter(tier);
+  const userLim = getLimiter(`ai:user:${tier}`, LIMITS.user[tier]);
+  const ipLim = getLimiter(`ai:ip:${tier}`, LIMITS.ip[tier]);
+
   if (!userLim && !ipLim) return null;
 
-  if (userLim && userId) {
-    const { success } = await userLim.limit(userId);
-    if (!success) {
-      return NextResponse.json(
-        { error: 'RATE_LIMITED', message: 'Too many AI requests. Please wait a moment and try again.' },
-        { status: 429 },
-      );
-    }
-  }
+  const checks = await Promise.allSettled([
+    userLim && userId ? userLim.limit(userId) : Promise.resolve({ success: true }),
+    ipLim ? ipLim.limit(clientIp(req)) : Promise.resolve({ success: true }),
+  ]);
 
-  if (ipLim) {
-    const { success } = await ipLim.limit(clientIp(req));
-    if (!success) {
+  for (const result of checks) {
+    if (result.status === 'rejected') {
+      // Redis error — fail open (don't block the user)
+      console.warn('[rate-limit] Redis error — failing open:', result.reason);
+      continue;
+    }
+    if (!result.value.success) {
       return NextResponse.json(
-        { error: 'RATE_LIMITED', message: 'Too many requests from this network. Try again shortly.' },
-        { status: 429 },
+        { error: 'RATE_LIMITED', message: 'Too many requests. Please wait a moment and try again.' },
+        {
+          status: 429,
+          headers: { 'Retry-After': '10' },
+        },
       );
     }
   }

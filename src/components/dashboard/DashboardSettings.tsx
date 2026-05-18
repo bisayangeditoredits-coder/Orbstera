@@ -344,7 +344,7 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
                   <div className="flex flex-col rounded-3xl border border-white/70 bg-white p-6 shadow-sm transition hover:shadow-md sm:p-7">
                     <h3 className="text-lg font-semibold text-slate-900">Student Pro</h3>
                     <p className="mt-2 flex-1 text-[13px] leading-relaxed text-slate-500">
-                      Watermark-free exports and ~900 monthly credits for coursework and side projects.
+                      500 credits/month (~6 full AI decks with images), FLUX Kontext Pro gen fill, watermark-free exports.
                     </p>
                     <motion.div
                       initial={{ opacity: 0, y: 8 }}
@@ -352,7 +352,7 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
                       transition={{ duration: 0.22 }}
                       className="mb-6 mt-6 flex items-baseline gap-1"
                     >
-                      <span className="text-3xl font-bold text-slate-900">$5</span>
+                      <span className="text-3xl font-bold text-slate-900">$9</span>
                       <span className="text-sm text-slate-500">/mo</span>
                     </motion.div>
                     <button
@@ -381,10 +381,10 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
                       <Crown size={17} className="shrink-0 text-amber-500" strokeWidth={1.75} />
                     </h3>
                     <p className="mt-2 flex-1 text-[13px] leading-relaxed text-primary/90">
-                      Top-tier models and ~3,500 credits/month (~10 premium Creator decks).
+                      1,125 credits/month (~14 full AI decks), GPT-5.5 + Claude Opus 4, FLUX Kontext Max gen fill.
                     </p>
                     <div className="mb-6 mt-6 flex items-baseline gap-1">
-                      <span className="text-3xl font-bold text-slate-900">$19</span>
+                      <span className="text-3xl font-bold text-slate-900">$22</span>
                       <span className="text-sm text-slate-500">/mo</span>
                     </div>
                     <button
@@ -414,7 +414,7 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
                       <Crown size={18} className="text-amber-500" strokeWidth={1.75} />
                     </h3>
                     <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-600">
-                      Unlock premium intelligence and ~3,500 monthly credits for $19/mo.
+                      Unlock GPT-5.5 + Claude Opus 4, 1,125 monthly credits (~14 full AI decks), and FLUX Kontext Max gen fill for $22/mo.
                     </p>
                   </div>
                   <button

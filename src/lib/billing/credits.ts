@@ -13,6 +13,9 @@ export type CreditAction =
   | 'rewrite'
   | 'image_standard'
   | 'image_premium'
+  | 'genfill_free'
+  | 'genfill_pro'
+  | 'genfill_creator'
   | 'animation_enhance';
 
 export type CreditConfig = {
@@ -46,18 +49,28 @@ export function normalizePlanTier(p: unknown): PlanTier {
   return 'free';
 }
 
-/** Monthly list price (USD) for paid tiers. */
+/**
+ * Monthly list price (USD) for paid tiers.
+ *
+ * Pricing structure (budget-first):
+ *   Student Pro  $9/mo  → net ~$8.43 after fees → $4.00 AI budget → $4.43 profit (52%)
+ *   Creator Pro  $22/mo → net ~$21.04 after fees → $9.00 AI budget → $12.04 profit (57%)
+ *
+ * usdPerCredit = $0.008 (calibrated to real GPT-5.5 + FLUX cost per action)
+ *   Student Pro credits : $4.00 / $0.008 = 500 cr  → max real AI spend $4.00
+ *   Creator Pro credits : $9.00 / $0.008 = 1,125 cr → max real AI spend $9.00
+ */
 export const PLAN_PRICING_USD: Partial<Record<PlanTier, number>> = {
-  student_pro: 5,
-  pro: 5,
-  creator_pro: 19,
+  student_pro: 9,
+  pro: 9,
+  creator_pro: 22,
 };
 
 export const PLAN_MONTHLY_CREDITS: Record<PlanTier, number> = {
-  free: 100,
-  student_pro: 900,
-  pro: 900,
-  creator_pro: 3500,
+  free: 150,          // free models only — $0 real cost regardless of credits
+  student_pro: 500,   // $4.00 AI budget ÷ $0.008/cr = 500 cr
+  pro: 500,
+  creator_pro: 1125,  // $9.00 AI budget ÷ $0.008/cr = 1,125 cr
   admin: 100000,
 };
 
@@ -89,20 +102,46 @@ export function getPlanMonthlyCredits(planId: unknown, config?: CreditConfig): n
   return monthly[plan] ?? PLAN_MONTHLY_CREDITS[plan] ?? PLAN_MONTHLY_CREDITS.free;
 }
 
+/**
+ * Credit action costs — calibrated so that: cost × usdPerCredit ≈ real OpenRouter price.
+ * Formula: credits = realCostUSD / usdPerCredit (= realCostUSD / 0.008)
+ *
+ * Real costs (OpenRouter, May 2026):
+ *   deck_small  ~$0.38  (GPT-5.5 compose ~$0.22 + Claude Sonnet structure + coach)  → 48 cr
+ *   deck_medium ~$0.65  (GPT-5.5 compose ~$0.42 + structure + coach)                → 82 cr
+ *   deck_large  ~$1.80  (GPT-5.5 compose ~$1.20 + Claude Opus polish + images)      → 225 cr
+ *   deck_polish ~$0.65  (Claude Sonnet/Opus refine)                                  → 80 cr
+ *   magic_edit  ~$0.02  (Claude Sonnet short call)                                   → 2 cr
+ *   rewrite     ~$0.008 (Gemini Flash short call)                                    → 1 cr
+ *   image_std   ~$0.04  (FLUX 1.1 Pro)                                               → 5 cr
+ *   image_prem  ~$0.06  (FLUX Ultra)                                                 → 8 cr
+ *   genfill_free ~$0.04 (FLUX 1.1 Pro basic)                                         → 5 cr
+ *   genfill_pro  ~$0.06 (FLUX Kontext Pro)                                           → 8 cr
+ *   genfill_cre  ~$0.09 (FLUX Kontext Max)                                           → 12 cr
+ *   anim_enhance ~$0.016 (Gemini Flash)                                              → 2 cr
+ */
 const DEFAULT_CONFIG: CreditConfig = {
   monthly: { ...PLAN_MONTHLY_CREDITS },
   costs: {
-    deck_small: 40,
-    deck_medium: 80,
-    deck_large: 150,
+    deck_small: 48,
+    deck_medium: 82,
+    deck_large: 225,
     deck_polish: 80,
-    magic_edit: 5,
-    rewrite: 3,
-    image_standard: 30,
-    image_premium: 45,
-    animation_enhance: 5,
+    magic_edit: 2,
+    rewrite: 1,
+    image_standard: 5,
+    image_premium: 8,
+    genfill_free: 5,     // FLUX 1.1 Pro — same cost as image_standard
+    genfill_pro: 8,      // FLUX Kontext Pro
+    genfill_creator: 12, // FLUX Kontext Max
+    animation_enhance: 2,
   },
-  usdPerCredit: 0.0015,
+  // $0.008 per credit = calibrated to real GPT-5.5 / FLUX API costs
+  // If a user exhausts ALL credits, your max spend = credits × 0.008:
+  //   Free        150 cr × $0.008 = $1.20  (but free models = $0 actual)
+  //   Student Pro 500 cr × $0.008 = $4.00  ← guaranteed AI budget cap
+  //   Creator Pro 1125 cr × $0.008 = $9.00 ← guaranteed AI budget cap
+  usdPerCredit: 0.008,
 };
 
 async function readRemoteConfig(supabase: any): Promise<Partial<CreditConfig> | null> {

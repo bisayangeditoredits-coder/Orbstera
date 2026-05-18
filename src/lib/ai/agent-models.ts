@@ -24,7 +24,7 @@ export const AGENT_MODELS = {
 export const IMAGE_MODELS = {
   /** Studio-grade slide imagery (Student Pro, standard paid decks) */
   flux: process.env.OPENROUTER_IMAGE_FLUX ?? 'black-forest-labs/flux-1.1-pro',
-  /** Cinematic / Creator Pro premium slides & gen-fill */
+  /** Cinematic / Creator Pro premium slides */
   fluxCinematic:
     process.env.OPENROUTER_IMAGE_FLUX_CINEMATIC ?? 'black-forest-labs/flux-pro',
   /** Ultra fallback when cinematic fails */
@@ -34,6 +34,20 @@ export const IMAGE_MODELS = {
   typographyPremium:
     process.env.OPENROUTER_IMAGE_TYPOGRAPHY_PREMIUM ?? 'black-forest-labs/flux-pro',
   fallback: process.env.OPENROUTER_IMAGE_FALLBACK ?? 'black-forest-labs/flux-1.1-pro',
+
+  // ── Generative Fill / Inpaint models (FLUX Kontext family) ──
+  /** Free tier gen fill — standard FLUX (limited uses/month) */
+  genfillFree:
+    process.env.OPENROUTER_IMAGE_GENFILL_FREE ?? 'black-forest-labs/flux-1.1-pro',
+  /** Student Pro gen fill — FLUX Kontext Pro (image-aware editing) */
+  genfillPro:
+    process.env.OPENROUTER_IMAGE_GENFILL_PRO ?? 'black-forest-labs/flux-kontext-pro',
+  /** Creator Pro gen fill — FLUX Kontext Max (highest quality edits) */
+  genfillCreator:
+    process.env.OPENROUTER_IMAGE_GENFILL_CREATOR ?? 'black-forest-labs/flux-kontext-max',
+  /** Creator Pro gen fill fallback */
+  genfillCreatorFallback:
+    process.env.OPENROUTER_IMAGE_GENFILL_CREATOR_FB ?? 'black-forest-labs/flux-kontext-pro',
 } as const;
 
 export type ImageVisualProfile = 'cinematic' | 'typography';

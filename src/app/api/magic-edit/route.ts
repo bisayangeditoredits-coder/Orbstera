@@ -104,7 +104,7 @@ export async function POST(req: Request) {
         return NextResponse.json(
           {
             error: 'FREE_LIMIT_REACHED',
-            message: `Free accounts are limited to ${FREE_TIER.magicEditUses} AI Magic Edit uses. Upgrade to Pro for unlimited access.`,
+            message: `Free accounts are limited to ${FREE_TIER.magicEditUses} AI Magic Edit uses. Upgrade to unlock unlimited access.`,
             used: usage.free_magic_edit_uses,
             limit: FREE_TIER.magicEditUses,
           },
@@ -117,8 +117,17 @@ export async function POST(req: Request) {
 
     // Credit Deduction
     const creditConfig = await getCreditConfig(supabase);
-    const creditAction = element.type === 'image' ? 'image_standard' : 'magic_edit';
-    const cost = creditConfig.costs[creditAction] || 5;
+    // Pick the right credit action per plan+element type
+    const isImageElement = element.type === 'image';
+    let creditAction: import('@/lib/billing/credits').CreditAction;
+    if (isImageElement) {
+      if (plan === 'creator_pro' || plan === 'admin') creditAction = 'genfill_creator';
+      else if (plan === 'student_pro' || plan === 'pro') creditAction = 'genfill_pro';
+      else creditAction = 'genfill_free';
+    } else {
+      creditAction = 'magic_edit';
+    }
+    const cost = creditConfig.costs[creditAction] || 4;
 
     const creditCheck = await ensureCredits({
       supabase,
@@ -216,12 +225,25 @@ Return the modified element JSON only.`;
     const updatedElement = { ...element, ...parsed } as SlideElement;
 
     if (updatedElement.type === 'image' && updatedElement.src?.startsWith('PROMPT:')) {
+      // Free users can do gen fill (gated by generativeFillUses counter above)
+      const isImageGenFill = true;
       if (!isPaid) {
-        return NextResponse.json(
-          { error: 'Magic Edit images are Pro-only. Upgrade to unlock image edits.' },
-          { status: 403 },
-        );
+        // Check gen fill specific limit for free users
+        const usage = await readFreeTierUsage(userId);
+        if (usage.free_generative_fill_uses >= FREE_TIER.generativeFillUses) {
+          return NextResponse.json(
+            {
+              error: 'FREE_GENFILL_LIMIT_REACHED',
+              message: `Free accounts can do ${FREE_TIER.generativeFillUses} generative fills. Upgrade for unlimited.`,
+              used: usage.free_generative_fill_uses,
+              limit: FREE_TIER.generativeFillUses,
+            },
+            { status: 403 },
+          );
+        }
+        await incrementFreeTierUsage(userId, 'free_generative_fill_uses');
       }
+      void isImageGenFill; // used above
       const promptText = updatedElement.src.replace(/^PROMPT:\s*/i, '').trim();
       const { width, height } = toPollinationPixels(
         Number(updatedElement.width) || Number(element.width) || 1024,
