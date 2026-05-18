@@ -199,7 +199,7 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
           }
           return null;
         })}
-      </motion.div>
+      </div>
       {slide.generationStatus === 'visuals' && (
         <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-sky-500/90 text-[7px] font-black uppercase tracking-wider text-white flex items-center gap-1">
           <Loader2 size={8} className="animate-spin" />
