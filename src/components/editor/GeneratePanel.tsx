@@ -544,7 +544,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       setEditorState({
         isGenerating: true,
         generationEpoch: nextEpoch,
-        generationBlockingOverlay: false,
+        generationBlockingOverlay: true,
         generationGalleryOpen: true,
         generationTargetSlides: slideCount,
         generationPendingImages: 0,

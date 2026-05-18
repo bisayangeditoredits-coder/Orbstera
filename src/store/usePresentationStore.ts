@@ -744,38 +744,8 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   setPanelOpen: (open) => set({ isPanelOpen: open }),
 
   initGenerationPlaceholders: (count) => {
-    const n = Math.max(1, Math.min(40, Math.round(count || 1)));
     const base = get().presentation;
     const palette = base?.colorPalette || ['#05050A', '#FFFFFF', '#3B82F6', '#94A3B8'];
-    const placeholders: Slide[] = Array.from({ length: n }, (_, i) => ({
-      id: `gen-slot-${i}`,
-      type: 'content',
-      title: `Slide ${i + 1}`,
-      subtitle: 'Waiting for AI…',
-      bullets: [],
-      elements: [
-        {
-          id: `gen-ph-${i}`,
-          type: 'text',
-          x: 120,
-          y: 300,
-          width: 1040,
-          height: 72,
-          content: 'AI is composing this slide…',
-          zIndex: 1,
-          visible: true,
-          textStyle: {
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 22,
-            fontWeight: 'normal',
-            color: palette[3] || '#94A3B8',
-            textAlign: 'center',
-          },
-        },
-      ],
-      isGeneratingPlaceholder: true,
-      generationStatus: 'queued',
-    }));
     set({
       presentation: {
         title: base?.title && base.title !== 'Generating...' ? base.title : 'Generating...',
@@ -783,7 +753,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         colorPalette: palette,
         fontPairing: base?.fontPairing || { heading: 'Space Grotesk', body: 'Inter' },
         animationStyle: base?.animationStyle || 'cinematic-reveal',
-        slides: placeholders,
+        slides: [],
       },
       currentSlideIndex: 0,
     });
