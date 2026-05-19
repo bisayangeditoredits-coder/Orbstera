@@ -26,13 +26,18 @@ export async function applySubscriptionUpgrade(
     return { ok: false, error: 'INVALID_USER_ID' };
   }
 
+  const { data: { user }, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
+  if (getUserError || !user) {
+    console.error('[billing] failed to get user by id:', getUserError);
+    return { ok: false, error: 'USER_NOT_FOUND' };
+  }
+
   const normalizedPlan = String(planId || '').toLowerCase();
   if (!normalizedPlan || normalizedPlan === 'free') {
     return { ok: false, error: 'INVALID_PLAN' };
   }
 
   if (normalizedPlan === 'one_time_export') {
-    const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(userId);
     const currentCredits = Number(user?.user_metadata?.watermark_free_exports) || 0;
     const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
       user_metadata: { watermark_free_exports: currentCredits + 1 },
@@ -50,7 +55,7 @@ export async function applySubscriptionUpgrade(
   const profilePatch: Record<string, unknown> = {
     id: userId,
     plan: normalizedPlan,
-    updated_at: new Date().toISOString(),
+    email: user.email || '',
   };
   if (resetCredits) {
     profilePatch.credits_used_month = 0;
