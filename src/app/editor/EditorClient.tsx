@@ -22,10 +22,15 @@ import { createStarterPresentation } from '@/lib/editor-starter-deck';
 import { createEditorGeneratingShell } from '@/lib/editor-generating-shell';
 
 const EditorCanvasLoading = () => (
-  <div className="flex-1 min-h-0 flex items-center justify-center bg-background text-textMuted">
-    <div className="flex flex-col items-center gap-3">
-      <div className="w-9 h-9 border-2 border-primary/25 border-t-primary rounded-full animate-spin" />
-      <span className="text-[12px] font-medium">Loading canvas…</span>
+  <div className="flex-1 min-h-0 flex items-center justify-center bg-[#0f0f13] text-white">
+    <div className="flex flex-col items-center gap-4">
+      <div className="relative w-12 h-12">
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 animate-pulse" />
+        <div className="absolute inset-[3px] rounded-xl bg-[#0f0f13] flex items-center justify-center">
+          <div className="w-4 h-4 rounded-full bg-gradient-to-br from-violet-400 to-indigo-400 animate-ping" style={{ animationDuration: '1.4s' }} />
+        </div>
+      </div>
+      <span className="text-[13px] font-medium text-white/50 tracking-wide">Preparing canvas…</span>
     </div>
   </div>
 );
@@ -46,9 +51,9 @@ const OnboardingTour = dynamic(
 );
 
 export default function EditorClient() {
-  const { 
-    activePanel, isPanelOpen, setPanelOpen, setActivePanel, 
-    undo, redo, onboarding, startOnboarding 
+  const {
+    activePanel, isPanelOpen, setPanelOpen, setActivePanel,
+    undo, redo, onboarding, startOnboarding
   } = usePresentationStore();
   const presentation = usePresentationStore((s) => s.presentation);
   const searchParams = useSearchParams();
@@ -79,7 +84,7 @@ export default function EditorClient() {
 
           if (res.status === 401) {
             setDeckLoadStatus('error');
-            setDeckLoadMessage('You’re signed out. Please sign in again to open this deck.');
+            setDeckLoadMessage('You\u2019re signed out. Please sign in again to open this deck.');
             return;
           }
           if (!res.ok) {
@@ -124,12 +129,6 @@ export default function EditorClient() {
     return () => ac.abort();
   }, [searchParams, setActivePanel, setPanelOpen]);
 
-  /**
-   * Empty store breaks several editor surfaces.
-   * - Plain `/editor`: starter deck with one blank slide.
-   * - `/editor?prompt=…` (etc.): generating shell so components never mount with `presentation === null`
-   *   before GeneratePanel runs (must use empty slides + title `Generating…` per store rules).
-   */
   useEffect(() => {
     const id = searchParams.get('id');
     const prompt = searchParams.get('prompt');
@@ -209,7 +208,6 @@ export default function EditorClient() {
       if (!selectedId || !st.presentation?.slides?.length) return;
       const slide = st.presentation?.slides?.[st.currentSlideIndex];
       if (!slide) return;
-      if (!slide) return;
       const el = slide.elements?.find((x) => x.id === selectedId);
       if (!el) return;
       if (isSlideDeckBackgroundImage(el)) return;
@@ -221,39 +219,176 @@ export default function EditorClient() {
     [],
   );
 
+  // ── Premium loading / error screen ──────────────────────────────────────────
   const requestedId = searchParams.get('id');
   if (requestedId && !presentation) {
+    const isError = deckLoadStatus === 'error';
     return (
-      <div className="min-h-dvh max-h-dvh w-full max-w-[100vw] overflow-hidden bg-background flex items-center justify-center px-4 safe-pad-y">
-        <div className="w-full max-w-md border border-borderSubtle bg-white p-6 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-textMuted">
-            Editor
-          </p>
-          <h1 className="mt-2 text-lg font-semibold text-textMain">
-            {deckLoadStatus === 'error' ? 'Couldn’t open this deck' : 'Opening your deck…'}
-          </h1>
-          <p className="mt-2 text-sm text-textSecondary">
-            {deckLoadStatus === 'error'
+      <div
+        className="min-h-dvh max-h-dvh w-full max-w-[100vw] overflow-hidden flex items-center justify-center relative"
+        style={{ background: '#0a0a0f' }}
+      >
+        {/* Ambient gradient orbs */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -top-32 -left-32 w-[600px] h-[600px] rounded-full opacity-20"
+            style={{ background: 'radial-gradient(circle, #7c3aed, transparent 70%)', animation: 'pulse 4s ease-in-out infinite' }} />
+          <div className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full opacity-15"
+            style={{ background: 'radial-gradient(circle, #4f46e5, transparent 70%)', animation: 'pulse 5s ease-in-out infinite 1s' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full opacity-5"
+            style={{ background: 'radial-gradient(circle, #a78bfa, transparent 60%)' }} />
+        </div>
+
+        {/* Animated slide skeleton previews in background */}
+        {!isError && (
+          <div
+            className="pointer-events-none absolute inset-0 flex items-center justify-center gap-4 opacity-[0.07]"
+            style={{ transform: 'perspective(1200px) rotateX(12deg) rotateY(-4deg)', transformOrigin: 'center center' }}
+          >
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="rounded-xl shrink-0"
+                style={{
+                  width: 220, height: 124,
+                  background: 'linear-gradient(135deg, #1e1e2e, #2a2a3e)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  animation: `pulse ${2 + i * 0.3}s ease-in-out infinite ${i * 0.2}s`,
+                }}>
+                <div className="m-3 rounded-md" style={{ height: 14, width: '60%', background: 'rgba(255,255,255,0.08)' }} />
+                <div className="mx-3 mt-2 rounded" style={{ height: 8, width: '80%', background: 'rgba(255,255,255,0.05)' }} />
+                <div className="mx-3 mt-1.5 rounded" style={{ height: 8, width: '50%', background: 'rgba(255,255,255,0.04)' }} />
+                <div className="m-3 mt-4 rounded-lg" style={{ height: 44, background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.15)' }} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Main glassmorphism card */}
+        <motion.div
+          initial={{ opacity: 0, y: 24, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="relative z-10 w-full max-w-sm mx-4 rounded-2xl p-8 flex flex-col items-center text-center"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            backdropFilter: 'blur(24px)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08)',
+          }}
+        >
+          {/* Icon */}
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.4, ease: 'backOut' }}
+            className="relative mb-6"
+          >
+            {isError ? (
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(239,68,68,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
+            ) : (
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.3), rgba(79,70,229,0.3))', border: '1px solid rgba(124,58,237,0.25)' }}>
+                <div className="w-8 h-8 rounded-full"
+                  style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', animation: 'pulse 1.8s ease-in-out infinite', boxShadow: '0 0 20px rgba(124,58,237,0.5)' }} />
+              </div>
+            )}
+            {!isError && (
+              <div className="absolute inset-0 rounded-2xl"
+                style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.2), transparent 70%)', animation: 'pulse 2s ease-in-out infinite', filter: 'blur(8px)' }} />
+            )}
+          </motion.div>
+
+          {/* Label */}
+          <motion.p
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.35 }}
+            className="text-[10px] font-bold uppercase tracking-[0.25em] mb-3"
+            style={{ color: isError ? 'rgba(239,68,68,0.7)' : 'rgba(167,139,250,0.8)' }}
+          >
+            {isError ? 'Error' : 'Orbstera Editor'}
+          </motion.p>
+
+          {/* Title */}
+          <motion.h1
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25, duration: 0.4 }}
+            className="text-xl font-bold mb-2"
+            style={{ color: 'rgba(255,255,255,0.95)' }}
+          >
+            {isError ? "Couldn't open this deck" : 'Opening your deck\u2026'}
+          </motion.h1>
+
+          {/* Subtitle */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.35, duration: 0.4 }}
+            className="text-sm leading-relaxed mb-8"
+            style={{ color: 'rgba(255,255,255,0.4)' }}
+          >
+            {isError
               ? (deckLoadMessage ?? 'Something went wrong while loading this presentation.')
               : 'Loading slides and preparing the canvas.'}
-          </p>
+          </motion.p>
 
-          <div className="mt-6 flex gap-3">
+          {/* Progress bar (loading only) */}
+          {!isError && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="w-full mb-8 rounded-full overflow-hidden"
+              style={{ height: 3, background: 'rgba(255,255,255,0.06)' }}
+            >
+              <div
+                className="h-full rounded-full"
+                style={{
+                  background: 'linear-gradient(90deg, #7c3aed, #818cf8)',
+                  animation: 'deckLoadProgress 2.2s ease-in-out infinite',
+                  boxShadow: '0 0 10px rgba(124,58,237,0.8)',
+                }}
+              />
+            </motion.div>
+          )}
+
+          {/* Action buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45, duration: 0.35 }}
+            className="flex gap-3 w-full"
+          >
             <Link
               href="/my-presentations"
-              className="flex-1 border border-neutral-200 bg-white py-2.5 text-sm font-semibold text-neutral-800 transition hover:border-primary/25 hover:bg-accentBlue text-center"
+              className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-center transition-all"
+              style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.1)' }}
             >
-              Back to library
+              ← Library
             </Link>
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="flex-1 border border-primary bg-primary py-2.5 text-sm font-semibold text-white transition hover:bg-primaryHover"
+              className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all"
+              style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', boxShadow: '0 4px 20px rgba(124,58,237,0.35)' }}
             >
-              Refresh
+              {isError ? 'Try Again' : 'Refresh'}
             </button>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
+
+        {/* CSS for progress bar animation */}
+        <style>{`
+          @keyframes deckLoadProgress {
+            0%   { width: 5%;  margin-left: 0%; }
+            50%  { width: 45%; margin-left: 35%; }
+            100% { width: 5%;  margin-left: 95%; }
+          }
+        `}</style>
       </div>
     );
   }
