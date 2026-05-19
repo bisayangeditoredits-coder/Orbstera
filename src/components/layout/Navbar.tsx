@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { LogOut, ArrowRight, Menu, X, LayoutGrid } from 'lucide-react';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Fragment } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
+import { NewDeckModal } from '@/components/workspace/NewDeckModal';
 
 const NAV_LINKS = [
   { href: '/#features', label: 'Features' },
@@ -20,6 +21,7 @@ export function Navbar() {
   const [isLoading, setIsLoading] = useState(true);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [newDeckOpen, setNewDeckOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
   const router = useRouter();
@@ -75,6 +77,7 @@ export function Navbar() {
   const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
   return (
+    <Fragment>
     <nav className="fixed top-0 left-0 right-0 z-[100] border-b border-primary/10 bg-white/95 backdrop-blur-md pt-[env(safe-area-inset-top,0px)] shadow-[0_1px_0_rgba(59,130,246,0.06)]">
       <div className="mx-auto flex h-[52px] w-full max-w-7xl min-w-0 items-center justify-between gap-2 px-3 sm:h-14 sm:gap-3 sm:px-5 md:px-8">
         {/* Left */}
@@ -133,8 +136,9 @@ export function Navbar() {
             <Menu size={20} strokeWidth={2} />
           </button>
 
-          <Link
-            href="/editor"
+          <button
+            type="button"
+            onClick={() => user ? setNewDeckOpen(true) : router.push('/login')}
             className="group relative flex h-9 shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-full bg-primary px-4 text-[10px] font-bold uppercase tracking-widest text-white shadow-[0_8px_20px_-6px_rgba(59,130,246,0.45)] transition-all hover:bg-primaryHover hover:shadow-primary/30 active:scale-[0.98] touch-manipulation sm:h-10 sm:gap-2 sm:px-6 sm:text-[11px] md:h-11 md:px-7 md:text-[12px]"
           >
             <span className="relative z-10 truncate whitespace-nowrap">
@@ -146,7 +150,8 @@ export function Navbar() {
               className="relative z-10 shrink-0 transition-transform group-hover:translate-x-1 sm:w-4 sm:h-4"
             />
             <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity group-hover:opacity-100" />
-          </Link>
+          </button>
+
 
           {isLoading ? (
             <div className="hidden h-9 w-[120px] animate-pulse rounded-full bg-gray-100 sm:block sm:h-10" />
@@ -304,18 +309,23 @@ export function Navbar() {
                     Dashboard
                   </Link>
                 )}
-                <Link
-                  href="/editor"
-                  className="mt-4 rounded-2xl bg-primary py-3.5 text-center text-[12px] font-bold uppercase tracking-widest text-white shadow-md"
-                  onClick={() => setMobileNavOpen(false)}
+                <button
+                  type="button"
+                  className="mt-4 rounded-2xl bg-primary py-3.5 text-center text-[12px] font-bold uppercase tracking-widest text-white shadow-md w-full"
+                  onClick={() => {
+                    setMobileNavOpen(false);
+                    user ? setNewDeckOpen(true) : router.push('/login');
+                  }}
                 >
                   Start Creating
-                </Link>
+                </button>
               </nav>
             </motion.aside>
           </>
         )}
       </AnimatePresence>
     </nav>
+    <NewDeckModal open={newDeckOpen} onClose={() => setNewDeckOpen(false)} />
+    </Fragment>
   );
 }

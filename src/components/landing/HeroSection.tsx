@@ -7,12 +7,25 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
 import { explainGetUserMediaError, explainRecognitionStartError } from '@/lib/mic-access';
+import { OnboardingModal } from '@/components/dashboard/OnboardingModal';
 
 export function HeroSection() {
   const [prompt, setPrompt] = useState("");
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [activeMode, setActiveMode] = useState<'create' | 'enhance' | 'voice'>('create');
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const promptInputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    // Show onboarding on homepage load for new visitors
+    const hasSeen = localStorage.getItem('orbstera_planner_onboarding');
+    if (!hasSeen) {
+      const timer = setTimeout(() => setShowOnboarding(true), 1200);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   /** Pick best BCP-47 tag for Web Speech API from the user's preferred locales (no manual picker). */
   const resolvedSpeechLang = useMemo(() => {
     if (typeof navigator === 'undefined') return 'en-US';
@@ -265,83 +278,7 @@ export function HeroSection() {
     };
   }, []);
 
-  const playTypingSound = (key?: string) => {
-    try {
-      if (!typeAudioCtxRef.current) {
-        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-        typeAudioCtxRef.current = new AudioCtx();
-      }
-      const ctx = typeAudioCtxRef.current;
-      if (ctx.state === 'suspended') ctx.resume();
 
-      const time = ctx.currentTime;
-
-      let baseModifier = 1;
-      let volumeModifier = 1;
-
-      if (key === 'Enter') {
-        baseModifier = 0.6; // Deepest thud
-        volumeModifier = 1.3; // Louder
-      } else if (key === ' ' || key === 'Spacebar') {
-        baseModifier = 0.75; // Deeper (spacebar thock)
-        volumeModifier = 1.2;
-      } else if (key === 'Backspace') {
-        baseModifier = 1.1; // Slightly higher
-        volumeModifier = 0.9;
-      } else if (key) {
-        // Deterministic variation based on character code
-        const code = key.charCodeAt(0) || 0;
-        baseModifier = 0.9 + (code % 20) * 0.01; // Vary between 0.9 and 1.1
-      }
-
-      // 1. The Core "Mac" Thud (Extremely short, creamy base)
-      const oscLow = ctx.createOscillator();
-      const gainLow = ctx.createGain();
-      oscLow.type = 'sine'; // Pure sine for a clean, creamy thud
-
-      // Pitch drops very fast to give the illusion of a tactile tap
-      const baseFreq = (140 + Math.random() * 20) * baseModifier;
-      oscLow.frequency.setValueAtTime(baseFreq, time);
-      oscLow.frequency.exponentialRampToValueAtTime(40 * baseModifier, time + 0.03);
-
-      gainLow.gain.setValueAtTime(0, time);
-      gainLow.gain.linearRampToValueAtTime(0.6 * volumeModifier, time + 0.002); // Very fast, soft attack
-      gainLow.gain.exponentialRampToValueAtTime(0.001, time + 0.03); // Very fast decay, no echo
-
-      oscLow.connect(gainLow);
-      gainLow.connect(ctx.destination);
-      oscLow.start(time);
-      oscLow.stop(time + 0.03);
-
-      // 2. The Subtle Plastic Impact (Scissor switch mechanism)
-      const oscTap = ctx.createOscillator();
-      const gainTap = ctx.createGain();
-      oscTap.type = 'triangle'; // Warmer than square, sharper than sine
-
-      const tapFreq = (300 + Math.random() * 30) * baseModifier;
-      oscTap.frequency.setValueAtTime(tapFreq, time);
-      oscTap.frequency.exponentialRampToValueAtTime(100 * baseModifier, time + 0.02);
-
-      // Heavily muffled filter so it's "creamy" and not sharp at all
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(600 * baseModifier, time);
-      filter.frequency.exponentialRampToValueAtTime(200 * baseModifier, time + 0.02);
-
-      gainTap.gain.setValueAtTime(0, time);
-      gainTap.gain.linearRampToValueAtTime(0.2 * volumeModifier, time + 0.001); // Instant tap
-      gainTap.gain.exponentialRampToValueAtTime(0.001, time + 0.02); // Instant decay
-
-      oscTap.connect(filter);
-      filter.connect(gainTap);
-      gainTap.connect(ctx.destination);
-      oscTap.start(time);
-      oscTap.stop(time + 0.02);
-
-    } catch (e) {
-      // Silently fail if audio is blocked or unsupported
-    }
-  };
 
   useEffect(() => {
     isListeningRef.current = isListening;
@@ -870,12 +807,10 @@ export function HeroSection() {
                 ) : activeMode === 'create' ? (
                   <div className="relative flex-1 flex flex-col">
                     <textarea
+                      ref={promptInputRef}
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') {
-                          playTypingSound(e.key);
-                        }
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
                           handleGenerate();
@@ -1067,6 +1002,19 @@ export function HeroSection() {
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/40 to-white" />
         </div>
       </div>
+      <OnboardingModal
+        isOpen={showOnboarding}
+        onClose={() => {
+          localStorage.setItem('orbstera_planner_onboarding', 'true');
+          setShowOnboarding(false);
+        }}
+        onConfirm={() => {
+          localStorage.setItem('orbstera_planner_onboarding', 'true');
+          setShowOnboarding(false);
+          // Focus the prompt box when they click "Start Creating"
+          setTimeout(() => promptInputRef.current?.focus(), 100);
+        }}
+      />
     </section>
   );
 }

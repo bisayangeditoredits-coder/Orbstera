@@ -7,6 +7,7 @@ import {
   LayoutTemplate,
   ChevronDown,
   X,
+  History,
 } from 'lucide-react';
 import type { DeckMeta } from '@/types/deck-meta';
 import { cn } from '@/lib/cn';
@@ -21,7 +22,8 @@ const NAV: {
   href?: string;
 }[] = [
   { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'decks', label: 'My decks', icon: Layers },
+  { id: 'decks', label: 'My Documents', icon: Layers },
+  { id: 'planner-history', label: 'Chat History', icon: History },
   { id: 'templates', label: 'Templates', icon: LayoutTemplate, external: true, href: '/#templates' },
 ];
 
@@ -40,6 +42,7 @@ type DashboardSidebarProps = {
 function isNavActive(section: DashboardSection, id: DashboardSection | 'templates'): boolean {
   if (id === 'templates') return false;
   if (id === 'decks') return section === 'decks';
+  if (id === 'planner-history') return section === 'planner-history';
   if (id === 'overview') return section === 'overview' || section === 'settings';
   return false;
 }

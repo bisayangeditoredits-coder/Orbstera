@@ -344,9 +344,11 @@ const SortableLayerRow = memo(function SortableLayerRow({
   const reorderElements = usePresentationStore((s) => s.reorderElements);
 
   const displayName =
-    el.type === 'text'
-      ? (el.content?.trim().slice(0, 36) || 'Empty text')
-      : `${(el.shapeType || el.type).charAt(0).toUpperCase() + (el.shapeType || el.type).slice(1)}`;
+    el.id.includes('el-bg-')
+      ? 'Background'
+      : el.type === 'text'
+        ? (el.content?.trim().slice(0, 36) || 'Empty text')
+        : `${(el.shapeType || el.type).charAt(0).toUpperCase() + (el.shapeType || el.type).slice(1)}`;
 
   return (
     <Reorder.Item

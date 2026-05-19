@@ -12,6 +12,7 @@ import { DashboardStats } from './DashboardStats';
 import { PresentationGrid } from './PresentationGrid';
 import { DashboardSettings } from './DashboardSettings';
 import { DashboardQuickTools } from './DashboardQuickTools';
+import { PlannerHistory } from './PlannerHistory';
 import { DashboardCreditBreakdown } from './DashboardCreditBreakdown';
 import { DashboardUsageHistory } from './DashboardUsageHistory';
 import { sortByUpdated } from './dashboard-utils';
@@ -326,6 +327,8 @@ export function DashboardShell() {
                 </div>
               </div>
             </div>
+          ) : section === 'planner-history' ? (
+            <PlannerHistory />
           ) : showSettings ? (
             <DashboardSettings credits={credits} />
           ) : (

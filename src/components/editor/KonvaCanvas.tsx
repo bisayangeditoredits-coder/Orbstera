@@ -236,8 +236,8 @@ function ElementNode({
     y: el.y,
     rotation: el.rotation || 0,
     opacity: el.opacity ?? 1,
-    draggable: elementDraggable,
-    listening: elementListening,
+    draggable: elementDraggable && !el.id.startsWith('bg-'),
+    listening: elementListening && !el.id.startsWith('bg-'),
     onClick: onSelect,
     onTap: onSelect,
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -253,8 +253,8 @@ function ElementNode({
     height: el.height,
     rotation: el.rotation || 0,
     opacity: el.opacity ?? 1,
-    draggable: elementDraggable,
-    listening: elementListening,
+    draggable: elementDraggable && !el.id.startsWith('bg-'),
+    listening: elementListening && !el.id.startsWith('bg-'),
     onClick: onSelect,
     onTap: onSelect,
     onDblClick: () => {
@@ -648,17 +648,8 @@ function SlideBackground({
 
   return (
     <>
-      <Rect name={SLIDE_BG_NAME} x={0} y={0} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} fill={bg} />
-      <Rect
-        x={0}
-        y={0}
-        width={CANVAS_WIDTH}
-        height={CANVAS_HEIGHT}
-        fillLinearGradientStartPoint={{ x: 0, y: 0 }}
-        fillLinearGradientEndPoint={{ x: CANVAS_WIDTH, y: CANVAS_HEIGHT }}
-        fillLinearGradientColorStops={[0, accent + '33', 0.5, 'transparent', 1, accent + '22']}
-        listening={false}
-      />
+      <Rect name={SLIDE_BG_NAME} x={0} y={0} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} fill="transparent" />
+
       {bgImageUrl && bgImg && (
         <KonvaImage
           image={bgImg}

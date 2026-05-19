@@ -655,9 +655,9 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
       </AnimatePresence>
 
       <header className="border-b border-black/[0.06] bg-[#FAFAFA]/95 backdrop-blur-md z-50 shrink-0 shadow-[0_1px_0_rgba(255,255,255,0.8)_inset] pt-[env(safe-area-inset-top,0px)]">
-        <div className="grid grid-cols-1 gap-y-2 py-2 px-2 sm:px-3 xl:grid-cols-[minmax(180px,1fr)_auto_minmax(180px,1fr)] xl:items-center xl:gap-x-3 xl:gap-y-0 xl:py-0 xl:h-[52px] xl:px-4 2xl:gap-x-4 2xl:px-5">
-        {/* Left — single scroll row on md–lg to avoid overlap with center */}
-        <div className="flex min-h-[44px] min-w-0 flex-nowrap items-center gap-2 overflow-x-auto overflow-y-visible overscroll-x-contain scrollbar-none sm:gap-2.5 xl:min-h-0">
+        <div className="flex flex-wrap items-center justify-between gap-y-2 py-2 px-2 sm:px-3 xl:grid xl:grid-cols-[minmax(180px,1fr)_auto_minmax(180px,1fr)] xl:gap-x-3 xl:gap-y-0 xl:py-0 xl:h-[52px] xl:px-4 2xl:gap-x-4 2xl:px-5">
+        {/* Left */}
+        <div className="order-1 flex min-h-[44px] min-w-0 flex-nowrap items-center gap-2 overflow-x-auto overflow-y-visible overscroll-x-contain scrollbar-none sm:gap-2.5 xl:min-h-0">
           {showMobileGalleryTrigger && onOpenMobileGallery && (
             <button
               type="button"
@@ -675,7 +675,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
           >
             <ArrowLeft size={16} strokeWidth={1.75} />
           </Link>
-          <Link href="/" className="shrink-0 flex items-center min-w-0 rounded-lg hover:opacity-90 transition-opacity">
+          <Link href="/" className="hidden sm:flex shrink-0 items-center min-w-0 rounded-lg hover:opacity-90 transition-opacity">
             <img src="/logo.png.png" alt="Orbstera" className="h-[1.35rem] w-auto max-h-7 object-contain" />
           </Link>
 
@@ -765,7 +765,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
         </div>
 
         {/* Center — panel toggles */}
-        <div className="flex w-full min-w-0 justify-center overflow-hidden xl:w-auto xl:max-w-[min(520px,38vw)]">
+        <div className="order-3 flex w-full min-w-0 justify-center overflow-hidden xl:order-2 xl:w-auto xl:max-w-[min(520px,38vw)]">
           <div
             id="tour-panel-tabs"
             className="inline-flex max-w-full flex-nowrap items-center gap-0.5 overflow-x-auto overscroll-x-contain rounded-2xl border border-black/[0.06] bg-neutral-100/85 p-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] scrollbar-none touch-pan-x"
@@ -792,7 +792,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
         </div>
 
         {/* Right */}
-        <div id="tour-actions" className="flex min-h-[44px] min-w-0 flex-nowrap items-center justify-end gap-1.5 overflow-x-auto overflow-y-visible overscroll-x-contain scrollbar-none sm:gap-2 xl:min-h-0">
+        <div id="tour-actions" className="order-2 flex min-h-[44px] min-w-0 flex-nowrap items-center justify-end gap-1.5 overflow-x-auto overflow-y-visible overscroll-x-contain scrollbar-none sm:gap-2 xl:order-3 xl:min-h-0">
           <div className="hidden xl:flex items-center gap-1.5 text-[10px] text-neutral-400 font-medium mr-0.5">
             <span className="px-1.5 py-0.5 rounded-md bg-white border border-black/[0.06] text-neutral-500 tabular-nums">⌘P</span>
             <span className="text-neutral-400">Present</span>

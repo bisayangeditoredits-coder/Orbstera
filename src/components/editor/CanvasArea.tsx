@@ -479,6 +479,9 @@ export function CanvasArea() {
       velocityRef.current = { x: 0, y: 0 };
       if (rafMomentumRef.current) cancelAnimationFrame(rafMomentumRef.current);
       e.preventDefault();
+    } else if (e.target === e.currentTarget) {
+      // Clicked on the gray area outside the canvas, so deselect any active element
+      usePresentationStore.getState().selectElement(null);
     }
   };
 
@@ -588,6 +591,15 @@ export function CanvasArea() {
             boxShadow: '0 32px 80px -20px rgba(15,23,42,0.25), 0 0 0 1px rgba(255,255,255,0.08)',
             borderRadius: 4,
             overflow: 'hidden',
+            backgroundColor: '#ffffff',
+            backgroundImage: `
+              linear-gradient(45deg, #e5e5e5 25%, transparent 25%), 
+              linear-gradient(-45deg, #e5e5e5 25%, transparent 25%), 
+              linear-gradient(45deg, transparent 75%, #e5e5e5 75%), 
+              linear-gradient(-45deg, transparent 75%, #e5e5e5 75%)
+            `,
+            backgroundSize: '20px 20px',
+            backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
           }}
         >
           <KonvaCanvas scale={effectiveScale} />

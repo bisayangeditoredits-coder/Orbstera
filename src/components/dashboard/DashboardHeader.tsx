@@ -6,7 +6,8 @@ import type { DashboardSection } from './dashboard-types';
 
 const SECTION_TITLES: Record<DashboardSection, string> = {
   overview: 'Workspace',
-  decks: 'My decks',
+  decks: 'My Documents',
+  'planner-history': 'Chat History',
   settings: 'Account',
 };
 

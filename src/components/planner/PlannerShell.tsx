@@ -23,6 +23,7 @@ export function PlannerShell() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const topic = searchParams.get('topic')?.trim() || '';
+  const sessionIdParam = searchParams.get('sessionId')?.trim() || null;
 
   const setEditorState = usePresentationStore((s) => s.setEditorState);
 
@@ -197,6 +198,22 @@ export function PlannerShell() {
 
       let sid: string | null = null;
       if (user) {
+        if (sessionIdParam) {
+          // Attempt to resume existing session
+          const { data: existingMessages } = await supabase
+            .from('chat_messages')
+            .select('role, content')
+            .eq('session_id', sessionIdParam)
+            .order('created_at', { ascending: true });
+
+          if (existingMessages && existingMessages.length > 0) {
+            setSessionId(sessionIdParam);
+            setMessages(existingMessages as Message[]);
+            return; // Exit early, no need to send initial prompt
+          }
+        }
+
+        // Otherwise create new session
         const { data: session } = await supabase
           .from('chat_sessions')
           .insert({ user_id: user.id, title: topic.substring(0, 50) })

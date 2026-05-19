@@ -3,64 +3,71 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import {
-  X, FileText, Loader2, ChevronRight,
-  Sun, Moon, LayoutGrid,
-} from 'lucide-react';
+import { X, Loader2, ArrowRight, Check } from 'lucide-react';
 
-// ── Preset themes ─────────────────────────────────────────────────────────────
 const THEMES = [
   {
     id: 'dark',
-    label: 'Dark',
-    icon: Moon,
+    label: 'Obsidian',
+    description: 'Deep black with violet',
     bg: '#05050A',
-    palette: ['#05050A', '#FFFFFF', '#7B61FF', '#A390FF'],
+    text: '#FFFFFF',
+    subtext: '#A390FF',
     accent: '#7B61FF',
+    palette: ['#05050A', '#FFFFFF', '#7B61FF', '#A390FF'],
   },
   {
     id: 'light',
-    label: 'Light',
-    icon: Sun,
+    label: 'Pearl',
+    description: 'Clean white & blue',
     bg: '#FFFFFF',
-    palette: ['#FFFFFF', '#0F0F1A', '#3B82F6', '#93C5FD'],
+    text: '#0F172A',
+    subtext: '#3B82F6',
     accent: '#3B82F6',
+    palette: ['#FFFFFF', '#0F172A', '#3B82F6', '#93C5FD'],
   },
   {
     id: 'midnight',
     label: 'Midnight',
-    icon: Moon,
+    description: 'Navy with indigo',
     bg: '#0D0D1A',
-    palette: ['#0D0D1A', '#E8E8FF', '#6366F1', '#A5B4FC'],
+    text: '#E8E8FF',
+    subtext: '#A5B4FC',
     accent: '#6366F1',
+    palette: ['#0D0D1A', '#E8E8FF', '#6366F1', '#A5B4FC'],
   },
   {
     id: 'ocean',
-    label: 'Ocean',
-    icon: LayoutGrid,
+    label: 'Abyss',
+    description: 'Dark teal & sky blue',
     bg: '#061B2E',
-    palette: ['#061B2E', '#E0F2FE', '#0EA5E9', '#7DD3FC'],
+    text: '#E0F2FE',
+    subtext: '#7DD3FC',
     accent: '#0EA5E9',
+    palette: ['#061B2E', '#E0F2FE', '#0EA5E9', '#7DD3FC'],
   },
   {
     id: 'ember',
     label: 'Ember',
-    icon: LayoutGrid,
+    description: 'Warm dark & orange',
     bg: '#1A0900',
-    palette: ['#1A0900', '#FFF7ED', '#F97316', '#FED7AA'],
+    text: '#FFF7ED',
+    subtext: '#FED7AA',
     accent: '#F97316',
+    palette: ['#1A0900', '#FFF7ED', '#F97316', '#FED7AA'],
   },
   {
     id: 'forest',
-    label: 'Forest',
-    icon: LayoutGrid,
+    label: 'Aurora',
+    description: 'Forest & emerald',
     bg: '#0A1A0F',
-    palette: ['#0A1A0F', '#F0FDF4', '#22C55E', '#86EFAC'],
+    text: '#F0FDF4',
+    subtext: '#86EFAC',
     accent: '#22C55E',
+    palette: ['#0A1A0F', '#F0FDF4', '#22C55E', '#86EFAC'],
   },
 ] as const;
 
-// Fixed canvas size — 1280 × 720 (16:9 widescreen standard)
 const CANVAS_W = 1280;
 const CANVAS_H = 720;
 
@@ -72,123 +79,62 @@ interface Props {
 export function NewDeckModal({ open, onClose }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const [title,    setTitle]    = useState('Untitled Presentation');
-  const [themeId,  setThemeId]  = useState<typeof THEMES[number]['id']>('dark');
+  const [title, setTitle] = useState('');
+  const [themeId, setThemeId] = useState<typeof THEMES[number]['id']>('dark');
   const [creating, setCreating] = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Focus & select title text when modal opens
   useEffect(() => {
     if (open) {
-      setTitle('Untitled Presentation');
+      setTitle('');
       setError(null);
       setCreating(false);
-      setTimeout(() => inputRef.current?.select(), 80);
+      setTimeout(() => inputRef.current?.focus(), 80);
     }
   }, [open]);
 
-  const selectedTheme = THEMES.find((t) => t.id === themeId) ?? THEMES[0];
+  const selected = THEMES.find((t) => t.id === themeId) ?? THEMES[0];
 
   const handleCreate = async () => {
     const trimmed = title.trim() || 'Untitled Presentation';
     setCreating(true);
     setError(null);
-
-    const now     = new Date().toISOString();
-    const slideId = `slide-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
-    const deckId  = `deck-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
-
-    // Single blank hero slide with title + subtitle placeholder
-    const blankSlide = {
-      id: slideId,
-      type: 'hero',
-      title: trimmed,
-      subtitle: '',
-      bullets: [],
-      elements: [
-        // Background fill
-        {
-          id: `el-bg-${slideId}`,
-          type: 'shape',
-          shapeType: 'rect',
-          x: 0, y: 0,
-          width: CANVAS_W,
-          height: CANVAS_H,
-          zIndex: 0,
-          visible: true,
-          shapeStyle: { fill: selectedTheme.bg, stroke: 'transparent', strokeWidth: 0 },
-        },
-        // Title text
-        {
-          id: `el-title-${slideId}`,
-          type: 'text',
-          x: 80,
-          y: CANVAS_H / 2 - 60,
-          width: CANVAS_W - 160,
-          height: 120,
-          content: trimmed,
-          zIndex: 1,
-          visible: true,
-          textStyle: {
-            fontFamily: 'Space Grotesk',
-            fontSize: 72,
-            fontWeight: 'bold',
-            color: selectedTheme.palette[1],
-            textAlign: 'center',
-            lineHeight: 1.15,
-          },
-        },
-        // Subtitle placeholder
-        {
-          id: `el-sub-${slideId}`,
-          type: 'text',
-          x: 200,
-          y: CANVAS_H / 2 + 70,
-          width: CANVAS_W - 400,
-          height: 60,
-          content: 'Click to add a subtitle',
-          zIndex: 2,
-          visible: true,
-          textStyle: {
-            fontFamily: 'Inter',
-            fontSize: 24,
-            fontWeight: 'normal',
-            color: selectedTheme.palette[3] ?? selectedTheme.palette[1],
-            textAlign: 'center',
-            lineHeight: 1.5,
-          },
-        },
-      ],
-    };
+    const now = new Date().toISOString();
+    const slideId = `slide-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    const deckId = `deck-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 
     const deck = {
       id: deckId,
       title: trimmed,
-      theme: selectedTheme.id,
-      colorPalette: [...selectedTheme.palette],
+      theme: selected.id,
+      colorPalette: [...selected.palette],
       fontPairing: { heading: 'Space Grotesk', body: 'Inter' },
       animationStyle: 'cinematic-reveal',
       source: 'manual' as const,
-      slides: [blankSlide],
       createdAt: now,
       updatedAt: now,
+      slides: [{
+        id: slideId,
+        type: 'hero',
+        title: trimmed,
+        subtitle: '',
+        bullets: [],
+        elements: [
+          { id: `bg-${slideId}`, type: 'shape', shapeType: 'rect', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: 0, visible: true, shapeStyle: { fill: selected.bg, stroke: 'transparent', strokeWidth: 0 } },
+          { id: `ttl-${slideId}`, type: 'text', x: 80, y: CANVAS_H / 2 - 64, width: CANVAS_W - 160, height: 128, content: trimmed, zIndex: 1, visible: true, textStyle: { fontFamily: 'Space Grotesk', fontSize: 72, fontWeight: 'bold', color: selected.text, textAlign: 'center', lineHeight: 1.15 } },
+          { id: `sub-${slideId}`, type: 'text', x: 200, y: CANVAS_H / 2 + 76, width: CANVAS_W - 400, height: 60, content: 'Click to add a subtitle', zIndex: 2, visible: true, textStyle: { fontFamily: 'Inter', fontSize: 24, fontWeight: 'normal', color: selected.subtext, textAlign: 'center', lineHeight: 1.5 } },
+        ],
+      }],
     };
 
     try {
-      const res = await fetch('/api/presentations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(deck),
-        cache: 'no-store',
-      });
+      const res = await fetch('/api/presentations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(deck), cache: 'no-store' });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : `Failed to create (${res.status})`);
-
+      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : `Error ${res.status}`);
       onClose();
       router.push(`/editor?id=${encodeURIComponent(deckId)}`);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
+      setError(e instanceof Error ? e.message : 'Something went wrong.');
       setCreating(false);
     }
   };
@@ -200,64 +146,85 @@ export function NewDeckModal({ open, onClose }: Props) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          transition={{ duration: 0.15 }}
+          className="fixed inset-0 z-[600] flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)' }}
           onClick={() => !creating && onClose()}
         >
           <motion.div
-            initial={{ scale: 0.94, y: 20, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.94, y: 20, opacity: 0 }}
-            transition={{ type: 'spring', damping: 22, stiffness: 320 }}
-            className="w-full max-w-xl bg-[#FAFAFA] rounded-2xl shadow-2xl border border-black/[0.07] overflow-hidden flex flex-col"
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.98 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="relative bg-white w-full mx-4 flex overflow-hidden"
+            style={{
+              maxWidth: 780,
+              borderRadius: 16,
+              boxShadow: '0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.07)',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* ── Header ── */}
-            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-black/[0.06]">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <FileText size={16} className="text-primary" strokeWidth={1.75} />
-                </div>
+            {/* ─── Left Column: Form ─────────────────── */}
+            <div className="flex-1 flex flex-col min-w-0">
+              {/* Header */}
+              <div className="flex items-start justify-between px-8 pt-8 pb-6">
                 <div>
-                  <h2 className="text-[15px] font-bold text-neutral-900 leading-tight">New Presentation</h2>
-                  <p className="text-[11px] text-neutral-400 mt-0.5">Standard 16:9 canvas — 1280 × 720</p>
+                  <p className="text-[11px] font-semibold tracking-widest uppercase text-neutral-400 mb-1.5">
+                    New Project
+                  </p>
+                  <h2 className="text-[22px] font-bold text-neutral-900 leading-tight tracking-tight">
+                    Create a presentation
+                  </h2>
                 </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={creating}
+                  className="mt-0.5 w-7 h-7 flex items-center justify-center rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-colors"
+                >
+                  <X size={14} strokeWidth={2.5} />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={creating}
-                className="w-8 h-8 flex items-center justify-center rounded-xl text-neutral-400 hover:text-neutral-700 hover:bg-black/[0.05] transition-all"
-              >
-                <X size={16} />
-              </button>
-            </div>
 
-            {/* ── Body ── */}
-            <div className="flex flex-col md:flex-row min-h-0">
-              {/* Left — settings */}
-              <div className="flex-1 p-6 space-y-6 min-w-0">
+              {/* Divider */}
+              <div className="h-px bg-neutral-100 mx-8" />
 
-                {/* Project name */}
+              {/* Fields */}
+              <div className="px-8 py-6 flex flex-col gap-6 flex-1">
+                {/* Title */}
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500 mb-2">
-                    Project name
+                  <label className="block text-[12px] font-semibold text-neutral-700 mb-2">
+                    Title
                   </label>
                   <input
                     ref={inputRef}
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && title.trim()) handleCreate(); }}
                     disabled={creating}
-                    placeholder="My Presentation"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-black/[0.1] bg-white text-[14px] font-semibold text-neutral-900 placeholder:text-neutral-300 outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary/40 transition-all"
+                    placeholder="e.g. Q3 Marketing Strategy"
+                    className="w-full text-[14px] font-medium text-neutral-900 placeholder:text-neutral-300 bg-white outline-none transition-all"
+                    style={{
+                      border: '1.5px solid #e5e7eb',
+                      borderRadius: 10,
+                      padding: '11px 14px',
+                    }}
+                    onFocus={e => {
+                      e.currentTarget.style.borderColor = selected.accent;
+                      e.currentTarget.style.boxShadow = `0 0 0 3px ${selected.accent}18`;
+                    }}
+                    onBlur={e => {
+                      e.currentTarget.style.borderColor = '#e5e7eb';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                   />
                 </div>
 
                 {/* Theme */}
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500 mb-2">
-                    Color theme
+                  <label className="block text-[12px] font-semibold text-neutral-700 mb-3">
+                    Color style
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     {THEMES.map((t) => {
@@ -266,38 +233,46 @@ export function NewDeckModal({ open, onClose }: Props) {
                         <button
                           key={t.id}
                           type="button"
-                          onClick={() => setThemeId(t.id)}
                           disabled={creating}
-                          className={`group relative flex flex-col items-center gap-1.5 p-2.5 rounded-xl border transition-all ${
-                            active
-                              ? 'border-primary/40 bg-primary/[0.06] shadow-[0_0_0_1px_rgba(59,130,246,0.25)]'
-                              : 'border-black/[0.07] bg-white hover:border-black/15 hover:bg-neutral-50'
-                          }`}
+                          onClick={() => setThemeId(t.id)}
+                          className="relative group text-left p-2 rounded-xl transition-all duration-150 outline-none"
+                          style={{
+                            border: `1.5px solid ${active ? t.accent : '#e5e7eb'}`,
+                            background: active ? `${t.accent}09` : '#fff',
+                          }}
                         >
-                          {/* Mini slide preview */}
+                          {/* Mini slide — exact colors */}
                           <div
-                            className="w-full aspect-video rounded-lg overflow-hidden flex items-center justify-center relative"
-                            style={{ background: t.bg }}
+                            className="w-full rounded-lg overflow-hidden mb-2 relative"
+                            style={{ aspectRatio: '16/9', background: t.bg }}
                           >
-                            <div className="absolute bottom-0 left-0 right-0 h-[3px]" style={{ background: t.accent }} />
-                            <div className="flex flex-col gap-1 items-center opacity-60">
-                              <div className="w-10 h-1.5 rounded-full" style={{ background: t.palette[1], opacity: 0.9 }} />
-                              <div className="w-7 h-1 rounded-full" style={{ background: t.palette[1], opacity: 0.5 }} />
+                            {/* radial glow */}
+                            <div className="absolute inset-0" style={{ background: `radial-gradient(ellipse at 60% 40%, ${t.accent}30 0%, transparent 65%)` }} />
+                            {/* Text lines */}
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+                              <div className="h-[5px] rounded-full w-3/4" style={{ background: t.text, opacity: 0.88 }} />
+                              <div className="h-[3px] rounded-full w-1/2" style={{ background: t.subtext, opacity: 0.7 }} />
                             </div>
+                            {/* Accent bottom bar */}
+                            <div className="absolute bottom-0 left-0 right-0 h-[2.5px]" style={{ background: t.accent }} />
                           </div>
-                          <span className={`text-[10px] font-semibold ${active ? 'text-primary' : 'text-neutral-500'}`}>
-                            {t.label}
-                          </span>
-                          {active && (
-                            <motion.div
-                              layoutId="theme-check"
-                              className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center shadow-sm"
-                            >
-                              <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                                <path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            </motion.div>
-                          )}
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-semibold" style={{ color: active ? t.accent : '#6b7280' }}>
+                              {t.label}
+                            </span>
+                            {active && (
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                                className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
+                                style={{ background: t.accent }}
+                              >
+                                <Check size={9} className="text-white" strokeWidth={3} />
+                              </motion.div>
+                            )}
+                          </div>
                         </button>
                       );
                     })}
@@ -305,54 +280,133 @@ export function NewDeckModal({ open, onClose }: Props) {
                 </div>
 
                 {error && (
-                  <p className="text-[12px] text-red-600 bg-red-50 rounded-xl px-3 py-2 border border-red-100">
+                  <p className="text-[12px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-3.5 py-2.5">
                     {error}
                   </p>
                 )}
               </div>
 
-              {/* Right — live preview */}
-              <div className="hidden md:flex flex-col items-center justify-center gap-4 px-6 py-8 border-l border-black/[0.06] w-[180px] shrink-0 bg-neutral-100/60">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-neutral-400">Preview</p>
-                <div
-                  className="w-full aspect-video rounded-xl overflow-hidden shadow-md border border-white/30 relative flex items-center justify-center"
-                  style={{ background: selectedTheme.bg }}
+              {/* Footer */}
+              <div className="px-8 pb-8 pt-2 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={creating}
+                  className="px-4 py-2.5 text-[13px] font-medium text-neutral-500 rounded-lg hover:bg-neutral-100 transition-colors disabled:opacity-40"
                 >
-                  <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: selectedTheme.accent }} />
-                  <div className="flex flex-col items-center gap-2 px-3 text-center">
-                    <div className="h-2 rounded-full w-20 opacity-90" style={{ background: selectedTheme.palette[1] }} />
-                    <div className="h-1 rounded-full w-14 opacity-50" style={{ background: selectedTheme.palette[1] }} />
-                  </div>
-                </div>
-                <div className="flex gap-1.5">
-                  {selectedTheme.palette.map((c, i) => (
-                    <div key={i} className="w-4 h-4 rounded-full border border-black/10 shadow-sm" style={{ background: c }} />
-                  ))}
-                </div>
-                <p className="text-[10px] text-neutral-400 font-medium text-center">{selectedTheme.label} theme</p>
-                <p className="text-[10px] text-neutral-400 font-medium text-center">1280 × 720 px</p>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreate}
+                  disabled={creating || !title.trim()}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-all disabled:opacity-35 disabled:cursor-not-allowed active:scale-[0.98]"
+                  style={{
+                    background: `linear-gradient(135deg, ${selected.accent}f0, ${selected.accent})`,
+                    boxShadow: `0 2px 12px ${selected.accent}40`,
+                    transition: 'background 0.3s, box-shadow 0.3s',
+                  }}
+                >
+                  {creating ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : null}
+                  <span>{creating ? 'Creating…' : 'Create Presentation'}</span>
+                  {!creating && <ArrowRight size={13} strokeWidth={2.5} />}
+                </button>
               </div>
             </div>
 
-            {/* ── Footer ── */}
-            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-black/[0.06] bg-white">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={creating}
-                className="px-4 py-2 rounded-xl text-[13px] font-semibold text-neutral-600 hover:bg-neutral-100 transition-all disabled:opacity-40"
+            {/* ─── Right Column: Live Preview ────────── */}
+            <div
+              className="w-[220px] shrink-0 flex flex-col items-center justify-center gap-6 p-7"
+              style={{
+                background: 'linear-gradient(160deg, #f8faff 0%, #f1f4f9 100%)',
+                borderLeft: '1px solid #e5e7eb',
+              }}
+            >
+              {/* Large accurate slide preview */}
+              <div className="w-full">
+                <p className="text-[10px] font-semibold tracking-widest uppercase text-neutral-400 mb-3 text-center">
+                  Preview
+                </p>
+                <motion.div
+                  key={themeId}
+                  initial={{ opacity: 0, scale: 0.94 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  className="w-full rounded-xl overflow-hidden relative"
+                  style={{
+                    aspectRatio: '16/9',
+                    background: selected.bg,
+                    boxShadow: `0 8px 32px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.07), 0 0 24px ${selected.accent}20`,
+                  }}
+                >
+                  {/* Accurate gradient overlay */}
+                  <div
+                    className="absolute inset-0"
+                    style={{ background: `radial-gradient(ellipse at 65% 35%, ${selected.accent}28 0%, transparent 60%)` }}
+                  />
+                  {/* Title + subtitle */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-4 text-center">
+                    <div
+                      className="text-[9px] font-bold leading-snug tracking-tight"
+                      style={{ color: selected.text, opacity: 0.92, maxWidth: '85%' }}
+                    >
+                      {title.trim() || 'Your Presentation'}
+                    </div>
+                    <div
+                      className="text-[6px] leading-snug"
+                      style={{ color: selected.subtext, opacity: 0.75 }}
+                    >
+                      Subtitle goes here
+                    </div>
+                  </div>
+                  {/* Bottom accent bar */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0"
+                    style={{ height: 3, background: selected.accent, opacity: 0.9 }}
+                  />
+                </motion.div>
+              </div>
+
+              {/* Divider */}
+              <div className="w-full h-px bg-neutral-200" />
+
+              {/* Palette + info */}
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  {selected.palette.map((c, i) => (
+                    <div
+                      key={i}
+                      className="rounded-full border border-black/10"
+                      style={{
+                        width: i === 0 ? 20 : 15,
+                        height: i === 0 ? 20 : 15,
+                        background: c,
+                        boxShadow: i === 2 ? `0 0 10px ${c}70` : undefined,
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="text-center">
+                  <p
+                    className="text-[12px] font-semibold tracking-tight"
+                    style={{ color: selected.accent }}
+                  >
+                    {selected.label}
+                  </p>
+                  <p className="text-[10px] text-neutral-400 mt-0.5">{selected.description}</p>
+                </div>
+              </div>
+
+              {/* Canvas size info */}
+              <div
+                className="w-full rounded-lg px-3 py-2.5 text-center"
+                style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)' }}
               >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleCreate}
-                disabled={creating || !title.trim()}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-b from-[#5B7CFF] to-primary text-white text-[13px] font-bold shadow-[0_4px_14px_-4px_rgba(59,130,246,0.55)] hover:from-primary hover:to-[#3d5ef0] transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
-              >
-                {creating ? <Loader2 size={14} className="animate-spin" /> : <ChevronRight size={14} />}
-                {creating ? 'Creating…' : 'Create Presentation'}
-              </button>
+                <p className="text-[10px] font-medium text-neutral-500">Standard 16:9</p>
+                <p className="text-[11px] font-semibold text-neutral-700 mt-0.5">1280 × 720 px</p>
+              </div>
             </div>
           </motion.div>
         </motion.div>
