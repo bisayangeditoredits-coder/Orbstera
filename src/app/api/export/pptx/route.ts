@@ -571,18 +571,19 @@ export async function POST(req: Request) {
             addText: (t: string, o: Record<string, unknown>) => void;
           };
           if (logoData && typeof ws.addImage === 'function') {
+            // Place logo at bottom-right corner, width-constrained so aspect ratio is preserved
             ws.addImage({
               data: logoData,
-              x: 8.2, y: 5.05, w: 1.5, h: 0.35,
-              sizing: { type: 'contain', w: 1.5, h: 0.35 },
+              x: 9.0, y: 7.12, w: 1.2, h: 0.2,
+              sizing: { type: 'contain', w: 1.2, h: 0.2 },
             });
           }
           ws.addText('Made with Orbstera AI', {
-            x: 7.2, y: 5.4, w: 2.5, h: 0.15,
-            fontSize: 9,
-            color: '999999',
+            x: 7.9, y: 7.34, w: 1.9, h: 0.11,
+            fontSize: 7,
+            color: 'BBBBBB',
             align: 'right',
-            bold: true,
+            bold: false,
             isTextBox: true,
           });
         }
