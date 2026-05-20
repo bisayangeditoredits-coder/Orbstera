@@ -12,24 +12,30 @@ function clientIp(req: Request): string {
 
 export type AiTier = 'default' | 'heavy';
 
+/** Non-AI API routes: deck save, R2 uploads, presentation CRUD. */
+export type ApiTier = 'default' | 'write';
+
 /**
  * Per-minute sliding window limits.
  *
  * Tiers:
  *   default — lightweight calls (magic edit, image, coach, planner)
  *   heavy   — full deck generation, enhance-ppt
- *
- * Paid users get a 3× user allowance over the base IP cap.
- * Free users share the IP cap to prevent abuse from shared networks.
+ *   api:default — presentation GET/list
+ *   api:write   — presentation POST/save, uploads, presign
  */
 const LIMITS = {
   user: {
-    default: 20,  // requests/min per authenticated user  (was 12)
-    heavy: 8,     // requests/min per authenticated user  (was 6)
+    default: 20,
+    heavy: 8,
+    apiDefault: 120,
+    apiWrite: 40,
   },
   ip: {
-    default: 60,  // requests/min per IP across all users (was 45)
-    heavy: 24,    // requests/min per IP                 (unchanged)
+    default: 60,
+    heavy: 24,
+    apiDefault: 300,
+    apiWrite: 100,
   },
 } as const;
 
@@ -111,6 +117,64 @@ export async function enforceAiRateLimit(
           status: 429,
           headers: { 'Retry-After': '10' },
         },
+      );
+    }
+  }
+
+  return null;
+}
+
+function apiTierKeys(tier: ApiTier): { user: number; ip: number; prefix: string } {
+  if (tier === 'write') {
+    return {
+      user: LIMITS.user.apiWrite,
+      ip: LIMITS.ip.apiWrite,
+      prefix: 'api:write',
+    };
+  }
+  return {
+    user: LIMITS.user.apiDefault,
+    ip: LIMITS.ip.apiDefault,
+    prefix: 'api:read',
+  };
+}
+
+/** Rate limit for storage/CRUD API routes (separate prefix from AI). */
+export async function enforceApiRateLimit(
+  req: Request,
+  userId: string | null,
+  tier: ApiTier = 'default',
+): Promise<NextResponse | null> {
+  const { user, ip, prefix } = apiTierKeys(tier);
+  const userLim = getLimiter(`${prefix}:user`, user);
+  const ipLim = getLimiter(`${prefix}:ip`, ip);
+
+  if (!userLim && !ipLim) return null;
+
+  const checks = await Promise.allSettled([
+    userLim && userId ? userLim.limit(userId) : Promise.resolve({ success: true }),
+    ipLim ? ipLim.limit(clientIp(req)) : Promise.resolve({ success: true }),
+  ]);
+
+  for (const result of checks) {
+    if (result.status === 'rejected') {
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[rate-limit:api] Redis error — failing closed:', result.reason);
+        return NextResponse.json(
+          {
+            error: 'SERVICE_UNAVAILABLE',
+            message: 'Rate limiting is temporarily unavailable. Please try again later.',
+          },
+          { status: 503 },
+        );
+      }
+      console.warn('[rate-limit:api] Redis error — failing open (dev):', result.reason);
+      continue;
+    }
+    if (!result.value.success) {
+      return NextResponse.json(
+        { error: 'RATE_LIMITED', message: 'Too many requests. Please slow down and try again.' },
+        { status: 429, headers: { 'Retry-After': '15' } },
       );
     }
   }

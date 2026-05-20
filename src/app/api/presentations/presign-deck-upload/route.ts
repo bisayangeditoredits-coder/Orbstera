@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { requireApiUserWithRateLimit } from '@/lib/auth/require-api-route';
 
 let s3Client: S3Client | null = null;
 if (
@@ -21,17 +20,6 @@ if (
   });
 }
 
-async function getAuthUser() {
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } },
-  );
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
-}
-
 function safeDeckFolderId(raw: unknown): string {
   if (typeof raw !== 'string' || !raw.trim()) return 'deck';
   return raw.replace(/[^a-zA-Z0-9-]/g, '_').slice(0, 120);
@@ -46,8 +34,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
   }
 
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireApiUserWithRateLimit(req, 'write');
+  if ('response' in auth) return auth.response;
+  const user = auth.user;
 
   const body = await req.json().catch(() => ({}));
   const presentationId = safeDeckFolderId(body.presentationId);

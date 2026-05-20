@@ -1,5 +1,7 @@
 # Scalability guide (Orbstera / pptmaker)
 
+Full audit: [INFRASTRUCTURE_AUDIT.md](./INFRASTRUCTURE_AUDIT.md).
+
 ## Production requirements
 
 | Service | Purpose |
@@ -12,20 +14,28 @@
 
 In production, AI routes **fail closed** if `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` are missing.
 
-Health: `GET /api/health` — Redis ping, env checks, queue depth.
+Health: `GET /api/health` — Supabase/R2 live pings, Redis, queue depth, worker misconfiguration warnings.
 
 ## Async deck generation
 
 1. Set `GENERATE_WORKER_ENABLED=true` and deploy a worker (`npm run worker:generate` or `worker:generate:bullmq` with `REDIS_URL`).
-2. Set `GENERATE_USE_JOB_QUEUE=true` and/or `GENERATE_ASYNC_DEFAULT=true`.
+2. Set `GENERATE_USE_JOB_QUEUE=true` and/or `GENERATE_ASYNC_DEFAULT=true` (recommended: async default in production).
 3. Set `WORKER_INTERNAL_SECRET` on app + worker.
 4. `POST /api/generate` returns **202** with `{ jobId }`; client polls `GET /api/jobs/[id]`.
+
+When workers are enabled, decks with **≥12 slides** (override `GENERATE_ASYNC_SLIDE_THRESHOLD`) auto-queue even without `GENERATE_ASYNC_DEFAULT`.
 
 Workers call `POST /api/internal/process-generate` (batch orchestration + compose). BullMQ is used when `REDIS_URL` is set; otherwise legacy `queue:generate:v1` list.
 
 ## Async PPTX export
 
-Large decks (20+ slides): `POST /api/export/pptx?async=1` with JSON body → **202** + job poll. Run `npm run worker:export`.
+Decks with **≥12 slides** (override `EXPORT_ASYNC_SLIDE_THRESHOLD`): `POST /api/export/pptx?async=1` → **202** + job poll. Run `npm run worker:export` (in-process PPTX by default via `scripts/run-export-worker.ts`; set `EXPORT_WORKER_INLINE=false` for legacy HTTP callback).
+
+Verify env before deploy: `npm run verify:scale-env`
+
+## API rate limits (storage)
+
+Presentation CRUD and R2 uploads use separate Upstash limits (`api:read` / `api:write`). See `src/lib/auth/require-api-route.ts`.
 
 ## R2 index concurrency
 

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,6 +7,7 @@ import { Plus, Trash2, Copy, GripVertical, ChevronUp, ChevronDown, Sparkles, Loa
 import { Slide } from '@/types';
 import { findDeckBackgroundElement } from '@/lib/slide-background';
 import { editorImageFetchUrl } from '@/lib/r2-public-url';
+import { VirtualColumn } from '@/components/ui/VirtualColumn';
 
 const SLIDE_WIDTH = 160;
 const SLIDE_HEIGHT = 90;
@@ -15,9 +16,9 @@ function statusLabel(status?: Slide['generationStatus'], isPlaceholder?: boolean
   if (!isPlaceholder) return '';
   switch (status) {
     case 'composing':
-      return 'Composing…';
+      return 'Composingâ€¦';
     case 'visuals':
-      return 'Rendering visuals…';
+      return 'Rendering visualsâ€¦';
     case 'ready':
       return 'Ready';
     default:
@@ -213,6 +214,144 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
   );
 }
 
+type SlideRailItemProps = {
+  slide: Slide;
+  index: number;
+  colors: string[];
+  isActive: boolean;
+  isHovered: boolean;
+  isGenerating: boolean;
+  onSelect: () => void;
+  onHover: (index: number | null) => void;
+  onReorderUp: () => void;
+  onReorderDown: () => void;
+  onDuplicate: () => void;
+  onRemove: () => void;
+  canRemove: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+};
+
+function SlideRailItem({
+  slide,
+  index,
+  colors,
+  isActive,
+  isHovered,
+  isGenerating,
+  onSelect,
+  onHover,
+  onReorderUp,
+  onReorderDown,
+  onDuplicate,
+  onRemove,
+  canRemove,
+  canMoveUp,
+  canMoveDown,
+}: SlideRailItemProps) {
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      className="relative group"
+      onClick={onSelect}
+      onMouseEnter={() => onHover(index)}
+      onMouseLeave={() => onHover(null)}
+    >
+      <motion.div
+        className={`relative rounded-[20px] overflow-hidden transition-all duration-500 ${
+          isActive
+            ? 'ring-[3px] ring-primary ring-offset-4 shadow-2xl shadow-primary/10'
+            : 'hover:shadow-xl hover:shadow-black/5'
+        }`}
+        layout
+      >
+        <SlideThumbnail slide={slide} index={index} colors={colors} />
+
+        <AnimatePresence>
+          {isHovered && !isGenerating && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-[6px] flex flex-col items-center justify-center gap-3 z-30"
+            >
+              <motion.div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReorderUp();
+                  }}
+                  disabled={!canMoveUp}
+                  className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white text-white hover:text-black transition-all disabled:opacity-20 flex items-center justify-center"
+                >
+                  <ChevronUp size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDuplicate();
+                  }}
+                  className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white text-white hover:text-black transition-all flex items-center justify-center"
+                >
+                  <Copy size={16} />
+                </button>
+              </motion.div>
+              <motion.div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReorderDown();
+                  }}
+                  disabled={!canMoveDown}
+                  className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white text-white hover:text-black transition-all disabled:opacity-20 flex items-center justify-center"
+                >
+                  <ChevronDown size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove();
+                  }}
+                  className="w-9 h-9 rounded-xl bg-red-500/20 hover:bg-red-500 text-red-200 hover:text-white transition-all flex items-center justify-center"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+
+      <motion.div className="mt-2 flex items-center justify-between px-2 gap-1" layout>
+        <span
+          className={`text-[9px] font-bold uppercase tracking-widest truncate ${
+            isActive ? 'text-primary' : 'text-black/20'
+          }`}
+        >
+          {slide.isGeneratingPlaceholder
+            ? statusLabel(slide.generationStatus, true)
+            : `Slide ${String(index + 1).padStart(2, '0')}`}
+        </span>
+        {isActive && (
+          <motion.div
+            className="w-1.5 h-1.5 rounded-full bg-primary shrink-0"
+            animate={{ scale: [1, 1.35, 1] }}
+            transition={{ duration: 1.2, repeat: Infinity }}
+          />
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
 type SidebarProps = {
   drawerOpen?: boolean;
   onAfterSlideSelect?: () => void;
@@ -235,6 +374,33 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
   const colors = presentation?.colorPalette || ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'];
   const isLiveGenerating = editor.isGenerating && editor.deckGenerationLifecycle !== 'idle';
   const targetSlides = Math.max(editor.generationTargetSlides || slides.length, slides.length);
+  const useVirtualRail = !isLiveGenerating && slides.length > 24;
+
+  const renderSlideRailItem = (slide: Slide, index: number) => (
+    <SlideRailItem
+      key={slide.id}
+      slide={slide}
+      index={index}
+      colors={colors}
+      isActive={index === currentSlideIndex}
+      isHovered={hoveredIndex === index && !slide.isGeneratingPlaceholder}
+      isGenerating={editor.isGenerating}
+      onSelect={() => {
+        setCurrentSlideIndex(index);
+        onAfterSlideSelect?.();
+      }}
+      onHover={setHoveredIndex}
+      onReorderUp={() => reorderSlides(index, index - 1)}
+      onReorderDown={() => reorderSlides(index, index + 1)}
+      onDuplicate={() => duplicateSlide(slide.id)}
+      onRemove={() => {
+        if (slides.length > 1) removeSlide(slide.id);
+      }}
+      canRemove={slides.length > 1}
+      canMoveUp={index > 0}
+      canMoveDown={index < slides.length - 1}
+    />
+  );
 
   const handleAddSlide = useCallback(() => {
     if (editor.isGenerating) return;
@@ -263,10 +429,7 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
         md:relative md:top-auto md:h-auto md:translate-x-0 md:pt-0
       `}
     >
-      <motion.div
-        className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-5 sm:py-8 gap-2 min-w-0"
-        layout
-      >
+      <motion.div layout className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-5 sm:py-8 gap-2 min-w-0">
         <motion.div className="flex flex-col min-w-0" layout>
           <span className="text-[10px] font-bold text-black/30 uppercase tracking-[0.3em] truncate">
             Gallery
@@ -282,7 +445,7 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
               animate={{ opacity: 1, y: 0 }}
             >
               {editor.activeModelLabel
-                ? `${editor.activeModelLabel} · `
+                ? `${editor.activeModelLabel} Â· `
                 : ''}
               {editor.orchestrationMessage ||
                 `Live ${slides.filter((s) => !s.isGeneratingPlaceholder).length} / ${targetSlides}`}
@@ -290,7 +453,7 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
           )}
           {editor.freeTasteActive && isLiveGenerating && (
             <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600/90">
-              Premium preview · {editor.freeTasteImagesRemaining ?? 0} HD visuals left
+              Premium preview Â· {editor.freeTasteImagesRemaining ?? 0} HD visuals left
             </p>
           )}
         </motion.div>
@@ -305,9 +468,12 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
         </button>
       </motion.div>
 
-      <div
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 sm:px-4 pt-4 pb-[max(2rem,env(safe-area-inset-bottom,0px))] space-y-5 custom-scrollbar"
+      <motion.div
+        className={`flex-1 min-h-0 px-3 sm:px-4 pt-4 pb-[max(2rem,env(safe-area-inset-bottom,0px))] custom-scrollbar ${
+          useVirtualRail ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden space-y-5'
+        }`}
         data-lenis-prevent
+        layout
       >
         <AnimatePresence mode="popLayout">
           {slides.length === 0 ? (
@@ -318,119 +484,23 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
                 transition={{ duration: 4, repeat: Infinity }}
               />
               <p className="text-[11px] font-bold uppercase tracking-widest leading-relaxed">
-                {isLiveGenerating ? 'Preparing slides…' : 'Vault Empty'}
+                {isLiveGenerating ? 'Preparing slidesâ€¦' : 'Vault Empty'}
               </p>
             </div>
+          ) : useVirtualRail ? (
+            <VirtualColumn
+              items={slides}
+              estimateSize={132}
+              gap={20}
+              className="h-full pr-1"
+              getKey={(slide) => slide.id}
+              renderItem={(slide, index) => renderSlideRailItem(slide, index)}
+            />
           ) : (
-            slides.map((slide, index) => {
-              const isActive = index === currentSlideIndex;
-              const isHovered = hoveredIndex === index && !slide.isGeneratingPlaceholder;
-
-              return (
-                <motion.div
-                  key={slide.id}
-                  layout
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                  className="relative group"
-                  onClick={() => {
-                    setCurrentSlideIndex(index);
-                    onAfterSlideSelect?.();
-                  }}
-                  onMouseEnter={() => setHoveredIndex(index)}
-                  onMouseLeave={() => setHoveredIndex(null)}
-                >
-                  <motion.div
-                    className={`relative rounded-[20px] overflow-hidden transition-all duration-500 ${
-                      isActive
-                        ? 'ring-[3px] ring-primary ring-offset-4 shadow-2xl shadow-primary/10'
-                        : 'hover:shadow-xl hover:shadow-black/5'
-                    }`}
-                    layout
-                  >
-                    <SlideThumbnail slide={slide} index={index} colors={colors} />
-
-                    <AnimatePresence>
-                      {isHovered && !editor.isGenerating && (
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="absolute inset-0 bg-black/60 backdrop-blur-[6px] flex flex-col items-center justify-center gap-3 z-30"
-                        >
-                          <motion.div className="flex gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                reorderSlides(index, index - 1);
-                              }}
-                              disabled={index === 0}
-                              className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white text-white hover:text-black transition-all disabled:opacity-20 flex items-center justify-center"
-                            >
-                              <ChevronUp size={16} />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                duplicateSlide(slide.id);
-                              }}
-                              className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white text-white hover:text-black transition-all flex items-center justify-center"
-                            >
-                              <Copy size={16} />
-                            </button>
-                          </motion.div>
-                          <motion.div className="flex gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                reorderSlides(index, index + 1);
-                              }}
-                              disabled={index === slides.length - 1}
-                              className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white text-white hover:text-black transition-all disabled:opacity-20 flex items-center justify-center"
-                            >
-                              <ChevronDown size={16} />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (slides.length > 1) removeSlide(slide.id);
-                              }}
-                              className="w-9 h-9 rounded-xl bg-red-500/20 hover:bg-red-500 text-red-200 hover:text-white transition-all flex items-center justify-center"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </motion.div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-
-                  <div className="mt-2 flex items-center justify-between px-2 gap-1">
-                    <span
-                      className={`text-[9px] font-bold uppercase tracking-widest truncate ${
-                        isActive ? 'text-primary' : 'text-black/20'
-                      }`}
-                    >
-                      {slide.isGeneratingPlaceholder
-                        ? statusLabel(slide.generationStatus, true)
-                        : `Slide ${String(index + 1).padStart(2, '0')}`}
-                    </span>
-                    {isActive && (
-                      <motion.div
-                        className="w-1.5 h-1.5 rounded-full bg-primary shrink-0"
-                        animate={{ scale: [1, 1.35, 1] }}
-                        transition={{ duration: 1.2, repeat: Infinity }}
-                      />
-                    )}
-                  </div>
-                </motion.div>
-              );
-            })
+            slides.map((slide, index) => renderSlideRailItem(slide, index))
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
     </aside>
   );
 }

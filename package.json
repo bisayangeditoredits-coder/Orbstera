@@ -16,7 +16,9 @@
     "worker:generate": "node scripts/process-generate-jobs.mjs",
     "worker:generate:bullmq": "npx tsx scripts/run-bullmq-worker.ts",
     "worker:export": "node scripts/process-export-jobs.mjs",
-    "load-test:health": "node scripts/load-test/generate-smoke.mjs"
+    "worker:export:inline": "npx tsx scripts/run-export-worker.ts",
+    "load-test:health": "node scripts/load-test/generate-smoke.mjs",
+    "verify:scale-env": "node scripts/verify-scale-env.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1044.0",
@@ -39,7 +41,6 @@
     "bullmq": "^5.76.10",
     "clsx": "^2.1.1",
     "dodopayments": "^2.31.1",
-    "fabric": "^7.3.1",
     "framer-motion": "^12.38.0",
     "ioredis": "^5.10.1",
     "jszip": "^3.10.1",

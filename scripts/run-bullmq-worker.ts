@@ -2,6 +2,7 @@
  * BullMQ worker entry (requires REDIS_URL + WORKER_INTERNAL_SECRET + NEXT_PUBLIC_APP_URL).
  * Usage: npx tsx scripts/run-bullmq-worker.ts
  */
+import './load-env-local';
 import { createBullWorker } from '../src/lib/jobs/bullmq-generate';
 
 async function main() {

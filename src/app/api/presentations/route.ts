@@ -4,10 +4,10 @@ import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, List
 import { runPresentationSaveFromParsed } from '@/lib/server/run-presentation-save';
 import {
   assertTrustedOrigin,
-  getApiUser,
   PRIVATE_API_HEADERS,
   untrustedOriginResponse,
 } from '@/lib/auth/server';
+import { requireApiUserWithRateLimit } from '@/lib/auth/require-api-route';
 
 let s3Client: S3Client | null = null;
 if (
@@ -65,8 +65,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
   }
 
-  const user = await getApiUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireApiUserWithRateLimit(req, 'default');
+  if ('response' in auth) return auth.response;
+  const user = auth.user;
 
   const { searchParams } = new URL(req.url);
   const id     = searchParams.get('id');
@@ -97,8 +98,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
   }
 
-  const user = await getApiUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireApiUserWithRateLimit(req, 'write');
+  if ('response' in auth) return auth.response;
+  const user = auth.user;
 
   try {
     const encoding = (req.headers.get('content-encoding') || '').toLowerCase();
@@ -170,8 +172,9 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
   }
 
-  const user = await getApiUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireApiUserWithRateLimit(req, 'write');
+  if ('response' in auth) return auth.response;
+  const user = auth.user;
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
@@ -227,8 +230,9 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
   }
 
-  const user = await getApiUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireApiUserWithRateLimit(req, 'write');
+  if ('response' in auth) return auth.response;
+  const user = auth.user;
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');

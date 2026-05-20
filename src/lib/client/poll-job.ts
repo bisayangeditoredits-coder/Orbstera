@@ -6,6 +6,12 @@ export type JobPollRecord = {
   error?: string;
 };
 
+/** Exponential backoff capped at 8s to reduce poll amplification under load. */
+function pollIntervalMs(attempt: number, baseMs: number): number {
+  const exp = Math.min(baseMs * Math.pow(1.35, attempt), 8_000);
+  return Math.round(exp);
+}
+
 export async function pollJobUntilDone(
   jobId: string,
   options?: {
@@ -15,9 +21,10 @@ export async function pollJobUntilDone(
     onProgress?: (job: JobPollRecord) => void;
   },
 ): Promise<JobPollRecord> {
-  const intervalMs = options?.intervalMs ?? 2000;
+  const baseIntervalMs = options?.intervalMs ?? 1500;
   const timeoutMs = options?.timeoutMs ?? 600_000;
   const start = Date.now();
+  let attempt = 0;
 
   while (Date.now() - start < timeoutMs) {
     if (options?.signal?.aborted) {
@@ -27,6 +34,7 @@ export async function pollJobUntilDone(
     const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, {
       credentials: 'include',
       signal: options?.signal,
+      headers: { 'Cache-Control': 'no-cache' },
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -42,7 +50,9 @@ export async function pollJobUntilDone(
       throw new Error(job.error || 'Generation failed');
     }
 
-    await new Promise((r) => setTimeout(r, intervalMs));
+    const waitMs = pollIntervalMs(attempt, baseIntervalMs);
+    attempt += 1;
+    await new Promise((r) => setTimeout(r, waitMs));
   }
 
   throw new Error('Job timed out');

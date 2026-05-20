@@ -8,7 +8,8 @@ import { getBillingPlan } from '@/lib/billing/resolve-plan';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
 export const runtime = 'nodejs';
-export const maxDuration = 30;
+/** Streaming planner replies; align with OpenRouter stream timeout budget. */
+export const maxDuration = 120;
 
 // ── Tiered AI Models ─────────────────────────────────────────────────────────
 // Free           → Best available free models (auto-fallback on 429)
