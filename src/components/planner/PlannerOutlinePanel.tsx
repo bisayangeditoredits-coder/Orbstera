@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { LayoutList, Sparkles, Loader2, CheckCircle2, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { OutlineSlide } from './planner-utils';
@@ -17,12 +16,12 @@ type PlannerOutlinePanelProps = {
 
 function SlideSkeleton({ index }: { index: number }) {
   return (
-    <div className="rounded-2xl border border-white/70 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-start gap-3">
         <motion.div
           animate={{ opacity: [0.4, 1, 0.4] }}
           transition={{ duration: 1.2, repeat: Infinity, delay: index * 0.1 }}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-bold text-primary"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs font-bold text-slate-700"
         >
           {index + 1}
         </motion.div>
@@ -47,21 +46,21 @@ export function PlannerOutlinePanel({
   const progressPct = Math.min(100, Math.round((count / target) * 100));
 
   return (
-    <div className="dot-grid flex h-full min-h-0 flex-col overflow-hidden border-l border-white/50 bg-white/50 backdrop-blur-sm">
-      <header className="shrink-0 border-b border-white/60 bg-white/60 px-5 py-4 sm:px-6">
+    <div className="dot-grid flex h-full min-h-0 flex-col overflow-hidden border-l border-slate-200 bg-slate-50">
+      <header className="shrink-0 border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <LayoutList size={18} className="text-primary" strokeWidth={1.75} />
+            <LayoutList size={18} className="text-slate-700" strokeWidth={1.75} />
             <h2 className="font-space-grotesk text-sm font-bold text-slate-900">Live outline</h2>
           </div>
           {isStreaming && !hasSlides && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
               <Loader2 size={10} className="animate-spin" />
-              Building…
+              Building...
             </span>
           )}
           {hasSlides && (
-            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-700">
               {count} slide{count === 1 ? '' : 's'}
             </span>
           )}
@@ -74,7 +73,7 @@ export function PlannerOutlinePanel({
         {(loading || hasSlides) && (
           <div className="mt-3 h-1 overflow-hidden rounded-full bg-slate-200/80">
             <motion.div
-              className="h-full rounded-full bg-primary transition-all duration-300"
+              className="h-full rounded-full bg-slate-900 transition-all duration-300"
               style={{ width: `${loading && !hasSlides ? 12 : progressPct}%` }}
               animate={loading ? { opacity: [0.7, 1, 0.7] } : {}}
               transition={{ duration: 1.2, repeat: loading ? Infinity : 0 }}
@@ -102,9 +101,9 @@ export function PlannerOutlinePanel({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
               >
-                <article className="group flex min-h-[88px] flex-col gap-2 rounded-2xl border border-white/70 bg-white p-4 shadow-sm transition hover:border-primary/20 hover:shadow-md sm:min-h-[96px] sm:p-5">
+                <article className="group flex min-h-[88px] flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md sm:min-h-[96px] sm:p-5">
                   <div className="flex items-start gap-3">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-xs font-bold text-white shadow-sm shadow-primary/25">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-xs font-bold text-white shadow-sm shadow-slate-900/20">
                       {slide.number}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -143,7 +142,7 @@ export function PlannerOutlinePanel({
           </ul>
         ) : (
           <div className="flex flex-col items-center justify-center px-4 py-12 text-center sm:py-16">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 text-slate-700 shadow-sm">
               <Sparkles size={24} strokeWidth={1.75} />
             </div>
             <p className="mt-5 font-space-grotesk text-base font-bold text-slate-900">
@@ -155,19 +154,19 @@ export function PlannerOutlinePanel({
             </p>
             <ol className="mt-8 max-w-[240px] space-y-3 text-left text-[11px] text-slate-500">
               <li className="flex gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-700">
                   1
                 </span>
                 Describe your topic in chat
               </li>
               <li className="flex gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-700">
                   2
                 </span>
                 Review slides as they appear
               </li>
               <li className="flex gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-700">
                   3
                 </span>
                 Click Generate deck when ready
@@ -178,17 +177,17 @@ export function PlannerOutlinePanel({
 
         {hasSlides && !loading && (
           <p className="mt-4 text-center text-[11px] font-medium text-emerald-600">
-            Ready to build — review your slides below.
+            Ready to build - review your slides below.
           </p>
         )}
       </div>
 
       {canGenerate && (
-        <div className="shrink-0 border-t border-white/60 bg-white/70 p-4 sm:px-5">
+        <div className="shrink-0 border-t border-slate-200 bg-white p-4 sm:px-5">
           <button
             type="button"
             onClick={onGenerate}
-            className="flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-[13px] font-bold text-white shadow-lg shadow-primary/25 transition hover:bg-primaryHover"
+            className="flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-[13px] font-bold text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800"
           >
             <CheckCircle2 size={18} strokeWidth={1.75} />
             Generate deck

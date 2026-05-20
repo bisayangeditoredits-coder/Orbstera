@@ -68,13 +68,13 @@ export function PlannerChat({ messages, loading, topic }: PlannerChatProps) {
   if (messages.length === 0 && !loading) {
     return (
       <div className="custom-scrollbar flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 text-slate-700">
           <Sparkles size={28} strokeWidth={1.75} />
         </div>
         <h2 className="mt-6 font-space-grotesk text-xl font-bold text-slate-900">
           Refine your story
         </h2>
-        <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-500">
+        <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-600">
           {topic
             ? `Planning "${topic}". Copilot will propose a slide outline—you can adjust it in the chat.`
             : 'Ask Copilot to plan your deck, then generate when the outline looks right.'}
@@ -87,7 +87,7 @@ export function PlannerChat({ messages, loading, topic }: PlannerChatProps) {
     <div
       ref={scrollRef}
       data-lenis-prevent
-      className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-6 [-webkit-overflow-scrolling:touch] sm:px-6"
+      className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-white px-4 py-6 [-webkit-overflow-scrolling:touch] sm:px-6"
     >
       <div className="mx-auto max-w-2xl space-y-6">
         {messages.map((msg, i) => {

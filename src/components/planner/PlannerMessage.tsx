@@ -18,12 +18,12 @@ export function PlannerMessage({ role, content, isStreaming }: PlannerMessagePro
     <div
       className={`max-w-[92%] sm:max-w-[85%] ${
         isUser
-          ? 'rounded-2xl rounded-br-md bg-neutral-950 px-5 py-4 text-white shadow-md shadow-neutral-950/10'
-          : 'rounded-2xl rounded-bl-md border border-white/80 bg-white px-5 py-4 shadow-sm'
+          ? 'rounded-2xl rounded-br-md bg-slate-900 px-5 py-4 text-white shadow-md shadow-slate-900/15'
+          : 'rounded-2xl rounded-bl-md border border-slate-200 bg-white px-5 py-4 shadow-sm'
       } ${isStreaming && !isUser ? 'transition-[min-height] duration-150 ease-out' : ''}`}
     >
       {!isUser && (
-        <div className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
+        <div className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600">
           <Sparkles size={12} strokeWidth={1.75} />
           Copilot
         </div>
@@ -36,7 +36,7 @@ export function PlannerMessage({ role, content, isStreaming }: PlannerMessagePro
           {renderMarkdownLite(content)}
           {isStreaming && (
             <span
-              className="ml-0.5 inline-block h-[1em] w-0.5 translate-y-px rounded-full bg-primary align-middle motion-safe:animate-pulse"
+              className="ml-0.5 inline-block h-[1em] w-0.5 translate-y-px rounded-full bg-slate-500 align-middle motion-safe:animate-pulse"
               aria-hidden
             />
           )}

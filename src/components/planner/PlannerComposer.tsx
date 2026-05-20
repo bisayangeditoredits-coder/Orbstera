@@ -49,13 +49,13 @@ export function PlannerComposer({
   const chips = hasAssistantReply ? postReplyChips : preReplyChips;
 
   return (
-    <div className="shrink-0 border-t border-white/50 bg-[#F0F7FF]/95 px-4 py-4 backdrop-blur-md sm:px-6">
+    <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-4 sm:px-6">
       <div className="mx-auto max-w-2xl">
 
         {/* Smart chip hints */}
         {!hasAssistantReply && (
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            Customize your deck →
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+            Customize your deck
           </p>
         )}
         <div className="mb-3 flex flex-wrap gap-2">
@@ -65,17 +65,17 @@ export function PlannerComposer({
               type="button"
               disabled={loading}
               onClick={() => onQuickReply(label)}
-              className="group flex items-center gap-1.5 rounded-full border border-white/80 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm transition hover:border-primary/30 hover:bg-primary/5 hover:text-primary disabled:opacity-50"
+              className="group flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-white hover:text-slate-900 disabled:opacity-50"
             >
-              <Icon size={14} className="text-slate-500 transition-colors group-hover:text-primary" />
+              <Icon size={14} className="text-slate-500 transition-colors group-hover:text-slate-800" />
               {label}
             </button>
           ))}
         </div>
 
         {/* Text input */}
-        <div className="animated-border shadow-[0_24px_48px_-20px_rgba(59,130,246,0.22)]">
-          <div className="relative rounded-[20px] bg-white p-1">
+        <div className="rounded-2xl border border-slate-200 bg-white p-1 shadow-[0_16px_32px_-20px_rgba(15,23,42,0.35)]">
+          <div className="relative rounded-[14px] bg-white p-1">
             <textarea
               value={input}
               onChange={(e) => onInputChange(e.target.value)}
@@ -85,15 +85,19 @@ export function PlannerComposer({
                   onSend();
                 }
               }}
-              placeholder={hasAssistantReply ? 'Refine the outline… (e.g. add a slide about ROI)' : 'Describe your topic… (e.g. AI in healthcare for doctors)'}
+              placeholder={
+                hasAssistantReply
+                  ? 'Refine the outline (e.g. add a slide about ROI)'
+                  : 'Describe your topic (e.g. AI in healthcare for doctors)'
+              }
               rows={1}
-              className="w-full resize-none rounded-[18px] border-none bg-transparent py-3.5 pl-4 pr-14 text-[14px] font-medium text-textMain placeholder:text-textMuted focus:outline-none focus:ring-4 focus:ring-primary/10"
+              className="w-full resize-none rounded-xl border-none bg-transparent py-3.5 pl-4 pr-14 text-[14px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-slate-200"
             />
             <button
               type="button"
               onClick={onSend}
               disabled={!input.trim() || loading}
-              className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl bg-primary text-white shadow-md shadow-primary/25 transition hover:bg-primaryHover disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+              className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl bg-slate-900 text-white shadow-md shadow-slate-900/25 transition hover:bg-slate-800 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
               aria-label="Send message"
             >
               {loading ? (

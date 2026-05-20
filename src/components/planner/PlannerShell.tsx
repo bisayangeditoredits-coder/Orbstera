@@ -270,9 +270,9 @@ export function PlannerShell() {
   }
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-[#F0F7FF] font-sans text-slate-900 selection:bg-primary/10">
+    <div className="flex h-dvh flex-col overflow-hidden bg-slate-50 font-sans text-slate-900 selection:bg-primary/10">
       <div
-        className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_90%_60%_at_50%_-10%,rgba(59,130,246,0.1),transparent)]"
+        className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_-10%,rgba(15,23,42,0.08),transparent)]"
         aria-hidden
       />
 
@@ -285,8 +285,8 @@ export function PlannerShell() {
       />
 
       {/* Mobile tabs */}
-      <div className="flex shrink-0 border-b border-white/50 bg-white/50 px-4 py-2 md:hidden">
-        <div className="flex w-full rounded-xl bg-white/80 p-1 shadow-sm">
+      <div className="flex shrink-0 border-b border-slate-200 bg-white px-4 py-2 md:hidden">
+        <div className="flex w-full rounded-xl border border-slate-200 bg-slate-50 p-1 shadow-sm">
           {(['chat', 'outline'] as const).map((tab) => (
             <button
               key={tab}
@@ -294,7 +294,9 @@ export function PlannerShell() {
               onClick={() => setMobileTab(tab)}
               className={cn(
                 'flex-1 rounded-lg py-2 text-xs font-bold capitalize transition',
-                mobileTab === tab ? 'bg-primary text-white shadow-sm' : 'text-slate-600',
+                mobileTab === tab
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'text-slate-600',
               )}
             >
               {tab}
@@ -306,11 +308,11 @@ export function PlannerShell() {
         </div>
       </div>
 
-      <div className="relative flex min-h-0 flex-1 flex-col md:flex-row">
+      <div className="relative mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col px-0 md:flex-row">
         {/* Chat column — includes composer */}
         <div
           className={cn(
-            'flex min-h-0 flex-1 flex-col border-r border-white/50 md:max-w-[48%] lg:max-w-[46%]',
+            'flex min-h-0 flex-1 flex-col border-r border-slate-200 bg-white md:max-w-[48%] lg:max-w-[46%]',
             mobileTab !== 'chat' && 'hidden md:flex',
           )}
         >
@@ -320,9 +322,9 @@ export function PlannerShell() {
             <button
               type="button"
               onClick={() => setMobileTab('outline')}
-              className="mx-4 mb-2 flex min-h-[40px] items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/10 px-4 text-xs font-bold text-primary md:hidden"
+              className="mx-4 mb-2 flex min-h-[40px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-4 text-xs font-bold text-slate-700 md:hidden"
             >
-              {outlineSlides.length} slide{outlineSlides.length === 1 ? '' : 's'} ready — View
+              {outlineSlides.length} slide{outlineSlides.length === 1 ? '' : 's'} ready - View
               outline
             </button>
           )}
