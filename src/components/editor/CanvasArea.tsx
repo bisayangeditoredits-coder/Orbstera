@@ -6,6 +6,7 @@ import { ImageIcon } from 'lucide-react';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import type { DeckGenerationLifecycle } from '@/types';
 import { KonvaCanvas, CANVAS_WIDTH, CANVAS_HEIGHT } from './KonvaCanvas';
+import { TextToolbar } from './TextToolbar';
 
 // ─── Generation Loader (deterministic milestones — no faux random %) ───────────────────
 
@@ -569,6 +570,8 @@ export function CanvasArea() {
           className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] rounded-full bg-sky-400/[0.06] blur-[100px]"
         />
       </div>
+
+      <TextToolbar />
 
       <div className="relative z-10 w-full h-full overflow-hidden">
         <motion.div

@@ -120,6 +120,7 @@ export interface SlideElement {
   // Text element
   content?: string;
   textStyle?: TextStyle;
+  textResizeMode?: 'autoWidth' | 'autoHeight' | 'fixed';
   // Image element
   src?: string;
   /** True while this slot is waiting on deck-level /api/generate-image (UI placeholder). */

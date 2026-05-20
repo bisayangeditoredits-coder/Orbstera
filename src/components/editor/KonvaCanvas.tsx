@@ -21,6 +21,7 @@ import { useShallow } from 'zustand/react/shallow';
 import type { ChartData, EditorToolId, SlideElement } from '@/types';
 import { findDeckBackgroundElement } from '@/lib/slide-background';
 import { editorImageFetchUrl } from '@/lib/r2-public-url';
+import { TextTransformer } from './TextTransformer';
 
 export const CANVAS_WIDTH = 1280;
 export const CANVAS_HEIGHT = 720;
@@ -293,6 +294,8 @@ function ElementNode({
         <Text
           ref={shapeRef as React.RefObject<Konva.Text>}
           {...commonProps}
+          width={el.textResizeMode === 'autoWidth' ? undefined : el.width}
+          height={el.textResizeMode === 'fixed' ? el.height : undefined}
           opacity={isEditingText ? 0 : (el.opacity ?? 1)}
           text={el.content || ''}
           fontFamily={el.textStyle?.fontFamily || 'Inter'}
@@ -597,7 +600,7 @@ function ElementNode({
   return (
     <>
       {renderShape()}
-      {isSelected && (
+      {isSelected && el.type !== 'text' && (
         <Transformer
           ref={trRef}
           boundBoxFunc={(oldBox, newBox) => {
@@ -623,6 +626,15 @@ function ElementNode({
           borderStroke="#38BDF8"
           borderStrokeWidth={1.2}
           padding={8}
+        />
+      )}
+      {el.type === 'text' && (
+        <TextTransformer
+          node={(shapeRef.current as Konva.Text) || null}
+          isSelected={isSelected}
+          isEditing={isEditingText}
+          mode={el.textResizeMode || 'autoWidth'}
+          onChange={onChange}
         />
       )}
     </>
@@ -1073,10 +1085,12 @@ export function KonvaCanvas({ scale }: { scale: number }) {
                   color: el.textStyle?.color || '#fff',
                   textAlign: (el.textStyle?.textAlign || 'left') as React.CSSProperties['textAlign'],
                   background: 'transparent',
-                  border: '1px dashed #38BDF8',
+                  border: '1.5px dashed #38BDF8',
                   outline: 'none',
                   resize: 'none',
                   pointerEvents: 'auto',
+                  overflow: 'hidden',
+                  whiteSpace: el.textResizeMode === 'autoWidth' ? 'nowrap' : 'normal',
                 }}
               />
             );
