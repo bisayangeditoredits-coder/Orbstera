@@ -25,6 +25,7 @@ import {
   Layers, Image as ImageIcon, Info
 } from 'lucide-react';
 import { useCredits } from '@/hooks/useCredits';
+import { pollJobUntilDone } from '@/lib/client/poll-job';
 
 
 
@@ -252,6 +253,14 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const generateAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      generateAbortRef.current?.abort();
+    };
+  }, []);
+
   const isPaid = userPlan === 'student_pro' || userPlan === 'pro' || userPlan === 'creator_pro';
   const isCreatorPro = userPlan === 'creator_pro';
   // Plan-based max slides (mirrors server MAX_SLIDES)
@@ -563,8 +572,13 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       setShowInterviewSummary(false);
 
       let createGenerationSucceeded = false;
+      const storeSetPresentation = usePresentationStore.getState().setPresentation;
 
       try {
+        generateAbortRef.current?.abort();
+        const ac = new AbortController();
+        generateAbortRef.current = ac;
+
         const res = await fetch('/api/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -575,6 +589,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             theme: selectedTheme,
             language: selectedLanguage,
           }),
+          signal: ac.signal,
         });
 
         if (!res.ok) {
@@ -596,6 +611,62 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           }
           throw new Error(errData.error || errData.message || 'Generation failed');
         }
+
+        if (res.status === 202) {
+          const queued = (await res.json()) as { jobId?: string };
+          if (!queued.jobId) throw new Error('Missing job id');
+          setEditorState({ deckGenerationLifecycle: 'building', orchestrationMessage: 'Queued…' });
+          const job = await pollJobUntilDone(queued.jobId, {
+            signal: ac.signal,
+            onProgress: (j) => {
+              setEditorState({
+                orchestrationMessage:
+                  j.status === 'running'
+                    ? `Generating… ${j.progress ?? 0}%`
+                    : 'Queued…',
+                deckGenerationLifecycle: 'building',
+              });
+            },
+          });
+          let finalData = normalizePresentationPayload(
+            (job.result || {}) as Record<string, unknown>,
+          );
+          setEditorState({ orchestrationPhase: 'finishing', deckGenerationLifecycle: 'polishing' });
+          try {
+            const pr = await fetch('/api/generate/polish', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ presentation: finalData }),
+              signal: ac.signal,
+            });
+            if (pr.ok) {
+              const polished = await pr.json();
+              finalData = normalizePresentationPayload(polished as Record<string, unknown>);
+            }
+          } catch (polishErr) {
+            console.warn('Polish pass skipped:', polishErr);
+          }
+          if (finalData.slides?.length) {
+            const commitEpoch = usePresentationStore.getState().editor.generationEpoch + 1;
+            setEditorState({
+              generationEpoch: commitEpoch,
+              generationPendingImages: 0,
+              generationImageJobsTotal: 0,
+              generationImageJobsCompleted: 0,
+            });
+            if (appendMode === 'append') {
+              const existingSlides = usePresentationStore.getState().presentation?.slides || [];
+              storeSetPresentation({ ...finalData, slides: [...existingSlides, ...finalData.slides] });
+            } else {
+              storeSetPresentation(finalData);
+            }
+            createGenerationSucceeded = true;
+          } else {
+            throw new Error('Job completed without slides');
+          }
+          return;
+        }
+
         setEditorState({ deckGenerationLifecycle: 'streaming' });
         if (!res.body) throw new Error('No response body');
 
@@ -607,7 +678,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         let sseCarry = '';
 
         const streamSlide = usePresentationStore.getState().streamSlide;
-        const storeSetPresentation = usePresentationStore.getState().setPresentation;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -808,6 +878,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
         setActivePanel('layers');
       } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
         setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
       } finally {
         if (activeTab === 'create') {

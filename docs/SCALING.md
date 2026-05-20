@@ -4,55 +4,47 @@
 
 | Service | Purpose |
 |---------|---------|
-| **Upstash Redis** | Rate limits, AI cache, credit config cache, job metadata, generate queue |
+| **Upstash Redis** | Rate limits, AI cache, credit config cache, job metadata, generate/export queues |
 | **Supabase** | Auth, profiles, credits, ledger |
 | **Cloudflare R2** | Deck JSON + per-user `index.json` / `index.meta.json` |
 | **Vercel (or Node host)** | Next.js App Router API routes |
+| **Worker container** (optional) | `Dockerfile.worker` — BullMQ or legacy queue consumers |
 
 In production, AI routes **fail closed** if `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` are missing.
 
-## Async deck generation (optional)
+Health: `GET /api/health` — Redis ping, env checks, queue depth.
 
-1. Set `GENERATE_USE_JOB_QUEUE=true` on the app.
-2. `POST /api/generate` returns **202** with `{ jobId, status: "queued" }`.
-3. Run a worker that polls Redis:
+## Async deck generation
 
-```bash
-node scripts/process-generate-jobs.mjs
-```
+1. Set `GENERATE_WORKER_ENABLED=true` and deploy a worker (`npm run worker:generate` or `worker:generate:bullmq` with `REDIS_URL`).
+2. Set `GENERATE_USE_JOB_QUEUE=true` and/or `GENERATE_ASYNC_DEFAULT=true`.
+3. Set `WORKER_INTERNAL_SECRET` on app + worker.
+4. `POST /api/generate` returns **202** with `{ jobId }`; client polls `GET /api/jobs/[id]`.
 
-The worker claims jobs from `queue:generate:v1`, runs generation logic, and updates `job:v1:{id}` for client polling via `GET /api/jobs/[id]` (authenticated, owner-only).
+Workers call `POST /api/internal/process-generate` (batch orchestration + compose). BullMQ is used when `REDIS_URL` is set; otherwise legacy `queue:generate:v1` list.
+
+## Async PPTX export
+
+Large decks (20+ slides): `POST /api/export/pptx?async=1` with JSON body → **202** + job poll. Run `npm run worker:export`.
 
 ## R2 index concurrency
 
-Per-user deck lists use:
+Per-user deck lists use optimistic locking via `index.meta.json` (`src/lib/server/r2-index.ts`). For 500+ decks per user, enable sharding helpers in `src/lib/server/r2-index-shard.ts` (`R2_INDEX_SHARD_SIZE`).
 
-- `presentations/{userId}/index.json` — deck metadata array
-- `presentations/{userId}/index.meta.json` — `{ "version": N }` for optimistic locking
-
-Saves retry on version conflict (multi-tab / multi-instance safe).
-
-## Credit caps (defaults)
+## Credit caps (canonical defaults)
 
 | Plan | Monthly credits |
 |------|-----------------|
-| free | 100 |
-| student_pro | 1,400 |
-| creator_pro | 5,500 |
+| free | 150 |
+| student_pro | 500 |
+| creator_pro | 1125 |
 
-Override without redeploy via `credit_configs` row `id = 'default'`.
+Single source: `src/lib/billing/credit-cap-defaults.ts` + migration `20260521_scale_foundation.sql`. Override via `credit_configs` row `id = 'default'`.
 
 ## Env validation
 
-`instrumentation.ts` logs missing production env vars at boot. See `.env.example`.
+`instrumentation.ts` runs `validateProductionEnv()` and `runStartupHealthChecks()` at boot.
 
 ## Credit security (required migration)
 
-Apply [`supabase/migrations/20260518_credit_security_rls.sql`](../supabase/migrations/20260518_credit_security_rls.sql):
-
-- RLS on `profiles`, `credit_ledger`, `credit_configs`
-- `consume_credits_atomic_v2` — **service_role only**; caps/costs validated in SQL
-- Billing columns on `profiles` cannot be edited by end users (trigger + RLS)
-- API routes use `consumeCreditsForUser` (server role), not client JWT RPC
-
-Deck generation charges credits **before** OpenRouter runs; failed streams refund via `refund_credits_atomic_v2`.
+Apply [`supabase/migrations/20260518_credit_security_rls.sql`](../supabase/migrations/20260518_credit_security_rls.sql) and [`20260521_scale_foundation.sql`](../supabase/migrations/20260521_scale_foundation.sql).

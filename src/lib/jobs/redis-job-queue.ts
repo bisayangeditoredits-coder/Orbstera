@@ -75,13 +75,26 @@ export async function enqueueGenerateJob(payload: {
   body: Record<string, unknown>;
 }): Promise<boolean> {
   if (!redis) return false;
-  await redis.lpush(QUEUE_KEY, JSON.stringify(payload));
   await createJobRecord({
     id: payload.jobId,
     userId: payload.userId,
     type: 'deck_generate',
     status: 'queued',
   });
+
+  try {
+    const { enqueueBullGenerateJob } = await import('@/lib/jobs/bullmq-generate');
+    const bullOk = await enqueueBullGenerateJob({
+      jobId: payload.jobId,
+      userId: payload.userId,
+      body: payload.body as import('@/lib/ai/run-deck-generation-batch').DeckGenerationJobBody,
+    });
+    if (bullOk) return true;
+  } catch {
+    /* fall through to legacy list */
+  }
+
+  await redis.lpush(QUEUE_KEY, JSON.stringify(payload));
   return true;
 }
 

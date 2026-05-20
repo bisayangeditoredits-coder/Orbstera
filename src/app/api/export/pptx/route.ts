@@ -9,9 +9,11 @@ import { findDeckBackgroundElement, isSlideDeckBackgroundImage } from '@/lib/sli
 import { tryExtractR2ObjectKeyFromPublicUrl } from '@/lib/r2-public-url';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
+import { createJobRecord, updateJobRecord } from '@/lib/jobs/redis-job-queue';
+import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
-import { S3Client, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { isValidDeckStagingKey } from '@/lib/server/deck-staging-key';
 
 let exportR2Client: S3Client | null = null;
@@ -224,17 +226,32 @@ export const runtime = 'nodejs';
 export const maxDuration = 120;
 
 // ── POST handler ──────────────────────────────────────────────────────────────
+function isWorkerRequest(req: Request): string | null {
+  const secret = process.env.WORKER_INTERNAL_SECRET?.trim();
+  const header = req.headers.get('x-worker-secret')?.trim();
+  const userId = req.headers.get('x-user-id')?.trim();
+  if (secret && header === secret && userId) return userId;
+  return null;
+}
+
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
+  const workerUserId = isWorkerRequest(req);
+  const exportJobId = req.headers.get('x-export-job-id')?.trim() || '';
   try {
-    const auth = await requireAiUser(req, 'default');
-    if ('response' in auth) {
-      if (auth.response.status === 401) {
-        return aiUnauthorized('Please sign in to export presentations.');
+    let authedUserId: string;
+    if (workerUserId) {
+      authedUserId = workerUserId;
+    } else {
+      const auth = await requireAiUser(req, 'default');
+      if ('response' in auth) {
+        if (auth.response.status === 401) {
+          return aiUnauthorized('Please sign in to export presentations.');
+        }
+        return auth.response;
       }
-      return auth.response;
+      authedUserId = auth.user.id;
     }
-    const authedUserId = auth.user.id;
 
     const encoding = (req.headers.get('content-encoding') || '').toLowerCase();
     const contentType = (req.headers.get('content-type') || '').toLowerCase();
@@ -309,6 +326,33 @@ export async function POST(req: Request) {
     const { slides, colorPalette, fontPairing, animationStyle, title, defaultSlideTransition } = body;
     if (!slides || !Array.isArray(slides) || slides.length === 0) {
       return NextResponse.json({ error: 'Invalid presentation: missing or empty slides' }, { status: 400 });
+    }
+
+    const url = new URL(req.url);
+    if (
+      !workerUserId &&
+      !exportJobId &&
+      url.searchParams.get('async') === '1' &&
+      slides.length >= 20
+    ) {
+      const jobId = uuidv4();
+      await createJobRecord({
+        id: jobId,
+        userId: authedUserId,
+        type: 'export_pptx',
+        status: 'queued',
+      });
+      const { redis } = await import('@/lib/redis');
+      if (redis) {
+        await redis.lpush(
+          'queue:export:v1',
+          JSON.stringify({ jobId, userId: authedUserId, body }),
+        );
+      }
+      return NextResponse.json(
+        { jobId, status: 'queued', message: 'Export queued. Poll GET /api/jobs/[id].' },
+        { status: 202 },
+      );
     }
 
     // ── Check user plan for watermark ─────────────────────────────────────────
@@ -607,6 +651,26 @@ export async function POST(req: Request) {
     const xmlStr = await injectAnimations(buffer, slides, palette);
 
     const finalBuffer = xmlStr instanceof ArrayBuffer ? xmlStr : buffer;
+
+    const activeExportJobId = exportJobId || url.searchParams.get('jobId') || '';
+    if (activeExportJobId && exportR2Client && process.env.CLOUDFLARE_R2_BUCKET_NAME) {
+      const exportKey = `exports/${userId}/${activeExportJobId}.pptx`;
+      await exportR2Client.send(
+        new PutObjectCommand({
+          Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,
+          Key: exportKey,
+          Body: Buffer.from(finalBuffer),
+          ContentType:
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        }),
+      );
+      await updateJobRecord(activeExportJobId, {
+        status: 'completed',
+        progress: 100,
+        result: { exportKey, fileName: `${safeTitle}.pptx` },
+      });
+      return NextResponse.json({ ok: true, exportKey });
+    }
 
     return new NextResponse(new Uint8Array(finalBuffer) as unknown as BodyInit, {
       headers: {

@@ -1,3 +1,6 @@
+import { OPENROUTER_TIMEOUT, openRouterFetch } from '@/lib/ai/openrouter-timeouts';
+import { resolveOpenRouterApiKey } from '@/lib/ai/openrouter-keys';
+
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
@@ -8,10 +11,14 @@ export interface OpenRouterOptions {
   temperature?: number;
   max_tokens?: number;
   stream?: boolean;
+  /** HTTP timeout; defaults differ for complete vs stream */
+  timeoutMs?: number;
+  /** Optional plan tier for per-pool API keys */
+  plan?: string | null;
 }
 
-function headers(appUrl: string): Record<string, string> {
-  const key = process.env.OPENROUTER_API_KEY?.trim();
+function headers(appUrl: string, plan?: string | null): Record<string, string> {
+  const key = resolveOpenRouterApiKey(plan);
   if (!key) throw new Error('OPENROUTER_API_KEY is not configured');
   return {
     Authorization: `Bearer ${key}`,
@@ -26,17 +33,21 @@ export async function openRouterComplete(
   appUrl: string,
   opts: OpenRouterOptions
 ): Promise<string> {
-  const res = await fetch(OPENROUTER_URL, {
-    method: 'POST',
-    headers: headers(appUrl),
-    body: JSON.stringify({
-      model: opts.model,
-      messages: opts.messages,
-      temperature: opts.temperature ?? 0.25,
-      max_tokens: opts.max_tokens ?? 8192,
-      stream: false,
-    }),
-  });
+  const res = await openRouterFetch(
+    OPENROUTER_URL,
+    {
+      method: 'POST',
+      headers: headers(appUrl, opts.plan),
+      body: JSON.stringify({
+        model: opts.model,
+        messages: opts.messages,
+        temperature: opts.temperature ?? 0.25,
+        max_tokens: opts.max_tokens ?? 8192,
+        stream: false,
+      }),
+    },
+    opts.timeoutMs ?? OPENROUTER_TIMEOUT.complete,
+  );
 
   if (!res.ok) {
     const t = await res.text();
@@ -56,17 +67,21 @@ export async function openRouterStream(
   appUrl: string,
   opts: OpenRouterOptions
 ): Promise<Response> {
-  const res = await fetch(OPENROUTER_URL, {
-    method: 'POST',
-    headers: headers(appUrl),
-    body: JSON.stringify({
-      model: opts.model,
-      messages: opts.messages,
-      temperature: opts.temperature ?? 0.28,
-      max_tokens: opts.max_tokens ?? 24_000,
-      stream: true,
-    }),
-  });
+  const res = await openRouterFetch(
+    OPENROUTER_URL,
+    {
+      method: 'POST',
+      headers: headers(appUrl, opts.plan),
+      body: JSON.stringify({
+        model: opts.model,
+        messages: opts.messages,
+        temperature: opts.temperature ?? 0.28,
+        max_tokens: opts.max_tokens ?? 24_000,
+        stream: true,
+      }),
+    },
+    opts.timeoutMs ?? OPENROUTER_TIMEOUT.stream,
+  );
 
   return res;
 }

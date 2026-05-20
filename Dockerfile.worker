@@ -1,0 +1,8 @@
+FROM node:20-alpine
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY . .
+ENV NODE_ENV=production
+# Run BullMQ worker when REDIS_URL is set; otherwise legacy list consumer.
+CMD ["sh", "-c", "if [ -n \"$REDIS_URL\" ]; then npx tsx scripts/run-bullmq-worker.ts; else node scripts/process-generate-jobs.mjs; fi"]

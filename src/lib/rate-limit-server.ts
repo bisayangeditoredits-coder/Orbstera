@@ -91,8 +91,17 @@ export async function enforceAiRateLimit(
 
   for (const result of checks) {
     if (result.status === 'rejected') {
-      // Redis error — fail open (don't block the user)
-      console.warn('[rate-limit] Redis error — failing open:', result.reason);
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[rate-limit] Redis error — failing closed:', result.reason);
+        return NextResponse.json(
+          {
+            error: 'SERVICE_UNAVAILABLE',
+            message: 'Rate limiting is temporarily unavailable. Please try again later.',
+          },
+          { status: 503 },
+        );
+      }
+      console.warn('[rate-limit] Redis error — failing open (dev):', result.reason);
       continue;
     }
     if (!result.value.success) {

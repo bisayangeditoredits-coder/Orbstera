@@ -3,7 +3,7 @@ import { openRouterComplete } from '@/lib/ai/openrouter';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
-import { enforceAiRateLimit } from '@/lib/rate-limit-server';
+import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -37,20 +37,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured.' }, { status: 500 });
     }
 
-    // Auth & Credit Check
+    const auth = await requireAiUser(req, 'default');
+    if ('response' in auth) {
+      if (auth.response.status === 401) {
+        return aiUnauthorized('Please sign in to enhance prompts.');
+      }
+      return auth.response;
+    }
+    const user = auth.user;
+
     const cookieStore = cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } }
+      { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } },
     );
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-    }
-
-    const limited = await enforceAiRateLimit(req, user.id, 'default');
-    if (limited) return limited;
 
     const { getBillingPlan } = await import('@/lib/billing/resolve-plan');
     const plan = await getBillingPlan(user.id);

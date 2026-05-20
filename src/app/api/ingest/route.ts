@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { assertPublicHttpUrl } from '@/lib/security/url-fetch-policy';
+import { enforceAiRateLimit } from '@/lib/rate-limit-server';
 
 /** Extract readable text from crude HTML (best-effort). */
 function stripHtml(html: string): string {
@@ -22,6 +24,9 @@ export async function POST(req: Request) {
   );
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const limited = await enforceAiRateLimit(req, user.id, 'default');
+  if (limited) return limited;
 
   const ct = req.headers.get('content-type') || '';
 
@@ -55,6 +60,14 @@ export async function POST(req: Request) {
     }
 
     if (url && /^https?:\/\//i.test(url)) {
+      try {
+        assertPublicHttpUrl(url);
+      } catch (e) {
+        return NextResponse.json(
+          { error: e instanceof Error ? e.message : 'URL not allowed' },
+          { status: 400 },
+        );
+      }
       const res = await fetch(url, {
         headers: { 'User-Agent': 'OrbsteraBot/1.0' },
         signal: AbortSignal.timeout(15_000),

@@ -11,7 +11,7 @@ import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
 import { getBillingPlan } from '@/lib/billing/resolve-plan';
 import { FREE_TIER } from '@/lib/billing/free-tier-limits';
 import { incrementFreeTierUsage, readFreeTierUsage } from '@/lib/billing/free-tier-usage';
-import { enforceAiRateLimit } from '@/lib/rate-limit-server';
+import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
@@ -79,21 +79,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured.' }, { status: 500 });
     }
 
-    // Basic plan-gate for Magic Edit on free users (best-effort; does not break if profiles table missing fields).
+    const auth = await requireAiUser(req, 'default');
+    if ('response' in auth) {
+      if (auth.response.status === 401) {
+        return aiUnauthorized('Please sign in to use Magic Edit.');
+      }
+      return auth.response;
+    }
+    const userId = auth.user.id;
+
     const cookieStore = cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } },
     );
-    const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id;
-    if (!userId) {
-      return NextResponse.json({ error: 'Please sign in to use Magic Edit.' }, { status: 401 });
-    }
-
-    const limited = await enforceAiRateLimit(req, userId, 'default');
-    if (limited) return limited;
 
     const plan = await getBillingPlan(userId);
     const isPaid = plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro' || plan === 'admin';

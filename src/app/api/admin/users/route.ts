@@ -31,10 +31,22 @@ export async function GET(req: Request) {
       );
     }
 
-    const { data: users, error } = await supabaseAdmin.auth.admin.listUsers();
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
+    const perPage = Math.min(100, Math.max(1, Number(searchParams.get('perPage') || 50) || 50));
+
+    const { data: users, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
     if (error) throw error;
 
-    return NextResponse.json({ users: users.users }, { headers: PRIVATE_API_HEADERS });
+    return NextResponse.json(
+      {
+        users: users.users,
+        page,
+        perPage,
+        hasMore: users.users.length >= perPage,
+      },
+      { headers: PRIVATE_API_HEADERS },
+    );
   } catch (error: unknown) {
     console.error('Admin API Error:', error);
     return NextResponse.json(

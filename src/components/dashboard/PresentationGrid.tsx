@@ -35,6 +35,11 @@ export function PresentationGrid({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [bulkDeleteIds, setBulkDeleteIds] = useState<string[] | null>(null);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [visibleLimit, setVisibleLimit] = useState(48);
+
+  useEffect(() => {
+    setVisibleLimit(48);
+  }, [query, sort]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -42,6 +47,9 @@ export function PresentationGrid({
     list.sort(sort === 'title' ? sortByTitle : sortByUpdated);
     return list;
   }, [decks, query, sort]);
+
+  const visibleDecks = filtered.slice(0, visibleLimit);
+  const hasMoreDecks = filtered.length > visibleLimit;
 
   const selectedCount = selectedIds.size;
   const allSelected = filtered.length > 0 && selectedCount === filtered.length;
@@ -240,7 +248,7 @@ export function PresentationGrid({
           variants={{ hidden: {}, show: { transition: { staggerChildren: 0.04 } } }}
           className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
         >
-          {filtered.map((deck) => (
+          {visibleDecks.map((deck) => (
             <motion.div
               key={deck.id}
               variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
@@ -259,7 +267,7 @@ export function PresentationGrid({
         </motion.div>
       ) : (
         <ul className="divide-y divide-slate-100 overflow-hidden rounded-3xl border border-white/70 bg-white shadow-sm">
-          {filtered.map((deck) => (
+          {visibleDecks.map((deck) => (
             <li key={deck.id}>
               <div className="flex flex-col gap-4 p-4 transition hover:bg-slate-50/80 sm:flex-row sm:items-center sm:gap-6 sm:p-5">
                 {selectionMode && (
@@ -299,6 +307,17 @@ export function PresentationGrid({
             </li>
           ))}
         </ul>
+      )}
+      {hasMoreDecks && (
+        <motion.div className="flex justify-center pt-8">
+          <button
+            type="button"
+            onClick={() => setVisibleLimit((n) => n + 48)}
+            className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-6 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:border-primary/30 hover:text-primary"
+          >
+            Load more ({filtered.length - visibleLimit} remaining)
+          </button>
+        </motion.div>
       )}
     </section>
   );

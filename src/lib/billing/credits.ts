@@ -1,4 +1,5 @@
 import { redis } from '@/lib/redis';
+import { CREDIT_CAP_MONTHLY, CREDIT_USD_PER_CREDIT_DEFAULT } from '@/lib/billing/credit-cap-defaults';
 import { getBillingPlan } from '@/lib/billing/resolve-plan';
 import { getServiceSupabase } from '@/lib/billing/supabase-admin';
 
@@ -66,13 +67,7 @@ export const PLAN_PRICING_USD: Partial<Record<PlanTier, number>> = {
   creator_pro: 22,
 };
 
-export const PLAN_MONTHLY_CREDITS: Record<PlanTier, number> = {
-  free: 150,          // free models only — $0 real cost regardless of credits
-  student_pro: 500,   // $4.00 AI budget ÷ $0.008/cr = 500 cr
-  pro: 500,
-  creator_pro: 1125,  // $9.00 AI budget ÷ $0.008/cr = 1,125 cr
-  admin: 100000,
-};
+export const PLAN_MONTHLY_CREDITS: Record<PlanTier, number> = { ...CREDIT_CAP_MONTHLY };
 
 export const TARGET_MARGIN = 0.55;
 export const PAYMENT_FEE_RATE = 0.03;
@@ -141,7 +136,7 @@ const DEFAULT_CONFIG: CreditConfig = {
   //   Free        150 cr × $0.008 = $1.20  (but free models = $0 actual)
   //   Student Pro 500 cr × $0.008 = $4.00  ← guaranteed AI budget cap
   //   Creator Pro 1125 cr × $0.008 = $9.00 ← guaranteed AI budget cap
-  usdPerCredit: 0.008,
+  usdPerCredit: CREDIT_USD_PER_CREDIT_DEFAULT,
 };
 
 async function readRemoteConfig(supabase: any): Promise<Partial<CreditConfig> | null> {

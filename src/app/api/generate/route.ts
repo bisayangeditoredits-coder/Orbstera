@@ -18,6 +18,7 @@ import { incrementFreeTierUsage, readFreeTierUsage } from '@/lib/billing/free-ti
 import { addEstimatedSpend, getSpendState } from '@/lib/ai/spend';
 import { requireAiUser } from '@/lib/auth/require-ai-route';
 import { createJobRecord, enqueueGenerateJob, updateJobRecord } from '@/lib/jobs/redis-job-queue';
+import { isGenerateQueueEnabled } from '@/lib/jobs/generate-queue-config';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -165,7 +166,7 @@ export async function POST(req: Request) {
     }
 
     const jobId = uuidv4();
-    if (process.env.GENERATE_USE_JOB_QUEUE === 'true') {
+    if (isGenerateQueueEnabled()) {
       const queued = await enqueueGenerateJob({
         jobId,
         userId: user.id,
