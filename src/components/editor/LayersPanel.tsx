@@ -88,6 +88,38 @@ function PropertyEditor({ element, slideId }: { element: SlideElement; slideId: 
             placeholder="Text content…"
           />
 
+          {/* ── Text Resize Mode ─────────────────────────────────── */}
+          <div>
+            <label className={labelClass}>Resize mode</label>
+            <div className="flex rounded-xl border border-neutral-200/90 overflow-hidden bg-neutral-50 p-0.5 gap-0.5">
+              {(
+                [
+                  { val: 'autoWidth', label: 'Auto W' },
+                  { val: 'autoHeight', label: 'Auto H' },
+                  { val: 'fixed', label: 'Fixed' },
+                ] as const
+              ).map((m) => (
+                <button
+                  key={m.val}
+                  type="button"
+                  onClick={() => upd({ textResizeMode: m.val })}
+                  className={`flex-1 rounded-lg py-1.5 text-[11px] font-semibold transition-all ${
+                    (element.textResizeMode || 'autoWidth') === m.val
+                      ? 'bg-white text-primary shadow-sm border border-neutral-200/90'
+                      : 'text-neutral-500 hover:text-neutral-800'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[10px] text-neutral-400 leading-tight">
+              {(element.textResizeMode || 'autoWidth') === 'autoWidth' && 'Box grows right as you type. No wrapping.'}
+              {element.textResizeMode === 'autoHeight' && 'Fixed width, box grows down on wrap.'}
+              {element.textResizeMode === 'fixed' && 'Fixed box. Text clips if it overflows.'}
+            </p>
+          </div>
+
           <div className={inputShell}>
             <label className={labelClass}>Font family</label>
             <select

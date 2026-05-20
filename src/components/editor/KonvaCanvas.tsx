@@ -630,10 +630,10 @@ function ElementNode({
       )}
       {el.type === 'text' && (
         <TextTransformer
-          node={(shapeRef.current as Konva.Text) || null}
+          el={el}
+          textNodeRef={shapeRef as React.RefObject<Konva.Text | null>}
           isSelected={isSelected}
           isEditing={isEditingText}
-          mode={el.textResizeMode || 'autoWidth'}
           onChange={onChange}
         />
       )}
