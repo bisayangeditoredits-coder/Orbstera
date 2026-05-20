@@ -21,18 +21,19 @@ export async function POST(req: Request) {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     const webhookSecret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET;
 
-    if (webhookSecret && signature) {
-      const crypto = await import('crypto');
-      const hmac = crypto.createHmac('sha256', webhookSecret);
-      hmac.update(body);
-      const computedSignature = hmac.digest('hex');
+    if (!webhookSecret || !signature) {
+      console.error('[Dodo Webhook] Missing signature or webhook secret configuration');
+      return NextResponse.json({ error: 'Missing signature or webhook secret' }, { status: 401 });
+    }
 
-      if (computedSignature !== signature) {
-        console.error('[Dodo Webhook] Invalid signature');
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-      }
-    } else {
-      console.warn('[Dodo Webhook] WARNING: DODO_PAYMENTS_WEBHOOK_SECRET is not set. Skipping signature verification.');
+    const crypto = await import('crypto');
+    const hmac = crypto.createHmac('sha256', webhookSecret);
+    hmac.update(body);
+    const computedSignature = hmac.digest('hex');
+
+    if (computedSignature !== signature) {
+      console.error('[Dodo Webhook] Invalid signature');
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
     // Parse webhook payload

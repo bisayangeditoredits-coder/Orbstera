@@ -1,13 +1,12 @@
 import { PresentationData } from '@/types';
+import { createClient } from '@supabase/supabase-js';
 
 /**
  * Export a presentation to PPTX.
  *
- * Strategy: send the raw presentation data (elements with coordinates, text,
- * images, shapes) to the server. The server uses pptxgenjs to build a fully
- * editable PPTX file with real text boxes, embedded images, and shapes —
- * NOT screenshots. This makes every element selectable and editable in
- * PowerPoint, Keynote, and LibreOffice.
+ * Strategy: Enqueue the presentation data to the background worker via Next.js.
+ * Listen to the Supabase Realtime channel for the job to complete.
+ * Once complete, the worker returns the Supabase Storage download URL.
  */
 export async function exportToPptx(presentation: PresentationData): Promise<void> {
   const response = await fetch('/api/export/pptx', {
@@ -21,21 +20,43 @@ export async function exportToPptx(presentation: PresentationData): Promise<void
     throw new Error(err.error || 'Export failed');
   }
 
-  const disposition = response.headers.get('Content-Disposition');
-  const match       = disposition?.match(/filename="(.+?)"/);
-  const filename    = match?.[1] || 'presentation.pptx';
+  const { jobId } = await response.json();
+  if (!jobId) throw new Error('No job ID returned for export');
 
-  const buffer = await response.arrayBuffer();
-  const blob   = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  return new Promise((resolve, reject) => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const channel = supabase.channel(`job-${jobId}`);
+
+    channel.on('broadcast', { event: 'completed' }, (payload) => {
+      supabase.removeChannel(channel);
+      const downloadUrl = payload.payload?.downloadUrl;
+      if (downloadUrl) {
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `presentation-${Date.now()}.pptx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        resolve();
+      } else {
+        reject(new Error('Missing download URL in response'));
+      }
+    });
+
+    channel.on('broadcast', { event: 'failed' }, (payload) => {
+      supabase.removeChannel(channel);
+      reject(new Error(payload.payload?.error || 'Export job failed'));
+    });
+
+    // Provide a generous timeout for PPTX export (120s)
+    setTimeout(() => {
+      supabase.removeChannel(channel);
+      reject(new Error('Export timed out. Please try again.'));
+    }, 120000);
+
+    channel.subscribe();
   });
-
-  const url = URL.createObjectURL(blob);
-  const a   = document.createElement('a');
-  a.href     = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

@@ -13,6 +13,36 @@ function stripHtml(html: string): string {
     .slice(0, 24_000);
 }
 
+function isSafeUrl(urlString: string): boolean {
+  try {
+    const parsed = new URL(urlString);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    
+    const host = parsed.hostname.toLowerCase();
+    
+    // Block localhost
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return false;
+    
+    // Block AWS metadata and link-local
+    if (host === '169.254.169.254' || host === '169.254.169.253') return false;
+    if (host.startsWith('169.254.')) return false;
+    if (host.startsWith('fe80:')) return false;
+    
+    // Block private IP ranges
+    if (/^10\./.test(host)) return false;
+    if (/^192\.168\./.test(host)) return false;
+    if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)) return false;
+    if (host.endsWith('.internal') || host.endsWith('.local')) return false;
+
+    // Block hosts without a dot (internal cluster names like "redis")
+    if (!host.includes('.')) return false;
+
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 export async function POST(req: Request) {
   const cookieStore = cookies();
   const supabase = createServerClient(
@@ -55,6 +85,10 @@ export async function POST(req: Request) {
     }
 
     if (url && /^https?:\/\//i.test(url)) {
+      if (!isSafeUrl(url)) {
+        return NextResponse.json({ error: 'URL is not allowed for security reasons' }, { status: 403 });
+      }
+      
       const res = await fetch(url, {
         headers: { 'User-Agent': 'OrbsteraBot/1.0' },
         signal: AbortSignal.timeout(15_000),

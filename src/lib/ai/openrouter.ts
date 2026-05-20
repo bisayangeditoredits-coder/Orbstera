@@ -21,12 +21,37 @@ function headers(appUrl: string): Record<string, string> {
   };
 }
 
+async function fetchWithRetry(url: string, options: RequestInit, retries = 3): Promise<Response> {
+  let lastErr: any;
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url, {
+        ...options,
+        signal: AbortSignal.timeout(90_000), // 90s timeout
+      });
+      if (!res.ok && (res.status === 429 || res.status >= 500)) {
+        throw new Error(`Retryable status: ${res.status}`);
+      }
+      return res;
+    } catch (err: any) {
+      lastErr = err;
+      if (err.name !== 'TimeoutError' && !err.message.includes('Retryable')) {
+        throw err; // don't retry 400, 401, 403
+      }
+      if (i < retries - 1) {
+        await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000)); // 1s, 2s, 4s
+      }
+    }
+  }
+  throw lastErr;
+}
+
 /** Non-streaming completion — returns assistant text only */
 export async function openRouterComplete(
   appUrl: string,
   opts: OpenRouterOptions
 ): Promise<string> {
-  const res = await fetch(OPENROUTER_URL, {
+  const res = await fetchWithRetry(OPENROUTER_URL, {
     method: 'POST',
     headers: headers(appUrl),
     body: JSON.stringify({
@@ -56,7 +81,7 @@ export async function openRouterStream(
   appUrl: string,
   opts: OpenRouterOptions
 ): Promise<Response> {
-  const res = await fetch(OPENROUTER_URL, {
+  const res = await fetchWithRetry(OPENROUTER_URL, {
     method: 'POST',
     headers: headers(appUrl),
     body: JSON.stringify({

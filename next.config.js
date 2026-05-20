@@ -1,13 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // ── Ignore TypeScript & ESLint errors during Vercel production builds ──
-  typescript: {
-    ignoreBuildErrors: true,
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'pbxt.replicate.delivery' },
+      { protocol: 'https', hostname: 'replicate.delivery' },
+      { protocol: 'https', hostname: '*.r2.cloudflarestorage.com' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: 'pub-*.r2.dev' },
+      { protocol: 'https', hostname: 'imagedelivery.net' },
+    ],
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-
   experimental: {
     // Prevent canvas native module from being bundled server-side
     serverComponentsExternalPackages: ['canvas'],

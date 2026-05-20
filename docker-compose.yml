@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # Local Redis instance for BullMQ
+  redis:
+    image: redis:7-alpine
+    container_name: orbstera-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Local Worker instance
+  worker:
+    build:
+      context: .
+      dockerfile: worker.Dockerfile
+    container_name: orbstera-worker
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env.local
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - NODE_ENV=production
+    restart: always
+
+volumes:
+  redis_data:

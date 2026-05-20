@@ -473,122 +473,95 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           }
           throw new Error(errData.error || errData.message || 'Generation failed');
         }
+        const { jobId } = await res.json();
+        
         setEditorState({ deckGenerationLifecycle: 'streaming' });
-        if (!res.body) throw new Error('No response body');
+        
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
 
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
         let accumulatedText = '';
         let processedSlideCount = 0;
-        /** Incomplete SSE line when chunks split mid-line */
-        let sseCarry = '';
-
         const streamSlide = usePresentationStore.getState().streamSlide;
         const storeSetPresentation = usePresentationStore.getState().setPresentation;
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        await new Promise<void>((resolve, reject) => {
+          const channel = supabase.channel(`job-${jobId}`);
 
-          sseCarry += decoder.decode(value, { stream: true });
-          const lines = sseCarry.split('\n');
-          sseCarry = lines.pop() ?? '';
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') break;
-              try {
-                const json = JSON.parse(data);
-
-                if (json.orb) {
-                  const orb = json.orb as Record<string, unknown>;
-                  setEditorState({
-                    orchestrationPhase: String(orb.phase || ''),
-                    activeModelLabel: '',
-                    reasoning: typeof orb.message === 'string' ? orb.message : '',
-                  });
-                  if (orb.phase === 'preflight_complete') {
-                    const summary: InterviewSummary = {
-                      detectedIntent:
-                        typeof orb.intent === 'string' ? orb.intent : undefined,
-                      presentationType:
-                        typeof orb.presentationType === 'string'
-                          ? orb.presentationType
-                          : undefined,
-                      recommendedStyle:
-                        typeof orb.recommendedStyle === 'string'
-                          ? orb.recommendedStyle
-                          : undefined,
-                      interviewAnswers:
-                        typeof orb.interviewAnswers === 'object' && orb.interviewAnswers
-                          ? (orb.interviewAnswers as InterviewSummary['interviewAnswers'])
-                          : undefined,
-                    };
-                    setInterviewSummary(summary);
-                    setShowInterviewSummary(true);
-                    window.setTimeout(() => setShowInterviewSummary(false), 6000);
-                  }
-                  continue;
-                }
-
-                const ch = json.choices?.[0] as
-                  | { delta?: { content?: string }; message?: { content?: string } }
-                  | undefined;
-                const piece =
-                  (typeof ch?.delta?.content === 'string' ? ch.delta.content : '') ||
-                  (typeof ch?.message?.content === 'string' ? ch.message.content : '');
-                accumulatedText += piece;
-
-                // ── Extract Reasoning (e.g. from DeepSeek R1 thinking tags) ──
-                const thoughtMatch = accumulatedText.match(/<(?:think|thought)>([\s\S]*?)(?:<\/(?:think|thought)>|$)/i);
-                if (thoughtMatch && thoughtMatch[1]) {
-                  setEditorState({ reasoning: thoughtMatch[1].trim() });
-                }
-
-                const slideRegex = /\{[^{}]*"type":\s*"[^"]+"[^{}]*\}/g;
-                const matches = accumulatedText.match(slideRegex) || [];
-
-                if (matches.length > processedSlideCount) {
-                  for (let i = processedSlideCount; i < matches.length; i++) {
-                    try {
-                      const slideObj = JSON.parse(matches[i]);
-                      if (slideObj.type && slideObj.title) {
-                        // Unblock canvas once slides start streaming so users see live build.
-                        setEditorState({ generationBlockingOverlay: false });
-                        streamSlide(slideObj);
-                        setStreamedSlides(prev => [...prev, { id: slideObj.id || `s-${i}`, title: slideObj.title }]);
-                        processedSlideCount++;
-                      }
-                    } catch (e) {}
-                  }
-                }
-              } catch (e) {}
-            }
-          }
-        }
-
-        // Flush last SSE line if stream ended without a trailing newline
-        if (sseCarry.startsWith('data: ')) {
-          const line = sseCarry;
-          const data = line.slice(6);
-          if (data !== '[DONE]') {
+          channel.on('broadcast', { event: 'progress' }, (event) => {
+            const payload = event.payload;
             try {
-              const json = JSON.parse(data);
-              if (!json.orb) {
-                const ch = json.choices?.[0] as
-                  | { delta?: { content?: string }; message?: { content?: string } }
-                  | undefined;
-                const piece =
-                  (typeof ch?.delta?.content === 'string' ? ch.delta.content : '') ||
-                  (typeof ch?.message?.content === 'string' ? ch.message.content : '');
-                accumulatedText += piece;
+              if (payload.orb) {
+                const orb = payload.orb as Record<string, unknown>;
+                setEditorState({
+                  orchestrationPhase: String(orb.phase || ''),
+                  activeModelLabel: '',
+                  reasoning: typeof orb.message === 'string' ? orb.message : '',
+                });
+                if (orb.phase === 'preflight_complete') {
+                  const summary: InterviewSummary = {
+                    detectedIntent: typeof orb.intent === 'string' ? orb.intent : undefined,
+                    presentationType: typeof orb.presentationType === 'string' ? orb.presentationType : undefined,
+                    recommendedStyle: typeof orb.recommendedStyle === 'string' ? orb.recommendedStyle : undefined,
+                    interviewAnswers: typeof orb.interviewAnswers === 'object' && orb.interviewAnswers
+                      ? (orb.interviewAnswers as InterviewSummary['interviewAnswers'])
+                      : undefined,
+                  };
+                  setInterviewSummary(summary);
+                  setShowInterviewSummary(true);
+                  window.setTimeout(() => setShowInterviewSummary(false), 6000);
+                }
+                return;
               }
-            } catch {
-              /* ignore truncated tail */
-            }
-          }
-        }
+
+              const ch = payload.choices?.[0] as any;
+              const piece = (typeof ch?.delta?.content === 'string' ? ch.delta.content : '') ||
+                            (typeof ch?.message?.content === 'string' ? ch.message.content : '');
+              accumulatedText += piece;
+
+              const thoughtMatch = accumulatedText.match(/<(?:think|thought)>([\s\S]*?)(?:<\/(?:think|thought)>|$)/i);
+              if (thoughtMatch && thoughtMatch[1]) {
+                setEditorState({ reasoning: thoughtMatch[1].trim() });
+              }
+
+              const slideRegex = /\{[^{}]*"type":\s*"[^"]+"[^{}]*\}/g;
+              const matches = accumulatedText.match(slideRegex) || [];
+
+              if (matches.length > processedSlideCount) {
+                for (let i = processedSlideCount; i < matches.length; i++) {
+                  try {
+                    const slideObj = JSON.parse(matches[i]);
+                    if (slideObj.type && slideObj.title) {
+                      setEditorState({ generationBlockingOverlay: false });
+                      streamSlide(slideObj);
+                      setStreamedSlides(prev => [...prev, { id: slideObj.id || `s-${i}`, title: slideObj.title }]);
+                      processedSlideCount++;
+                    }
+                  } catch (e) {}
+                }
+              }
+            } catch (e) {}
+          });
+
+          channel.on('broadcast', { event: 'completed' }, () => {
+            supabase.removeChannel(channel);
+            resolve();
+          });
+
+          channel.on('broadcast', { event: 'failed' }, (event) => {
+            supabase.removeChannel(channel);
+            reject(new Error(event.payload?.error || 'Generation failed'));
+          });
+
+          setTimeout(() => {
+            supabase.removeChannel(channel);
+            reject(new Error('Generation timed out waiting for worker'));
+          }, 180000);
+
+          channel.subscribe();
+        });
 
         setEditorState({ deckGenerationLifecycle: 'building' });
 

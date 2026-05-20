@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { getDeckComposerModels } from '@/lib/ai/models';
-import { buildComposerMessages } from '@/lib/ai/orchestration';
-import { runOpenRouterOrchestration } from '@/lib/ai/prompt-chain';
-import { openRouterStream } from '@/lib/ai/openrouter';
+import { getQueue } from '@/lib/queue/client';
+import { BASE_QUEUE_NAMES } from '@/lib/queue/config';
+import { headers } from 'next/headers';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -90,132 +90,50 @@ export async function POST(req: Request) {
     }
 
 
-    const { error: updateError } = await supabase
+    // Optimistic Concurrency Control: only update if the counter hasn't changed since we read it
+    const { data: updateData, error: updateError } = await supabase
       .from('profiles')
       .update({ generations_used: usedGenerations + 1 })
-      .eq('id', user.id);
+      .eq('id', user.id)
+      .eq('generations_used', usedGenerations)
+      .select();
 
-    if (updateError) {
-      console.error('[Generate] Failed to increment generations_used:', updateError.message);
+    if (updateError || !updateData || updateData.length === 0) {
+      console.error('[Generate] Failed to increment generations_used. Possible race condition or limit reached.');
+      return NextResponse.json({ error: 'Concurrent generation detected. Please wait for your previous generation to finish.' }, { status: 409 });
     }
 
-    const encoder = new TextEncoder();
+    const reqHeaders = headers();
+    const country = reqHeaders.get('x-vercel-ip-country') || '';
+    let clientRegion: string | null = null;
 
-    const stream = new ReadableStream({
-      async start(controller) {
-        const sendOrb = (payload: Record<string, unknown>) => {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
-        };
+    if (['US', 'CA', 'MX'].includes(country)) {
+      clientRegion = 'us';
+    } else if (['CN', 'JP', 'KR', 'SG', 'IN', 'AU', 'NZ'].includes(country)) {
+      clientRegion = 'asia';
+    } else if (['GB', 'FR', 'DE', 'IT', 'ES', 'NL', 'SE', 'CH', 'PL'].includes(country)) {
+      clientRegion = 'eu';
+    }
 
-
-        try {
-          sendOrb({
-            orb: {
-              phase: 'starting',
-              message: 'Preparing your presentation…',
-            },
-          });
-
-          const { dossierText, refinedBrief, preflightSummary } = await runOpenRouterOrchestration(
-            APP_URL,
-            userPrompt,
-            {
-              slideCount: finalSlideCount,
-              tone: String(tone),
-              language: String(language),
-            },
-            (phase, message) => {
-              sendOrb({
-                orb: {
-                  phase,
-                  message,
-                },
-              });
-            }
-          );
-
-          sendOrb({
-            orb: {
-              phase: 'composing',
-              message: 'Translating the brief into slide structure and motion…',
-            },
-          });
-
-          const { system, user: userMessage } = buildComposerMessages({
-            preflightSummary: `${preflightSummary}\n\n--- Full dossier ---\n${dossierText}`,
-            userPrompt,
-            refinedBrief,
-            slideCount: finalSlideCount,
-            tone: String(tone),
-            language: String(language),
-            styleMode: styleMode ? String(styleMode) : undefined,
-          });
-
-          sendOrb({
-            orb: {
-              phase: 'streaming',
-              message: 'Rendering your deck…',
-            },
-          });
-
-          async function tryStream(model: string): Promise<boolean> {
-            const res = await openRouterStream(APP_URL, {
-              model,
-              messages: [
-                { role: 'system', content: system },
-                { role: 'user', content: userMessage },
-              ],
-            });
-            if (!res.ok || !res.body) {
-              const errText = await res.text().catch(() => '');
-              console.error(`[Generate] ${model} failed:`, res.status, errText);
-              return false;
-            }
-            const reader = res.body.getReader();
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              if (value) controller.enqueue(value);
-            }
-            return true;
-          }
-
-          let ok = await tryStream(primaryModel);
-          if (!ok && fallbackModel) {
-            sendOrb({
-              orb: {
-                phase: 'fallback',
-                message: 'Continuing with an alternate composer…',
-              },
-            });
-            ok = await tryStream(fallbackModel);
-          }
-          if (!ok) {
-            sendOrb({
-              orb: { phase: 'error', message: 'Generation could not complete. Try again shortly.' },
-            });
-          }
-        } catch (e: unknown) {
-          console.error('[Generate] stream error:', e);
-          sendOrb({
-            orb: {
-              phase: 'error',
-              message: e instanceof Error ? e.message : 'Stream failed',
-            },
-          });
-        } finally {
-          controller.close();
-        }
-      },
+    const targetQueue = getQueue(BASE_QUEUE_NAMES.AI_GENERATION, clientRegion);
+    const jobId = `gen-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    
+    await targetQueue.add('generate-presentation', {
+      userId: user.id,
+      prompt: userPrompt,
+      slideCount: finalSlideCount,
+      tone: String(tone),
+      language: String(language),
+      styleMode,
+      primaryModel,
+      fallbackModel
+    }, {
+      jobId,
+      removeOnComplete: true,
+      removeOnFail: false,
     });
 
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      },
-    });
+    return NextResponse.json({ jobId });
   } catch (error) {
     console.error('[Generate] Internal error:', error);
     return NextResponse.json({ error: 'An unexpected error occurred during generation.' }, { status: 500 });

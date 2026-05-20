@@ -17,7 +17,13 @@ export async function GET(req: Request) {
 
     // Verify signature using HMAC SHA-256
     const crypto = await import('crypto');
-    const secret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET || 'dev';
+    const secret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET;
+    
+    if (!secret) {
+      console.error('[Dodo Sync] DODO_PAYMENTS_WEBHOOK_SECRET is not set');
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/editor?payment=error`);
+    }
+
     const expectedSig = crypto.createHmac('sha256', secret)
                               .update(`${userId}:${planId}`)
                               .digest('hex');

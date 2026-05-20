@@ -68,7 +68,13 @@ export async function POST(req: Request) {
 
     // Generate secure signature for the return URL
     const crypto = await import('crypto');
-    const secret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET || 'dev';
+    const secret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET;
+    
+    if (!secret) {
+      console.error('[Dodo Checkout] DODO_PAYMENTS_WEBHOOK_SECRET is not set');
+      return NextResponse.json({ error: 'Payment gateway configuration error' }, { status: 500 });
+    }
+
     const sig = crypto.createHmac('sha256', secret).update(`${userId}:${planId}`).digest('hex');
 
     const sessionPayload: any = {

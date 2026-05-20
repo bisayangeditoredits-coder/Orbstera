@@ -1,15 +1,40 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 function adminClientOrNull() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !key) return null;
-  return createClient(url, key);
+  return createSupabaseClient(url, key);
 }
 
 export async function GET() {
   try {
+    const cookieStore = cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+        },
+      }
+    );
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const adminEmail = process.env.ADMIN_EMAIL?.trim();
+    if (!adminEmail || user.email !== adminEmail) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const supabaseAdmin = adminClientOrNull();
     if (!supabaseAdmin) {
       return NextResponse.json(
@@ -18,9 +43,6 @@ export async function GET() {
       );
     }
 
-    // Note: In production, you MUST check if the request is coming from your admin email
-    // e.g. check cookies/session first to ensure regular users can't hit this API!
-    
     // Fetch all users from auth.users
     const { data: users, error } = await supabaseAdmin.auth.admin.listUsers();
 

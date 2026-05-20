@@ -4,6 +4,27 @@ import { finalizeSlideMotion } from '@/lib/presentationMotion';
 
 const MAX_HISTORY = 50;
 
+// Queue for streamed images to prevent rate limit exhaustion
+const streamImageQueue: (() => Promise<void>)[] = [];
+let streamImageWorkers = 0;
+const MAX_CONCURRENCY = 2;
+
+function enqueueStreamImage(task: () => Promise<void>) {
+  streamImageQueue.push(task);
+  processStreamImageQueue();
+}
+
+function processStreamImageQueue() {
+  if (streamImageWorkers >= MAX_CONCURRENCY) return;
+  const task = streamImageQueue.shift();
+  if (!task) return;
+  streamImageWorkers++;
+  task().finally(() => {
+    streamImageWorkers--;
+    processStreamImageQueue();
+  });
+}
+
 // ── Canvas dimensions (must match KonvaCanvas.tsx) ──────────────────────────
 const CANVAS_W = 1280;
 const CANVAS_H = 720;
@@ -660,7 +681,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     const state = get();
     if (!state.presentation) return;
     const entry: HistoryEntry = {
-      slides: JSON.parse(JSON.stringify(state.presentation.slides)),
+      slides: structuredClone(state.presentation.slides),
       timestamp: Date.now(),
     };
     const history = state.history.slice(0, state.historyIndex + 1);
@@ -673,7 +694,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     const state = get();
     if (state.historyIndex <= 0 || !state.presentation) return;
     const newIndex = state.historyIndex - 1;
-    const slides = JSON.parse(JSON.stringify(state.history[newIndex].slides));
+    const slides = structuredClone(state.history[newIndex].slides);
     set({ presentation: { ...state.presentation, slides }, historyIndex: newIndex });
   },
 
@@ -681,7 +702,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     const state = get();
     if (state.historyIndex >= state.history.length - 1 || !state.presentation) return;
     const newIndex = state.historyIndex + 1;
-    const slides = JSON.parse(JSON.stringify(state.history[newIndex].slides));
+    const slides = structuredClone(state.history[newIndex].slides);
     set({ presentation: { ...state.presentation, slides }, historyIndex: newIndex });
   },
 
@@ -756,22 +777,30 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         if (slideData.imagePrompt) {
           const bgId = uid('el-bg-image');
           elements.unshift({ id: bgId, type: 'image', src: '', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: 0, visible: true, opacity: 0.35, animation: { entrance: 'fadeIn', duration: 1500, delay: 0 } });
-          (async () => {
-            try {
-              const res = await fetch('/api/generate-image', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  prompt: slideData.imagePrompt,
-                  width: 1280,
-                  height: 720,
-                  visualProfile: 'typography',
-                }),
+          get().trackDeckGenerationImage(async () => {
+            return new Promise((resolve) => {
+              enqueueStreamImage(async () => {
+                try {
+                  const res = await fetch('/api/generate-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      prompt: slideData.imagePrompt,
+                      width: 1280,
+                      height: 720,
+                      visualProfile: 'typography',
+                    }),
+                  });
+                  const json = await res.json();
+                  if (json.url) get().updateElement(slideData.id, bgId, { src: json.url });
+                } catch (e) {
+                  console.error('[Store] StreamImage Error:', e);
+                } finally {
+                  resolve();
+                }
               });
-              const json = await res.json();
-              if (json.url) get().updateElement(slideData.id, bgId, { src: json.url });
-            } catch (e) {}
-          })();
+            });
+          });
         }
         elements.push({ id: uid('el-hero-overlay'), type: 'shape', shapeType: 'rect', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(5, 5, 10, 0.65)', stroke: 'transparent', strokeWidth: 0 }, animation: { entrance: 'fadeIn', duration: 1000 } });
         if (slideData.title) elements.push({ id: uid('el-title'), type: 'text', x: 80, y: CANVAS_H / 2 - 80, width: CANVAS_W-160, height: 160, content: slideData.title, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 84, fontWeight: 'bold', color: palette[1], textAlign: 'center', lineHeight: 1.1 }, animation: { entrance: 'fadeSlideUp', duration: 800 } });
