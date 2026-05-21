@@ -3,79 +3,50 @@
 import { useEffect, useRef } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import type { EditorToolId, SlideElement } from '@/types';
-import {
-  MousePointer2, Type, Image as ImageIcon, Square, Circle,
-  Triangle, BarChart2, Undo2, Redo2, Grid3X3, Star, Minus,
-  ArrowRight, Upload, Sparkles, Heart,
-} from 'lucide-react';
-
-const TOOLBAR_TOOLS: {
-  id: EditorToolId;
-  icon: typeof MousePointer2;
-  label: string;
-  separator: boolean;
-}[] = [
-  { id: 'select',   icon: MousePointer2, label: 'Select (V)',    separator: false },
-  { id: 'gen-fill', icon: Sparkles,      label: 'Generative Fill', separator: true },
-  { id: 'text',     icon: Type,          label: 'Text (T)',      separator: false },
-  { id: 'image',    icon: ImageIcon,     label: 'Image (I)',     separator: true  },
-  { id: 'rect',     icon: Square,        label: 'Rectangle (R)', separator: false },
-  { id: 'circle',   icon: Circle,        label: 'Circle (C)',    separator: false },
-  { id: 'triangle', icon: Triangle,      label: 'Triangle',      separator: false },
-  { id: 'star',     icon: Star,          label: 'Star',          separator: false },
-  { id: 'line',     icon: Minus,         label: 'Line (L)',      separator: false },
-  { id: 'arrow',    icon: ArrowRight,    label: 'Arrow',         separator: true  },
-  { id: 'chart',    icon: BarChart2,     label: 'Chart',         separator: true  },
-  { id: 'frame-circle', icon: Circle,      label: 'Circle Frame',  separator: false },
-  { id: 'frame-heart',  icon: Heart,       label: 'Heart Frame',   separator: false },
-  { id: 'frame-box',    icon: Square,      label: 'Box Frame',     separator: false },
-];
+import { EDITOR_TOOLS, TOOL_GROUP_ORDER, VIEW_TOOL_GRID } from '@/lib/editor-tools';
+import { cn } from '@/lib/cn';
 
 export function Toolbar() {
-  const {
-    presentation,
-    currentSlideIndex,
-    editor,
-    setEditorState,
-    addElement,
-    selectElement,
-    undo,
-    redo,
-    history,
-    historyIndex,
-  } = usePresentationStore();
+  const presentation = usePresentationStore((s) => s.presentation);
+  const currentSlideIndex = usePresentationStore((s) => s.currentSlideIndex);
+  const activeTool = usePresentationStore((s) => s.editor.activeTool);
+  const showGrid = usePresentationStore((s) => s.editor.showGrid);
+  const setEditorState = usePresentationStore((s) => s.setEditorState);
+  const addElement = usePresentationStore((s) => s.addElement);
+  const selectElement = usePresentationStore((s) => s.selectElement);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const slide = presentation?.slides[currentSlideIndex];
 
-  const addImageFromFile = (file: File) => {
+  const addImageFromFile = (file: File, at?: { x: number; y: number }) => {
     if (!slide) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
       const src = ev.target?.result as string;
-      // Read natural dimensions
       const img = new window.Image();
       img.onload = () => {
-        const maxW = 600;
+        const maxW = 560;
         const ratio = Math.min(maxW / img.width, 1);
-        const w = Math.round(img.width  * ratio);
+        const w = Math.round(img.width * ratio);
         const h = Math.round(img.height * ratio);
-        const sIdx = currentSlideIndex;
+        const x = at ? at.x : (1280 - w) / 2;
+        const y = at ? at.y : (720 - h) / 2;
         const imgEl: SlideElement = {
-          id:      `el-image-${sIdx}-${Date.now()}`,
-          type:    'image',
-          x:       (1280 - w) / 2,
-          y:       (720  - h) / 2,
-          width:   w,
-          height:  h,
+          id: `el-image-${currentSlideIndex}-${Date.now()}`,
+          type: 'image',
+          x: Math.round(Math.max(0, Math.min(1280 - w, x))),
+          y: Math.round(Math.max(0, Math.min(720 - h, y))),
+          width: w,
+          height: h,
           opacity: 1,
           visible: true,
-          locked:  false,
-          zIndex:  (slide.elements?.length || 0) + 1,
+          locked: false,
+          zIndex: (slide.elements?.length || 0) + 1,
           src,
         };
         addElement(slide.id, imgEl);
         selectElement(imgEl.id);
+        setEditorState({ activeTool: 'select' });
       };
       img.src = src;
     };
@@ -85,13 +56,12 @@ export function Toolbar() {
   const handleToolClick = (toolId: EditorToolId) => {
     if (!slide) return;
 
-    // Direct actions (Select, Gen-Fill, Image upload)
-    if (toolId === 'select') { 
-      selectElement(null); 
+    if (toolId === 'select') {
+      selectElement(null);
       setEditorState({ activeTool: 'select' });
-      return; 
+      return;
     }
-    
+
     if (toolId === 'gen-fill') {
       selectElement(null);
       setEditorState({ activeTool: 'gen-fill', generativeFillTarget: null });
@@ -99,16 +69,28 @@ export function Toolbar() {
     }
 
     if (toolId === 'image') {
-      fileInputRef.current?.click();
+      setEditorState({ activeTool: 'image' });
       return;
     }
 
-    // For all other tools (text, shapes, charts), just set the active tool.
-    // The actual element addition will happen when clicking on the Canvas.
     setEditorState({ activeTool: toolId });
   };
 
-  // Keyboard shortcuts
+  useEffect(() => {
+    const onPickImage = (e: Event) => {
+      const detail = (e as CustomEvent<{ x: number; y: number }>).detail;
+      fileInputRef.current?.click();
+      if (detail && typeof detail.x === 'number') {
+        (fileInputRef.current as HTMLInputElement & { _placeAt?: { x: number; y: number } })._placeAt = {
+          x: detail.x,
+          y: detail.y,
+        };
+      }
+    };
+    window.addEventListener('orbstera:pick-image', onPickImage);
+    return () => window.removeEventListener('orbstera:pick-image', onPickImage);
+  }, []);
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
@@ -122,14 +104,15 @@ export function Toolbar() {
       if (key === 'g' && e.shiftKey) {
         e.preventDefault();
         handleToolClick('gen-fill');
-      } else if (key === 'g') setEditorState({ showGrid: !editor.showGrid });
+      } else if (key === 'g' && !e.ctrlKey && !e.metaKey) {
+        setEditorState({ showGrid: !showGrid });
+      }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slide, presentation, editor.showGrid]);
+  }, [slide, showGrid]);
 
-  // Global paste to import image from clipboard
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       if (!slide) return;
@@ -147,13 +130,16 @@ export function Toolbar() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slide]);
 
-  const canUndo  = historyIndex > 0;
-  const canRedo  = historyIndex < history.length - 1;
-  const showGrid = editor.showGrid;
+  const toolsByGroup = TOOL_GROUP_ORDER.map((group) => ({
+    group,
+    tools: EDITOR_TOOLS.filter((t) => t.group === group),
+  })).filter((g) => g.tools.length > 0);
 
   return (
-    <div className="shrink-0 flex items-center justify-center py-3 sm:py-6 px-1 bg-transparent absolute top-2 sm:top-6 left-0 right-0 z-50 pointer-events-none">
-      {/* Hidden file input */}
+    <div
+      id="tour-toolbar"
+      className="editor-tool-rail shrink-0 flex flex-row md:flex-col items-center md:items-stretch gap-0 border-r border-neutral-200/80 bg-[#FAFBFC] z-20"
+    >
       <input
         ref={fileInputRef}
         type="file"
@@ -161,72 +147,60 @@ export function Toolbar() {
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) addImageFromFile(file);
+          const input = e.target as HTMLInputElement & { _placeAt?: { x: number; y: number } };
+          const at = input._placeAt;
+          delete input._placeAt;
+          if (file) addImageFromFile(file, at);
           e.target.value = '';
         }}
       />
 
-      <div
-        id="tour-toolbar"
-        className="flex max-w-[calc(100vw-0.75rem)] items-center gap-0.5 sm:gap-1 overflow-x-auto overflow-y-visible scrollbar-none touch-pan-x bg-white/70 backdrop-blur-[32px] border border-black/[0.03] rounded-[22px] sm:rounded-[28px] px-2 sm:px-3 py-2 sm:py-2.5 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] pointer-events-auto"
-      >
-        {TOOLBAR_TOOLS.map((tool) => (
-          <div key={tool.id} className="flex items-center">
-            {tool.separator && <div className="w-[1px] h-6 bg-black/[0.06] mx-2" />}
-            <button
-              type="button"
-              onClick={() => handleToolClick(tool.id)}
-              title={tool.label}
-              className={`w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-[14px] sm:rounded-[16px] transition-all active:scale-[0.85] relative group touch-manipulation ${
-                editor.activeTool === tool.id 
-                  ? 'text-primary bg-primary/[0.08]' 
-                  : 'text-black/40 hover:text-primary hover:bg-primary/[0.06]'
-              }`}
-            >
-              <tool.icon size={17} strokeWidth={1.5} />
-              <span className="hidden sm:block absolute -top-11 left-1/2 -translate-x-1/2 bg-black/90 text-white text-[9px] font-bold px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-50 tracking-widest shadow-xl max-w-[min(240px,calc(100vw-2rem))] truncate">
-                {tool.label}
-              </span>
-            </button>
+      <div className="flex md:flex-col flex-1 overflow-x-auto md:overflow-y-auto md:overflow-x-hidden scrollbar-none py-2 px-1.5 md:px-2 md:py-3 gap-0.5 md:gap-1 max-md:w-full max-md:justify-center">
+        {toolsByGroup.map(({ group, tools }, gi) => (
+          <div key={group} className="flex md:flex-col items-center gap-0.5">
+            {gi > 0 && (
+              <div
+                className="max-md:w-px max-md:h-7 md:w-full md:h-px bg-neutral-200/90 my-0.5 md:my-1 shrink-0"
+                aria-hidden
+              />
+            )}
+            {tools.map((tool) => (
+              <button
+                key={tool.id}
+                type="button"
+                onClick={() => handleToolClick(tool.id)}
+                title={`${tool.label}${tool.shortcut ? ` (${tool.shortcut})` : ''}`}
+                className={cn(
+                  'relative flex h-9 w-9 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-md transition-colors touch-manipulation',
+                  activeTool === tool.id
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900',
+                )}
+              >
+                <tool.icon size={18} strokeWidth={1.75} />
+              </button>
+            ))}
           </div>
         ))}
+      </div>
 
-        <div className="w-[1px] h-6 bg-black/[0.06] mx-2" />
+      <div className="hidden md:block w-full h-px bg-neutral-200/90 mx-2 shrink-0" />
 
-        {/* Drag & Drop upload button */}
+      <div className="flex md:flex-col items-center gap-0.5 p-1.5 md:p-2 shrink-0">
         <button
           type="button"
-          onClick={() => fileInputRef.current?.click()}
-          title="Upload Image (drag & drop or click)"
-          className="flex shrink-0 items-center gap-1.5 h-9 sm:h-10 px-2 sm:px-3 rounded-[14px] sm:rounded-[16px] text-black/40 hover:text-primary hover:bg-primary/[0.06] transition-all active:scale-[0.85] relative group text-[10px] sm:text-[11px] font-bold touch-manipulation"
+          onClick={() => {
+            const next = !showGrid;
+            setEditorState({ showGrid: next, snapToGrid: next });
+          }}
+          title={`${VIEW_TOOL_GRID.label} (${VIEW_TOOL_GRID.shortcut})`}
+          className={cn(
+            'flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-md transition-colors',
+            showGrid ? 'bg-primary/10 text-primary' : 'text-neutral-500 hover:bg-neutral-100',
+          )}
         >
-          <Upload size={15} strokeWidth={1.5} />
-          <span className="hidden sm:block">Upload</span>
+          <VIEW_TOOL_GRID.icon size={18} strokeWidth={1.75} />
         </button>
-
-        <div className="w-[1px] h-6 bg-black/[0.06] mx-2" />
-
-        <button
-          type="button"
-          onClick={() => setEditorState({ showGrid: !showGrid })}
-          title="Grid (G)"
-          className={`w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-[14px] sm:rounded-[16px] transition-all active:scale-[0.85] touch-manipulation ${
-            showGrid ? 'text-primary bg-primary/[0.08]' : 'text-black/40 hover:text-primary hover:bg-primary/[0.06]'
-          }`}
-        >
-          <Grid3X3 size={17} strokeWidth={1.5} />
-        </button>
-
-        <div className="w-[1px] h-6 bg-black/[0.06] mx-2" />
-
-        <div className="flex items-center gap-0.5">
-          <button type="button" onClick={undo} disabled={!canUndo} className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-[14px] sm:rounded-[16px] text-black/40 hover:text-primary hover:bg-primary/[0.06] transition-all active:scale-[0.85] disabled:opacity-10 touch-manipulation">
-            <Undo2 size={17} strokeWidth={1.5} />
-          </button>
-          <button type="button" onClick={redo} disabled={!canRedo} className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-[14px] sm:rounded-[16px] text-black/40 hover:text-primary hover:bg-primary/[0.06] transition-all active:scale-[0.85] disabled:opacity-10 touch-manipulation">
-            <Redo2 size={17} strokeWidth={1.5} />
-          </button>
-        </div>
       </div>
     </div>
   );

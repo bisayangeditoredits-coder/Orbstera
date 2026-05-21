@@ -112,7 +112,7 @@ export function PresentationGrid({
           onClick={() => !bulkDeleting && setBulkDeleteIds(null)}
         >
           <div
-            className="w-full max-w-md rounded-3xl border border-white/20 bg-white p-8 shadow-2xl"
+            className="w-full max-w-md rounded-lg border border-white/20 bg-white p-8 shadow-2xl"
             role="dialog"
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
@@ -129,7 +129,7 @@ export function PresentationGrid({
                 type="button"
                 disabled={bulkDeleting}
                 onClick={() => setBulkDeleteIds(null)}
-                className="flex-1 rounded-xl border border-neutral-200 py-3 text-sm font-bold disabled:opacity-50"
+                className="flex-1 rounded-md border border-neutral-200 py-3 text-sm font-bold disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -137,7 +137,7 @@ export function PresentationGrid({
                 type="button"
                 disabled={bulkDeleting}
                 onClick={handleBulkDelete}
-                className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-bold text-white disabled:opacity-50"
+                className="flex-1 rounded-md bg-red-600 py-3 text-sm font-bold text-white disabled:opacity-50"
               >
                 {bulkDeleting ? 'Deleting…' : 'Delete all'}
               </button>
@@ -155,13 +155,13 @@ export function PresentationGrid({
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortMode)}
-            className="min-h-[44px] rounded-xl border border-white/80 bg-white/90 px-3 text-xs font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-primary/20"
+            className="min-h-[44px] rounded-md border border-white/80 bg-white/90 px-3 text-xs font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-primary/20"
             aria-label="Sort presentations"
           >
             <option value="recent">Most recent</option>
             <option value="title">A–Z</option>
           </select>
-          <div className="inline-flex rounded-xl border border-white/80 bg-white/90 p-0.5 shadow-sm">
+          <div className="inline-flex rounded-md border border-white/80 bg-white/90 p-0.5 shadow-sm">
             <button
               type="button"
               onClick={() => setView('grid')}
@@ -190,7 +190,7 @@ export function PresentationGrid({
                 if (selectionMode) exitSelection();
                 else setSelectionMode(true);
               }}
-              className="min-h-[44px] rounded-xl border border-white/80 bg-white/90 px-4 text-xs font-bold text-slate-700 shadow-sm hover:bg-white"
+              className="min-h-[44px] rounded-md border border-white/80 bg-white/90 px-4 text-xs font-bold text-slate-700 shadow-sm hover:bg-white"
             >
               {selectionMode ? 'Done' : 'Select'}
             </button>
@@ -208,7 +208,7 @@ export function PresentationGrid({
                 type="button"
                 disabled={selectedCount === 0}
                 onClick={() => selectedCount && setBulkDeleteIds(Array.from(selectedIds))}
-                className="min-h-[44px] rounded-xl border border-red-200 bg-red-50 px-4 text-xs font-bold text-red-800 disabled:opacity-40"
+                className="min-h-[44px] rounded-md border border-red-200 bg-red-50 px-4 text-xs font-bold text-red-800 disabled:opacity-40"
               >
                 Delete ({selectedCount})
               </button>
@@ -218,7 +218,7 @@ export function PresentationGrid({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-[2rem] border border-dashed border-primary/25 bg-white/70 px-8 py-16 text-center shadow-sm backdrop-blur-sm sm:py-20">
+        <div className="rounded-lg border border-dashed border-primary/25 bg-white/70 px-8 py-16 text-center shadow-sm backdrop-blur-sm sm:py-20">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/3d_icons/Open Book Lamp.png"
@@ -236,7 +236,7 @@ export function PresentationGrid({
           <button
             type="button"
             onClick={onNewDeck}
-            className="mt-8 inline-flex min-h-[44px] items-center rounded-xl bg-primary px-8 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:bg-primaryHover"
+            className="mt-8 inline-flex min-h-[44px] items-center rounded-md bg-primary px-8 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:bg-primaryHover"
           >
             Create presentation
           </button>
@@ -266,7 +266,7 @@ export function PresentationGrid({
           ))}
         </motion.div>
       ) : (
-        <ul className="divide-y divide-slate-100 overflow-hidden rounded-3xl border border-white/70 bg-white shadow-sm">
+        <ul className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-white/70 bg-white shadow-sm">
           {visibleDecks.map((deck) => (
             <li key={deck.id}>
               <div className="flex flex-col gap-4 p-4 transition hover:bg-slate-50/80 sm:flex-row sm:items-center sm:gap-6 sm:p-5">
@@ -313,7 +313,7 @@ export function PresentationGrid({
           <button
             type="button"
             onClick={() => setVisibleLimit((n) => n + 48)}
-            className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-6 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:border-primary/30 hover:text-primary"
+            className="min-h-[44px] rounded-md border border-slate-200 bg-white px-6 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:border-primary/30 hover:text-primary"
           >
             Load more ({filtered.length - visibleLimit} remaining)
           </button>

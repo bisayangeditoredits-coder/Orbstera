@@ -5,13 +5,11 @@ import Link from 'next/link';
 import { useEffect, useState, useCallback } from 'react';
 import { Sidebar } from '@/components/editor/Sidebar';
 import { Toolbar } from '@/components/editor/Toolbar';
-import { LayersPanel } from '@/components/editor/LayersPanel';
 import { TopBar } from '@/components/editor/TopBar';
-import { GeneratePanel } from '@/components/editor/GeneratePanel';
 import { MagicEditToolbar } from '@/components/editor/MagicEditToolbar';
 import { GenerativeFillToolbar } from '@/components/editor/GenerativeFillToolbar';
-import { DesignPanel } from '@/components/editor/DesignPanel';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { cn } from '@/lib/cn';
 import { useSearchParams } from 'next/navigation';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { useHotkeys } from 'react-hotkeys-hook';
@@ -50,11 +48,30 @@ const OnboardingTour = dynamic(
   { ssr: false }
 );
 
+const GeneratePanel = dynamic(
+  () => import('@/components/editor/GeneratePanel').then((m) => m.GeneratePanel),
+  { ssr: false },
+);
+
+const LayersPanel = dynamic(
+  () => import('@/components/editor/LayersPanel').then((m) => m.LayersPanel),
+  { ssr: false },
+);
+
+const DesignPanel = dynamic(
+  () => import('@/components/editor/DesignPanel').then((m) => m.DesignPanel),
+  { ssr: false },
+);
+
 export default function EditorClient() {
-  const {
-    activePanel, isPanelOpen, setPanelOpen, setActivePanel,
-    undo, redo, onboarding, startOnboarding
-  } = usePresentationStore();
+  const activePanel = usePresentationStore((s) => s.activePanel);
+  const isPanelOpen = usePresentationStore((s) => s.isPanelOpen);
+  const setPanelOpen = usePresentationStore((s) => s.setPanelOpen);
+  const setActivePanel = usePresentationStore((s) => s.setActivePanel);
+  const undo = usePresentationStore((s) => s.undo);
+  const redo = usePresentationStore((s) => s.redo);
+  const onboarding = usePresentationStore((s) => s.onboarding);
+  const startOnboarding = usePresentationStore((s) => s.startOnboarding);
   const presentation = usePresentationStore((s) => s.presentation);
   const searchParams = useSearchParams();
 
@@ -201,6 +218,34 @@ export default function EditorClient() {
   // Global keyboard shortcuts
   useHotkeys('ctrl+z, meta+z', (e) => { e.preventDefault(); undo(); }, [undo]);
   useHotkeys('ctrl+y, meta+y, ctrl+shift+z', (e) => { e.preventDefault(); redo(); }, [redo]);
+
+  useHotkeys(
+    'arrowup, arrowdown, arrowleft, arrowright',
+    (e) => {
+      const ae = document.activeElement as HTMLElement | null;
+      const tag = ae?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || ae?.isContentEditable) return;
+      const st = usePresentationStore.getState();
+      if (st.editor.activeTool !== 'select') return;
+      const selectedId = st.editor.selectedElementId;
+      if (!selectedId || !st.presentation?.slides?.length) return;
+      const slide = st.presentation.slides[st.currentSlideIndex];
+      const el = slide?.elements?.find((x) => x.id === selectedId);
+      if (!el || el.locked) return;
+      e.preventDefault();
+      const snap = st.editor.snapToGrid;
+      const grid = st.editor.gridSize;
+      const step = e.shiftKey ? (snap ? grid : 10) : 1;
+      const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+      const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+      st.updateElement(slide.id, selectedId, {
+        x: el.x + dx,
+        y: el.y + dy,
+      }, true);
+    },
+    { enableOnFormTags: false },
+    [],
+  );
   useHotkeys('ctrl+g, meta+g', (e) => {
     e.preventDefault();
     setActivePanel('generate');
@@ -251,7 +296,7 @@ export default function EditorClient() {
           initial={{ opacity: 0, y: 16, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className="relative z-10 w-full max-w-sm mx-4 rounded-[20px] p-8 flex flex-col items-center text-center bg-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.06)] border border-neutral-200/80"
+          className="relative z-10 w-full max-w-sm mx-4 rounded-lg p-8 flex flex-col items-center text-center bg-white shadow-modal border border-neutral-200/80"
         >
           {/* Icon */}
           <motion.div
@@ -333,14 +378,14 @@ export default function EditorClient() {
           >
             <Link
               href="/my-presentations"
-              className="flex-1 rounded-xl py-2.5 text-[13px] font-semibold text-center text-neutral-600 bg-white border border-neutral-200/80 hover:bg-neutral-50 hover:text-neutral-900 transition-colors shadow-sm"
+              className="flex-1 rounded-md py-2.5 text-[13px] font-semibold text-center text-neutral-600 bg-white border border-neutral-200/80 hover:bg-neutral-50 hover:text-neutral-900 transition-colors shadow-sm"
             >
               ← Library
             </Link>
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="flex-1 rounded-xl py-2.5 text-[13px] font-semibold text-white bg-primary hover:bg-primaryHover shadow-[0_4px_12px_rgba(59,130,246,0.2)] transition-all"
+              className="flex-1 rounded-md py-2.5 text-[13px] font-semibold text-white bg-primary hover:bg-primaryHover shadow-[0_4px_12px_rgba(59,130,246,0.2)] transition-all"
             >
               {isError ? 'Try Again' : 'Refresh'}
             </button>
@@ -392,34 +437,40 @@ export default function EditorClient() {
           onAfterSlideSelect={closeMobileGallery}
         />
 
-        {/* Center: canvas + toolbar */}
-        <main className="flex-1 relative flex flex-col min-w-0 overflow-hidden">
+        {/* Center: Photoshop-style tool rail + canvas workspace */}
+        <main className="flex-1 relative flex flex-row min-w-0 overflow-hidden bg-[#E8ECF1]">
           <Toolbar />
-          <CanvasArea />
-          <GenerativeFillToolbar />
-          <MagicEditToolbar />
+          <div className="relative flex flex-1 flex-col min-w-0 min-h-0">
+            <CanvasArea />
+            <GenerativeFillToolbar />
+            <MagicEditToolbar />
+          </div>
         </main>
 
         {/* Right: context panels */}
-        <AnimatePresence mode="wait">
-          {isPanelOpen && (
-            <motion.aside
-              key={activePanel}
-              initial={{ opacity: 0, x: 16 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 16 }}
-              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="border-l-2 border-black/[0.08] bg-panel shrink-0 flex flex-col overflow-hidden min-h-0 w-full max-w-[100vw] xs:max-w-[min(100vw,360px)] md:w-[min(92vw,320px)] lg:w-[320px] shadow-[-1px_0_10px_rgba(0,0,0,0.02)] max-md:fixed max-md:z-[128] max-md:right-0 max-md:top-[var(--editor-topbar-h,104px)] max-md:bottom-0 max-md:h-[calc(100dvh-var(--editor-topbar-h,104px)-env(safe-area-inset-bottom,0px))] md:relative md:top-auto md:bottom-auto md:h-full md:max-h-full"
-            >
-              {activePanel === 'generate' && (
-                <GeneratePanel onClose={() => setPanelOpen(false)} />
-              )}
-              {activePanel === 'layers' && <LayersPanel />}
-              {activePanel === 'design' && <DesignPanel />}
-              {activePanel === 'notes'  && <NotesPanel />}
-            </motion.aside>
+        <aside
+          aria-hidden={!isPanelOpen}
+          className={cn(
+            'border-l-2 border-black/[0.08] bg-panel shrink-0 flex flex-col overflow-hidden min-h-0',
+            'w-full max-w-[100vw] xs:max-w-[min(100vw,360px)] md:w-[min(92vw,320px)] lg:w-[320px]',
+            'shadow-[-1px_0_10px_rgba(0,0,0,0.02)] perf-contain-paint',
+            'max-md:fixed max-md:z-[128] max-md:right-0 max-md:top-[var(--editor-topbar-h,104px)] max-md:bottom-0',
+            'max-md:h-[calc(100dvh-var(--editor-topbar-h,104px)-env(safe-area-inset-bottom,0px))]',
+            'md:relative md:top-auto md:bottom-auto md:h-full md:max-h-full',
+            'transition-[transform,opacity] duration-200 ease-out',
+            isPanelOpen
+              ? 'max-md:translate-x-0 max-md:opacity-100'
+              : 'max-md:translate-x-full max-md:opacity-0 max-md:pointer-events-none',
+            !isPanelOpen && 'md:w-0 md:opacity-0 md:border-l-0 md:overflow-hidden md:pointer-events-none',
           )}
-        </AnimatePresence>
+        >
+          {isPanelOpen && activePanel === 'generate' && (
+            <GeneratePanel onClose={() => setPanelOpen(false)} />
+          )}
+          {isPanelOpen && activePanel === 'layers' && <LayersPanel />}
+          {isPanelOpen && activePanel === 'design' && <DesignPanel />}
+          {isPanelOpen && activePanel === 'notes' && <NotesPanel />}
+        </aside>
       </div>
     </div>
   );
@@ -427,9 +478,10 @@ export default function EditorClient() {
 
 // ─── Notes Panel ──────────────────────────────────────────────────────────────
 function NotesPanel() {
-  const { presentation, currentSlideIndex } = usePresentationStore();
+  const presentation = usePresentationStore((s) => s.presentation);
+  const currentSlideIndex = usePresentationStore((s) => s.currentSlideIndex);
+  const updateSlide = usePresentationStore((s) => s.updateSlide);
   const slide = presentation?.slides[currentSlideIndex];
-  const { updateSlide } = usePresentationStore();
   const [coachTips, setCoachTips] = useState<string | null>(null);
   const [coachLoading, setCoachLoading] = useState(false);
 
@@ -497,14 +549,6 @@ function NotesPanel() {
           <p className="text-[12px] text-textSecondary leading-relaxed whitespace-pre-wrap">{coachTips}</p>
         </div>
       )}
-      <div className="mt-4 space-y-2">
-        <p className="text-[10px] uppercase tracking-[0.08em] font-medium text-textMuted">AI-generated notes</p>
-        {slide.speakerNotes ? (
-          <p className="text-[13px] text-textSecondary leading-relaxed">{slide.speakerNotes}</p>
-        ) : (
-          <p className="text-[13px] text-textMuted italic">No notes for this slide</p>
-        )}
-      </div>
     </div>
   );
 }

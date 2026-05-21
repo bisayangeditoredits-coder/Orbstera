@@ -1,48 +1,45 @@
 'use client';
 
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { useReducedMotion } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { isAppRoute } from '@/lib/route-performance';
+import { cn } from '@/lib/cn';
 
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const reduceMotion = useReducedMotion();
+  const appSurface = isAppRoute(pathname);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (reduceMotion) return;
+    if (reduceMotion || appSurface) return;
     setIsLoading(true);
-    const timer = setTimeout(() => setIsLoading(false), 280);
+    const timer = setTimeout(() => setIsLoading(false), 220);
     return () => clearTimeout(timer);
-  }, [pathname, reduceMotion]);
+  }, [pathname, reduceMotion, appSurface]);
+
+  if (appSurface || reduceMotion) {
+    return <div className="flex min-h-dvh flex-col">{children}</div>;
+  }
 
   return (
     <>
-      <AnimatePresence>
-        {isLoading && !reduceMotion && (
-          <motion.div
-            initial={{ scaleX: 0, opacity: 0.85 }}
-            animate={{ scaleX: 1, opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            style={{ transformOrigin: '0 50%' }}
-            className="fixed top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-primary via-purple-500 to-blue-400 z-[9999] shadow-[0_0_12px_rgba(59,130,246,0.35)]"
-          />
+      {isLoading && (
+        <div
+          className="fixed top-0 left-0 right-0 z-[9999] h-[2px] origin-left bg-primary animate-[page-progress_0.22s_ease-out_forwards]"
+          aria-hidden
+        />
+      )}
+      <div
+        key={pathname}
+        className={cn(
+          'flex min-h-dvh flex-col',
+          'animate-[page-fade-in_0.14s_ease-out]',
         )}
-      </AnimatePresence>
-
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={pathname}
-          initial={reduceMotion ? false : { opacity: 0.98, y: 2 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={reduceMotion ? { opacity: 1 } : { opacity: 0.98, y: -2 }}
-          transition={{ duration: reduceMotion ? 0 : 0.16, ease: [0.22, 1, 0.36, 1] }}
-          className="flex min-h-dvh flex-col"
-        >
-          {children}
-        </motion.div>
-      </AnimatePresence>
+      >
+        {children}
+      </div>
     </>
   );
 }

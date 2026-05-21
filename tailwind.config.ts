@@ -43,10 +43,17 @@ const config: Config = {
         'accent-gradient': 'linear-gradient(135deg, #3B82F6, #60A5FA)',
         'premium-glass': 'linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.4) 100%)',
       },
+      borderRadius: {
+        /** Product surfaces — restrained, not pill-shaped */
+        product: '6px',
+        card: '8px',
+        panel: '10px',
+      },
       boxShadow: {
         'premium': '0 20px 40px -10px rgba(0, 0, 0, 0.05), 0 10px 20px -5px rgba(0, 0, 0, 0.02)',
         'focus-ring': '0 0 0 2px #FFFFFF, 0 0 0 4px #3B82F6',
         'slide-frame': '0 30px 60px -12px rgba(0, 0, 0, 0.08), 0 18px 36px -18px rgba(0, 0, 0, 0.1)',
+        modal: '0 24px 48px -12px rgba(15, 23, 42, 0.18)',
       },
       animation: {
         'shimmer': 'shimmer 2.5s linear infinite',

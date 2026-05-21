@@ -699,9 +699,8 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
           updates.activePanel = 'layers';
         }
       } else {
-        // Deselect: keep side panel open; return to default Generate tab (do not collapse).
-        updates.isPanelOpen = true;
-        updates.activePanel = 'generate';
+        // Deselect: keep current panel — avoid jumping away from Design/Notes while editing.
+        updates.isPanelOpen = state.isPanelOpen;
       }
       return updates;
     }),

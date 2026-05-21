@@ -36,6 +36,12 @@ body {
 /* Editor chrome — stacked top bar height on narrow screens (TopBar wraps) */
 .editor-shell {
   --editor-topbar-h: 52px;
+  --editor-tool-rail-w: 52px;
+}
+@media (min-width: 768px) {
+  .editor-shell {
+    --editor-tool-rail-w: 56px;
+  }
 }
 @media (max-width: 1023px) {
   .editor-shell {
@@ -79,8 +85,8 @@ body {
 
   .animated-border {
     position: relative;
-    padding: 3.5px;
-    border-radius: 24px;
+    padding: 2px;
+    border-radius: 10px;
     overflow: hidden;
     display: flex;
     transition: all 0.3s ease;
@@ -131,7 +137,7 @@ body {
     position: relative;
     z-index: 1;
     background: white;
-    border-radius: calc(24px - 3.5px);
+    border-radius: calc(10px - 2px);
     width: 100%;
     border: 2px solid rgba(0,0,0,0.1);
   }
@@ -220,6 +226,48 @@ body {
 
   .planner-markdown-stream p {
     transition: color 0.1s ease-out;
+  }
+
+  @keyframes modal-overlay-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes modal-panel-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes page-fade-in {
+    from { opacity: 0.98; transform: translateY(2px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes page-progress {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+
+  .perf-contain-paint {
+    contain: layout paint style;
+  }
+
+  .perf-content-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 320px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated-border::before,
+  .animated-border::after {
+    animation: none !important;
+  }
+
+  .animate-pulse-glow,
+  .animate-float,
+  .animate-shimmer {
+    animation: none !important;
   }
 }
 

@@ -60,9 +60,9 @@ export function DashboardStats({ decks, userName, credits, onOpenSettings }: Das
       transition={{ duration: 0.35 }}
       className="grid grid-cols-1 gap-5 md:grid-cols-3 md:gap-6"
     >
-      <div className="group relative overflow-hidden rounded-3xl border border-white/70 bg-white p-6 shadow-sm transition-shadow hover:shadow-lg sm:p-8">
+      <div className="group relative overflow-hidden rounded-lg border border-white/70 bg-white p-6 shadow-sm transition-shadow hover:shadow-lg sm:p-8">
         <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition group-hover:scale-105">
+          <div className="flex h-12 w-12 items-center justify-center rounded-md bg-primary/10 text-primary transition group-hover:scale-105">
             <LayoutDashboard size={24} strokeWidth={1.75} />
           </div>
         </div>
@@ -106,7 +106,7 @@ export function DashboardStats({ decks, userName, credits, onOpenSettings }: Das
         </div>
       </div>
 
-      <div className="group rounded-3xl border border-white/70 bg-white p-6 shadow-sm transition-shadow hover:shadow-lg sm:p-8">
+      <div className="group rounded-lg border border-white/70 bg-white p-6 shadow-sm transition-shadow hover:shadow-lg sm:p-8">
         <div className="mb-4 flex items-start justify-between gap-2">
           <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Weekly activity</p>
           {growth.percent !== null ? (
@@ -139,7 +139,7 @@ export function DashboardStats({ decks, userName, credits, onOpenSettings }: Das
         <button
           type="button"
           onClick={onOpenSettings}
-          className="group w-full rounded-3xl border border-white/70 bg-white p-6 text-left shadow-sm transition-shadow hover:border-primary/20 hover:shadow-lg sm:p-8"
+          className="group w-full rounded-lg border border-white/70 bg-white p-6 text-left shadow-sm transition-shadow hover:border-primary/20 hover:shadow-lg sm:p-8"
         >
           <div className="mb-4 flex items-start justify-between gap-2">
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">AI credits</p>
@@ -159,7 +159,7 @@ export function DashboardStats({ decks, userName, credits, onOpenSettings }: Das
         <SparkBars heights={creditHeights} />
         </button>
       ) : (
-        <div className="group rounded-3xl border border-white/70 bg-white p-6 shadow-sm transition-shadow hover:shadow-lg sm:p-8">
+        <div className="group rounded-lg border border-white/70 bg-white p-6 shadow-sm transition-shadow hover:shadow-lg sm:p-8">
           <div className="mb-4 flex items-start justify-between gap-2">
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">AI credits</p>
             <span className="flex items-center gap-1 rounded-lg bg-primary/5 px-2 py-1 text-xs font-bold text-primary">

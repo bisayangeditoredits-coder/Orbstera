@@ -22,7 +22,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    ensureLottiePlayerScript();
+    const run = () => ensureLottiePlayerScript();
+    if (typeof requestIdleCallback === 'function') {
+      const id = requestIdleCallback(run, { timeout: 4000 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = window.setTimeout(run, 1200);
+    return () => clearTimeout(t);
   }, []);
 
   return (

@@ -517,8 +517,6 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
     const onKey = (e: KeyboardEvent) => {
       if (!presentation) return;
       const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); store.undo(); }
-      if (mod && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); store.redo(); }
       if (mod && e.key === 'p') { e.preventDefault(); setEditorState({ isPresenting: true }); }
       if (mod && e.key === 'e') { e.preventDefault(); handleExportCheck(); }
       if (mod && e.key === 'd') { e.preventDefault(); handlePanelToggle('design'); }

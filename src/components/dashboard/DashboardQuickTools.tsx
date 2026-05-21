@@ -123,7 +123,7 @@ export function DashboardQuickTools({
           const inner = (
             <>
               <div
-                className={`flex h-11 w-11 items-center justify-center rounded-2xl transition ${accentStyles[tool.accent]}`}
+                className={`flex h-11 w-11 items-center justify-center rounded-md transition ${accentStyles[tool.accent]}`}
               >
                 <Icon size={22} strokeWidth={1.75} />
               </div>
@@ -137,7 +137,7 @@ export function DashboardQuickTools({
           );
 
           const className =
-            'group flex min-h-[100px] flex-col gap-3 rounded-2xl border border-white/70 bg-white p-4 shadow-sm transition hover:border-primary/20 hover:shadow-md sm:min-h-[110px] sm:p-5';
+            'group flex min-h-[100px] flex-col gap-3 rounded-md border border-white/70 bg-white p-4 shadow-sm transition hover:border-primary/20 hover:shadow-md sm:min-h-[110px] sm:p-5';
 
           if (tool.id === 'new') {
             return (

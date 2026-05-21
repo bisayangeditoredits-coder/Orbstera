@@ -7,6 +7,7 @@ import { SLIDE_TRANSITION_OPTIONS } from '@/lib/presentationMotion';
 import type { SlideTransition } from '@/types';
 import { Palette, Type, Sparkles, Check, RefreshCw } from 'lucide-react';
 import { ColorPicker } from './ColorPicker';
+import { EDITOR_GOOGLE_FONTS } from '@/lib/editor-fonts';
 
 // ── Preset themes ─────────────────────────────────────────────────────────────
 const STYLE_MODES: { id: string; label: string }[] = [
@@ -28,20 +29,6 @@ const THEMES = [
   { name: 'Gold',      palette: ['#0D0900', '#FFFFFF', '#EAB308', '#FEF08A'], preview: ['#0D0900', '#EAB308'] },
   { name: 'Arctic',    palette: ['#F8FAFC', '#0F172A', '#0EA5E9', '#E0F2FE'], preview: ['#F8FAFC', '#0EA5E9'] },
 ];
-
-// ── Massive Google Fonts Library ──────────────────────────────────────────────
-const GOOGLE_FONTS = [
-  'Inter', 'Space Grotesk', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Oswald', 'Source Sans Pro', 'Raleway', 'PT Sans',
-  'Merriweather', 'Roboto Condensed', 'Lora', 'Ubuntu', 'Playfair Display', 'Nunito', 'Poppins', 'Arimo', 'Titillium Web',
-  'Muli', 'PT Serif', 'Nunito Sans', 'Fira Sans', 'Noto Sans', 'Dosis', 'Quicksand', 'Inconsolata', 'Crimson Text', 'Karla',
-  'Rubik', 'Mukta', 'Work Sans', 'Varela Round', 'Cabin', 'Oxygen', 'Anton', 'Bitter', 'Abel', 'Fjalla One', 'Hind',
-  'Josefin Sans', 'Libre Baskerville', 'Signika', 'Arvo', 'Asap', 'Dancing Script', 'Pacifico', 'Teko', 'Bebas Neue',
-  'Caveat', 'Indie Flower', 'Righteous', 'Permanent Marker', 'Cinzel', 'Alfa Slab One', 'Courgette', 'Fredoka One',
-  'Lobster', 'Amatic SC', 'Kalam', 'Great Vibes', 'Questrial', 'Rokkitt', 'Vollkorn', 'Yeseva One', 'Zilla Slab',
-  'Alegreya', 'Barlow', 'Cairo', 'Cormorant Garamond', 'Exo 2', 'Heebo', 'IBM Plex Sans', 'Jura', 'Kanit', 'Noto Serif',
-  'Orbitron', 'Prompt', 'Saira', 'JetBrains Mono', 'Outfit', 'DM Sans', 'Manrope', 'Plus Jakarta Sans', 'Syne',
-  'Lora', 'Noto Sans JP', 'Noto Sans KR', 'Mukta', 'Hind Siliguri', 'Hind Madurai'
-].sort();
 
 // Component to dynamically load Google Fonts
 function FontLoader({ fonts }: { fonts: string[] }) {
@@ -314,7 +301,7 @@ export function DesignPanel() {
                 className="w-full bg-white border border-black/10 rounded-xl px-3 py-2.5 text-[12px] font-semibold text-black/80 shadow-sm focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all cursor-pointer"
                 style={{ fontFamily: fontPairing.heading }}
               >
-                {GOOGLE_FONTS.map(font => (
+                {EDITOR_GOOGLE_FONTS.map(font => (
                   <option key={font} value={font} style={{ fontFamily: font }}>
                     {font}
                   </option>
@@ -332,7 +319,7 @@ export function DesignPanel() {
                 className="w-full bg-white border border-black/10 rounded-xl px-3 py-2.5 text-[12px] font-semibold text-black/80 shadow-sm focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all cursor-pointer"
                 style={{ fontFamily: fontPairing.body }}
               >
-                {GOOGLE_FONTS.map(font => (
+                {EDITOR_GOOGLE_FONTS.map(font => (
                   <option key={font} value={font} style={{ fontFamily: font }}>
                     {font}
                   </option>

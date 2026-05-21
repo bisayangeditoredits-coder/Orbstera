@@ -150,7 +150,7 @@ export function DashboardSidebar({
             onMobileClose?.();
           }}
           className={cn(
-            'flex w-full items-center gap-3 rounded-2xl border p-4 text-left backdrop-blur-md transition',
+            'flex w-full items-center gap-3 rounded-md border p-4 text-left backdrop-blur-md transition',
             section === 'settings'
               ? 'border-primary/30 bg-white/70 shadow-sm'
               : 'border-white/60 bg-white/40 hover:bg-white/60',

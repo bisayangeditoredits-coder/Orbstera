@@ -88,7 +88,7 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
       <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="relative w-full max-w-xl max-h-[min(92dvh,900px)] my-auto overflow-y-auto overscroll-contain bg-white rounded-[28px] sm:rounded-[40px] shadow-2xl border border-white/20"
+        className="relative w-full max-w-xl max-h-[min(92dvh,900px)] my-auto overflow-y-auto overscroll-contain bg-white rounded-lg shadow-modal border border-neutral-200/90"
       >
         {/* Progress Bar */}
         <div className="absolute top-0 left-0 w-full h-1.5 bg-gray-100">

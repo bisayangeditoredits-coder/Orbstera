@@ -65,7 +65,7 @@ export function DashboardHeader({
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
               placeholder="Search presentations…"
-              className="w-full min-h-[44px] rounded-2xl border border-transparent bg-white/90 py-3 pl-12 pr-4 text-sm shadow-sm outline-none transition focus:border-primary/20 focus:ring-4 focus:ring-primary/10"
+              className="w-full min-h-[44px] rounded-md border border-transparent bg-white/90 py-3 pl-12 pr-4 text-sm shadow-sm outline-none transition focus:border-primary/20 focus:ring-4 focus:ring-primary/10"
             />
           </div>
         )}
@@ -83,7 +83,7 @@ export function DashboardHeader({
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
             placeholder="Search presentations…"
-            className="w-full min-h-[44px] rounded-2xl border border-transparent bg-white/90 py-3 pl-12 pr-4 text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary/10"
+            className="w-full min-h-[44px] rounded-md border border-transparent bg-white/90 py-3 pl-12 pr-4 text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary/10"
           />
         </div>
       )}

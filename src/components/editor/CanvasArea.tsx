@@ -309,20 +309,16 @@ export function CanvasArea() {
   /** Start at 0 so first layout pass does not run centering math with a fake width (avoids bad pan from ResizeObserver). */
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const setEditorState = usePresentationStore((s) => s.setEditorState);
-  const undo = usePresentationStore((s) => s.undo);
-  const redo = usePresentationStore((s) => s.redo);
   const pan = usePresentationStore((s) => s.editor.pan);
   const zoom = usePresentationStore((s) => s.editor.zoom);
   const showGrid = usePresentationStore((s) => s.editor.showGrid);
+  const activeTool = usePresentationStore((s) => s.editor.activeTool);
   const isGenerating = usePresentationStore((s) => s.editor.isGenerating);
   const generationBlockingOverlay = usePresentationStore((s) => s.editor.generationBlockingOverlay);
 
   // ─── Interaction State ───
   const [isPanning, setIsPanning] = useState(false);
-  const [isWheelActive, setIsWheelActive] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
-  
-  const wheelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevContainerSizeRef = useRef<{ w: number; h: number } | null>(null);
 
   // Refs for logic
@@ -394,28 +390,17 @@ export function CanvasArea() {
         if (e.target === document.body) e.preventDefault();
       }
       
-      // ── Undo / Redo Shortcuts ──
       if (e.ctrlKey || e.metaKey) {
-        if (e.key.toLowerCase() === 'z') {
-          e.preventDefault();
-          if (e.shiftKey) redo();
-          else undo();
-        }
-        else if (e.key.toLowerCase() === 'y') {
-          e.preventDefault();
-          redo();
-        }
-        // Existing zoom shortcuts
-        else if (e.key === '=' || e.key === '+') { e.preventDefault(); setEditorState({ zoom: Math.min(ZOOM_MAX, zoom * 1.2) }); }
-        else if (e.key === '-')             { e.preventDefault(); setEditorState({ zoom: Math.max(ZOOM_MIN, zoom / 1.2) }); }
-        else if (e.key === '0')             { e.preventDefault(); fitAndReset(); }
+        if (e.key === '=' || e.key === '+') { e.preventDefault(); setEditorState({ zoom: Math.min(ZOOM_MAX, zoom * 1.2) }); }
+        else if (e.key === '-') { e.preventDefault(); setEditorState({ zoom: Math.max(ZOOM_MIN, zoom / 1.2) }); }
+        else if (e.key === '0') { e.preventDefault(); fitAndReset(); }
       }
     };
     const onKeyUp = (e: KeyboardEvent) => { if (e.code === 'Space') setIsSpacePressed(false); };
     window.addEventListener('keydown', onKey);
     window.addEventListener('keyup', onKeyUp);
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKeyUp); };
-  }, [isSpacePressed, zoom, setEditorState, fitAndReset, undo, redo]);
+  }, [isSpacePressed, zoom, setEditorState, fitAndReset]);
 
   // ─── Refined Zoom-to-Cursor Handler ───
   useEffect(() => {
@@ -424,19 +409,12 @@ export function CanvasArea() {
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      
-      // Mark wheel as active to disable transitions
-      setIsWheelActive(true);
-      if (wheelTimeoutRef.current) clearTimeout(wheelTimeoutRef.current);
-      wheelTimeoutRef.current = setTimeout(() => setIsWheelActive(false), 150);
 
       const rect = container.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
-      // Logic: Zoom if Ctrl is held OR if simple scroll (depending on preference)
-      // Most users with wheel-zoom issues want Scroll = Zoom
-      const isZooming = e.ctrlKey || e.metaKey || true; // Set to true to always zoom on scroll
+      const isZooming = e.ctrlKey || e.metaKey;
 
       if (isZooming && !isSpacePressedRef.current) {
         const currentZoom = zoomRef.current;
@@ -520,8 +498,12 @@ export function CanvasArea() {
       ref={containerRef}
       id="tour-canvas"
       data-lenis-prevent
-      className={`flex-1 relative overflow-hidden flex items-center justify-center min-h-0 bg-[#F4F6FA] ${
-        isPanning || isSpacePressed ? 'cursor-grabbing' : 'cursor-default'
+      className={`flex-1 relative overflow-hidden flex items-center justify-center min-h-0 bg-[#D8DEE6] ${
+        isPanning || isSpacePressed
+          ? 'cursor-grabbing'
+          : activeTool !== 'select'
+            ? 'cursor-crosshair'
+            : 'cursor-default'
       }`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -534,91 +516,55 @@ export function CanvasArea() {
         {isGenerating && !generationBlockingOverlay && <GenerationAssetsBanner key="asset-banner" />}
       </AnimatePresence>
 
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+      {showGrid && (
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 z-0 pointer-events-none opacity-[0.35]"
           style={{
             backgroundImage:
-              'radial-gradient(ellipse 120% 80% at 50% -10%, rgba(59,130,246,0.14), transparent 55%), radial-gradient(ellipse 90% 60% at 100% 0%, rgba(14,165,233,0.08), transparent 50%), radial-gradient(ellipse 70% 50% at 0% 100%, rgba(15,23,42,0.04), transparent 45%)',
+              'linear-gradient(rgba(15,23,42,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.07) 1px, transparent 1px)',
+            backgroundSize: '28px 28px',
           }}
         />
-        {showGrid && (
-          <div
-            className="absolute inset-0 opacity-[0.22]"
-            style={{
-              backgroundImage:
-                'linear-gradient(rgba(15,23,42,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.06) 1px, transparent 1px)',
-              backgroundSize: '56px 56px',
-            }}
-          />
-        )}
-        <div className="absolute inset-0 flex items-center justify-center opacity-[0.04] grayscale pointer-events-none mix-blend-multiply">
-          {/* @ts-ignore */}
-          <lottie-player
-            src="/A Man with VR headset touches a holographic screen.json"
-            background="transparent"
-            speed="0.5"
-            style={{ width: '110%', height: '110%' }}
-            loop
-            autoplay
-          />
-        </div>
-        <motion.div
-          animate={{ x: [0, 40, 0], y: [0, 30, 0] }}
-          transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-          className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] rounded-full bg-sky-400/[0.06] blur-[100px]"
-        />
-      </div>
+      )}
 
       <div className="relative z-10 w-full h-full overflow-hidden">
-        <motion.div
-          animate={{
+        <div
+          style={{
+            position: 'absolute',
             left: (containerSize.w - scaledW) / 2 + pan.x,
             top: (containerSize.h - scaledH) / 2 + pan.y,
             width: scaledW,
             height: scaledH,
-          }}
-          transition={{
-            type: 'spring',
-            damping: 35,
-            stiffness: 400,
-            mass: 0.8,
-            // Skip animation during high-frequency wheel or pan events for zero latency
-            duration: (isPanning || isWheelActive) ? 0 : 0.15 
-          }}
-          style={{
-            position: 'absolute',
-            boxShadow: '0 32px 80px -20px rgba(15,23,42,0.25), 0 0 0 1px rgba(255,255,255,0.08)',
-            borderRadius: 4,
+            boxShadow: '0 8px 32px -8px rgba(15,23,42,0.35), 0 0 0 1px rgba(15,23,42,0.12)',
+            borderRadius: 2,
             overflow: 'hidden',
             backgroundColor: '#ffffff',
-            backgroundImage: `
-              linear-gradient(45deg, #e5e5e5 25%, transparent 25%), 
-              linear-gradient(-45deg, #e5e5e5 25%, transparent 25%), 
-              linear-gradient(45deg, transparent 75%, #e5e5e5 75%), 
-              linear-gradient(-45deg, transparent 75%, #e5e5e5 75%)
-            `,
-            backgroundSize: '20px 20px',
-            backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
           }}
         >
           <KonvaCanvas scale={effectiveScale} />
-        </motion.div>
+        </div>
       </div>
 
-      <div className="absolute bottom-6 right-6 z-50 flex items-center gap-1 bg-white/90 backdrop-blur-2xl border border-black/[0.05] p-1.5 rounded-2xl shadow-2xl scale-90 sm:scale-100">
+      <div className="absolute bottom-3 left-3 right-3 z-50 flex items-end justify-between gap-3 pointer-events-none">
+        <p className="hidden sm:block text-[10px] font-medium text-neutral-600/90 bg-white/85 border border-neutral-200/80 rounded-md px-2.5 py-1 shadow-sm">
+          Space + drag to pan · Ctrl + scroll to zoom · Shift constrains shapes
+        </p>
+      </div>
+
+      <div className="absolute bottom-3 right-3 z-50 flex items-center gap-0.5 bg-white/95 border border-neutral-200/90 p-1 rounded-md shadow-md pointer-events-auto">
         <button
           type="button"
           onClick={() => setEditorState({ zoom: Math.max(ZOOM_MIN, zoom / 1.2) })}
-          className="w-9 h-9 flex items-center justify-center rounded-xl text-neutral-400 hover:text-black hover:bg-black/5 transition-all"
+          className="w-8 h-8 flex items-center justify-center rounded-md text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 transition-colors"
         >
-          <span className="text-xl font-medium">−</span>
+          <span className="text-lg font-medium leading-none">−</span>
         </button>
 
         <button
           type="button"
           onClick={fitAndReset}
-          className="px-3 h-9 flex items-center justify-center rounded-xl text-[11px] font-black text-neutral-800 hover:bg-black/5 transition-all uppercase tracking-widest min-w-[58px]"
+          className="px-2.5 h-8 flex items-center justify-center rounded-md text-[11px] font-semibold text-neutral-800 hover:bg-neutral-100 transition-colors min-w-[52px]"
+          title="Fit slide (Ctrl+0)"
         >
           {Math.round(effectiveScale * 100)}%
         </button>
@@ -626,7 +572,7 @@ export function CanvasArea() {
         <button
           type="button"
           onClick={() => setEditorState({ zoom: Math.min(ZOOM_MAX, zoom * 1.2) })}
-          className="w-9 h-9 flex items-center justify-center rounded-xl text-neutral-400 hover:text-black hover:bg-black/5 transition-all"
+          className="w-8 h-8 flex items-center justify-center rounded-md text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 transition-colors"
         >
           <span className="text-xl font-medium">+</span>
         </button>

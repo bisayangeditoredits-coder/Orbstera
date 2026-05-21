@@ -24,11 +24,21 @@ const nextConfig = {
     ];
   },
 
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        pathname: '/**',
+      },
+    ],
+  },
+
   experimental: {
     // Prevent canvas native module from being bundled server-side
     serverComponentsExternalPackages: ['canvas'],
     // Tree-shake icon barrel imports on the client
-    optimizePackageImports: ['lucide-react'],
+    optimizePackageImports: ['lucide-react', 'framer-motion'],
   },
 
   webpack: (config, { isServer }) => {

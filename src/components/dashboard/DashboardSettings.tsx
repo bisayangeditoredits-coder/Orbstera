@@ -157,7 +157,7 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
       >
         <aside className="lg:w-52 shrink-0">
           <nav
-            className="flex gap-1 rounded-2xl border border-white/70 bg-white/80 p-1.5 shadow-sm backdrop-blur-sm lg:flex-col"
+            className="flex gap-1 rounded-md border border-white/70 bg-white/80 p-1.5 shadow-sm backdrop-blur-sm lg:flex-col"
             aria-label="Settings sections"
           >
             <button type="button" onClick={() => setActiveTab('profile')} className={tabClass('profile')}>
@@ -196,7 +196,7 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
         >
           {activeTab === 'profile' && (
             <>
-              <section className="overflow-hidden rounded-3xl border border-white/70 bg-white shadow-sm">
+              <section className="overflow-hidden rounded-lg border border-white/70 bg-white shadow-sm">
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -214,7 +214,7 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.22 }}
-                      className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-slate-100 bg-gradient-to-br from-primary/10 to-primary/5 shadow-lg ring-2 ring-white"
+                      className="h-20 w-20 shrink-0 overflow-hidden rounded-md border border-slate-100 bg-gradient-to-br from-primary/10 to-primary/5 shadow-lg ring-2 ring-white"
                     >
                       {avatarUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -260,7 +260,7 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
                 </div>
               </section>
 
-              <section className="flex flex-col gap-4 rounded-3xl border border-red-200/60 bg-red-50/50 px-6 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+              <section className="flex flex-col gap-4 rounded-lg border border-red-200/60 bg-red-50/50 px-6 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
                 <div>
                   <h3 className="text-[15px] font-semibold text-slate-900">Sign out</h3>
                   <p className="mt-1 max-w-sm text-sm text-slate-500">
@@ -281,7 +281,7 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
 
           {activeTab === 'billing' && (
             <>
-              <section className="overflow-hidden rounded-3xl border border-white/70 bg-white shadow-sm">
+              <section className="overflow-hidden rounded-lg border border-white/70 bg-white shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 px-6 py-6 sm:px-8">
                   <div>
                     <h3 className="text-lg font-semibold text-slate-900">Current plan</h3>
@@ -309,7 +309,7 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
                   </div>
                 </div>
                 <div className="p-6 sm:p-8">
-                  <div className="rounded-2xl border border-slate-200/60 bg-slate-50/80 p-5 sm:p-6">
+                  <div className="rounded-md border border-slate-200/60 bg-slate-50/80 p-5 sm:p-6">
                     <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <motion.div
                         initial={{ opacity: 0, y: 8 }}
@@ -350,7 +350,7 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
                   transition={{ duration: 0.22 }}
                   className="grid grid-cols-1 gap-4 sm:grid-cols-2"
                 >
-                  <div className="flex flex-col rounded-3xl border border-white/70 bg-white p-6 shadow-sm transition hover:shadow-md sm:p-7">
+                  <div className="flex flex-col rounded-lg border border-white/70 bg-white p-6 shadow-sm transition hover:shadow-md sm:p-7">
                     <h3 className="text-lg font-semibold text-slate-900">Student Pro</h3>
                     <p className="mt-2 flex-1 text-[13px] leading-relaxed text-slate-500">
                       500 credits/month (~6 full AI decks with images), FLUX Kontext Pro gen fill, watermark-free exports.
@@ -381,7 +381,7 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
                     </button>
                   </div>
 
-                  <div className="relative flex flex-col rounded-3xl border-2 border-primary/35 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(59,130,246,0.25)] ring-1 ring-primary/10 sm:p-7">
+                  <div className="relative flex flex-col rounded-lg border-2 border-primary/35 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(59,130,246,0.25)] ring-1 ring-primary/10 sm:p-7">
                     <div className="absolute right-0 top-0 rounded-bl-xl bg-primary px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white">
                       Best value
                     </div>
@@ -416,7 +416,7 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
               )}
 
               {plan === 'student_pro' && (
-                <div className="flex flex-col gap-6 rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/[0.07] to-white p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+                <div className="flex flex-col gap-6 rounded-lg border border-primary/20 bg-gradient-to-br from-primary/[0.07] to-white p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
                   <div>
                     <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
                       Step up to Creator Pro

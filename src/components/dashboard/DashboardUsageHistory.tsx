@@ -48,7 +48,7 @@ export function DashboardUsageHistory({ freeTier }: DashboardUsageHistoryProps) 
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.08 }}
-      className="rounded-2xl border border-white/70 bg-white p-5 shadow-sm sm:p-6"
+      className="rounded-md border border-white/70 bg-white p-5 shadow-sm sm:p-6"
       aria-label="Usage history"
     >
       <motion.div className="flex items-center gap-2">

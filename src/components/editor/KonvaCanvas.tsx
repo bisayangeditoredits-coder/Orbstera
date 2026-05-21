@@ -21,6 +21,7 @@ import { useShallow } from 'zustand/react/shallow';
 import type { ChartData, EditorToolId, SlideElement } from '@/types';
 import { findDeckBackgroundElement } from '@/lib/slide-background';
 import { editorImageFetchUrl } from '@/lib/r2-public-url';
+import { snapCoord, snapRect } from '@/lib/editor-tools';
 
 export const CANVAS_WIDTH = 1280;
 export const CANVAS_HEIGHT = 720;
@@ -40,6 +41,7 @@ const DRAG_PLACEMENT_TOOLS: readonly EditorToolId[] = [
 
 const CLICK_PLACEMENT_TOOLS: readonly EditorToolId[] = [
   'text',
+  'image',
   'chart',
   'frame-circle',
   'frame-heart',
@@ -109,6 +111,8 @@ interface ElementNodeProps {
   isEditingText: boolean;
   onDblClickText: () => void;
   previewElementId: string | null;
+  snapToGrid: boolean;
+  gridSize: number;
 }
 
 // ─── Element Node Component ───────────────────────────────────────────────────
@@ -121,7 +125,19 @@ function ElementNode({
   isEditingText,
   onDblClickText,
   previewElementId,
+  snapToGrid,
+  gridSize,
 }: ElementNodeProps) {
+  const applySnap = (x: number, y: number, w?: number, h?: number) => {
+    if (w != null && h != null) {
+      const s = snapRect(x, y, w, h, gridSize, snapToGrid);
+      return { x: s.x, y: s.y, width: s.w, height: s.h };
+    }
+    return {
+      x: snapCoord(x, gridSize, snapToGrid),
+      y: snapCoord(y, gridSize, snapToGrid),
+    };
+  };
   const shapeRef = useRef<Konva.Group | Konva.Rect | Konva.Text | Konva.Ellipse | Konva.Line | Konva.Star | Konva.Arrow | null>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const genFillBorderRef = useRef<Konva.Rect>(null);
@@ -219,12 +235,13 @@ function ElementNode({
     node.scaleY(1);
     const newWidth = Math.max(MIN_PLACE, el.width * scaleX);
     const newHeight = Math.max(MIN_PLACE, el.height * scaleY);
+    const s = applySnap(node.x(), node.y(), newWidth, newHeight);
     onChange(
       {
-        x: node.x(),
-        y: node.y(),
-        width: newWidth,
-        height: newHeight,
+        x: s.x,
+        y: s.y,
+        width: s.width ?? newWidth,
+        height: s.height ?? newHeight,
         rotation: node.rotation(),
       },
       true,
@@ -241,7 +258,8 @@ function ElementNode({
     onClick: onSelect,
     onTap: onSelect,
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
-      onChange({ x: e.target.x(), y: e.target.y() }, true);
+      const s = applySnap(e.target.x(), e.target.y());
+      onChange({ x: s.x, y: s.y }, true);
     },
     onTransformEnd: groupTransformEnd,
   };
@@ -264,7 +282,8 @@ function ElementNode({
       if (el.type === 'text' && !el.locked && activeTool === 'select') onDblClickText();
     },
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
-      onChange({ x: e.target.x(), y: e.target.y() }, true);
+      const s = applySnap(e.target.x(), e.target.y());
+      onChange({ x: s.x, y: s.y }, true);
     },
     onTransformEnd: () => {
       const node = shapeRef.current!;
@@ -274,12 +293,13 @@ function ElementNode({
       node.scaleY(1);
       const newWidth = Math.max(MIN_PLACE, node.width() * scaleX);
       const newHeight = Math.max(MIN_PLACE, node.height() * scaleY);
+      const s = applySnap(node.x(), node.y(), newWidth, newHeight);
       onChange(
         {
-          x: node.x(),
-          y: node.y(),
-          width: newWidth,
-          height: newHeight,
+          x: s.x,
+          y: s.y,
+          width: s.width ?? newWidth,
+          height: s.height ?? newHeight,
           rotation: node.rotation(),
         },
         true,
@@ -668,6 +688,7 @@ function SlideBackground({
 function placementCursor(tool: EditorToolId): string {
   if (tool === 'select') return 'default';
   if (tool === 'text') return 'text';
+  if (tool === 'image') return 'copy';
   return 'crosshair';
 }
 
@@ -692,11 +713,13 @@ export function KonvaCanvas({ scale }: { scale: number }) {
   });
   const selectElement = usePresentationStore((s) => s.selectElement);
   const updateElement = usePresentationStore((s) => s.updateElement);
-  const { activeTool, selectedElementId, previewElementId } = usePresentationStore(
+  const { activeTool, selectedElementId, previewElementId, snapToGrid, gridSize } = usePresentationStore(
     useShallow((s) => ({
       activeTool: s.editor.activeTool,
       selectedElementId: s.editor.selectedElementId,
       previewElementId: s.editor.previewElementId,
+      snapToGrid: s.editor.snapToGrid,
+      gridSize: s.editor.gridSize,
     })),
   );
   const colorPalette = usePresentationStore((s) => s.presentation?.colorPalette ?? []);
@@ -737,7 +760,14 @@ export function KonvaCanvas({ scale }: { scale: number }) {
     if (drawingRect && pos) {
       setDrawingRect((prev) => {
         if (!prev) return prev;
-        return { ...prev, w: pos!.x - prev.x, h: pos!.y - prev.y };
+        let w = pos!.x - prev.x;
+        let h = pos!.y - prev.y;
+        if (e.evt.shiftKey && DRAG_PLACEMENT_TOOLS.includes(activeTool) && activeTool !== 'line' && activeTool !== 'arrow') {
+          const side = Math.max(Math.abs(w), Math.abs(h));
+          w = w < 0 ? -side : side;
+          h = h < 0 ? -side : side;
+        }
+        return { ...prev, w, h };
       });
       return;
     }
@@ -942,6 +972,36 @@ export function KonvaCanvas({ scale }: { scale: number }) {
       return;
     }
 
+    if (tool === 'image') {
+      const iw = 360;
+      const ih = 270;
+      const px = Math.round(Math.max(0, Math.min(CANVAS_WIDTH - iw, click.x - iw / 2)));
+      const py = Math.round(Math.max(0, Math.min(CANVAS_HEIGHT - ih, click.y - ih / 2)));
+      const newId = `el-image-${Date.now()}`;
+      store.addElement(s.id, {
+        id: newId,
+        type: 'image',
+        src: '',
+        x: px,
+        y: py,
+        width: iw,
+        height: ih,
+        zIndex: z,
+        visible: true,
+        opacity: 1,
+        locked: false,
+      });
+      store.selectElement(newId);
+      ignoreNextBgClickRef.current = true;
+      finishPlacement();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('orbstera:pick-image', { detail: { x: px, y: py } }),
+        );
+      }
+      return;
+    }
+
     if (tool === 'chart') {
       const cw = 420;
       const ch = 260;
@@ -1033,6 +1093,8 @@ export function KonvaCanvas({ scale }: { scale: number }) {
               isEditingText={editingTextId === el.id}
               onDblClickText={() => setEditingTextId(el.id)}
               previewElementId={previewElementId}
+              snapToGrid={snapToGrid}
+              gridSize={gridSize}
             />
           ))}
           {drawingRect && (
