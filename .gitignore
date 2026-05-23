@@ -47,3 +47,6 @@ PUSH_TO_GITHUB.bat
 /scratch/
 
 .vercel
+
+# Sentry Config File
+.env.sentry-build-plugin
