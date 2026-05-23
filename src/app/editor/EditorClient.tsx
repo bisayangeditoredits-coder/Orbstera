@@ -666,7 +666,6 @@ export default function EditorClient() {
           </div>
 
           {/* Slide notes below canvas */}
-          <SlideNotesBar />
 
           {/* Horizontal slide strip at very bottom */}
           <BottomSlideStrip />
