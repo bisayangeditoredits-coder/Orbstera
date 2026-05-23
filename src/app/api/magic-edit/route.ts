@@ -3,16 +3,22 @@ import { SlideElement } from '@/types';
 import { generateClaidImageUrl } from '@/lib/claid-image';
 import { generatePollinationsImageUrl } from '@/lib/pollinations-image';
 import { openRouterImageGeneration } from '@/lib/ai/openrouter-image';
+import { openRouterCompleteCascade } from '@/lib/ai/openrouter-cascade';
 import { getMagicEditTextModels, selectImageProvider } from '@/lib/ai/router';
 import { getSpendState } from '@/lib/ai/spend';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
+import {
+  chargeCreditsBeforeJob,
+  getActionCreditCost,
+  getCreditConfig,
+  getGenfillCreditAction,
+} from '@/lib/billing/credits';
+import { consumeFreeGenfillSlot, isPaidPlan } from '@/lib/billing/free-genfill-redis';
 import { getBillingPlan } from '@/lib/billing/resolve-plan';
-import { FREE_TIER } from '@/lib/billing/free-tier-limits';
-import { incrementFreeTierUsage, readFreeTierUsage } from '@/lib/billing/free-tier-usage';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
+import { pollinationsChat } from '@/lib/pollinations-text';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
@@ -69,12 +75,6 @@ export const maxDuration = 120;
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
   try {
-    const { prompt, element, slideContext } = await req.json();
-
-    if (!prompt || !element) {
-      return NextResponse.json({ error: 'Prompt and element data are required' }, { status: 400 });
-    }
-
     if (!OPENROUTER_API_KEY.trim()) {
       return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured.' }, { status: 500 });
     }
@@ -88,6 +88,12 @@ export async function POST(req: Request) {
     }
     const userId = auth.user.id;
 
+    const { prompt, element, slideContext } = await req.json();
+
+    if (!prompt || !element) {
+      return NextResponse.json({ error: 'Prompt and element data are required' }, { status: 400 });
+    }
+
     const cookieStore = cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -96,57 +102,47 @@ export async function POST(req: Request) {
     );
 
     const plan = await getBillingPlan(userId);
-    const isPaid = plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro' || plan === 'admin';
+    const paid = isPaidPlan(plan);
+    const isImageElement = element.type === 'image';
 
-    if (!isPaid) {
-      const usage = await readFreeTierUsage(userId);
-      if (usage.free_magic_edit_uses >= FREE_TIER.magicEditUses) {
+    if (!paid && isImageElement) {
+      const slot = await consumeFreeGenfillSlot(userId);
+      if (!slot.ok) {
         return NextResponse.json(
           {
             error: 'FREE_LIMIT_REACHED',
-            message: `Free accounts are limited to ${FREE_TIER.magicEditUses} AI Magic Edit uses. Upgrade to unlock unlimited access.`,
-            used: usage.free_magic_edit_uses,
-            limit: FREE_TIER.magicEditUses,
+            message: 'You have used all 15 free AI image edits this month. Upgrade to Pro for unlimited.',
+            used: slot.used,
+            remaining: 0,
           },
-          { status: 403 },
+          { status: 402 },
         );
       }
-      await incrementFreeTierUsage(userId, 'free_magic_edit_uses');
-    }
-    // ────────────────────────────────────────────────────────────────────────
+    } else if (paid) {
+      const creditConfig = await getCreditConfig(supabase);
+      const creditAction = isImageElement ? getGenfillCreditAction(plan) : 'magic_edit';
+      const cost = getActionCreditCost(creditConfig, creditAction);
 
-    // Credit Deduction
-    const creditConfig = await getCreditConfig(supabase);
-    // Pick the right credit action per plan+element type
-    const isImageElement = element.type === 'image';
-    let creditAction: import('@/lib/billing/credits').CreditAction;
-    if (isImageElement) {
-      if (plan === 'creator_pro' || plan === 'admin') creditAction = 'genfill_creator';
-      else if (plan === 'student_pro' || plan === 'pro') creditAction = 'genfill_pro';
-      else creditAction = 'genfill_free';
-    } else {
-      creditAction = 'magic_edit';
-    }
-    const cost = creditConfig.costs[creditAction] || 4;
+      const creditCheck = await chargeCreditsBeforeJob({
+        supabase,
+        userId,
+        action: creditAction,
+        cost,
+        meta: { elementType: element.type, elementId: element.id, route: 'magic-edit' },
+        idempotencyKey: requestId,
+      });
 
-    const creditCheck = await ensureCredits({
-      supabase,
-      userId,
-      cost,
-      action: creditAction,
-      meta: { elementType: element.type, elementId: element.id },
-    });
-
-    if (!creditCheck.ok) {
-      return NextResponse.json(
-        {
-          error: 'INSUFFICIENT_CREDITS',
-          message: `You don't have enough credits for this magic edit.`,
-          credits: creditCheck.summary,
-          required: cost,
-        },
-        { status: 402 },
-      );
+      if (!creditCheck.ok) {
+        return NextResponse.json(
+          {
+            error: 'INSUFFICIENT_CREDITS',
+            message: `Not enough credits for this magic edit (${cost} required).`,
+            credits: creditCheck.summary,
+            required: cost,
+          },
+          { status: 402 },
+        );
+      }
     }
 
     const ctx =
@@ -170,48 +166,70 @@ Return the modified element JSON only.`;
     const spendState = { forcedEconomyMode: spend.forcedEconomyMode };
     const models = getMagicEditTextModels({ plan, spendState });
 
-    let response: Response | null = null;
-
-    for (const model of models) {
-      try {
-        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-            'X-Title': 'Orbstera AI Magic Edit',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: 'system', content: SYSTEM_PROMPT },
-              { role: 'user', content: userMessage },
-            ],
-            temperature: 0.15,
-            max_tokens: 2800,
-          }),
-        });
-
-        if (res.ok) {
-          response = res;
-          break;
-        }
-        console.error(`[MagicEdit] Model ${model} failed:`, await res.text());
-      } catch (e) {
-        console.error(`[MagicEdit] Error calling ${model}:`, e);
-      }
+    let content: string | undefined;
+    try {
+      const completed = await openRouterCompleteCascade(
+        process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+        {
+          models,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: userMessage },
+          ],
+          plan,
+          temperature: 0.15,
+          max_tokens: 2800,
+        },
+      );
+      content = completed.text;
+    } catch {
+      content = undefined;
     }
-
-    if (!response) {
-      return NextResponse.json({ error: 'All AI models failed to process magic edit' }, { status: 502 });
-    }
-
-    const data = await response.json();
-    const content: string | undefined = data.choices?.[0]?.message?.content;
 
     if (!content) {
-      return NextResponse.json({ error: 'Empty response from AI' }, { status: 500 });
+      // ── FREE FALLBACK: Pollinations text API (free, no key needed) ──
+      console.warn('[MagicEdit] All OpenRouter models failed — falling back to Pollinations text API');
+      try {
+        const pollinationsContent = await pollinationsChat({
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: userMessage },
+          ],
+          model: 'openai',
+          temperature: 0.15,
+          maxTokens: 2800,
+        });
+
+        let parsed: Record<string, unknown>;
+        try {
+          parsed = parseElementJson(pollinationsContent);
+        } catch (e) {
+          console.error('[MagicEdit] Pollinations JSON parse failed:', e, pollinationsContent);
+          return NextResponse.json({ error: 'AI returned invalid JSON' }, { status: 502 });
+        }
+
+        const updatedElementFromFallback = { ...element, ...parsed } as import('@/types').SlideElement;
+
+        // Handle image gen-fill prompt inside fallback result
+        if (updatedElementFromFallback.type === 'image' && (updatedElementFromFallback as { src?: string }).src?.startsWith('PROMPT:')) {
+          const promptText = ((updatedElementFromFallback as { src?: string }).src ?? '').replace(/^PROMPT:\s*/i, '').trim();
+          const { width: fw, height: fh } = toPollinationPixels(
+            Number((updatedElementFromFallback as { width?: number }).width) || 1024,
+            Number((updatedElementFromFallback as { height?: number }).height) || 1024,
+          );
+          try {
+            const { generatePollinationsImageUrl } = await import('@/lib/pollinations-image');
+            (updatedElementFromFallback as { src?: string }).src = await generatePollinationsImageUrl({ prompt: promptText, width: fw, height: fh, polish: true });
+          } catch (imgErr) {
+            console.error('[MagicEdit] Pollinations image gen in fallback failed:', imgErr);
+          }
+        }
+
+        return NextResponse.json(updatedElementFromFallback);
+      } catch (pollinationsErr) {
+        console.error('[MagicEdit] Pollinations text fallback failed:', pollinationsErr);
+        return NextResponse.json({ error: 'All AI models failed to process magic edit' }, { status: 502 });
+      }
     }
 
     let parsed: Record<string, unknown>;
@@ -225,32 +243,14 @@ Return the modified element JSON only.`;
     const updatedElement = { ...element, ...parsed } as SlideElement;
 
     if (updatedElement.type === 'image' && updatedElement.src?.startsWith('PROMPT:')) {
-      // Free users can do gen fill (gated by generativeFillUses counter above)
-      const isImageGenFill = true;
-      if (!isPaid) {
-        // Check gen fill specific limit for free users
-        const usage = await readFreeTierUsage(userId);
-        if (usage.free_generative_fill_uses >= FREE_TIER.generativeFillUses) {
-          return NextResponse.json(
-            {
-              error: 'FREE_GENFILL_LIMIT_REACHED',
-              message: `Free accounts can do ${FREE_TIER.generativeFillUses} generative fills. Upgrade for unlimited.`,
-              used: usage.free_generative_fill_uses,
-              limit: FREE_TIER.generativeFillUses,
-            },
-            { status: 403 },
-          );
-        }
-        await incrementFreeTierUsage(userId, 'free_generative_fill_uses');
-      }
-      void isImageGenFill; // used above
       const promptText = updatedElement.src.replace(/^PROMPT:\s*/i, '').trim();
       const { width, height } = toPollinationPixels(
         Number(updatedElement.width) || Number(element.width) || 1024,
         Number(updatedElement.height) || Number(element.height) || 1024,
       );
       const hasClaid = Boolean(process.env.CLAID_API_KEY?.trim());
-      const hasPollinations = Boolean(process.env.POLLINATIONS_API_KEY?.trim());
+      // Pollinations is a free public API — no key required, always available
+      const hasPollinations = true;
       const hasOpenRouter = Boolean(process.env.OPENROUTER_API_KEY?.trim());
 
       if (!hasOpenRouter && !hasClaid && !hasPollinations) {
@@ -263,41 +263,59 @@ Return the modified element JSON only.`;
         );
       }
       try {
-        const imgSel = selectImageProvider({
-          plan,
-          visualProfile: 'cinematic',
-          premiumRequested: plan === 'creator_pro' || plan === 'admin',
-          spendState,
-          task: 'magic_edit_image',
-          hasOpenRouterKey: hasOpenRouter,
-          hasClaidKey: hasClaid,
-          hasPollinationsKey: hasPollinations,
-        });
-
-        if (imgSel.provider === 'openrouter' && hasOpenRouter) {
-          const result = await openRouterImageGeneration({
+        if (!paid) {
+          updatedElement.src = await generatePollinationsImageUrl({
             prompt: promptText,
-            size: `${width}x${height}`,
-            visualProfile: 'cinematic',
-            model: imgSel.model,
-            modelCascade: imgSel.modelCascade,
-            qualityBoost: true,
+            width,
+            height,
+            polish: true,
           });
-          if (result.ok && result.url) {
-            updatedElement.src = result.url;
-          }
-        }
+        } else {
+          const imgSel = selectImageProvider({
+            plan,
+            visualProfile: 'cinematic',
+            premiumRequested: plan === 'creator_pro' || plan === 'admin',
+            spendState,
+            task: 'magic_edit_image',
+            hasOpenRouterKey: hasOpenRouter,
+            hasClaidKey: hasClaid,
+            hasPollinationsKey: hasPollinations,
+          });
 
-        const src = String(updatedElement.src || '');
-        if (!src.startsWith('http') && !src.startsWith('data:')) {
-          updatedElement.src = hasClaid
-            ? await generateClaidImageUrl({ prompt: promptText, polish: true, width, height })
-            : await generatePollinationsImageUrl({
-                prompt: promptText,
-                width,
-                height,
-                polish: true,
-              });
+          if (imgSel.provider === 'openrouter' && hasOpenRouter) {
+            const sourceForEdit =
+              typeof element.src === 'string' && element.src.trim().startsWith('data:')
+                ? element.src
+                : typeof element.src === 'string' && element.src.startsWith('http')
+                  ? element.src
+                  : undefined;
+
+            const result = await openRouterImageGeneration({
+              prompt: promptText,
+              size: `${width}x${height}`,
+              visualProfile: 'cinematic',
+              model: imgSel.model,
+              modelCascade: imgSel.modelCascade,
+              qualityBoost: true,
+              sourceImage: sourceForEdit,
+              plan,
+            });
+            if (result.ok && result.url) {
+              updatedElement.src = result.url;
+            }
+          }
+
+          const src = String(updatedElement.src || '');
+          if (!src.startsWith('http') && !src.startsWith('data:')) {
+            updatedElement.src = hasClaid
+              ? await generateClaidImageUrl({ prompt: promptText, polish: true, width, height })
+              : await generatePollinationsImageUrl({
+                  prompt: promptText,
+                  width,
+                  height,
+                  polish: true,
+                });
+          }
         }
 
         // Best-effort usage log for dashboard cost tracking.

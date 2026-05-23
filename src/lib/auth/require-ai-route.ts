@@ -1,7 +1,11 @@
 import type { User } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { requireApiUser, PRIVATE_API_HEADERS } from '@/lib/auth/server';
-import { enforceAiRateLimit, requireRateLimitInfrastructure } from '@/lib/rate-limit-server';
+import {
+  enforceAiIpRateLimit,
+  enforceAiUserRateLimit,
+  requireRateLimitInfrastructure,
+} from '@/lib/rate-limit-server';
 import type { AiTier } from '@/lib/rate-limit-server';
 
 export type AiRouteAuth =
@@ -9,7 +13,8 @@ export type AiRouteAuth =
   | { response: NextResponse };
 
 /**
- * Requires signed-in user, production Redis for rate limits, and per-user/IP AI rate limit.
+ * Requires IP rate limit (no DB), signed-in user, user rate limit, and production Redis.
+ * Order: infra → IP limit → Supabase auth → user limit.
  */
 export async function requireAiUser(
   req: Request,
@@ -18,11 +23,14 @@ export async function requireAiUser(
   const infra = requireRateLimitInfrastructure();
   if (infra) return { response: infra };
 
+  const ipLimited = await enforceAiIpRateLimit(req, tier);
+  if (ipLimited) return { response: ipLimited };
+
   const auth = await requireApiUser();
   if ('response' in auth) return auth;
 
-  const limited = await enforceAiRateLimit(req, auth.user.id, tier);
-  if (limited) return { response: limited };
+  const userLimited = await enforceAiUserRateLimit(req, auth.user.id, tier);
+  if (userLimited) return { response: userLimited };
 
   return { user: auth.user };
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+
 import { Plus, Wand2, LayoutTemplate, Zap, Home, Map, Upload } from 'lucide-react';
 
 type DashboardQuickToolsProps = {
@@ -88,19 +88,8 @@ export function DashboardQuickTools({
       ]
     : tools;
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: 0.05 }}
-      aria-label="Quick actions"
-      className="space-y-4"
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.05 }}
-        className="flex flex-wrap items-end justify-between gap-3"
-      >
+    <section aria-label="Quick actions" className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Tools</p>
           <h2 className="mt-1 font-montserrat text-lg font-bold text-slate-900">Quick actions</h2>
@@ -115,7 +104,7 @@ export function DashboardQuickTools({
             Upgrade plan
           </button>
         )}
-      </motion.div>
+      </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 sm:gap-4">
         {toolsList.map((tool, i) => {
@@ -137,38 +126,30 @@ export function DashboardQuickTools({
           );
 
           const className =
-            'group flex min-h-[100px] flex-col gap-3 rounded-md border border-white/70 bg-white p-4 shadow-sm transition hover:border-primary/20 hover:shadow-md sm:min-h-[110px] sm:p-5';
+            'group flex min-h-[100px] flex-col gap-3 rounded-xl bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-black/[0.04] transition-colors hover:bg-slate-50 sm:min-h-[110px] sm:p-5';
 
           if (tool.id === 'new') {
             return (
-              <motion.button
+              <button
                 key={tool.id}
                 type="button"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25, delay: i * 0.04 }}
                 onClick={onNewDeck}
                 className={`${className} text-left`}
               >
                 {inner}
-              </motion.button>
+              </button>
             );
           }
 
           return (
-            <motion.div
-              key={tool.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25, delay: i * 0.04 }}
-            >
+            <div key={tool.id}>
               <Link href={tool.href!} className={className}>
                 {inner}
               </Link>
-            </motion.div>
+            </div>
           );
         })}
       </div>
-    </motion.section>
+    </section>
   );
 }

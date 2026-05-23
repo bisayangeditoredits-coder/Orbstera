@@ -44,11 +44,12 @@ async function waitForPendingDeckImages(epoch: number, timeoutMs = 120_000): Pro
 }
 
 const EXAMPLE_PROMPTS = [
-  'Create a 12-slide Series A pitch deck for an AI robotics startup with a dark cyber theme',
-  'Build a product launch deck for a fintech SaaS app targeting enterprise companies',
-  'Design a quarterly business review with KPIs, growth metrics, and roadmap',
-  'Create a portfolio presentation for a UX design agency, creative and vibrant',
-  'Build a go-to-market strategy deck for a health-tech startup',
+  { emoji: '🚀', label: 'Startup Pitch',   prompt: 'Create a 10-slide Series A pitch deck for an AI startup. Include problem, solution, market size, traction, and ask.' },
+  { emoji: '📊', label: 'Business Review', prompt: 'Build a quarterly business review deck with KPIs, revenue metrics, team wins, and Q3 roadmap.' },
+  { emoji: '🎓', label: 'Education',       prompt: 'Design an engaging 8-slide lesson on climate change for high school students with facts and visuals.' },
+  { emoji: '🎨', label: 'Creative Agency', prompt: 'Create a portfolio presentation for a creative design agency — bold, vibrant, and visually stunning.' },
+  { emoji: '📈', label: 'Sales Deck',      prompt: 'Build a sales deck for an enterprise SaaS product targeting HR teams. Focus on pain points and ROI.' },
+  { emoji: '🔬', label: 'Research',        prompt: 'Create a 12-slide research presentation on the future of quantum computing for a tech conference.' },
 ];
 
 const SLIDE_COUNTS = [2, 5, 10, 15, 20, 25, 30, 35, 40];
@@ -564,8 +565,6 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         freeTasteActive: false,
         freeTasteImagesRemaining: 0,
       });
-      setActivePanel('layers');
-      if (onClose) onClose();
       setError('');
       setStreamedSlides([]);
       setInterviewSummary(null);
@@ -579,12 +578,20 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         const ac = new AbortController();
         generateAbortRef.current = ac;
 
+        const handoff = usePresentationStore.getState().editor.plannerHandoff;
+        const effectiveSlideCount =
+          handoff?.outlineSlideCount && handoff.outlineSlideCount > 0
+            ? handoff.outlineSlideCount
+            : slideCount;
+
         const res = await fetch('/api/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prompt: trimmed,
-            slideCount,
+            slideCount: effectiveSlideCount,
+            outlineSlideCount: handoff?.outlineSlideCount,
+            plannerSessionId: handoff?.sessionId ?? undefined,
             tone: selectedTone.toLowerCase().replace(/ & /g, '_'),
             theme: selectedTheme,
             language: selectedLanguage,
@@ -1146,6 +1153,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                 </div>
               </div>
             </div>
+
+
 
             <CollapsibleSection
               title="Density (Slides)"

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { Sparkles, Loader2, X, Type, Wand2, Crown, Lock, Mic, MicOff } from 'lucide-react';
+import { Sparkles, Loader2, X, Type, Wand2, Crown, Mic, MicOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import {
   createEditorSpeechRecognition,
@@ -22,7 +22,9 @@ export function MagicEditToolbar() {
   const [errorHint, setErrorHint] = useState('');
   const [dismissed, setDismissed] = useState<string | null>(null);
   const [isPro, setIsPro]         = useState(true);
+  const [freeGenfillRemaining, setFreeGenfillRemaining] = useState<number | null>(null);
   const [planChecked, setPlanChecked] = useState(true);
+  const FREE_GENFILL_LIMIT = 15;
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   const shouldBeListeningRef = useRef(false);
@@ -77,22 +79,41 @@ export function MagicEditToolbar() {
   const isVisible         = !!slide && (selectedElementId !== dismissed);
   const genFillOpen       = !!editor.generativeFillTarget;
 
-  // Fetch the user's plan once on mount
+  // Fetch plan + free Gen-Fill allowance once on mount
   useEffect(() => {
     const checkPlan = async () => {
       try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('plan')
-            .eq('id', user.id)
-            .single();
-          const plan = profile?.plan?.toLowerCase() || 'free';
-          // Keep pro features unlocked for testing/editing if plan is active or admin/local
-          if (plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro') {
+        const res = await fetch('/api/credits/summary', { credentials: 'include' });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.freeTier) {
+            setIsPro(false);
+            const remaining =
+              typeof json.freeTier.freeGenFillRemaining === 'number'
+                ? json.freeTier.freeGenFillRemaining
+                : Math.max(
+                    0,
+                    (json.freeTier.freeGenFillLimit ?? FREE_GENFILL_LIMIT) -
+                      (json.freeTier.freeGenFillUsed ?? 0),
+                  );
+            setFreeGenfillRemaining(remaining);
+          } else {
             setIsPro(true);
+            setFreeGenfillRemaining(null);
+          }
+        } else {
+          const supabase = createClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('plan')
+              .eq('id', user.id)
+              .single();
+            const plan = profile?.plan?.toLowerCase() || 'free';
+            if (plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro' || plan === 'admin') {
+              setIsPro(true);
+            }
           }
         }
       } catch (_) {}
@@ -101,8 +122,12 @@ export function MagicEditToolbar() {
     checkPlan();
   }, []);
 
+  const freeImageTarget = !selectedElementId || targetElement?.type === 'image';
+  const freeImageAtLimit =
+    !isPro && freeImageTarget && (freeGenfillRemaining ?? 0) <= 0;
+
   const handleMagicEdit = async () => {
-    if (!prompt.trim() || !slide || isLoading || !isPro) return;
+    if (!prompt.trim() || !slide || isLoading || freeImageAtLimit) return;
 
     setErrorHint('');
     let elementToEdit = targetElement;
@@ -153,11 +178,15 @@ export function MagicEditToolbar() {
       updateElement(slide.id, elementToEdit!.id, payload);
       setPrompt('');
       setPhaseLabel('');
+      if (!isPro && freeGenfillRemaining !== null && elementToEdit?.type === 'image') {
+        setFreeGenfillRemaining(Math.max(0, freeGenfillRemaining - 1));
+      }
     } catch (err) {
       console.error(err);
       const msg = err instanceof Error ? err.message : 'Magic Edit failed';
       if (msg === 'FREE_LIMIT_REACHED') {
-        setErrorHint('Free limit reached (10/month). Upgrade to Pro for unlimited AI edits.');
+        setFreeGenfillRemaining(0);
+        setErrorHint('Free limit reached (15/month). Upgrade to Pro for unlimited AI edits.');
       } else {
         setErrorHint(msg);
       }
@@ -280,16 +309,38 @@ export function MagicEditToolbar() {
               <input
                 type="text"
                 value={prompt}
-                onChange={(e) => (isPro || isListening) && setPrompt(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && isPro) { e.preventDefault(); handleMagicEdit(); } }}
-                disabled={isLoading || (!isPro && !isListening)}
-                placeholder={isListening ? '🎤 Listening...' : isPro ? (!selectedElementId ? `Generate AI Background... e.g. "cyberpunk city"` : `Edit with AI... e.g. "make it more exciting"`) : `🔒 Pro feature — upgrade to edit with AI`}
-                className={`flex-1 min-w-0 bg-transparent border-none outline-none text-[13px] font-medium px-1 h-9 ${
-                  isPro
-                    ? 'text-textMain placeholder:text-textMuted/50'
-                    : 'text-textMuted/60 placeholder:text-textMuted/50 cursor-not-allowed'
-                }`}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !freeImageAtLimit) { e.preventDefault(); handleMagicEdit(); } }}
+                disabled={isLoading || freeImageAtLimit}
+                placeholder={
+                  isListening
+                    ? '🎤 Listening...'
+                    : isPro
+                      ? !selectedElementId
+                        ? `Generate AI Background... e.g. "cyberpunk city"`
+                        : `Edit with AI... e.g. "make it more exciting"`
+                      : `Edit with AI (Free limit applies)...`
+                }
+                className="flex-1 min-w-0 bg-transparent border-none outline-none text-[13px] font-medium px-1 h-9 text-textMain placeholder:text-textMuted/50"
               />
+
+              {/* 1-Click Image Regenerate Button */}
+              {isPro && targetElement?.type === 'image' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const themeText = presentation?.colorPalette?.[0] ? `matching the slide theme` : '';
+                    const slideTitle = slide?.title || 'this presentation';
+                    setPrompt(`PROMPT: A professional, high-quality photograph or digital art suitable for a presentation slide about "${slideTitle}", ${themeText}. Cinematic lighting.`);
+                    setTimeout(() => handleMagicEdit(), 50);
+                  }}
+                  disabled={isLoading}
+                  title="Auto-Regenerate Image for this Slide"
+                  className="shrink-0 h-9 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[12px] font-bold rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap"
+                >
+                  <Sparkles size={13} /> Replace
+                </button>
+              )}
 
               {/* Voice mic button */}
               <button
@@ -305,7 +356,7 @@ export function MagicEditToolbar() {
                 {isListening ? <MicOff size={15} /> : <Mic size={15} />}
               </button>
 
-              {isPro ? (
+              {isPro || !freeImageAtLimit ? (
                 <button
                   onClick={handleMagicEdit}
                   disabled={!prompt.trim() || isLoading}
@@ -356,7 +407,23 @@ export function MagicEditToolbar() {
                 )}
               </>
             ) : (
-              <span className="text-amber-500/70 font-bold flex items-center justify-center gap-1 flex-wrap"><Lock size={9} /> Pro only — <a href="/pricing" className="underline">Upgrade</a></span>
+              <>
+                {phaseLabel ? (
+                  <span className="text-primary/70 font-semibold animate-pulse">{phaseLabel}</span>
+                ) : errorHint ? (
+                  <span className="text-red-500/90 font-semibold">{errorHint}</span>
+                ) : freeImageAtLimit && freeImageTarget ? (
+                  <>
+                    Free limit reached (0/{FREE_GENFILL_LIMIT}) —{' '}
+                    <a href="/pricing" className="text-amber-600/80 underline font-bold">Upgrade to Pro</a> for unlimited AI edits
+                  </>
+                ) : (
+                  <>
+                    Free AI edits left: {freeGenfillRemaining ?? FREE_GENFILL_LIMIT}/{FREE_GENFILL_LIMIT} —{' '}
+                    <a href="/pricing" className="text-amber-600/70 underline">Upgrade to Pro</a> for unlimited
+                  </>
+                )}
+              </>
             )}
           </p>
         </div>

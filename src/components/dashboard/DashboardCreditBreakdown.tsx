@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+
 import { Zap } from 'lucide-react';
 import type { CreditState } from '@/hooks/useCredits';
 import { formatPlanLabel } from './dashboard-utils';
@@ -21,10 +21,8 @@ export function DashboardCreditBreakdown({
     : 'next billing period';
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-md border border-white/70 bg-white p-5 shadow-sm sm:p-6"
+    <section
+      className="rounded-xl bg-white p-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-black/[0.04] sm:p-6"
       aria-label="Credit breakdown"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -46,7 +44,7 @@ export function DashboardCreditBreakdown({
         )}
       </div>
 
-      <motion.div className="mt-5 grid gap-4 sm:grid-cols-3">
+      <div className="mt-5 grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl bg-slate-50 px-4 py-3">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Used</p>
           <p className="mt-1 text-2xl font-black text-slate-900">{credits.used.toLocaleString()}</p>
@@ -59,13 +57,11 @@ export function DashboardCreditBreakdown({
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Monthly cap</p>
           <p className="mt-1 text-2xl font-black text-slate-900">{credits.monthlyLimit.toLocaleString()}</p>
         </div>
-      </motion.div>
+      </div>
 
       <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${Math.min(100, credits.usagePct)}%` }}
-          transition={{ duration: 0.5 }}
+        <div
+          style={{ width: `${Math.min(100, credits.usagePct)}%` }}
           className="h-full rounded-full bg-primary"
         />
       </div>
@@ -76,6 +72,6 @@ export function DashboardCreditBreakdown({
           <> ~{decksRemainingEstimate} typical AI decks remaining (10 slides with imagery).</>
         )}
       </p>
-    </motion.section>
+    </section>
   );
 }

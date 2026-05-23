@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
+import { getServiceSupabase } from '@/lib/billing/supabase-admin';
 import {
   applySubscriptionUpgrade,
   markWebhookEventProcessed,
@@ -14,15 +14,11 @@ export async function POST(req: Request) {
     const body = await req.text();
     const signature = req.headers.get('x-dodo-signature');
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !supabaseServiceKey) {
+    const supabaseAdmin = getServiceSupabase();
+    if (!supabaseAdmin) {
       console.error('[Webhook] Missing Supabase configuration');
       return NextResponse.json({ error: 'Internal configuration error' }, { status: 500 });
     }
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     const webhookSecret = (process.env.DODO_PAYMENTS_WEBHOOK_SECRET || '').trim();
     const isDev = process.env.NODE_ENV === 'development';
 

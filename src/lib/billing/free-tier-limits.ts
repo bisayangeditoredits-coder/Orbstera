@@ -6,6 +6,6 @@ export const FREE_TIER = {
   maxSlidesPerDeck: 6,
   /** Max slide images generated on free taste decks (COGS guard). */
   maxImagesPerDeck: 3,
-  magicEditUses: 15,
-  generativeFillUses: 8,
+  /** Monthly Gen-Fill + Magic Edit images (Pollinations) — enforced via Redis. */
+  genfillImageUses: 15,
 } as const;

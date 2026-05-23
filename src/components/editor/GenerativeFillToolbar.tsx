@@ -17,7 +17,6 @@ function regionToImagePixels(regionW: number, regionH: number) {
     // Landscape or square
     w = Math.min(1536, Math.max(512, Math.round(regionW)));
     h = Math.round(w / aspectRatio);
-    // If height exceeds cap, scale down proportionally
     if (h > 1536) { h = 1536; w = Math.round(h * aspectRatio); }
   } else {
     // Portrait
@@ -26,9 +25,17 @@ function regionToImagePixels(regionW: number, regionH: number) {
     if (w > 1536) { w = 1536; h = Math.round(w / aspectRatio); }
   }
 
-  // Clamp minimums
-  w = Math.max(256, w);
-  h = Math.max(256, h);
+  // Scale up proportionally if either dimension is below 256
+  // (never clamp independently — that breaks the aspect ratio)
+  if (w < 256 || h < 256) {
+    const minScale = Math.max(256 / w, 256 / h);
+    w = Math.round(w * minScale);
+    h = Math.round(h * minScale);
+  }
+
+  // Round to nearest multiple of 8 — diffusion models produce sharper output on aligned grids
+  w = Math.max(8, Math.round(w / 8) * 8);
+  h = Math.max(8, Math.round(h / 8) * 8);
 
   return { width: w, height: h };
 }
@@ -173,7 +180,7 @@ export function GenerativeFillToolbar() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Something went wrong';
       if (msg === 'FREE_LIMIT_REACHED') {
-        setError('Free limit reached (5/month). Upgrade to Pro for unlimited Generative Fill.');
+        setError('Free limit reached (15/month). Upgrade to Pro for unlimited Generative Fill.');
       } else {
         setError(msg);
       }

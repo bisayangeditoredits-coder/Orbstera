@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+
 import { History } from 'lucide-react';
 
 type LedgerEntry = {
@@ -44,17 +44,14 @@ export function DashboardUsageHistory({ freeTier }: DashboardUsageHistoryProps) 
   }, []);
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.08 }}
-      className="rounded-md border border-white/70 bg-white p-5 shadow-sm sm:p-6"
+    <section
+      className="rounded-xl bg-white p-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-black/[0.04] sm:p-6"
       aria-label="Usage history"
     >
-      <motion.div className="flex items-center gap-2">
+      <div className="flex items-center gap-2">
         <History size={18} className="text-slate-400" strokeWidth={1.75} />
         <h2 className="font-montserrat text-lg font-bold text-slate-900">Recent credit activity</h2>
-      </motion.div>
+      </div>
 
       {freeTier && (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -64,16 +61,12 @@ export function DashboardUsageHistory({ freeTier }: DashboardUsageHistoryProps) 
               {freeTier.generativeFillUsed} / {freeTier.generativeFillLimit} uses this month
             </p>
           </div>
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl border border-amber-100 bg-amber-50/50 px-4 py-3 text-sm"
-          >
+          <div className="rounded-xl border border-amber-100 bg-amber-50/50 px-4 py-3 text-sm">
             <p className="font-semibold text-amber-900">Magic Edit (free)</p>
             <p className="mt-1 text-amber-800/80">
               {freeTier.magicEditUsed} / {freeTier.magicEditLimit} uses this month
             </p>
-          </motion.div>
+          </div>
         </div>
       )}
 
@@ -97,6 +90,6 @@ export function DashboardUsageHistory({ freeTier }: DashboardUsageHistoryProps) 
           </li>
         ))}
       </ul>
-    </motion.section>
+    </section>
   );
 }

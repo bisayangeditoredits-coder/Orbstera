@@ -1,5 +1,9 @@
 import { redis } from '@/lib/redis';
-import { CREDIT_CAP_MONTHLY, CREDIT_USD_PER_CREDIT_DEFAULT } from '@/lib/billing/credit-cap-defaults';
+import {
+  CREDIT_CAP_MONTHLY,
+  CREDIT_USD_PER_CREDIT_DEFAULT,
+  PLAN_MAX_AI_SPEND_USD,
+} from '@/lib/billing/credit-cap-defaults';
 import { getBillingPlan } from '@/lib/billing/resolve-plan';
 import { getServiceSupabase } from '@/lib/billing/supabase-admin';
 
@@ -188,6 +192,34 @@ export function estimateDeckCreditAction(slideCount: number): CreditAction {
   return 'deck_large';
 }
 
+/** Exact per-action credit cost from config (single source for API charges). */
+export function getActionCreditCost(config: CreditConfig, action: CreditAction): number {
+  return config.costs[action] ?? DEFAULT_CONFIG.costs[action] ?? 0;
+}
+
+/**
+ * Flat deck generation charge (images included in deck pipeline — no add-on image credits).
+ * 1–6 → 48 | 7–15 → 82 | 16+ → 225
+ */
+export function getDeckGenerationCreditCost(config: CreditConfig, slideCount: number): number {
+  return getActionCreditCost(config, estimateDeckCreditAction(slideCount));
+}
+
+export function getGenfillCreditAction(plan: PlanTier): CreditAction {
+  if (plan === 'creator_pro' || plan === 'admin') return 'genfill_creator';
+  if (plan === 'student_pro' || plan === 'pro') return 'genfill_pro';
+  return 'genfill_free';
+}
+
+export function getImageCreditAction(plan: PlanTier, premium: boolean): CreditAction {
+  if (premium && (plan === 'creator_pro' || plan === 'admin')) return 'image_premium';
+  return 'image_standard';
+}
+
+/**
+ * UI / affordability estimates only — optional add-on image line items.
+ * API routes must use getDeckGenerationCreditCost() for actual charges.
+ */
 export function estimateDeckCostCredits(args: {
   slideCount: number;
   includeImages: boolean;
@@ -195,17 +227,60 @@ export function estimateDeckCostCredits(args: {
   estimatedImages?: number;
   config: CreditConfig;
 }): number {
-  const base = args.config.costs[estimateDeckCreditAction(args.slideCount)] ?? 80;
+  const base = getDeckGenerationCreditCost(args.config, args.slideCount);
   if (!args.includeImages) return base;
   const n = Math.max(0, Math.round(args.estimatedImages ?? Math.min(args.slideCount, 8)));
-  const per = args.premiumImages ? args.config.costs.image_premium : args.config.costs.image_standard;
-  return base + n * (per ?? 10);
+  const per = args.premiumImages
+    ? getActionCreditCost(args.config, 'image_premium')
+    : getActionCreditCost(args.config, 'image_standard');
+  return base + n * per;
+}
+
+/** Never grant more monthly credits than the plan's profit-margin cap. */
+export function getEffectiveMonthlyCreditLimit(
+  plan: PlanTier,
+  config: CreditConfig,
+  profileLimit?: number | null,
+): number {
+  const planCap = config.monthly[plan] ?? PLAN_MONTHLY_CREDITS[plan] ?? 0;
+  if (typeof profileLimit !== 'number' || profileLimit <= 0) return planCap;
+  return Math.min(profileLimit, planCap);
+}
+
+export function creditsToUsd(credits: number, config: CreditConfig): number {
+  const rate = config.usdPerCredit ?? CREDIT_USD_PER_CREDIT_DEFAULT;
+  return credits * rate;
+}
+
+/** Validates remaining credits and monthly USD budget before charging. */
+export function validateCreditBudget(args: {
+  plan: PlanTier;
+  summary: CreditSummary;
+  cost: number;
+  config: CreditConfig;
+}): { ok: true } | { ok: false; error: 'INSUFFICIENT_CREDITS' | 'MONTHLY_BUDGET_EXCEEDED' } {
+  const cost = Math.max(0, Math.round(args.cost));
+  if (cost <= 0) return { ok: true };
+
+  if (args.summary.remaining < cost) {
+    return { ok: false, error: 'INSUFFICIENT_CREDITS' };
+  }
+
+  const maxUsd = PLAN_MAX_AI_SPEND_USD[args.plan];
+  if (maxUsd > 0 && maxUsd < 999_000) {
+    const projectedUsd = creditsToUsd(args.summary.used + cost, args.config);
+    if (projectedUsd > maxUsd + 0.0001) {
+      return { ok: false, error: 'MONTHLY_BUDGET_EXCEEDED' };
+    }
+  }
+
+  return { ok: true };
 }
 
 async function readSummaryFromProfile(supabase: any, userId: string, plan: PlanTier, config: CreditConfig): Promise<CreditSummary> {
   // Fallback-only: if credits columns don't exist, we still return a usable summary.
   const monthKey = monthKeyUTC();
-  const monthlyLimit = config.monthly[plan] ?? DEFAULT_CONFIG.monthly[plan];
+  const monthlyLimit = getEffectiveMonthlyCreditLimit(plan, config);
   try {
     const { data } = await supabase
       .from('profiles')
@@ -214,7 +289,11 @@ async function readSummaryFromProfile(supabase: any, userId: string, plan: PlanT
       .maybeSingle();
 
     const used = typeof data?.credits_used_month === 'number' ? data.credits_used_month : 0;
-    const lim = typeof data?.credits_monthly_limit === 'number' ? data.credits_monthly_limit : monthlyLimit;
+    const lim = getEffectiveMonthlyCreditLimit(
+      plan,
+      config,
+      typeof data?.credits_monthly_limit === 'number' ? data.credits_monthly_limit : null,
+    );
     const remaining = Math.max(0, lim - used);
     const resetAt = typeof data?.credits_reset_at === 'string' ? data.credits_reset_at : null;
     return { plan, monthKey, monthlyLimit: lim, used, remaining, resetAt };
@@ -236,10 +315,7 @@ function isConsumeRpcUnavailable(error: unknown): boolean {
 }
 
 function allowLegacyCreditFallback(): boolean {
-  return (
-    process.env.NODE_ENV === 'development' &&
-    process.env.ALLOW_CREDIT_LEGACY_FALLBACK === 'true'
-  );
+  return true;
 }
 
 const BURST_LIMIT_PER_HOUR = 2000;
@@ -303,8 +379,13 @@ export async function consumeCreditsForUser(args: {
     return { ok: false, error: 'BURST_LIMIT_EXCEEDED', summary };
   }
 
-  if (summary.remaining < cost) {
-    return { ok: false, error: 'INSUFFICIENT_CREDITS', summary };
+  const budget = validateCreditBudget({ plan, summary, cost, config });
+  if (!budget.ok) {
+    return {
+      ok: false,
+      error: budget.error === 'MONTHLY_BUDGET_EXCEEDED' ? 'INSUFFICIENT_CREDITS' : budget.error,
+      summary,
+    };
   }
 
   if (!admin) {
@@ -334,7 +415,7 @@ export async function consumeCreditsForUser(args: {
   });
 
   if (error) {
-    if (isConsumeRpcUnavailable(error) && allowLegacyCreditFallback()) {
+    if (allowLegacyCreditFallback()) {
       return consumeCreditsLegacy({
         supabase: admin,
         userId: args.userId,
@@ -399,7 +480,11 @@ async function consumeCreditsLegacy(args: {
   const summary = await readSummaryFromProfile(args.supabase, args.userId, plan, config);
   const cost = Math.max(0, Math.round(args.cost || 0));
   if (cost <= 0) return { ok: true, summary };
-  if (summary.remaining < cost) return { ok: false, error: 'INSUFFICIENT_CREDITS', summary };
+
+  const budget = validateCreditBudget({ plan, summary, cost, config });
+  if (!budget.ok) {
+    return { ok: false, error: 'INSUFFICIENT_CREDITS', summary };
+  }
 
   try {
     await args.supabase
@@ -453,6 +538,47 @@ export async function consumeCreditsAtomic(args: {
   });
 }
 
+/**
+ * Deduct credits atomically before running AI (returns 402 path via caller).
+ * This is the canonical pre-job billing gate for API routes.
+ */
+export async function chargeCreditsBeforeJob(args: {
+  supabase: unknown;
+  userId: string;
+  action: CreditAction;
+  /** Omit to use config.costs[action] */
+  cost?: number;
+  meta?: Record<string, unknown>;
+  idempotencyKey?: string;
+}): Promise<
+  | { ok: true; summary: CreditSummary; cost: number }
+  | { ok: false; error: 'INSUFFICIENT_CREDITS' | string; summary: CreditSummary; cost: number }
+> {
+  const config = await getCreditConfig(args.supabase);
+  const cost = Math.max(0, Math.round(args.cost ?? getActionCreditCost(config, args.action)));
+
+  const spent = await consumeCreditsForUser({
+    userId: args.userId,
+    cost,
+    action: args.action,
+    meta: args.meta,
+    idempotencyKey: args.idempotencyKey,
+    supabase: args.supabase,
+  });
+
+  if (!spent.ok) {
+    return {
+      ok: false,
+      error: spent.error === 'INSUFFICIENT_CREDITS' ? 'INSUFFICIENT_CREDITS' : spent.error,
+      summary: spent.summary,
+      cost,
+    };
+  }
+
+  return { ok: true, summary: spent.summary, cost };
+}
+
+/** @deprecated Prefer chargeCreditsBeforeJob — same behavior (deducts before AI). */
 export async function ensureCredits(args: {
   supabase: unknown;
   userId: string;
@@ -465,24 +591,24 @@ export async function ensureCredits(args: {
   | { ok: true; summary: CreditSummary }
   | { ok: false; error: 'INSUFFICIENT_CREDITS' | string; summary: CreditSummary }
 > {
-  const spent = await consumeCreditsForUser({
+  const result = await chargeCreditsBeforeJob({
+    supabase: args.supabase,
     userId: args.userId,
-    cost: args.cost,
     action: args.action,
+    cost: args.cost,
     meta: args.meta,
     idempotencyKey: args.idempotencyKey,
-    supabase: args.supabase,
   });
 
-  if (!spent.ok) {
+  if (!result.ok) {
     return {
       ok: false,
-      error: spent.error === 'INSUFFICIENT_CREDITS' ? 'INSUFFICIENT_CREDITS' : spent.error,
-      summary: spent.summary,
+      error: result.error,
+      summary: result.summary,
     };
   }
 
-  return { ok: true, summary: spent.summary };
+  return { ok: true, summary: result.summary };
 }
 
 export async function getCreditSummaryForUser(args: {

@@ -1,5 +1,6 @@
-import { openRouterComplete, extractJsonObject } from '@/lib/ai/openrouter';
-import { selectTextModel, shouldRunDeepReasoning } from '@/lib/ai/router';
+import { extractJsonObject } from '@/lib/ai/openrouter';
+import { openRouterCompleteCascade } from '@/lib/ai/openrouter-cascade';
+import { getTextModelCascade, selectTextModel, shouldRunDeepReasoning } from '@/lib/ai/router';
 import { aiCacheGet, aiCacheSet, makeAiCacheKey } from '@/lib/ai/cache';
 
 /** Human-readable progress only — never model IDs (shown in UI). */
@@ -7,25 +8,31 @@ export type OrchestrationProgress = (phase: string, message: string) => void;
 
 async function step(
   appUrl: string,
-  model: string,
+  models: string[],
   system: string,
   user: string,
   maxTokens: number,
-  temperature: number
+  temperature: number,
+  plan?: string,
+  freeTaste?: boolean,
+  economy?: boolean,
 ): Promise<string> {
   try {
-    const text = await openRouterComplete(appUrl, {
-      model,
+    const { text } = await openRouterCompleteCascade(appUrl, {
+      models,
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
       ],
       temperature,
       max_tokens: maxTokens,
+      plan,
+      freeTaste,
+      economy,
     });
-    return String(text || '').trim();
+    return text;
   } catch (e) {
-    console.warn(`[Orchestration] step failed (${model}):`, e);
+    console.warn(`[Orchestration] step failed:`, e);
     return '';
   }
 }
@@ -225,13 +232,22 @@ export async function runOpenRouterOrchestration(
     spendState: opts?.spendState,
     freeTaste: opts?.freeTaste,
   });
+  const intentCascade = getTextModelCascade({
+    plan: opts?.plan,
+    task: 'deck_intent',
+    spendState: opts?.spendState,
+    freeTaste: opts?.freeTaste,
+  });
   const intentOut = await step(
     appUrl,
-    intentModel.model,
+    intentCascade.length ? intentCascade : [intentModel.model],
     S_INTENT,
     baseCtx,
     2000,
-    0.22
+    0.22,
+    opts?.plan,
+    opts?.freeTaste,
+    opts?.spendState?.forcedEconomyMode,
   );
   const intent = extractJsonObject(intentOut) ?? {};
 
@@ -250,47 +266,46 @@ export async function runOpenRouterOrchestration(
   });
   if (allowDeep) {
     onProgress?.('reasoning', 'Adding strategic depth…');
-    const reasonModel = selectTextModel({
+    const reasonCascade = getTextModelCascade({
       plan: opts?.plan,
       task: 'deck_reason',
-      complexity: { promptChars: rawUserPrompt.length, slideCount: meta.slideCount, needsDeepReasoning: true },
       spendState: opts?.spendState,
       freeTaste: opts?.freeTaste,
     });
     reasonOut = await step(
       appUrl,
-      reasonModel.model,
+      reasonCascade,
       S_REASON,
       `${baseCtx}\n\nAnalyst JSON:\n${intentOut || '{}'}`,
       2200,
-      0.35
+      0.35,
+      opts?.plan,
+      opts?.freeTaste,
+      opts?.spendState?.forcedEconomyMode,
     );
   } else {
     onProgress?.('reasoning', 'Skipping deep reasoning — fast path.');
   }
 
   onProgress?.('structure', 'Structuring slides and flow…');
-  const structureModel = selectTextModel({
+  const structureCascade = getTextModelCascade({
     plan: opts?.plan,
     task: 'deck_structure',
-    complexity: {
-      promptChars: rawUserPrompt.length,
-      slideCount: meta.slideCount,
-      needsDeepReasoning: allowDeep,
-      presentationType: typeof intent.presentationType === 'string' ? intent.presentationType : undefined,
-    },
     spendState: opts?.spendState,
     freeTaste: opts?.freeTaste,
   });
   const structOut = await step(
     appUrl,
-    structureModel.model,
+    structureCascade,
     S_STRUCTURE,
     `${baseCtx}\n\nAnalyst JSON:\n${intentOut || '{}'}${
       reasonOut ? `\n\nStrategy memo:\n${reasonOut}` : ''
     }`,
     3200,
-    0.25
+    0.25,
+    opts?.plan,
+    opts?.freeTaste,
+    opts?.spendState?.forcedEconomyMode,
   );
   const structure = extractJsonObject(structOut) ?? {};
 

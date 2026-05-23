@@ -6,7 +6,7 @@ import { openRouterComplete, extractJsonObject } from '@/lib/ai/openrouter';
 import { normalizePresentationPayload } from '@/lib/ai/orchestration';
 import { selectTextModel } from '@/lib/ai/router';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
-import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
+import { chargeCreditsBeforeJob, getActionCreditCost, getCreditConfig } from '@/lib/billing/credits';
 import { getBillingPlan } from '@/lib/billing/resolve-plan';
 import { getSpendState } from '@/lib/ai/spend';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
@@ -47,13 +47,13 @@ export async function POST(req: Request) {
     }
 
     const creditConfig = await getCreditConfig(supabase);
-    const polishCost = creditConfig.costs.deck_polish ?? 80;
+    const polishCost = getActionCreditCost(creditConfig, 'deck_polish');
 
-    const creditCheck = await ensureCredits({
+    const creditCheck = await chargeCreditsBeforeJob({
       supabase,
       userId: user.id,
-      cost: polishCost,
       action: 'deck_polish',
+      cost: polishCost,
       meta: { route: 'generate/polish' },
       idempotencyKey: requestId,
     });

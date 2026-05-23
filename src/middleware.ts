@@ -21,8 +21,8 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
   return response;
 }
 
-function stampSessionCookie(response: NextResponse, startedAt?: string): void {
-  response.cookies.set(SESSION_STARTED_COOKIE, startedAt ?? new Date().toISOString(), {
+function stampSessionCookie(response: NextResponse): void {
+  response.cookies.set(SESSION_STARTED_COOKIE, new Date().toISOString(), {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -80,21 +80,25 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
-  const sessionStarted = request.cookies.get(SESSION_STARTED_COOKIE)?.value;
+  const sessionStartedAt = request.cookies.get(SESSION_STARTED_COOKIE)?.value;
 
   if (user) {
-    if (isSessionStartedAtExpired(sessionStarted)) {
+    // Enforce 3-day re-login policy
+    if (isSessionStartedAtExpired(sessionStartedAt)) {
       await supabase.auth.signOut();
-      clearSessionCookie(response);
       const url = request.nextUrl.clone();
       url.pathname = '/login';
       url.searchParams.set('error', 'session_expired');
-      return applySecurityHeaders(NextResponse.redirect(url));
+      const redirectResponse = NextResponse.redirect(url);
+      clearSessionCookie(redirectResponse);
+      return applySecurityHeaders(redirectResponse);
     }
-    if (!sessionStarted) {
+
+    // Stamp cookie if missing
+    if (!sessionStartedAt) {
       stampSessionCookie(response);
     }
-  } else if (sessionStarted) {
+  } else if (sessionStartedAt) {
     clearSessionCookie(response);
   }
 

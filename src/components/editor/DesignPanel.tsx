@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
+import { useShallow } from 'zustand/react/shallow';
 import { SLIDE_TRANSITION_OPTIONS } from '@/lib/presentationMotion';
 import type { SlideTransition } from '@/types';
 import { Palette, Type, Sparkles, Check, RefreshCw } from 'lucide-react';
@@ -58,7 +59,14 @@ const PALETTE_LABELS = ['Background', 'Text', 'Accent', 'Secondary'];
 
 // ── Main Design Panel ─────────────────────────────────────────────────────────
 export function DesignPanel() {
-  const { presentation, updatePresentation, currentSlideIndex, updateSlide } = usePresentationStore();
+  const { presentation, updatePresentation, currentSlideIndex, updateSlide } = usePresentationStore(
+    useShallow((s) => ({
+      presentation: s.presentation,
+      updatePresentation: s.updatePresentation,
+      currentSlideIndex: s.currentSlideIndex,
+      updateSlide: s.updateSlide,
+    }))
+  );
   const [activeTab, setActiveTab] = useState<'theme' | 'colors' | 'fonts'>('theme');
   const [mounted, setMounted] = useState(false);
   
@@ -84,7 +92,42 @@ export function DesignPanel() {
   };
 
   const applyTheme = (theme: typeof THEMES[0]) => {
-    updatePresentation({ colorPalette: theme.palette });
+    const oldPalette = palette;
+    const newPalette = theme.palette;
+    
+    // Update global palette
+    updatePresentation({ colorPalette: newPalette });
+
+    // Globally update all elements to match the new theme mapping
+    presentation.slides.forEach((slide) => {
+      const newElements = (slide.elements || []).map(el => {
+        let updated = { ...el };
+        // Text Color mapping
+        if (updated.type === 'text' && updated.textStyle) {
+          const c = updated.textStyle.color;
+          let newColor = c;
+          if (c === oldPalette[1]) newColor = newPalette[1]; // Primary text
+          else if (c === oldPalette[2]) newColor = newPalette[2]; // Accent
+          else if (c === oldPalette[3]) newColor = newPalette[3]; // Secondary text
+          else if (c === oldPalette[0]) newColor = newPalette[0]; // BG colored text
+          updated.textStyle = { ...updated.textStyle, color: newColor };
+        }
+        // Shape Fill mapping
+        if (updated.type === 'shape' && updated.shapeStyle) {
+          const f = updated.shapeStyle.fill;
+          let newFill = f;
+          if (f === oldPalette[0]) newFill = newPalette[0];
+          else if (f === oldPalette[1]) newFill = newPalette[1];
+          else if (f === oldPalette[2]) newFill = newPalette[2];
+          else if (f === oldPalette[3]) newFill = newPalette[3];
+          updated.shapeStyle = { ...updated.shapeStyle, fill: newFill };
+        }
+        return updated;
+      });
+      updateSlide(slide.id, { elements: newElements }, false);
+    });
+    // Trigger history save after loop
+    updatePresentation({});
   };
 
   const updateFont = (type: 'heading' | 'body', font: string) => {
@@ -98,7 +141,6 @@ export function DesignPanel() {
 
   return (
     <div className="flex flex-col h-full min-h-0 min-w-0 overflow-hidden">
-      <FontLoader fonts={[fontPairing.heading, fontPairing.body]} />
       {/* Header */}
       <div className="shrink-0 px-6 pt-6 pb-4 border-b border-black/[0.06]">
         <div className="flex items-center gap-2 mb-1">
@@ -231,31 +273,36 @@ export function DesignPanel() {
               </label>
             </div>
 
-            <p className="text-[10px] font-bold text-black/30 uppercase tracking-widest mb-3 mt-4">Preset Themes</p>
-            <div className="grid grid-cols-2 gap-2">
+            <p className="text-[10px] font-bold text-black/30 uppercase tracking-widest mb-3 mt-4">1-Click Themes</p>
+            <div className="grid grid-cols-2 gap-3">
               {THEMES.map((theme) => {
                 const active = palette[0] === theme.palette[0] && palette[2] === theme.palette[2];
                 return (
                   <button
                     key={theme.name}
                     onClick={() => applyTheme(theme)}
-                    className={`relative flex flex-col items-start gap-2 p-3 rounded-xl border-2 transition-all hover:shadow-md text-left ${
+                    className={`relative flex flex-col items-start gap-2 p-1.5 pb-3 rounded-2xl border-2 transition-all hover:scale-[1.02] active:scale-[0.98] text-left overflow-hidden ${
                       active
-                        ? 'border-primary shadow-primary/10 shadow-md'
-                        : 'border-black/[0.06] hover:border-black/15'
+                        ? 'border-indigo-500 shadow-[0_8px_24px_rgba(99,102,241,0.2)] bg-indigo-50/50'
+                        : 'border-transparent bg-white shadow-sm hover:shadow-md'
                     }`}
                   >
-                    {/* Color preview */}
-                    <div className="flex gap-1 w-full">
-                      <div className="h-8 flex-1 rounded-lg" style={{ background: theme.preview[0] }} />
-                      <div className="h-8 w-8 rounded-lg shrink-0" style={{ background: theme.preview[1] }} />
-                    </div>
-                    <span className="text-[11px] font-bold text-black/70">{theme.name}</span>
-                    {active && (
-                      <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                        <Check size={11} className="text-white" />
+                    {/* Visual Card Preview */}
+                    <div className="flex gap-1 w-full h-16 rounded-xl overflow-hidden p-2" style={{ background: theme.palette[0] }}>
+                      <div className="w-1/3 h-full rounded-md opacity-20" style={{ background: theme.palette[2] }} />
+                      <div className="flex-1 flex flex-col gap-1.5 mt-1">
+                        <div className="h-1.5 w-3/4 rounded-full" style={{ background: theme.palette[1] }} />
+                        <div className="h-1 w-1/2 rounded-full" style={{ background: theme.palette[3] || theme.palette[1], opacity: 0.7 }} />
+                        <div className="mt-auto h-2 w-1/3 rounded-full" style={{ background: theme.palette[2] }} />
                       </div>
-                    )}
+                    </div>
+                    
+                    <div className="w-full px-2 flex items-center justify-between">
+                      <span className={`text-[12px] font-bold ${active ? 'text-indigo-700' : 'text-neutral-700'}`}>
+                        {theme.name}
+                      </span>
+                      {active && <Check size={14} className="text-indigo-500" strokeWidth={3} />}
+                    </div>
                   </button>
                 );
               })}
@@ -273,6 +320,7 @@ export function DesignPanel() {
                 label={label}
                 color={palette[i] || '#FFFFFF'}
                 onChange={(c) => updateColor(i, c)}
+                palettePresets={palette}
               />
             ))}
             <p className="text-[10px] text-black/30 mt-4 leading-relaxed">

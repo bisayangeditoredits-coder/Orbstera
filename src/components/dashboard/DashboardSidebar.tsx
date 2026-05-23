@@ -61,32 +61,31 @@ export function DashboardSidebar({
   const inner = (
     <>
       <div className="p-6 lg:p-8">
-        <Link href="/" onClick={onMobileClose} className="group mb-10 inline-flex max-w-full items-center">
+        <Link href="/" onClick={onMobileClose} className="mb-10 inline-flex max-w-full items-center">
           <div className="relative shrink-0">
-            <div className="absolute -inset-1 rounded-xl bg-primary/15 opacity-0 blur-md transition-opacity group-hover:opacity-100" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/logo.png.png"
+              src="/logo.png-white.png"
               alt="Orbstera"
-              className="relative z-10 h-8 w-auto max-w-[180px] object-contain object-left drop-shadow-sm transition-transform duration-300 group-hover:scale-[1.01] sm:h-9"
+              className="h-8 w-auto max-w-[180px] object-contain object-left sm:h-9"
             />
           </div>
         </Link>
-        <nav className="-mx-2 space-y-0.5" aria-label="Dashboard">
-          <p className="mb-3 px-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Main</p>
+        <nav className="-mx-3 space-y-1" aria-label="Dashboard">
+          <p className="mb-3 px-3 text-[11px] font-semibold tracking-[0.15em] text-neutral-500">Main</p>
           {NAV.map(({ id, label, icon: Icon, external, href }) => {
             const active = !external && isNavActive(section, id);
             const baseClass = cn(
-              'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all text-left',
+              'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all text-left',
               active
-                ? 'border-r-4 border-primary bg-white/50 text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:bg-white/30 hover:text-slate-900',
+                ? 'bg-primary/10 text-white ring-1 ring-primary/20'
+                : 'text-neutral-400 hover:bg-white/[0.04] hover:text-neutral-200',
             );
 
             if (external && href) {
               return (
                 <Link key={id} href={href} onClick={onMobileClose} className={baseClass}>
-                  <Icon size={20} strokeWidth={1.75} className="text-slate-500" />
+                  <Icon size={18} strokeWidth={2} className="text-neutral-500 group-hover:text-neutral-300" />
                   {label}
                 </Link>
               );
@@ -103,9 +102,9 @@ export function DashboardSidebar({
                 className={baseClass}
               >
                 <Icon
-                  size={20}
-                  strokeWidth={1.75}
-                  className={active ? 'text-primary' : 'text-slate-500'}
+                  size={18}
+                  strokeWidth={2}
+                  className={active ? 'text-primary' : 'text-neutral-500 group-hover:text-neutral-400'}
                 />
                 {label}
               </button>
@@ -113,28 +112,29 @@ export function DashboardSidebar({
           })}
         </nav>
         {recentDecks.length > 0 && (
-          <div className="mt-10">
-            <p className="mb-3 px-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-              Recent projects
+          <div className="mt-10 -mx-3">
+            <p className="mb-3 px-3 text-[11px] font-semibold tracking-[0.15em] text-neutral-500">
+              Recent Projects
             </p>
-            <ul className="space-y-0.5">
+            <ul className="space-y-1">
               {recentDecks.slice(0, 4).map((deck, i) => (
                 <li key={deck.id}>
                   <Link
                     href={`/editor?id=${deck.id}`}
                     onClick={onMobileClose}
-                    className="flex items-center gap-3 rounded-lg px-4 py-2.5 transition-colors hover:bg-white/30"
+                    className="group flex items-center gap-3.5 rounded-xl px-3 py-2.5 transition-all hover:bg-white/[0.06] hover:shadow-sm"
                   >
-                    <span
-                      className={cn(
-                        'h-2 w-2 shrink-0 rounded-full border-2 border-white shadow-sm',
-                        i % 2 === 0 ? 'bg-orange-400' : 'bg-emerald-400',
-                      )}
-                      aria-hidden
-                    />
-                    <span className="truncate text-sm font-medium text-slate-600 hover:text-slate-900">
-                      {deck.title || 'Untitled'}
-                    </span>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] shadow-sm transition-all group-hover:scale-105 group-hover:bg-white/[0.08] group-hover:border-white/20">
+                      <LayoutTemplate size={16} strokeWidth={2} className="text-neutral-400 group-hover:text-white transition-colors" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="truncate text-[13px] font-medium text-neutral-300 group-hover:text-white transition-colors">
+                        {deck.title || 'Untitled'}
+                      </span>
+                      <span className="truncate text-[11px] text-neutral-500 font-medium">
+                        {deck.date ? new Date(deck.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recently edited'}
+                      </span>
+                    </div>
                   </Link>
                 </li>
               ))}
@@ -142,7 +142,7 @@ export function DashboardSidebar({
           </div>
         )}
       </div>
-      <div className="mt-auto border-t border-white/40 p-4 lg:p-6">
+      <div className="mt-auto border-t border-white/[0.05] p-4 lg:p-6">
         <button
           type="button"
           onClick={() => {
@@ -150,29 +150,29 @@ export function DashboardSidebar({
             onMobileClose?.();
           }}
           className={cn(
-            'flex w-full items-center gap-3 rounded-md border p-4 text-left backdrop-blur-md transition',
+            'flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors',
             section === 'settings'
-              ? 'border-primary/30 bg-white/70 shadow-sm'
-              : 'border-white/60 bg-white/40 hover:bg-white/60',
+              ? 'bg-white/[0.06] ring-1 ring-white/[0.05]'
+              : 'hover:bg-white/[0.04]',
           )}
         >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-slate-200 shadow-sm">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 ring-white/10 bg-neutral-800">
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
             ) : (
-              <span className="font-montserrat text-sm font-bold text-slate-600">
+              <span className="font-montserrat text-sm font-medium text-neutral-300">
                 {userName.charAt(0).toUpperCase()}
               </span>
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-slate-900">{userName}</p>
-            <p className="text-[10px] font-medium uppercase tracking-widest text-slate-500">
+            <p className="truncate text-sm font-medium text-white">{userName}</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-neutral-500 mt-0.5">
               {formatPlanLabel(plan)}
             </p>
           </div>
-          <ChevronDown size={16} className="shrink-0 text-slate-400" strokeWidth={1.75} />
+          <ChevronDown size={16} className="shrink-0 text-neutral-500" strokeWidth={1.75} />
         </button>
       </div>
     </>
@@ -182,7 +182,7 @@ export function DashboardSidebar({
     <>
       <aside
         className={cn(
-          'hidden w-64 shrink-0 flex-col border-r border-white/40 bg-gradient-to-b from-[#E8F2FF] to-[#D4E8FF] shadow-xl lg:flex lg:sticky lg:top-0 lg:h-dvh',
+          'hidden w-64 shrink-0 flex-col border-r border-white/[0.05] bg-[#0A0E17] lg:flex lg:sticky lg:top-0 lg:h-dvh',
           className,
         )}
       >
@@ -198,7 +198,7 @@ export function DashboardSidebar({
       )}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-[90] flex w-[min(280px,88vw)] flex-col border-r border-white/40 bg-gradient-to-b from-[#E8F2FF] to-[#D4E8FF] shadow-2xl transition-transform duration-300 lg:hidden',
+          'fixed inset-y-0 left-0 z-[90] flex w-[min(280px,88vw)] flex-col border-r border-white/[0.05] bg-[#0A0E17] shadow-2xl transition-transform duration-300 lg:hidden',
           mobileOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none',
         )}
         aria-hidden={!mobileOpen}
@@ -207,7 +207,7 @@ export function DashboardSidebar({
           <button
             type="button"
             onClick={onMobileClose}
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 hover:bg-white/40"
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-neutral-500 hover:bg-white/5"
             aria-label="Close sidebar"
           >
             <X size={22} strokeWidth={1.75} />

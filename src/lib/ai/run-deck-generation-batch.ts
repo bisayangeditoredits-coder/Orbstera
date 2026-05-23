@@ -1,7 +1,8 @@
 import { buildComposerMessages, normalizePresentationPayload } from '@/lib/ai/orchestration';
 import { runOpenRouterOrchestration } from '@/lib/ai/prompt-chain';
-import { openRouterComplete, extractDeckJsonFromModelOutput } from '@/lib/ai/openrouter';
-import { getComposeFallbackModels, selectTextModel } from '@/lib/ai/router';
+import { extractDeckJsonFromModelOutput } from '@/lib/ai/openrouter';
+import { openRouterCompleteCascade } from '@/lib/ai/openrouter-cascade';
+import { getTextModelCascade, selectTextModel } from '@/lib/ai/router';
 import { getSpendState } from '@/lib/ai/spend';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -12,6 +13,8 @@ export type DeckGenerationJobBody = {
   language: string;
   styleMode?: string;
   plan: string;
+  plannerSessionId?: string;
+  outlineSlideCount?: number;
 };
 
 export async function runDeckGenerationBatch(args: {
@@ -70,26 +73,28 @@ export async function runDeckGenerationBatch(args: {
     spendState,
   });
 
-  const models = [
-    composerPrimary.model,
-    ...getComposeFallbackModels({ plan: body.plan, spendState }).filter((m) => m !== composerPrimary.model),
-  ];
+  const models = getTextModelCascade({
+    plan: body.plan,
+    task: 'deck_compose',
+    spendState,
+  });
 
   let raw = '';
-  for (const model of models) {
-    try {
-      raw = await openRouterComplete(appUrl, {
-        model,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: userMessage },
-        ],
-        timeoutMs: 180_000,
-      });
-      if (raw.trim()) break;
-    } catch (e) {
-      console.warn(`[runDeckGenerationBatch] ${model} failed:`, e);
-    }
+  try {
+    const completed = await openRouterCompleteCascade(appUrl, {
+      models: models.length ? models : [composerPrimary.model],
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: userMessage },
+      ],
+      plan: body.plan,
+      timeoutMs: 180_000,
+      max_tokens: composerPrimary.maxTokens,
+      temperature: composerPrimary.temperature,
+    });
+    raw = completed.text;
+  } catch (e) {
+    console.warn('[runDeckGenerationBatch] compose cascade failed:', e);
   }
 
   onProgress?.(85, 'Parsing deck…');

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Stage,
   Layer,
@@ -13,45 +13,35 @@ import {
   Ellipse,
   Line,
   Star,
+  Path,
 } from 'react-konva';
 import Konva from 'konva';
 import useImage from 'use-image';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { useShallow } from 'zustand/react/shallow';
-import type { ChartData, EditorToolId, SlideElement } from '@/types';
+import type { EditorToolId, SlideElement } from '@/types';
 import { findDeckBackgroundElement } from '@/lib/slide-background';
 import { editorImageFetchUrl } from '@/lib/r2-public-url';
+import {
+  elementAnimationDurationMs,
+  getKonvaEntrancePreviewTween,
+} from '@/lib/presentationMotion';
 import { snapCoord, snapRect } from '@/lib/editor-tools';
+import {
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT,
+  STAGE_PADDING,
+  MIN_PLACE,
+  SLIDE_BG_NAME,
+  getSlidePointerFromEvent,
+  isSlideBackgroundTarget,
+  useSmartGuides,
+  useDrawTool,
+  useShapePlacementTool,
+  useCanvasSelection,
+} from '@/hooks/canvas';
 
-export const CANVAS_WIDTH = 1280;
-export const CANVAS_HEIGHT = 720;
-
-const SLIDE_BG_NAME = 'slide-bg';
-const MIN_PLACE = 20;
-const CLICK_CANCEL_MOVE = 8;
-
-const DRAG_PLACEMENT_TOOLS: readonly EditorToolId[] = [
-  'rect',
-  'circle',
-  'triangle',
-  'star',
-  'line',
-  'arrow',
-] as const;
-
-const CLICK_PLACEMENT_TOOLS: readonly EditorToolId[] = [
-  'text',
-  'image',
-  'chart',
-  'frame-circle',
-  'frame-heart',
-  'frame-box',
-] as const;
-
-function isSlideBackgroundTarget(target: Konva.Node): boolean {
-  const stage = target.getStage();
-  return target === stage || target.name() === SLIDE_BG_NAME;
-}
+export { CANVAS_WIDTH, CANVAS_HEIGHT, STAGE_PADDING };
 
 function getObjectFitCoverCrop(
   img: HTMLImageElement | undefined,
@@ -80,32 +70,10 @@ function getObjectFitCoverCrop(
   return { crop: { x: cropX, y: cropY, width: cropWidth, height: cropHeight } };
 }
 
-function defaultShapeStyle(accent: string) {
-  return { fill: accent, stroke: 'transparent' as const, strokeWidth: 0 };
-}
-
-function defaultLineStyle(accent: string) {
-  return { fill: accent, stroke: accent, strokeWidth: 4 };
-}
-
-function defaultChartData(accent: string): ChartData {
-  return {
-    type: 'bar',
-    labels: ['Q1', 'Q2', 'Q3', 'Q4'],
-    datasets: [
-      {
-        label: 'Series A',
-        data: [12, 19, 14, 22],
-        backgroundColor: [accent, `${accent}cc`, `${accent}99`, `${accent}77`],
-      },
-    ],
-  };
-}
-
 interface ElementNodeProps {
   el: SlideElement;
   isSelected: boolean;
-  onSelect: () => void;
+  onSelect: (e?: Konva.KonvaEventObject<MouseEvent>) => void;
   onChange: (updates: Partial<SlideElement>, saveHistory?: boolean) => void;
   activeTool: EditorToolId;
   isEditingText: boolean;
@@ -113,6 +81,10 @@ interface ElementNodeProps {
   previewElementId: string | null;
   snapToGrid: boolean;
   gridSize: number;
+  onContextMenu: (id: string, x: number, y: number) => void;
+  onDragMoveSnapping?: (id: string, x: number, y: number, w: number, h: number) => { x: number; y: number } | void;
+  onDragEndSnapping?: () => void;
+  onMultiDragEnd?: (dx: number, dy: number, sourceId: string) => void;
 }
 
 // ─── Element Node Component ───────────────────────────────────────────────────
@@ -127,6 +99,10 @@ function ElementNode({
   previewElementId,
   snapToGrid,
   gridSize,
+  onContextMenu,
+  onDragMoveSnapping,
+  onDragEndSnapping,
+  onMultiDragEnd,
 }: ElementNodeProps) {
   const applySnap = (x: number, y: number, w?: number, h?: number) => {
     if (w != null && h != null) {
@@ -139,10 +115,16 @@ function ElementNode({
     };
   };
   const shapeRef = useRef<Konva.Group | Konva.Rect | Konva.Text | Konva.Ellipse | Konva.Line | Konva.Star | Konva.Arrow | null>(null);
-  const trRef = useRef<Konva.Transformer>(null);
   const genFillBorderRef = useRef<Konva.Rect>(null);
+  const dragStartPosRef = useRef<{ x: number; y: number } | null>(null);
   const rawImgSrc = el.type === 'image' ? (el.src || '').trim() : '';
-  const displayImgSrc = editorImageFetchUrl(rawImgSrc);
+  let displayImgSrc = editorImageFetchUrl(rawImgSrc);
+  if (displayImgSrc.includes('youtube.com/embed/')) {
+    const videoId = displayImgSrc.split('embed/')[1]?.split('?')[0];
+    if (videoId) displayImgSrc = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  } else if (displayImgSrc.split('?')[0].endsWith('.mp4') && el.content) {
+    displayImgSrc = el.content;
+  }
   const imageHookSrc =
     displayImgSrc &&
     (/^data:image\//i.test(displayImgSrc) ||
@@ -151,7 +133,7 @@ function ElementNode({
       displayImgSrc.startsWith('/api/'))
       ? displayImgSrc
       : '';
-  const [img, imgStatus] = useImage(imageHookSrc);
+  const [img, imgStatus] = useImage(imageHookSrc, 'anonymous');
 
   useEffect(() => {
     if (!genFillBorderRef.current) return;
@@ -168,11 +150,9 @@ function ElementNode({
   }, [el.type, el.id, img]);
 
   useEffect(() => {
-    if (isSelected && trRef.current && shapeRef.current) {
-      trRef.current.nodes([shapeRef.current]);
-      trRef.current.getLayer()?.batchDraw();
-    }
-  }, [isSelected, el.visible]);
+    // Transformer logic moved to KonvaCanvas for separate overlay layer
+    if (!isSelected || el.locked || !shapeRef.current) return;
+  }, [isSelected, el.locked]);
 
   useEffect(() => {
     if (previewElementId !== el.id) return;
@@ -181,36 +161,48 @@ function ElementNode({
     const layer = node.getLayer();
     if (!layer) return;
 
-    const durationSec = Math.max(0.12, (el.animation?.duration ?? 600) / 1000);
     const baseOpacity = el.opacity ?? 1;
     const entrance = el.animation?.entrance;
-    const startY = node.y();
-    const startX = node.x();
-    const lift =
-      entrance === 'fadeSlideUp' || entrance === 'verticalRise' || entrance === 'floatGentle' ? 36 : 0;
-    const shift =
-      entrance === 'fadeSlideLeft' || entrance === 'parallaxDrift' || entrance === 'horizontalReveal'
-        ? 32
-        : entrance === 'slideRight'
-          ? -32
-          : 0;
+    const startY = el.y;
+    const startX = el.x;
+    const cfg = getKonvaEntrancePreviewTween(
+      entrance,
+      elementAnimationDurationMs(el.animation),
+      baseOpacity,
+      startX,
+      startY,
+      el.width,
+      el.height,
+    );
 
-    node.opacity(0);
-    if (lift) node.y(startY + lift);
-    if (shift) node.x(startX + shift);
+    node.opacity(cfg.from.opacity);
+    node.x(cfg.from.x);
+    node.y(cfg.from.y);
+    if (cfg.useScale) {
+      node.offsetX(cfg.from.offsetX);
+      node.offsetY(cfg.from.offsetY);
+      node.scaleX(cfg.from.scaleX);
+      node.scaleY(cfg.from.scaleY);
+    }
     layer.batchDraw();
 
     const tween = new Konva.Tween({
       node,
-      duration: durationSec,
-      opacity: baseOpacity,
-      x: startX,
-      y: startY,
+      duration: cfg.durationSec,
+      opacity: cfg.to.opacity,
+      x: cfg.to.x,
+      y: cfg.to.y,
+      scaleX: cfg.to.scaleX,
+      scaleY: cfg.to.scaleY,
       easing: Konva.Easings.EaseOut,
       onFinish: () => {
         node.opacity(baseOpacity);
-        node.x(startX);
-        node.y(startY);
+        node.x(cfg.resetPosition.x);
+        node.y(cfg.resetPosition.y);
+        node.offsetX(cfg.resetPosition.offsetX);
+        node.offsetY(cfg.resetPosition.offsetY);
+        node.scaleX(1);
+        node.scaleY(1);
         layer.batchDraw();
       },
     });
@@ -218,9 +210,15 @@ function ElementNode({
     return () => {
       tween.destroy();
       node.opacity(baseOpacity);
+      node.x(startX);
+      node.y(startY);
+      node.offsetX(0);
+      node.offsetY(0);
+      node.scaleX(1);
+      node.scaleY(1);
       layer.batchDraw();
     };
-  }, [previewElementId, el.id, el.opacity, el.animation?.duration, el.animation?.entrance]);
+  }, [previewElementId, el.id, el.opacity, el.animation, el.x, el.y, el.width, el.height]);
 
   if (el.visible === false) return null;
 
@@ -249,22 +247,49 @@ function ElementNode({
   };
 
   const commonGroup = {
+    name: el.id,
     x: el.x,
     y: el.y,
     rotation: el.rotation || 0,
     opacity: el.opacity ?? 1,
     draggable: elementDraggable && !el.id.startsWith('bg-'),
     listening: elementListening && !el.id.startsWith('bg-'),
-    onClick: onSelect,
-    onTap: onSelect,
+    onClick: (e: Konva.KonvaEventObject<MouseEvent>) => onSelect(e),
+    onTap: () => onSelect(),
+    onDragStart: () => {
+      dragStartPosRef.current = { x: el.x, y: el.y };
+    },
+    onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => {
+      if (onDragMoveSnapping && !e.evt.shiftKey) {
+        const node = e.target;
+        const w = node.width() * node.scaleX();
+        const h = node.height() * node.scaleY();
+        const snapped = onDragMoveSnapping(el.id, node.x(), node.y(), w, h);
+        if (snapped) {
+          node.x(snapped.x);
+          node.y(snapped.y);
+        }
+      }
+    },
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
+      if (onDragEndSnapping) onDragEndSnapping();
       const s = applySnap(e.target.x(), e.target.y());
+      const dx = s.x - (dragStartPosRef.current?.x ?? el.x);
+      const dy = s.y - (dragStartPosRef.current?.y ?? el.y);
+      dragStartPosRef.current = null;
       onChange({ x: s.x, y: s.y }, true);
+      // Move all other selected elements by the same delta
+      if (onMultiDragEnd) onMultiDragEnd(dx, dy, el.id);
     },
     onTransformEnd: groupTransformEnd,
+    onContextMenu: (e: Konva.KonvaEventObject<PointerEvent>) => {
+      e.evt.preventDefault();
+      onContextMenu(el.id, (e.evt as unknown as MouseEvent).clientX, (e.evt as unknown as MouseEvent).clientY);
+    },
   };
 
   const commonProps = {
+    name: el.id,
     x: el.x,
     y: el.y,
     width: el.width,
@@ -273,17 +298,38 @@ function ElementNode({
     opacity: el.opacity ?? 1,
     draggable: elementDraggable && !el.id.startsWith('bg-'),
     listening: elementListening && !el.id.startsWith('bg-'),
-    onClick: onSelect,
-    onTap: onSelect,
+    onClick: (e: Konva.KonvaEventObject<MouseEvent>) => onSelect(e),
+    onTap: () => onSelect(),
     onDblClick: () => {
       if (el.type === 'text' && !el.locked && activeTool === 'select') onDblClickText();
     },
     onDblTap: () => {
       if (el.type === 'text' && !el.locked && activeTool === 'select') onDblClickText();
     },
+    onDragStart: () => {
+      dragStartPosRef.current = { x: el.x, y: el.y };
+    },
+    onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => {
+      if (onDragMoveSnapping && !e.evt.shiftKey) {
+        const node = e.target;
+        const w = node.width() * node.scaleX();
+        const h = node.height() * node.scaleY();
+        const snapped = onDragMoveSnapping(el.id, node.x(), node.y(), w, h);
+        if (snapped) {
+          node.x(snapped.x);
+          node.y(snapped.y);
+        }
+      }
+    },
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
+      if (onDragEndSnapping) onDragEndSnapping();
       const s = applySnap(e.target.x(), e.target.y());
+      const dx = s.x - (dragStartPosRef.current?.x ?? el.x);
+      const dy = s.y - (dragStartPosRef.current?.y ?? el.y);
+      dragStartPosRef.current = null;
       onChange({ x: s.x, y: s.y }, true);
+      // Move all other selected elements by the same delta
+      if (onMultiDragEnd) onMultiDragEnd(dx, dy, el.id);
     },
     onTransformEnd: () => {
       const node = shapeRef.current!;
@@ -304,6 +350,10 @@ function ElementNode({
         },
         true,
       );
+    },
+    onContextMenu: (e: Konva.KonvaEventObject<PointerEvent>) => {
+      e.evt.preventDefault();
+      onContextMenu(el.id, (e.evt as unknown as MouseEvent).clientX, (e.evt as unknown as MouseEvent).clientY);
     },
   };
 
@@ -464,44 +514,19 @@ function ElementNode({
       );
     }
 
-    if (el.type === 'chart') {
-      const cd = el.chartData ?? defaultChartData('#38BDF8');
-      const pad = 12;
-      const chartH = el.height - pad * 2 - 28;
-      const chartW = el.width - pad * 2;
-      const n = Math.max(1, cd.labels.length);
-      const maxVal = Math.max(1, ...cd.datasets.flatMap((d) => d.data));
-      const barW = chartW / n - 6;
-      const accent = (cd.datasets[0]?.backgroundColor as string) || '#38BDF8';
-      const fills = Array.isArray(cd.datasets[0]?.backgroundColor)
-        ? (cd.datasets[0]?.backgroundColor as string[])
-        : Array(n).fill(accent);
-
+    if (el.type === 'draw') {
+      const style = el.shapeStyle || {};
       return (
         <Group ref={shapeRef as React.RefObject<Konva.Group>} {...commonGroup} width={el.width} height={el.height}>
-          <Rect width={el.width} height={el.height} fill="rgba(15,23,42,0.55)" cornerRadius={10} stroke="rgba(148,163,184,0.35)" strokeWidth={1} />
-          <Text x={pad} y={pad} text="Chart" fill="rgba(248,250,252,0.9)" fontSize={13} fontFamily="Inter" fontStyle="bold" />
-          {cd.labels.map((label, i) => {
-            const v = cd.datasets[0]?.data[i] ?? 0;
-            const h = (v / maxVal) * chartH;
-            const x = pad + i * (chartW / n) + 3;
-            const y = pad + 28 + chartH - h;
-            return (
-              <React.Fragment key={`${label}-${i}`}>
-                <Rect x={x} y={y} width={barW} height={h} fill={fills[i % fills.length] || accent} cornerRadius={4} />
-                <Text
-                  x={x - 2}
-                  y={pad + 28 + chartH + 4}
-                  width={barW + 4}
-                  text={label}
-                  fill="rgba(148,163,184,0.95)"
-                  fontSize={9}
-                  align="center"
-                  fontFamily="Inter"
-                />
-              </React.Fragment>
-            );
-          })}
+          <Line
+            points={el.points || []}
+            stroke={style.stroke || '#fff'}
+            strokeWidth={style.strokeWidth || 4}
+            tension={0.55}
+            lineCap="round"
+            lineJoin="round"
+            perfectDrawEnabled={false}
+          />
         </Group>
       );
     }
@@ -574,6 +599,21 @@ function ElementNode({
         );
       }
 
+      if (el.shapeType === 'path') {
+        return (
+          <Group ref={shapeRef as React.RefObject<Konva.Group>} {...commonGroup} width={el.width} height={el.height}>
+            <Path
+              data={el.content || ''}
+              fill={fill}
+              stroke={stroke}
+              strokeWidth={strokeWidth}
+              scaleX={el.width / 100}
+              scaleY={el.height / 100}
+            />
+          </Group>
+        );
+      }
+
       if (el.shapeType === 'arrow') {
         const sw = strokeWidth || 4;
         return (
@@ -614,39 +654,7 @@ function ElementNode({
     );
   };
 
-  return (
-    <>
-      {renderShape()}
-      {isSelected && (
-        <Transformer
-          ref={trRef}
-          boundBoxFunc={(oldBox, newBox) => {
-            if (newBox.width < MIN_PLACE || newBox.height < MIN_PLACE) return oldBox;
-            return newBox;
-          }}
-          rotateEnabled
-          enabledAnchors={[
-            'top-left',
-            'top-center',
-            'top-right',
-            'middle-left',
-            'middle-right',
-            'bottom-left',
-            'bottom-center',
-            'bottom-right',
-          ]}
-          anchorFill="#0EA5E9"
-          anchorStroke="#fff"
-          anchorStrokeWidth={1.5}
-          anchorSize={7}
-          anchorCornerRadius={1.5}
-          borderStroke="#38BDF8"
-          borderStrokeWidth={1.2}
-          padding={8}
-        />
-      )}
-    </>
-  );
+  return renderShape();
 }
 
 // ─── Slide Background ────────────────────────────────────────────────────────
@@ -663,12 +671,12 @@ function SlideBackground({
   const bg = colors[0] || '#05050A';
   const accent = colors[2] || '#38BDF8';
   const bgUrl = bgImageUrl?.trim() || '';
-  const [bgImg] = useImage(editorImageFetchUrl(bgUrl));
+  const [bgImg] = useImage(editorImageFetchUrl(bgUrl), 'anonymous');
   const heroOpacity = typeof bgImageOpacity === 'number' ? bgImageOpacity : 0.18;
 
   return (
     <>
-      <Rect name={SLIDE_BG_NAME} x={0} y={0} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} fill="transparent" />
+      <Rect name={SLIDE_BG_NAME} x={0} y={0} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} fill={bg} />
 
       {bgImageUrl && bgImg && (
         <KonvaImage
@@ -695,10 +703,18 @@ function placementCursor(tool: EditorToolId): string {
 // ─── Main Konva Canvas ────────────────────────────────────────────────────────
 export function KonvaCanvas({ scale }: { scale: number }) {
   const stageRef = useRef<Konva.Stage>(null);
-  const [drawingRect, setDrawingRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const trRef = useRef<Konva.Transformer>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const clickStartRef = useRef<{ x: number; y: number; tool: EditorToolId } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number; targetId: string | null }>({ visible: false, x: 0, y: 0, targetId: null });
+
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      if (contextMenu.visible) setContextMenu((prev) => ({ ...prev, visible: false }));
+    };
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, [contextMenu.visible]);
   /** Suppress the synthetic click after mouseup so we do not immediately deselect a newly placed element */
   const ignoreNextBgClickRef = useRef(false);
 
@@ -706,17 +722,33 @@ export function KonvaCanvas({ scale }: { scale: number }) {
     setMounted(true);
   }, []);
 
+  // Expose stage globally so TopBar PDF export can call toDataURL()
+  useEffect(() => {
+    if (stageRef.current) {
+      (window as any).__konvaStage = stageRef.current;
+    }
+    return () => {
+      delete (window as any).__konvaStage;
+    };
+  });
+
   const slide = usePresentationStore((s) => {
     const p = s.presentation;
     if (!p?.slides?.length) return undefined;
     return p.slides[s.currentSlideIndex];
   });
+
   const selectElement = usePresentationStore((s) => s.selectElement);
+  const selectElements = usePresentationStore((s) => s.selectElements);
+  const clearMultiSelection = usePresentationStore((s) => s.clearMultiSelection);
   const updateElement = usePresentationStore((s) => s.updateElement);
-  const { activeTool, selectedElementId, previewElementId, snapToGrid, gridSize } = usePresentationStore(
+  const addElement    = usePresentationStore((s) => s.addElement);
+  const removeElement = usePresentationStore((s) => s.removeElement);
+  const { activeTool, selectedElementId, selectedElementIds, previewElementId, snapToGrid, gridSize } = usePresentationStore(
     useShallow((s) => ({
       activeTool: s.editor.activeTool,
       selectedElementId: s.editor.selectedElementId,
+      selectedElementIds: s.editor.selectedElementIds,
       previewElementId: s.editor.previewElementId,
       snapToGrid: s.editor.snapToGrid,
       gridSize: s.editor.gridSize,
@@ -724,336 +756,236 @@ export function KonvaCanvas({ scale }: { scale: number }) {
   );
   const colorPalette = usePresentationStore((s) => s.presentation?.colorPalette ?? []);
 
-  const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (!isSlideBackgroundTarget(e.target)) return;
-    if (ignoreNextBgClickRef.current) {
-      ignoreNextBgClickRef.current = false;
-      return;
-    }
-    if (activeTool === 'select') {
-      selectElement(null);
-      setEditingTextId(null);
-    }
-  };
+  const { smartGuides, handleDragMoveSnapping, handleDragEndSnapping } = useSmartGuides({
+    slideElements: slide?.elements,
+    canvasWidth: CANVAS_WIDTH,
+    canvasHeight: CANVAS_HEIGHT,
+  });
+
+  const getPointer = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => getSlidePointerFromEvent(e, STAGE_PADDING),
+    [],
+  );
+
+  const drawTool = useDrawTool({ activeTool, getPointer });
+  const shapeTool = useShapePlacementTool({
+    activeTool,
+    getPointer,
+    ignoreNextBgClickRef,
+    onTextPlaced: setEditingTextId,
+  });
+  const { handleStageClick, createElementSelectHandler } = useCanvasSelection({
+    activeTool,
+    ignoreNextBgClickRef,
+    onClearTextEdit: () => setEditingTextId(null),
+  });
+
+  const handleContextMenu = useCallback((id: string, x: number, y: number) => {
+    selectElement(id);
+    setContextMenu({ visible: true, x, y, targetId: id });
+  }, [selectElement]);
+
+  // ── Clipboard for copy/paste ──────────────────────────────────────────────
+  const clipboardRef = useRef<import('@/types').SlideElement | null>(null);
+
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const tag = (document.activeElement as HTMLElement)?.tagName;
+      // Don't steal keys from inputs/textareas
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      const mod = e.ctrlKey || e.metaKey;
+      const store = usePresentationStore.getState();
+      const sel = store.editor.selectedElementId;
+      const selIds = store.editor.selectedElementIds;
+      const currentSlide = store.presentation?.slides[store.currentSlideIndex];
+
+      // Escape → deselect all
+      if (e.key === 'Escape') {
+        selectElement(null);
+        clearMultiSelection();
+        setEditingTextId(null);
+        return;
+      }
+
+      // Undo / Redo
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          store.redo();
+        } else {
+          store.undo();
+        }
+        return;
+      }
+      if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        store.redo();
+        return;
+      }
+
+      // Delete / Backspace → remove selected element(s)
+      if ((e.key === 'Delete' || e.key === 'Backspace') && currentSlide) {
+        e.preventDefault();
+        const idsToDelete = selIds.length > 1 ? selIds : sel ? [sel] : [];
+        if (idsToDelete.length > 0) {
+          store.pushHistory();
+          idsToDelete.forEach((id) => removeElement(currentSlide.id, id));
+          clearMultiSelection();
+        }
+        return;
+      }
+
+      if (!sel || !currentSlide) return;
+      const selectedEl = currentSlide.elements?.find((el) => el.id === sel);
+      if (!selectedEl) return;
+
+      // Ctrl+C → copy element
+      if (mod && e.key === 'c') {
+        e.preventDefault();
+        clipboardRef.current = JSON.parse(JSON.stringify(selectedEl));
+        return;
+      }
+
+      // Ctrl+V → paste element
+      if (mod && e.key === 'v') {
+        e.preventDefault();
+        const clip = clipboardRef.current;
+        if (!clip) return;
+        const newId = `el-paste-${Date.now()}`;
+        const newEl: import('@/types').SlideElement = {
+          ...JSON.parse(JSON.stringify(clip)),
+          id: newId,
+          x: Math.min(1280 - clip.width, clip.x + 20),
+          y: Math.min(720 - clip.height, clip.y + 20),
+          zIndex: (currentSlide.elements?.length || 0) + 1,
+        };
+        addElement(currentSlide.id, newEl);
+        selectElement(newId);
+        return;
+      }
+
+      // Ctrl+D → duplicate
+      if (mod && e.key === 'd') {
+        e.preventDefault();
+        const newId = `el-dup-${Date.now()}`;
+        const newEl: import('@/types').SlideElement = {
+          ...JSON.parse(JSON.stringify(selectedEl)),
+          id: newId,
+          x: Math.min(1280 - selectedEl.width, selectedEl.x + 20),
+          y: Math.min(720 - selectedEl.height, selectedEl.y + 20),
+          zIndex: (currentSlide.elements?.length || 0) + 1,
+        };
+        addElement(currentSlide.id, newEl);
+        selectElement(newId);
+        return;
+      }
+
+      // Arrow keys → nudge selected element
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+        updateElement(currentSlide.id, sel, {
+          x: Math.max(0, Math.min(1280 - selectedEl.width, selectedEl.x + dx)),
+          y: Math.max(0, Math.min(720 - selectedEl.height, selectedEl.y + dy)),
+        });
+        return;
+      }
+
+      // Ctrl+] → bring forward  /  Ctrl+[ → send backward
+      if (mod && (e.key === ']' || e.key === '[')) {
+        e.preventDefault();
+        store.reorderElements(currentSlide.id, sel, e.key === ']' ? 'up' : 'down', true);
+        return;
+      }
+
+      // Ctrl+A → select all elements on current slide
+      if (mod && e.key === 'a') {
+        e.preventDefault();
+        const allIds = currentSlide.elements
+          ?.filter((el) => !el.id.startsWith('bg-') && el.visible !== false)
+          .map((el) => el.id) ?? [];
+        if (allIds.length > 0) store.selectElements(allIds);
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectElement, clearMultiSelection, updateElement, addElement, removeElement]);
 
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (!isSlideBackgroundTarget(e.target)) return;
-    const pos = e.target.getStage()?.getPointerPosition();
+    const pos = getPointer(e);
     if (!pos) return;
-
-    const tool = activeTool;
-    if (tool === 'gen-fill') {
-      setDrawingRect({ x: pos.x, y: pos.y, w: 0, h: 0 });
-      return;
-    }
-    if (DRAG_PLACEMENT_TOOLS.includes(tool)) {
-      setDrawingRect({ x: pos.x, y: pos.y, w: 0, h: 0 });
-      return;
-    }
-    if (CLICK_PLACEMENT_TOOLS.includes(tool)) {
-      clickStartRef.current = { x: pos.x, y: pos.y, tool };
-    }
+    if (drawTool.onMouseDown(e, pos)) return;
+    shapeTool.onMouseDown(e, pos);
   };
 
   const handleMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    const pos = e.target.getStage()?.getPointerPosition();
-    if (drawingRect && pos) {
-      setDrawingRect((prev) => {
-        if (!prev) return prev;
-        let w = pos!.x - prev.x;
-        let h = pos!.y - prev.y;
-        if (e.evt.shiftKey && DRAG_PLACEMENT_TOOLS.includes(activeTool) && activeTool !== 'line' && activeTool !== 'arrow') {
-          const side = Math.max(Math.abs(w), Math.abs(h));
-          w = w < 0 ? -side : side;
-          h = h < 0 ? -side : side;
-        }
-        return { ...prev, w, h };
-      });
-      return;
-    }
-    if (clickStartRef.current && pos) {
-      const c = clickStartRef.current;
-      const d = Math.hypot(pos.x - c.x, pos.y - c.y);
-      if (d > CLICK_CANCEL_MOVE) clickStartRef.current = null;
-    }
+    const pos = getPointer(e);
+    if (!pos) return;
+    if (drawTool.onMouseMove(e, pos)) return;
+    shapeTool.onMouseMove(e, pos);
   };
 
   const handleMouseUp = () => {
     const store = usePresentationStore.getState();
     const s = store.presentation?.slides[store.currentSlideIndex];
     if (!s) {
-      setDrawingRect(null);
-      clickStartRef.current = null;
+      drawTool.resetStroke();
+      shapeTool.clearPlacement();
       return;
     }
 
-    const tool = store.editor.activeTool;
     const palette = store.presentation?.colorPalette || ['#05050A', '#FFFFFF', '#38BDF8', '#94A3B8'];
     const accent = palette[2] || '#38BDF8';
-    const textColor = palette[1] || '#FFFFFF';
-    const bodyFont = store.presentation?.fontPairing?.body || 'Inter';
     const z = (s.elements?.length || 0) + 1;
 
-    const finishPlacement = () => {
-      store.setEditorState({ activeTool: 'select' });
-    };
-
-    if (drawingRect) {
-      const rw = Math.abs(drawingRect.w);
-      const rh = Math.abs(drawingRect.h);
-      const x = drawingRect.w < 0 ? drawingRect.x + drawingRect.w : drawingRect.x;
-      const y = drawingRect.h < 0 ? drawingRect.y + drawingRect.h : drawingRect.y;
-
-      const dragBigEnough =
-        tool === 'line' || tool === 'arrow'
-          ? rw >= MIN_PLACE && rh >= 4
-          : rw >= MIN_PLACE && rh >= MIN_PLACE;
-
-      if (tool === 'gen-fill' && rw > MIN_PLACE && rh > MIN_PLACE) {
-        const newId = `el-genfill-${Date.now()}`;
+    if (
+      drawTool.onMouseUp(accent, (payload) => {
         store.addElement(s.id, {
-          id: newId,
-          type: 'image',
-          src: '',
-          x,
-          y,
-          width: rw,
-          height: rh,
-          zIndex: z,
+          id: payload.id,
+          type: 'draw',
+          x: payload.x,
+          y: payload.y,
+          width: payload.width,
+          height: payload.height,
+          points: payload.points,
+          zIndex: payload.zIndex,
           visible: true,
           opacity: 1,
           locked: false,
+          shapeStyle: {
+            stroke: payload.stroke,
+            strokeWidth: payload.strokeWidth,
+          },
         });
-        store.selectElement(newId);
-        ignoreNextBgClickRef.current = true;
-        store.setEditorState({
-          activeTool: 'select',
-          generativeFillTarget: { slideId: s.id, elementId: newId },
-        });
-        setDrawingRect(null);
-        return;
-      }
-
-      if (DRAG_PLACEMENT_TOOLS.includes(tool) && dragBigEnough) {
-        const id = `el-shape-${Date.now()}`;
-        if (tool === 'rect') {
-          store.addElement(s.id, {
-            id,
-            type: 'shape',
-            shapeType: 'rect',
-            x,
-            y,
-            width: rw,
-            height: rh,
-            zIndex: z,
-            visible: true,
-            opacity: 1,
-            locked: false,
-            shapeStyle: defaultShapeStyle(accent),
-          });
-        } else if (tool === 'circle') {
-          store.addElement(s.id, {
-            id,
-            type: 'shape',
-            shapeType: 'circle',
-            x,
-            y,
-            width: rw,
-            height: rh,
-            zIndex: z,
-            visible: true,
-            opacity: 1,
-            locked: false,
-            shapeStyle: defaultShapeStyle(accent),
-          });
-        } else if (tool === 'triangle') {
-          store.addElement(s.id, {
-            id,
-            type: 'shape',
-            shapeType: 'triangle',
-            x,
-            y,
-            width: rw,
-            height: rh,
-            zIndex: z,
-            visible: true,
-            opacity: 1,
-            locked: false,
-            shapeStyle: defaultShapeStyle(accent),
-          });
-        } else if (tool === 'star') {
-          store.addElement(s.id, {
-            id,
-            type: 'shape',
-            shapeType: 'star',
-            x,
-            y,
-            width: rw,
-            height: rh,
-            zIndex: z,
-            visible: true,
-            opacity: 1,
-            locked: false,
-            shapeStyle: defaultShapeStyle(accent),
-          });
-        } else if (tool === 'line') {
-          store.addElement(s.id, {
-            id,
-            type: 'shape',
-            shapeType: 'line',
-            x,
-            y,
-            width: rw,
-            height: rh,
-            zIndex: z,
-            visible: true,
-            opacity: 1,
-            locked: false,
-            shapeStyle: defaultLineStyle(accent),
-          });
-        } else if (tool === 'arrow') {
-          store.addElement(s.id, {
-            id,
-            type: 'shape',
-            shapeType: 'arrow',
-            x,
-            y,
-            width: rw,
-            height: rh,
-            zIndex: z,
-            visible: true,
-            opacity: 1,
-            locked: false,
-            shapeStyle: defaultShapeStyle(accent),
-          });
-        }
-        store.selectElement(id);
-        ignoreNextBgClickRef.current = true;
-        finishPlacement();
-      }
-
-      setDrawingRect(null);
+      }, z)
+    ) {
       return;
     }
 
-    const click = clickStartRef.current;
-    clickStartRef.current = null;
-    if (!click || click.tool !== tool) return;
-
-    if (tool === 'text') {
-      const tw = 400;
-      const th = 120;
-      const newId = `el-text-${Date.now()}`;
-      store.addElement(s.id, {
-        id: newId,
-        type: 'text',
-        x: Math.round(Math.max(0, Math.min(CANVAS_WIDTH - tw, click.x - tw / 2))),
-        y: Math.round(Math.max(0, Math.min(CANVAS_HEIGHT - th, click.y - th / 2))),
-        width: tw,
-        height: th,
-        content: 'Double-click to edit',
-        zIndex: z,
-        visible: true,
-        opacity: 1,
-        locked: false,
-        textStyle: {
-          fontFamily: bodyFont,
-          fontSize: 28,
-          fontWeight: 'normal',
-          color: textColor,
-          textAlign: 'left',
-          lineHeight: 1.35,
-        },
-      });
-      store.selectElement(newId);
-      setEditingTextId(newId);
-      ignoreNextBgClickRef.current = true;
-      finishPlacement();
-      return;
-    }
-
-    if (tool === 'image') {
-      const iw = 360;
-      const ih = 270;
-      const px = Math.round(Math.max(0, Math.min(CANVAS_WIDTH - iw, click.x - iw / 2)));
-      const py = Math.round(Math.max(0, Math.min(CANVAS_HEIGHT - ih, click.y - ih / 2)));
-      const newId = `el-image-${Date.now()}`;
-      store.addElement(s.id, {
-        id: newId,
-        type: 'image',
-        src: '',
-        x: px,
-        y: py,
-        width: iw,
-        height: ih,
-        zIndex: z,
-        visible: true,
-        opacity: 1,
-        locked: false,
-      });
-      store.selectElement(newId);
-      ignoreNextBgClickRef.current = true;
-      finishPlacement();
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent('orbstera:pick-image', { detail: { x: px, y: py } }),
-        );
-      }
-      return;
-    }
-
-    if (tool === 'chart') {
-      const cw = 420;
-      const ch = 260;
-      const newId = `el-chart-${Date.now()}`;
-      store.addElement(s.id, {
-        id: newId,
-        type: 'chart',
-        x: Math.round(Math.max(0, Math.min(CANVAS_WIDTH - cw, click.x - cw / 2))),
-        y: Math.round(Math.max(0, Math.min(CANVAS_HEIGHT - ch, click.y - ch / 2))),
-        width: cw,
-        height: ch,
-        zIndex: z,
-        visible: true,
-        opacity: 1,
-        locked: false,
-        chartData: defaultChartData(accent),
-      });
-      store.selectElement(newId);
-      ignoreNextBgClickRef.current = true;
-      finishPlacement();
-      return;
-    }
-
-    if (tool === 'frame-circle' || tool === 'frame-heart' || tool === 'frame-box') {
-      const fw = 280;
-      const fh = 280;
-      const maskType = tool === 'frame-circle' ? 'circle' : tool === 'frame-heart' ? 'heart' : 'square';
-      const newId = `el-frame-${Date.now()}`;
-      store.addElement(s.id, {
-        id: newId,
-        type: 'image',
-        src: '',
-        maskType,
-        x: Math.round(Math.max(0, Math.min(CANVAS_WIDTH - fw, click.x - fw / 2))),
-        y: Math.round(Math.max(0, Math.min(CANVAS_HEIGHT - fh, click.y - fh / 2))),
-        width: fw,
-        height: fh,
-        zIndex: z,
-        visible: true,
-        opacity: 1,
-        locked: false,
-      });
-      store.selectElement(newId);
-      ignoreNextBgClickRef.current = true;
-      finishPlacement();
-    }
+    shapeTool.onMouseUp();
   };
 
-  if (!mounted || !slide) return null;
+  const bgEl = slide ? findDeckBackgroundElement(slide.elements) : undefined;
+  const elements = (slide?.elements || []).filter((el) => el !== bgEl);
 
-  const bgEl = findDeckBackgroundElement(slide.elements);
-  const elements = (slide.elements || []).filter((el) => el !== bgEl);
+  useEffect(() => {
+    if (trRef.current && stageRef.current) {
+      const selectedNodes = selectedElementIds
+        .map(id => stageRef.current!.findOne(`.${id}`))
+        .filter((node): node is Konva.Node => !!node);
+      trRef.current.nodes(selectedNodes);
+      trRef.current.getLayer()?.batchDraw();
+    }
+  }, [selectedElementIds, elements]);
+
+  if (!mounted || !slide) return null;
 
   return (
     <div
@@ -1063,46 +995,137 @@ export function KonvaCanvas({ scale }: { scale: number }) {
         transform: `scale(${scale})`,
         transformOrigin: 'top left',
         position: 'relative',
-        backgroundColor: '#000',
+        backgroundColor: colorPalette[0] || '#05050A',
         cursor: placementCursor(activeTool),
+        // The Stage is larger than the slide by STAGE_PADDING on each side.
+        // We use a negative margin to pull the Stage into position so the
+        // visual slide area is still top-left of the wrapper.
+        overflow: 'visible',
       }}
     >
-      <Stage
-        ref={stageRef}
-        width={CANVAS_WIDTH}
-        height={CANVAS_HEIGHT}
-        onClick={handleStageClick}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-      >
-        <Layer>
+      {/* Stage is padded so transformer anchors can render outside the slide boundary */}
+      <div style={{ position: 'absolute', top: -STAGE_PADDING, left: -STAGE_PADDING, pointerEvents: 'none' }}>
+        <Stage
+          ref={stageRef}
+          width={CANVAS_WIDTH + STAGE_PADDING * 2}
+          height={CANVAS_HEIGHT + STAGE_PADDING * 2}
+          onClick={handleStageClick}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          style={{ pointerEvents: 'auto' }}
+        >
+          <Layer 
+            offsetX={-STAGE_PADDING} 
+            offsetY={-STAGE_PADDING}
+            clipX={0}
+            clipY={0}
+            clipWidth={CANVAS_WIDTH}
+            clipHeight={CANVAS_HEIGHT}
+          >
           <SlideBackground
             colors={colorPalette}
             bgImageUrl={bgEl?.src}
             bgImageOpacity={bgEl?.opacity}
           />
-          {elements.map((el) => (
-            <ElementNode
-              key={el.id}
-              el={el}
-              isSelected={selectedElementId === el.id}
-              onSelect={() => selectElement(el.id)}
-              onChange={(updates, save) => updateElement(slide.id, el.id, updates, save)}
-              activeTool={activeTool}
-              isEditingText={editingTextId === el.id}
-              onDblClickText={() => setEditingTextId(el.id)}
-              previewElementId={previewElementId}
-              snapToGrid={snapToGrid}
-              gridSize={gridSize}
+          {elements.map((el) => {
+            const isMultiSelected = selectedElementIds.includes(el.id);
+            return (
+              <ElementNode
+                key={el.id}
+                el={el}
+                isSelected={selectedElementId === el.id || (selectedElementIds.length > 1 && isMultiSelected)}
+                onSelect={createElementSelectHandler(el.id)}
+                onChange={(updates, save) => updateElement(slide.id, el.id, updates, save)}
+                activeTool={activeTool}
+                isEditingText={editingTextId === el.id}
+                onDblClickText={() => setEditingTextId(el.id)}
+                previewElementId={previewElementId}
+                snapToGrid={snapToGrid}
+                gridSize={gridSize}
+                onContextMenu={handleContextMenu}
+                onDragMoveSnapping={handleDragMoveSnapping}
+                onDragEndSnapping={handleDragEndSnapping}
+                onMultiDragEnd={(dx, dy, sourceId) => {
+                  // Move all OTHER selected elements by the same delta
+                  const store = usePresentationStore.getState();
+                  const ids = store.editor.selectedElementIds;
+                  if (ids.length < 2) return;
+                  const s = store.presentation?.slides[store.currentSlideIndex];
+                  if (!s) return;
+                  ids.filter((id) => id !== sourceId).forEach((id) => {
+                    const target = s.elements?.find((e) => e.id === id);
+                    if (!target || target.locked) return;
+                    store.updateElement(s.id, id, {
+                      x: Math.max(0, Math.min(1280 - target.width, target.x + dx)),
+                      y: Math.max(0, Math.min(720 - target.height, target.y + dy)),
+                    }, false);
+                  });
+                }}
+              />
+            );
+          })}
+          </Layer>
+          {/* Overlay layer for unclipped items like transformers and guides */}
+          <Layer offsetX={-STAGE_PADDING} offsetY={-STAGE_PADDING}>
+            <Transformer
+              ref={trRef}
+              boundBoxFunc={(oldBox, newBox) => {
+                if (newBox.width < MIN_PLACE || newBox.height < MIN_PLACE) return oldBox;
+                return newBox;
+              }}
+              rotateEnabled
+              keepRatio={false}
+              enabledAnchors={[
+                'top-left',
+                'top-center',
+                'top-right',
+                'middle-left',
+                'middle-right',
+                'bottom-left',
+                'bottom-center',
+                'bottom-right',
+              ]}
+              anchorFill="#ffffff"
+              anchorStroke="#6366f1"
+              anchorStrokeWidth={2}
+              anchorSize={10}
+              anchorCornerRadius={3}
+              borderStroke="#6366f1"
+              borderStrokeWidth={1.5}
+              borderDash={[]}
+              padding={6}
+              rotateAnchorOffset={24}
+              rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
+            />
+          {smartGuides.map((guide, i) => (
+            <Line
+              key={`guide-${i}`}
+              points={[guide.x1, guide.y1, guide.x2, guide.y2]}
+              stroke="#ef4444"
+              strokeWidth={1}
+              dash={[4, 4]}
+              listening={false}
             />
           ))}
-          {drawingRect && (
+          {drawTool.previewPoints && drawTool.previewPoints.length >= 4 && (
+            <Line
+              points={drawTool.previewPoints}
+              stroke="#38BDF8"
+              strokeWidth={4}
+              tension={0.55}
+              lineCap="round"
+              lineJoin="round"
+              perfectDrawEnabled={false}
+              listening={false}
+            />
+          )}
+          {shapeTool.drawingRect && (
             <Rect
-              x={drawingRect.w < 0 ? drawingRect.x + drawingRect.w : drawingRect.x}
-              y={drawingRect.h < 0 ? drawingRect.y + drawingRect.h : drawingRect.y}
-              width={Math.abs(drawingRect.w)}
-              height={Math.abs(drawingRect.h)}
+              x={shapeTool.drawingRect.w < 0 ? shapeTool.drawingRect.x + shapeTool.drawingRect.w : shapeTool.drawingRect.x}
+              y={shapeTool.drawingRect.h < 0 ? shapeTool.drawingRect.y + shapeTool.drawingRect.h : shapeTool.drawingRect.y}
+              width={Math.abs(shapeTool.drawingRect.w)}
+              height={Math.abs(shapeTool.drawingRect.h)}
               fill="rgba(56, 189, 248, 0.12)"
               stroke="#38BDF8"
               strokeWidth={1.5}
@@ -1111,8 +1134,10 @@ export function KonvaCanvas({ scale }: { scale: number }) {
             />
           )}
         </Layer>
-      </Stage>
+        </Stage>
+      </div>
 
+      {/* ── Text inline editor overlay ────────────────────────────────────── */}
       {editingTextId && (
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1000 }}>
           {slide.elements?.map((el) => {
@@ -1145,6 +1170,56 @@ export function KonvaCanvas({ scale }: { scale: number }) {
           })}
         </div>
       )}
+
+      {/* ── Context Menu Overlay ────────────────────────────────────────── */}
+      {contextMenu.visible && contextMenu.targetId && (() => {
+        const ctxEl = slide.elements?.find(el => el.id === contextMenu.targetId);
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              top: contextMenu.y,
+              left: contextMenu.x,
+              zIndex: 9999,
+            }}
+            className="bg-white border border-neutral-200 shadow-xl rounded-lg py-1 w-52 text-sm text-neutral-800 overflow-hidden"
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            <button
+              className="w-full text-left px-4 py-2 hover:bg-neutral-100 transition-colors flex items-center justify-between"
+              onClick={(e) => { e.stopPropagation(); usePresentationStore.getState().setElementsOrder(slide.id, [contextMenu.targetId!, ...(slide.elements || []).map(el => el.id).filter(id => id !== contextMenu.targetId)], true); setContextMenu(prev => ({ ...prev, visible: false })); }}
+            >
+              Bring to Front
+            </button>
+            <button
+              className="w-full text-left px-4 py-2 hover:bg-neutral-100 transition-colors flex items-center justify-between"
+              onClick={(e) => { e.stopPropagation(); usePresentationStore.getState().setElementsOrder(slide.id, [...(slide.elements || []).map(el => el.id).filter(id => id !== contextMenu.targetId), contextMenu.targetId!], true); setContextMenu(prev => ({ ...prev, visible: false })); }}
+            >
+              Send to Back
+            </button>
+            <div className="h-px bg-neutral-100 my-1" />
+            <button
+              className="w-full text-left px-4 py-2 hover:bg-neutral-100 transition-colors flex items-center justify-between"
+              onClick={(e) => { e.stopPropagation(); usePresentationStore.getState().duplicateElement(slide.id, contextMenu.targetId!); setContextMenu(prev => ({ ...prev, visible: false })); }}
+            >
+              Duplicate <span className="text-neutral-400 text-xs">Ctrl+D</span>
+            </button>
+            <button
+              className={`w-full text-left px-4 py-2 transition-colors flex items-center justify-between ${ctxEl?.locked ? 'hover:bg-amber-50 text-amber-700' : 'hover:bg-neutral-100'}`}
+              onClick={(e) => { e.stopPropagation(); updateElement(slide.id, contextMenu.targetId!, { locked: !ctxEl?.locked }, true); setContextMenu(prev => ({ ...prev, visible: false })); }}
+            >
+              {ctxEl?.locked ? 'Unlock' : 'Lock'} <span className="text-neutral-400 text-xs">{ctxEl?.locked ? '🔓' : '🔒'}</span>
+            </button>
+            <div className="h-px bg-neutral-100 my-1" />
+            <button
+              className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 transition-colors flex items-center justify-between"
+              onClick={(e) => { e.stopPropagation(); removeElement(slide.id, contextMenu.targetId!); setContextMenu(prev => ({ ...prev, visible: false })); }}
+            >
+              Delete <span className="text-red-400 text-xs">Del</span>
+            </button>
+          </div>
+        );
+      })()}
     </div>
   );
 }

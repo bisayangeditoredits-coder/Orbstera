@@ -116,15 +116,163 @@ const ENTRANCE_SET = new Set<string>([
 ]);
 
 export function coerceAnimationEntrance(raw: unknown): AnimationEntrance {
-  if (typeof raw !== 'string' || !ENTRANCE_SET.has(raw)) return 'fadeIn';
+  if (typeof raw !== 'string') return 'fadeIn';
+  if (raw.startsWith('animate__')) return raw as AnimationEntrance;
+  if (!ENTRANCE_SET.has(raw)) return 'fadeIn';
   return raw as AnimationEntrance;
 }
 
-const easeOut = [0.22, 1, 0.36, 1] as const;
-const easeInOut = [0.45, 0, 0.55, 1] as const;
+export const MOTION_EASE_OUT = [0.22, 1, 0.36, 1] as const;
+export const MOTION_EASE_IN_OUT = [0.45, 0, 0.55, 1] as const;
+const easeOut = MOTION_EASE_OUT;
+const easeInOut = MOTION_EASE_IN_OUT;
 
 export function durSec(ms: number) {
   return Math.max(0.12, ms / 1000);
+}
+
+/** Canonical timing — shared by canvas preview, presenter, and public view. */
+export function elementAnimationDurationMs(
+  animation: AnimationConfig | undefined,
+  fallback = 600,
+): number {
+  return Math.max(120, animation?.duration ?? fallback);
+}
+
+export function elementAnimationDelayMs(
+  animation: AnimationConfig | undefined,
+  orderIndex: number,
+  staggerMs = 80,
+): number {
+  if (animation != null && animation.delay != null) return animation.delay;
+  return orderIndex * staggerMs;
+}
+
+/** Layer stacking — matches editor z-order. */
+export function elementPresentZIndex(el: SlideElement, orderIndex: number): number {
+  return el.zIndex ?? orderIndex + 1;
+}
+
+/**
+ * Single source of truth for entrance offsets (Framer `x`/`y`/`scale` ↔ Konva preview).
+ * Positive offsetY = element starts below final position (slides up into place).
+ */
+export type EntranceHiddenState = {
+  opacity: number;
+  offsetX: number;
+  offsetY: number;
+  scale: number;
+};
+
+export function getElementEntranceHiddenState(
+  entrance: AnimationEntrance | undefined,
+): EntranceHiddenState {
+  switch (entrance) {
+    case 'fadeSlideUp':
+      return { opacity: 0, offsetX: 0, offsetY: 56, scale: 1 };
+    case 'fadeSlideLeft':
+      return { opacity: 0, offsetX: 64, offsetY: 0, scale: 1 };
+    case 'slideRight':
+      return { opacity: 0, offsetX: -70, offsetY: 0, scale: 1 };
+    case 'zoomIn':
+      return { opacity: 0, offsetX: 0, offsetY: 0, scale: 0.62 };
+    case 'elasticScale':
+      return { opacity: 0, offsetX: 0, offsetY: 0, scale: 0.88 };
+    case 'bounceIn':
+      return { opacity: 0, offsetX: 0, offsetY: -20, scale: 0.82 };
+    case 'parallaxDrift':
+      return { opacity: 0, offsetX: -36, offsetY: 20, scale: 0.96 };
+    case 'verticalRise':
+      return { opacity: 0, offsetX: 0, offsetY: 48, scale: 1 };
+    case 'horizontalReveal':
+      return { opacity: 0, offsetX: 80, offsetY: 0, scale: 1 };
+    case 'depthRise':
+      return { opacity: 0, offsetX: 0, offsetY: 40, scale: 0.9 };
+    case 'floatGentle':
+      return { opacity: 0, offsetX: 0, offsetY: 28, scale: 1 };
+    case 'scaleSoft':
+    case 'morphBlend':
+      return { opacity: 0, offsetX: 0, offsetY: 0, scale: 0.94 };
+    case 'cinematicImageZoom':
+      return { opacity: 0, offsetX: 0, offsetY: 0, scale: 1.08 };
+    case 'blurIn':
+    case 'glassBlur':
+      return { opacity: 0, offsetX: 0, offsetY: 0, scale: 1.04 };
+    case 'glitch':
+      return { opacity: 0, offsetX: -12, offsetY: 0, scale: 1 };
+    case 'typewriterWords':
+    case 'staggerLines':
+      return { opacity: 0, offsetX: 0, offsetY: 10, scale: 1 };
+    case 'none':
+      return { opacity: 1, offsetX: 0, offsetY: 0, scale: 1 };
+    default:
+      return { opacity: 0, offsetX: 0, offsetY: 0, scale: 1 };
+  }
+}
+
+/** Konva canvas preview tween — mirrors Framer entrance math. */
+export function getKonvaEntrancePreviewTween(
+  entrance: AnimationEntrance | undefined,
+  durationMs: number,
+  baseOpacity: number,
+  startX: number,
+  startY: number,
+  width: number,
+  height: number,
+) {
+  const hidden = getElementEntranceHiddenState(entrance);
+  const useScale = hidden.scale !== 1 && entrance !== 'none';
+  const cx = width / 2;
+  const cy = height / 2;
+  const fromX = useScale ? startX + cx : startX + hidden.offsetX;
+  const fromY = useScale ? startY + cy : startY + hidden.offsetY;
+  const toX = useScale ? startX + cx : startX;
+  const toY = useScale ? startY + cy : startY;
+
+  return {
+    durationSec: durSec(durationMs),
+    hidden,
+    useScale,
+    cx,
+    cy,
+    from: {
+      opacity: hidden.opacity === 1 ? baseOpacity : 0,
+      x: fromX,
+      y: fromY,
+      scaleX: useScale ? hidden.scale : 1,
+      scaleY: useScale ? hidden.scale : 1,
+      offsetX: useScale ? cx : 0,
+      offsetY: useScale ? cy : 0,
+    },
+    to: {
+      opacity: baseOpacity,
+      x: toX,
+      y: toY,
+      scaleX: 1,
+      scaleY: 1,
+      offsetX: useScale ? cx : 0,
+      offsetY: useScale ? cy : 0,
+    },
+    resetPosition: { x: startX, y: startY, offsetX: 0, offsetY: 0 },
+  };
+}
+
+/** Framer variants with final opacity applied (presenter + shared view). */
+export function buildElementEntranceVariants(
+  entrance: AnimationEntrance | undefined,
+  durationMs: number,
+  delayMs: number,
+  baseOpacity: number,
+  animationsOn: boolean,
+): Variants {
+  if (!animationsOn || entrance === 'none' || !entrance) {
+    return { hidden: { opacity: baseOpacity }, visible: { opacity: baseOpacity } };
+  }
+  const raw = getElementEntranceVariants(entrance, durationMs, delayMs);
+  return {
+    hidden: { ...(raw.hidden as object) },
+    visible: { ...(raw.visible as object), opacity: baseOpacity },
+  };
 }
 
 const DEFAULT_SLIDE_TRANSITION_MS = 620;
@@ -313,37 +461,9 @@ export function getElementEntranceVariants(
   const dur = durSec(durationMs);
   const del = delayMs / 1000;
   const t = { delay: del, duration: dur, ease: easeOut };
+  const h = getElementEntranceHiddenState(entrance);
 
   switch (entrance) {
-    case 'fadeSlideUp':
-      return {
-        hidden:  { opacity: 0, y: 56 },
-        visible: { opacity: 1, y: 0, transition: t },
-      };
-    case 'fadeSlideLeft':
-      return {
-        hidden:  { opacity: 0, x: 64 },
-        visible: { opacity: 1, x: 0, transition: t },
-      };
-    case 'slideRight':
-      return {
-        hidden:  { opacity: 0, x: -70 },
-        visible: { opacity: 1, x: 0, transition: t },
-      };
-    case 'zoomIn':
-      return {
-        hidden:  { opacity: 0, scale: 0.62 },
-        visible: { opacity: 1, scale: 1, transition: t },
-      };
-    case 'elasticScale':
-      return {
-        hidden:  { opacity: 0, scale: 0.88 },
-        visible: {
-          opacity: 1,
-          scale: 1,
-          transition: { delay: del, type: 'spring', damping: 14, stiffness: 120 },
-        },
-      };
     case 'flipIn':
       return {
         hidden:  { opacity: 0, rotateX: -85, transformPerspective: 900 },
@@ -357,12 +477,12 @@ export function getElementEntranceVariants(
     case 'blurIn':
     case 'glassBlur':
       return {
-        hidden:  { opacity: 0, filter: 'blur(24px)', scale: 1.04 },
+        hidden:  { opacity: h.opacity, filter: 'blur(24px)', scale: h.scale },
         visible: { opacity: 1, filter: 'blur(0px)', scale: 1, transition: { ...t, ease: 'easeOut' } },
       };
     case 'glitch':
       return {
-        hidden:  { opacity: 0, x: -12, skewX: 14 },
+        hidden:  { opacity: h.opacity, x: h.offsetX, skewX: 14 },
         visible: {
           opacity: 1,
           x: [0, -3, 3, 0],
@@ -370,60 +490,58 @@ export function getElementEntranceVariants(
           transition: { delay: del, duration: dur, times: [0, 0.35, 0.65, 1] },
         },
       };
+    case 'elasticScale':
+      return {
+        hidden:  { opacity: h.opacity, scale: h.scale },
+        visible: {
+          opacity: 1,
+          scale: 1,
+          transition: { delay: del, type: 'spring', damping: 14, stiffness: 120 },
+        },
+      };
     case 'bounceIn':
       return {
-        hidden:  { opacity: 0, scale: 0.82, y: -20 },
+        hidden:  { opacity: h.opacity, scale: h.scale, y: h.offsetY },
         visible: { opacity: 1, scale: 1, y: 0, transition: { delay: del, type: 'spring', damping: 11, stiffness: 180 } },
-      };
-    case 'parallaxDrift':
-      return {
-        hidden:  { opacity: 0, x: -36, y: 20, scale: 0.96 },
-        visible: { opacity: 1, x: 0, y: 0, scale: 1, transition: t },
       };
     case 'verticalRise':
       return {
-        hidden:  { opacity: 0, y: 48, filter: 'blur(4px)' },
+        hidden:  { opacity: h.opacity, y: h.offsetY, filter: 'blur(4px)' },
         visible: { opacity: 1, y: 0, filter: 'blur(0px)', transition: t },
       };
     case 'horizontalReveal':
       return {
-        hidden:  { opacity: 0, x: 80, clipPath: 'inset(0 100% 0 0)' },
+        hidden:  { opacity: h.opacity, x: h.offsetX, clipPath: 'inset(0 100% 0 0)' },
         visible: { opacity: 1, x: 0, clipPath: 'inset(0 0% 0 0)', transition: t },
       };
     case 'depthRise':
       return {
-        hidden:  { opacity: 0, y: 40, scale: 0.9, z: -40 },
+        hidden:  { opacity: h.opacity, y: h.offsetY, scale: h.scale, z: -40 },
         visible: { opacity: 1, y: 0, scale: 1, z: 0, transition: t },
       };
     case 'floatGentle':
       return {
-        hidden:  { opacity: 0, y: 28, rotate: -0.5 },
+        hidden:  { opacity: h.opacity, y: h.offsetY, rotate: -0.5 },
         visible: { opacity: 1, y: 0, rotate: 0, transition: t },
-      };
-    case 'scaleSoft':
-    case 'morphBlend':
-      return {
-        hidden:  { opacity: 0, scale: 0.94 },
-        visible: { opacity: 1, scale: 1, transition: t },
-      };
-    case 'cinematicImageZoom':
-      return {
-        hidden:  { opacity: 0, scale: 1.08 },
-        visible: { opacity: 1, scale: 1, transition: t },
       };
     case 'typewriterWords':
     case 'staggerLines':
       return {
-        hidden:  { opacity: 0, y: 10, filter: 'blur(6px)' },
+        hidden:  { opacity: h.opacity, y: h.offsetY, filter: 'blur(6px)' },
         visible: { opacity: 1, y: 0, filter: 'blur(0px)', transition: t },
       };
     case 'none':
       return { hidden: { opacity: 1 }, visible: { opacity: 1 } };
-    default:
+    default: {
+      const hidden: Record<string, number> = { opacity: h.opacity };
+      if (h.offsetX) hidden.x = h.offsetX;
+      if (h.offsetY) hidden.y = h.offsetY;
+      if (h.scale !== 1) hidden.scale = h.scale;
       return {
-        hidden:  { opacity: 0 },
-        visible: { opacity: 1, transition: t },
+        hidden,
+        visible: { opacity: 1, x: 0, y: 0, scale: 1, transition: t },
       };
+    }
   }
 }
 
@@ -451,7 +569,7 @@ export function inferSlideTransition(slide: Slide, ctx: MotionContext): SlideTra
       return 'keynote';
     case 'timeline':
       return 'layerReveal';
-    case 'chart':
+    case 'stats':
     case 'stats':
       return 'depth';
     case 'quote':
@@ -488,7 +606,6 @@ export function suggestElementEntrance(
 
   if (el.type === 'image') return deck.includes('luxury') ? 'scaleSoft' : 'parallaxDrift';
 
-  if (el.type === 'chart') return 'depthRise';
 
   if (el.type === 'text') {
     const len = (el.content || '').length;
@@ -518,7 +635,7 @@ export function finalizeSlideMotion(slide: Slide, ctx: MotionContext): Slide {
     const baseDur =
       el.type === 'image' && isFullBleedBackground(el)
         ? 1400
-        : el.type === 'chart'
+        : el.type === 'icon'
           ? 900
           : 620;
     const duration = el.animation?.duration ?? baseDur;

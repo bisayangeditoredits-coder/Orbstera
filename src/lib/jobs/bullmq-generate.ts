@@ -45,7 +45,13 @@ export async function enqueueBullGenerateJob(payload: {
   return true;
 }
 
-export async function createBullWorker(): Promise<import('bullmq').Worker | null> {
+export type BullWorkerHandle = {
+  worker: import('bullmq').Worker;
+  connection: import('ioredis').Redis;
+  shutdown: () => Promise<void>;
+};
+
+export async function createBullWorker(): Promise<BullWorkerHandle | null> {
   const redisUrl = process.env.REDIS_URL?.trim() || process.env.UPSTASH_REDIS_URL?.trim();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
   const secret = process.env.WORKER_INTERNAL_SECRET?.trim();
@@ -55,7 +61,7 @@ export async function createBullWorker(): Promise<import('bullmq').Worker | null
   const IORedis = (await import('ioredis')).default;
   const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
 
-  return new Worker(
+  const worker = new Worker(
     QUEUE_NAME,
     async (job) => {
       const data = job.data as { jobId: string; userId: string; body: DeckGenerationJobBody };
@@ -75,4 +81,17 @@ export async function createBullWorker(): Promise<import('bullmq').Worker | null
     },
     { connection, concurrency: Number(process.env.GENERATE_WORKER_CONCURRENCY || 2) },
   );
+
+  return {
+    worker,
+    connection,
+    async shutdown() {
+      await worker.close();
+      try {
+        await connection.quit();
+      } catch {
+        connection.disconnect();
+      }
+    },
+  };
 }

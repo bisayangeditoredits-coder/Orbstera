@@ -3,13 +3,13 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { buildComposerMessages } from '@/lib/ai/orchestration';
 import { runOpenRouterOrchestration } from '@/lib/ai/prompt-chain';
-import { openRouterStream } from '@/lib/ai/openrouter';
+import { openRouterStreamCascade } from '@/lib/ai/openrouter-cascade';
 import { getComposeFallbackModels, selectTextModel } from '@/lib/ai/router';
 import {
-  consumeCreditsForUser,
-  estimateDeckCostCredits,
+  chargeCreditsBeforeJob,
+  estimateDeckCreditAction,
   getCreditConfig,
-  getCreditSummaryForUser,
+  getDeckGenerationCreditCost,
   refundCreditsForUser,
 } from '@/lib/billing/credits';
 import { getBillingPlan } from '@/lib/billing/resolve-plan';
@@ -21,6 +21,7 @@ import { createJobRecord, enqueueGenerateJob, updateJobRecord } from '@/lib/jobs
 import { isGenerateQueueEnabled, shouldPreferAsyncGenerate } from '@/lib/jobs/generate-queue-config';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import { v4 as uuidv4 } from 'uuid';
+import { globalRateLimit } from '@/lib/rate-limit';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -32,20 +33,10 @@ export const maxDuration = 300;
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
   try {
-    const body = await req.json();
-    const {
-      prompt,
-      slideCount = 10,
-      tone = 'professional',
-      language = 'English',
-      styleMode,
-    } = body as {
-      prompt?: string;
-      slideCount?: number;
-      tone?: string;
-      language?: string;
-      styleMode?: string;
-    };
+    const contentLength = Number(req.headers.get('content-length') ?? 0);
+    if (contentLength > 1 * 1024 * 1024) { // 1MB max payload
+      return NextResponse.json({ error: 'Payload too large. Maximum size is 1MB.' }, { status: 413 });
+    }
 
     if (!OPENROUTER_API_KEY.trim()) {
       return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured.' }, { status: 500 });
@@ -54,6 +45,44 @@ export async function POST(req: Request) {
     const auth = await requireAiUser(req, 'heavy');
     if ('response' in auth) return auth.response;
     const user = auth.user;
+
+    if (globalRateLimit) {
+      const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
+      const identifier = `${user.id}-${ip}`;
+      const { success, limit, reset, remaining } = await globalRateLimit.limit(identifier);
+      if (!success) {
+        return NextResponse.json(
+          { error: 'Rate limit exceeded. Please try again later.' },
+          {
+            status: 429,
+            headers: {
+              'X-RateLimit-Limit': limit.toString(),
+              'X-RateLimit-Remaining': remaining.toString(),
+              'X-RateLimit-Reset': reset.toString(),
+            },
+          }
+        );
+      }
+    }
+
+    const body = await req.json();
+    const {
+      prompt,
+      slideCount = 10,
+      outlineSlideCount,
+      plannerSessionId,
+      tone = 'professional',
+      language = 'English',
+      styleMode,
+    } = body as {
+      prompt?: string;
+      slideCount?: number;
+      outlineSlideCount?: number;
+      plannerSessionId?: string;
+      tone?: string;
+      language?: string;
+      styleMode?: string;
+    };
 
     const cookieStore = cookies();
     const supabase = createServerClient(
@@ -90,57 +119,38 @@ export async function POST(req: Request) {
     };
 
     const maxSlides = MAX_SLIDES[plan] || FREE_TIER.maxSlidesPerDeck;
-    const finalSlideCount = Math.min(Math.max(1, slideCount), maxSlides);
+    const requestedSlides =
+      typeof outlineSlideCount === 'number' && outlineSlideCount > 0
+        ? outlineSlideCount
+        : slideCount;
+    const finalSlideCount = Math.min(Math.max(1, requestedSlides), maxSlides);
 
     const userPrompt = String(prompt || '').trim();
     if (!userPrompt) {
       return NextResponse.json({ error: 'Prompt is required.' }, { status: 400 });
     }
 
-    // Credits gate (configurable). We estimate before running any AI calls.
     const creditConfig = await getCreditConfig(supabase);
-    const estimatedCredits = estimateDeckCostCredits({
-      slideCount: finalSlideCount,
-      includeImages: true,
-      premiumImages: plan === 'creator_pro' || plan === 'admin',
-      config: creditConfig,
-    });
-    const deckCreditAction =
-      finalSlideCount <= 6 ? 'deck_small' : finalSlideCount <= 15 ? 'deck_medium' : 'deck_large';
+    const deckCreditAction = estimateDeckCreditAction(finalSlideCount);
+    const deckCreditCost = getDeckGenerationCreditCost(creditConfig, finalSlideCount);
 
-    const creditPreview = await getCreditSummaryForUser({ supabase, userId: user.id });
-    if (creditPreview.remaining < estimatedCredits) {
-      return NextResponse.json(
-        {
-          error: 'INSUFFICIENT_CREDITS',
-          message: `You don't have enough credits for this generation.`,
-          credits: creditPreview,
-          required: estimatedCredits,
-        },
-        { status: 402 },
-      );
-    }
-
-    const charged = await consumeCreditsForUser({
-      userId: user.id,
-      cost: estimatedCredits,
-      action: deckCreditAction,
-      meta: { slides: finalSlideCount, estimatedCredits, route: 'generate' },
-      idempotencyKey: requestId,
+    const charged = await chargeCreditsBeforeJob({
       supabase,
+      userId: user.id,
+      action: deckCreditAction,
+      cost: deckCreditCost,
+      meta: { slides: finalSlideCount, route: 'generate', plan },
+      idempotencyKey: requestId,
     });
 
     if (!charged.ok) {
       const status = charged.error === 'INSUFFICIENT_CREDITS' ? 402 : 503;
       return NextResponse.json(
         {
-          error: charged.error,
-          message:
-            charged.error === 'INSUFFICIENT_CREDITS'
-              ? `You don't have enough credits for this generation.`
-              : 'Billing is temporarily unavailable.',
+          error: 'INSUFFICIENT_CREDITS',
+          message: `Not enough credits for this generation (${deckCreditCost} required).`,
           credits: charged.summary,
-          required: estimatedCredits,
+          required: deckCreditCost,
         },
         { status },
       );
@@ -152,17 +162,15 @@ export async function POST(req: Request) {
       creditsRefunded = true;
       await refundCreditsForUser({
         userId: user.id,
-        cost: estimatedCredits,
+        cost: deckCreditCost,
         idempotencyKey: requestId,
         reason: 'generate_failed',
       });
     };
 
-    // Estimated spend tracking (credit-based approximation for protection).
-    // Best-effort only; must never break generation.
     const usdPerCredit = typeof creditConfig.usdPerCredit === 'number' ? creditConfig.usdPerCredit : 0;
     if (usdPerCredit > 0) {
-      void addEstimatedSpend({ supabase, usdDelta: estimatedCredits * usdPerCredit });
+      void addEstimatedSpend({ supabase, usdDelta: deckCreditCost * usdPerCredit });
     }
 
     const jobId = uuidv4();
@@ -177,13 +185,20 @@ export async function POST(req: Request) {
           language,
           styleMode,
           plan,
-          estimatedCredits,
+          estimatedCredits: deckCreditCost,
           deckCreditAction,
+          plannerSessionId: plannerSessionId || undefined,
+          outlineSlideCount: finalSlideCount,
         },
       });
       if (queued) {
         return NextResponse.json(
-          { jobId, status: 'queued', message: 'Generation queued. Poll GET /api/jobs/[id] for status.' },
+          {
+            jobId,
+            status: 'queued',
+            message: 'Generation queued. Poll GET /api/jobs/[id] for status.',
+            progressUrl: `/api/jobs/${jobId}`,
+          },
           { status: 202 },
         );
       }
@@ -325,41 +340,50 @@ export async function POST(req: Request) {
             freeTaste,
           });
 
-          async function tryStream(model: string): Promise<boolean> {
-            const res = await openRouterStream(APP_URL, {
-              model,
+          const streamModels = [
+            composerPrimary.model,
+            ...composeFallbackModels.filter((m) => m !== composerPrimary.model),
+          ];
+
+          let ok = false;
+          try {
+            const { response: streamRes, modelUsed } = await openRouterStreamCascade(APP_URL, {
+              models: streamModels,
               messages: [
                 { role: 'system', content: system },
                 { role: 'user', content: userMessage },
               ],
+              plan,
+              freeTaste,
+              economy: spendState.forcedEconomyMode,
+              max_tokens: composerPrimary.maxTokens,
+              temperature: composerPrimary.temperature,
             });
-            if (!res.ok || !res.body) {
-              const errText = await res.text().catch(() => '');
-              console.error(`[Generate] ${model} failed:`, res.status, errText);
-              return false;
-            }
-            const reader = res.body.getReader();
+
+            sendOrb({
+              orb: {
+                phase: 'streaming',
+                message: `Composing with ${composerPrimary.label}…`,
+                modelLabel: composerPrimary.label,
+              },
+            });
+
+            const reader = streamRes.body!.getReader();
             while (true) {
               const { done, value } = await reader.read();
               if (done) break;
               if (value) controller.enqueue(value);
             }
-            return true;
-          }
-
-          let ok = await tryStream(composerPrimary.model);
-          if (!ok) {
-            for (const fallbackModel of composeFallbackModels) {
-              if (fallbackModel === composerPrimary.model) continue;
-              sendOrb({
-                orb: {
-                  phase: 'fallback',
-                  message: 'Continuing with an alternate composer…',
-                },
-              });
-              ok = await tryStream(fallbackModel);
-              if (ok) break;
-            }
+            ok = true;
+            console.log('[Generate] stream completed via', modelUsed);
+          } catch (streamErr) {
+            console.error('[Generate] stream cascade failed:', streamErr);
+            sendOrb({
+              orb: {
+                phase: 'fallback',
+                message: 'Retrying with an alternate composer…',
+              },
+            });
           }
           if (!ok) {
             sendOrb({

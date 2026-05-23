@@ -2,7 +2,8 @@ import type { User } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { requireApiUser } from '@/lib/auth/server';
 import {
-  enforceApiRateLimit,
+  enforceApiIpRateLimit,
+  enforceApiUserRateLimit,
   requireRateLimitInfrastructure,
   type ApiTier,
 } from '@/lib/rate-limit-server';
@@ -11,7 +12,7 @@ export type ApiRouteAuth = { user: User } | { response: NextResponse };
 
 /**
  * Authenticated API routes with per-user/IP rate limits (storage, uploads, CRUD).
- * In production, missing Upstash returns 503 (same fail-closed policy as AI routes).
+ * IP limit runs before Supabase auth to reject abuse without DB round-trips.
  */
 export async function requireApiUserWithRateLimit(
   req: Request,
@@ -20,11 +21,14 @@ export async function requireApiUserWithRateLimit(
   const infra = requireRateLimitInfrastructure();
   if (infra) return { response: infra };
 
+  const ipLimited = await enforceApiIpRateLimit(req, tier);
+  if (ipLimited) return { response: ipLimited };
+
   const auth = await requireApiUser();
   if ('response' in auth) return auth;
 
-  const limited = await enforceApiRateLimit(req, auth.user.id, tier);
-  if (limited) return { response: limited };
+  const userLimited = await enforceApiUserRateLimit(req, auth.user.id, tier);
+  if (userLimited) return { response: userLimited };
 
   return { user: auth.user };
 }

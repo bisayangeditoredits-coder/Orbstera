@@ -8,6 +8,10 @@ export const PRIVATE_API_HEADERS = {
   'Pragma': 'no-cache',
 } as const;
 
+/**
+ * Per-request server client (cookie-bound). Not a global singleton — each request
+ * carries its own session. Service-role access should use getServiceSupabase().
+ */
 export function createRouteSupabase() {
   const cookieStore = cookies();
   return createServerClient(

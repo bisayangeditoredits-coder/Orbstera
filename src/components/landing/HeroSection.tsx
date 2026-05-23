@@ -2,12 +2,140 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff, ShieldCheck, Zap, Clock3, Star } from 'lucide-react';
+import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff, ShieldCheck, Zap, Clock3, Star, Lock, ChevronDown } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
 import { explainGetUserMediaError, explainRecognitionStartError } from '@/lib/mic-access';
 import { OnboardingModal } from '@/components/dashboard/OnboardingModal';
+import { useCredits } from '@/hooks/useCredits';
+
+// ── Slide count dropdown (Gamma-style) ────────────────────────────────────────
+const SLIDE_OPTIONS: { count: number; tier: 'free' | 'plus' | 'pro' }[] = [
+  { count: 1,  tier: 'free' }, { count: 2,  tier: 'free' },
+  { count: 3,  tier: 'free' }, { count: 4,  tier: 'free' },
+  { count: 5,  tier: 'free' }, { count: 6,  tier: 'free' },
+  { count: 7,  tier: 'free' }, { count: 8,  tier: 'free' },
+  { count: 9,  tier: 'free' }, { count: 10, tier: 'free' },
+  { count: 15, tier: 'plus' }, { count: 20, tier: 'plus' },
+  { count: 25, tier: 'pro'  }, { count: 30, tier: 'pro'  },
+  { count: 40, tier: 'pro'  },
+];
+
+function SlideCountDropdown({
+  slideCount,
+  setSlideCount,
+  isFree,
+}: {
+  slideCount: number;
+  setSlideCount: (n: number) => void;
+  isFree: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const dropRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (dropRef.current && !dropRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div ref={dropRef} className="relative mb-4">
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 pl-3.5 pr-3 py-1.5 rounded-xl bg-white/70 backdrop-blur-sm border border-black/[0.09] text-[13px] font-semibold text-textMain hover:bg-white hover:border-black/[0.15] transition-all shadow-sm"
+      >
+        {slideCount} cards
+        <ChevronDown
+          size={14}
+          className={`text-textMuted transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {/* Panel */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.97 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className="absolute left-0 top-full mt-1.5 z-50 w-52 rounded-2xl border border-black/[0.08] bg-white shadow-xl shadow-black/10 overflow-hidden py-1"
+          >
+            <div className="px-4 pt-3 pb-2">
+              <p className="text-[11px] font-semibold text-textMuted">Tip: cards are like slides</p>
+            </div>
+
+            {SLIDE_OPTIONS.map(({ count, tier }) => {
+              const locked = isFree && tier !== 'free';
+              const selected = slideCount === count;
+              return (
+                <button
+                  key={count}
+                  type="button"
+                  onClick={() => {
+                    if (locked) {
+                      setShowUpgrade(true);
+                      setTimeout(() => setShowUpgrade(false), 3000);
+                      setOpen(false);
+                      return;
+                    }
+                    setSlideCount(count);
+                    setOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-2 text-[13px] transition-colors ${
+                    locked
+                      ? 'text-slate-400 cursor-pointer hover:bg-slate-50'
+                      : selected
+                        ? 'text-textMain font-medium bg-slate-50'
+                        : 'text-textMain hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    {selected && !locked ? (
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-primary shrink-0">
+                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    ) : <span className="w-3 shrink-0" />}
+                    {count} cards
+                  </span>
+                  {tier === 'plus' && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500 text-white tracking-wide">PLUS</span>
+                  )}
+                  {tier === 'pro' && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-white tracking-wide">PRO</span>
+                  )}
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Upgrade nudge */}
+      <AnimatePresence>
+        {showUpgrade && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="absolute left-0 top-full mt-1.5 z-[60] flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] font-semibold text-amber-800 shadow-lg whitespace-nowrap"
+          >
+            <Lock size={11} />
+            <Link href="/pricing" className="underline underline-offset-2">Upgrade to Pro</Link> for more slides
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export function HeroSection() {
   const [prompt, setPrompt] = useState("");
@@ -15,7 +143,12 @@ export function HeroSection() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [activeMode, setActiveMode] = useState<'create' | 'enhance' | 'voice'>('create');
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [slideCount, setSlideCount] = useState<number>(8);
+  const [showUpgradeNudge, setShowUpgradeNudge] = useState(false);
   const promptInputRef = useRef<HTMLTextAreaElement>(null);
+  const { plan, loading: creditsLoading } = useCredits();
+  const isFree = !creditsLoading && (plan === 'free' || !plan);
+  const FREE_MAX_SLIDES = 10;
 
   useEffect(() => {
     // Show onboarding on homepage load for new visitors
@@ -558,7 +691,7 @@ export function HeroSection() {
 
     // Direct routing to the Planner Copilot for create mode
     if (activeMode === 'create' || activeMode === 'voice') {
-      router.push(`/planner?topic=${encodeURIComponent(effectivePrompt)}`);
+      router.push(`/planner?topic=${encodeURIComponent(effectivePrompt)}&slides=${slideCount}`);
       return;
     }
 
@@ -581,7 +714,7 @@ export function HeroSection() {
         accept=".pdf,.doc,.docx,.ppt,.pptx,.txt"
       />
 
-      {/* Cinematic Animated Background - Restricted to screen size with smooth fade out */}
+      {/* Cinematic Animated Background */}
       <div
         className="absolute top-0 left-0 right-0 h-[110vh] z-0 pointer-events-none overflow-hidden"
         style={{
@@ -604,32 +737,18 @@ export function HeroSection() {
           />
         </div>
 
-        {/* Particles — desktop only (saves layout + paint on phones) */}
+        {/* Particles */}
         {heroParticles.map((p) => (
           <motion.div
             key={p.id}
-            initial={{
-              x: p.x,
-              y: p.y,
-              opacity: p.baseOpacity,
-            }}
-            animate={{
-              y: [null, "-40px", "40px"],
-              opacity: [0.2, 0.65, 0.2],
-              scale: [1, 1.45, 1],
-            }}
-            transition={{
-              duration: p.duration,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: p.delay,
-            }}
+            initial={{ x: p.x, y: p.y, opacity: p.baseOpacity }}
+            animate={{ y: [null, "-40px", "40px"], opacity: [0.2, 0.65, 0.2], scale: [1, 1.45, 1] }}
+            transition={{ duration: p.duration, repeat: Infinity, ease: "easeInOut", delay: p.delay }}
             className="absolute w-1.5 h-1.5 rounded-full will-change-transform hidden md:block"
             style={{ background: 'radial-gradient(circle, rgba(71,59,240,0.8) 0%, transparent 80%)' }}
           />
         ))}
       </div>
-
 
       <div className="relative z-10 flex flex-col items-center text-center max-w-7xl w-full min-w-0 px-3 sm:px-6">
         {/* Premium Evolution Badge */}
@@ -647,14 +766,10 @@ export function HeroSection() {
             Cinematic Engine Unleashed
           </span>
           <ArrowRight size={12} className="text-textMuted group-hover:translate-x-1 transition-transform hidden xs:block shrink-0" />
-
-          {/* Subtle Glow Behind */}
           <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         </motion.div>
 
-
-
-        {/* Headline (Updated to AI Presentations) */}
+        {/* Original Headline */}
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -664,7 +779,7 @@ export function HeroSection() {
           The Future of <span className="text-primary">AI</span> <span className="italic font-light">Presentations</span> is Here.
         </motion.h1>
 
-        {/* Subhead (Compact) */}
+        {/* Original Subhead */}
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -674,22 +789,18 @@ export function HeroSection() {
           Generate professional slides from simple prompts in seconds.
         </motion.p>
 
-
-        {/* AI Input Box (Fixed Overlaps) */}
+        {/* AI Input Card — Gamma style */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
           className="w-full max-w-4xl min-w-0 mb-8 sm:mb-10 mx-auto -mt-2 sm:-mt-3"
         >
-          {/* Mode Toggles */}
+          {/* Original Mode Toggles */}
           <div className="flex items-center gap-2 mb-3 sm:mb-4 w-full min-w-0 overflow-x-auto pb-2 scrollbar-none -mx-1 px-1 snap-x snap-mandatory">
             <button
               type="button"
-              onClick={() => {
-                stopVoiceSession();
-                setActiveMode('create');
-              }}
+              onClick={() => { stopVoiceSession(); setActiveMode('create'); }}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'create' ? 'bg-primary text-white shadow-lg' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
             >
               <Wand2 size={14} />
@@ -697,10 +808,7 @@ export function HeroSection() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                stopVoiceSession();
-                setActiveMode('enhance');
-              }}
+              onClick={() => { stopVoiceSession(); setActiveMode('enhance'); }}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'enhance' ? 'bg-primary text-white shadow-lg' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
             >
               <Upload size={14} />
@@ -708,14 +816,7 @@ export function HeroSection() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                stopVoiceSession();
-                setActiveMode('voice');
-                setPrompt('');
-                setInterimTranscript('');
-                interimLiveRef.current = '';
-                accumulatedTextRef.current = '';
-              }}
+              onClick={() => { stopVoiceSession(); setActiveMode('voice'); setPrompt(''); setInterimTranscript(''); interimLiveRef.current = ''; accumulatedTextRef.current = ''; }}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'voice' ? 'bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)]' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
             >
               <Mic size={14} />
@@ -723,6 +824,10 @@ export function HeroSection() {
             </button>
           </div>
 
+
+
+
+          {/* Original Animated Border Input */}
           <div className="animated-border shadow-[0_40px_100px_-20px_rgba(71,59,240,0.25)] group">
             <div className={`relative bg-white rounded-[1.45rem] flex flex-col p-4 sm:p-6 transition-all overflow-hidden ${activeMode === 'voice' ? 'min-h-[240px] sm:min-h-[300px] lg:min-h-[320px]' : 'min-h-[200px] h-auto sm:h-[220px]'}`}>
               {/* subtle premium sheen */}
@@ -868,7 +973,6 @@ export function HeroSection() {
                 </div>
               )}
 
-              {/* ── BOTTOM BAR — stack on narrow screens so CTA never clips ── */}
               {activeMode !== 'voice' && (
                 <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-panel flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end shrink-0 w-full min-w-0">
                   {activeMode === 'create' && prompt.trim() ? (
@@ -992,16 +1096,13 @@ export function HeroSection() {
           </div>
         </motion.div>
       </div>
-      <Script src="https://player.vimeo.com/api/player.js" strategy="lazyOnload" />
 
-      {/* Animated gradient divider into SocialProof */}
-      <div className="w-full mt-8 sm:mt-10">
-        <div className="relative h-[22px] w-full overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-70 blur-[0.5px]" />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(59,130,246,0.22),rgba(56,189,248,0.18),transparent)] bg-[length:200%_100%] animate-shimmer" />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/40 to-white" />
-        </div>
-      </div>
+
+      <Script src="https://player.vimeo.com/api/player.js" strategy="lazyOnload" />
+      
+      {/* Super simple light mode divider */}
+      <div className="w-full h-px bg-black/[0.04] my-10 max-w-7xl mx-auto" />
+
       <OnboardingModal
         isOpen={showOnboarding}
         onClose={() => {

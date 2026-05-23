@@ -1,12 +1,19 @@
 import { NextResponse } from 'next/server';
 import { DodoPayments } from 'dodopayments';
 import { requireApiUser, PRIVATE_API_HEADERS } from '@/lib/auth/server';
-import { enforceAiRateLimit, requireRateLimitInfrastructure } from '@/lib/rate-limit-server';
+import {
+  enforceAiIpRateLimit,
+  enforceAiUserRateLimit,
+  requireRateLimitInfrastructure,
+} from '@/lib/rate-limit-server';
 
 export async function POST(req: Request) {
   try {
     const infra = requireRateLimitInfrastructure();
     if (infra) return infra;
+
+    const ipLimited = await enforceAiIpRateLimit(req, 'default');
+    if (ipLimited) return ipLimited;
 
     const auth = await requireApiUser();
     if ('response' in auth) {
@@ -16,8 +23,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const limited = await enforceAiRateLimit(req, auth.user.id, 'default');
-    if (limited) return limited;
+    const userLimited = await enforceAiUserRateLimit(req, auth.user.id, 'default');
+    if (userLimited) return userLimited;
 
     const user = auth.user;
     const customerEmail = user.email;

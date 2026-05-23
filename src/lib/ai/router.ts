@@ -1,5 +1,12 @@
 import { OR_MODELS } from '@/lib/ai/models';
 import { AGENT_MODELS, IMAGE_MODELS, type ImageVisualProfile } from '@/lib/ai/agent-models';
+import {
+  capModelsToTier,
+  planToSubscriptionTier,
+  TIER_TEXT,
+  uniqueModels,
+  type SubscriptionTier,
+} from '@/lib/ai/tier-models';
 
 export type PlanTier = 'free' | 'student_pro' | 'pro' | 'creator_pro' | 'admin';
 
@@ -86,13 +93,12 @@ function resolveQualityTier(plan: PlanTier, economy: boolean, freeTaste?: boolea
   return 'free';
 }
 
-function uniqueModels(models: string[]): string[] {
-  const seen = new Set<string>();
-  return models.filter((m) => {
-    if (!m || seen.has(m)) return false;
-    seen.add(m);
-    return true;
-  });
+function toSubscriptionTier(
+  plan: PlanTier,
+  economy: boolean,
+  freeTaste?: boolean,
+): SubscriptionTier {
+  return planToSubscriptionTier(plan, { economy, freeTaste });
 }
 
 function openRouterImageCascade(args: {
@@ -107,24 +113,31 @@ function openRouterImageCascade(args: {
   // ── Generative Fill (FLUX Kontext family) ──────────────────────────
   if (isGenfill) {
     if (args.tier === 'creator') {
-      return uniqueModels([
-        IMAGE_MODELS.genfillCreator,
-        IMAGE_MODELS.genfillCreatorFallback,
-        IMAGE_MODELS.fluxUltra,
-        IMAGE_MODELS.flux,
-        IMAGE_MODELS.fallback,
-      ]);
+      return capModelsToTier(
+        uniqueModels([
+          IMAGE_MODELS.genfillCreator,
+          IMAGE_MODELS.genfillCreatorFallback,
+          IMAGE_MODELS.fluxUltra,
+          IMAGE_MODELS.flux,
+          IMAGE_MODELS.fallback,
+        ]),
+        'creator',
+      );
     }
     if (args.tier === 'student') {
-      return uniqueModels([
-        IMAGE_MODELS.genfillPro,
-        IMAGE_MODELS.flux,
-        IMAGE_MODELS.fluxCinematic,
-        IMAGE_MODELS.fallback,
-      ]);
+      return capModelsToTier(
+        uniqueModels([
+          IMAGE_MODELS.genfillPro,
+          IMAGE_MODELS.flux,
+          IMAGE_MODELS.fallback,
+        ]),
+        'student',
+      );
     }
-    // free — basic FLUX (rate-limited upstream)
-    return uniqueModels([IMAGE_MODELS.genfillFree, IMAGE_MODELS.fallback]);
+    return capModelsToTier(
+      uniqueModels([IMAGE_MODELS.genfillFree, IMAGE_MODELS.fallback]),
+      'free',
+    );
   }
 
   // ── Standard image generation ─────────────────────────────────────
@@ -138,29 +151,37 @@ function openRouterImageCascade(args: {
       ]);
     }
     if (args.premium) {
-      return uniqueModels([
-        IMAGE_MODELS.fluxUltra,
+      return capModelsToTier(
+        uniqueModels([
+          IMAGE_MODELS.dalle,
+          IMAGE_MODELS.imagen,
+          IMAGE_MODELS.fluxUltra,
+          IMAGE_MODELS.fluxCinematic,
+          IMAGE_MODELS.flux,
+          IMAGE_MODELS.fallback,
+        ]),
+        'creator',
+      );
+    }
+    return capModelsToTier(
+      uniqueModels([
         IMAGE_MODELS.fluxCinematic,
+        IMAGE_MODELS.dalle,
         IMAGE_MODELS.flux,
         IMAGE_MODELS.fallback,
-      ]);
-    }
-    return uniqueModels([
-      IMAGE_MODELS.fluxCinematic,
-      IMAGE_MODELS.flux,
-      IMAGE_MODELS.fallback,
-    ]);
+      ]),
+      'creator',
+    );
   }
 
   if (args.tier === 'student') {
     if (isTypo) {
-      return uniqueModels([IMAGE_MODELS.typography, IMAGE_MODELS.flux, IMAGE_MODELS.fallback]);
+      return capModelsToTier(
+        uniqueModels([IMAGE_MODELS.typography, IMAGE_MODELS.flux, IMAGE_MODELS.fallback]),
+        'student',
+      );
     }
-    return uniqueModels([
-      IMAGE_MODELS.flux,
-      IMAGE_MODELS.fluxCinematic,
-      IMAGE_MODELS.fallback,
-    ]);
+    return capModelsToTier(uniqueModels([IMAGE_MODELS.flux, IMAGE_MODELS.fallback]), 'student');
   }
 
   return uniqueModels([IMAGE_MODELS.fallback, IMAGE_MODELS.flux]);
@@ -192,29 +213,15 @@ export function getMagicEditTextModels(args: {
   spendState?: SpendState;
   freeTaste?: boolean;
 }): string[] {
-  const tier = resolveQualityTier(
+  const sub = toSubscriptionTier(
     normalizePlan(args.plan),
     Boolean(args.spendState?.forcedEconomyMode),
     args.freeTaste,
   );
-
-  if (tier === 'economy' || tier === 'free') {
-    return uniqueModels([OR_MODELS.coach, AGENT_MODELS.claudeStructure, 'google/gemini-2.5-flash']);
-  }
-  if (tier === 'creator') {
-    return uniqueModels([
-      AGENT_MODELS.gptOrchestrator,
-      AGENT_MODELS.claudeStructure,
-      AGENT_MODELS.gptOrchestratorAlt,
-      AGENT_MODELS.geminiPro,
-    ]);
-  }
-  return uniqueModels([
-    AGENT_MODELS.gptOrchestrator,
-    AGENT_MODELS.claudeStructure,
-    AGENT_MODELS.gptOrchestratorAlt,
-    'google/gemini-2.5-flash',
-  ]);
+  return capModelsToTier(
+    uniqueModels([TIER_TEXT[sub].magicEdit, ...TIER_TEXT[sub].magicEditFallbacks]),
+    sub,
+  );
 }
 
 export function selectTextModel(args: {
@@ -225,130 +232,95 @@ export function selectTextModel(args: {
   freeTaste?: boolean;
 }): SelectedTextModel {
   const planTier = normalizePlan(args.plan);
-  const tier = resolveQualityTier(planTier, Boolean(args.spendState?.forcedEconomyMode), args.freeTaste);
+  const qualityTier = resolveQualityTier(
+    planTier,
+    Boolean(args.spendState?.forcedEconomyMode),
+    args.freeTaste,
+  );
+  const sub = toSubscriptionTier(
+    planTier,
+    Boolean(args.spendState?.forcedEconomyMode),
+    args.freeTaste,
+  );
   const isFreeTaste = Boolean(args.freeTaste);
+  const isCreator = qualityTier === 'creator';
+  const cfg = TIER_TEXT[sub];
 
-  const lowCost: SelectedTextModel = {
-    provider: 'openrouter',
-    model: OR_MODELS.coach,
-    label: TEXT_LABELS.economy,
-    maxTokens: args.task === 'deck_compose' ? 16_000 : 4096,
-    temperature: 0.25,
+  const labelForModel = (model: string): string => {
+    if (model === AGENT_MODELS.claudeOpus) return TEXT_LABELS.opus;
+    if (model === AGENT_MODELS.gptOrchestrator || model === OR_MODELS.composerPrimary) {
+      return isFreeTaste ? `${TEXT_LABELS.gpt55} · Preview` : TEXT_LABELS.gpt55;
+    }
+    if (model === AGENT_MODELS.claudeStructure) return TEXT_LABELS.sonnet;
+    if (model === AGENT_MODELS.geminiPro) return TEXT_LABELS.geminiPro;
+    return TEXT_LABELS.economy;
   };
 
-  if (tier === 'economy' || tier === 'free') {
-    return lowCost;
-  }
-
-  const isCreator = tier === 'creator';
+  let model = cfg.compose;
+  let maxTokens = 4096;
+  let temperature = 0.25;
 
   if (args.task === 'deck_intent') {
-    return {
-      provider: 'openrouter',
-      model: AGENT_MODELS.gptOrchestrator,
-      label: TEXT_LABELS.gpt55,
-      maxTokens: isCreator ? 2800 : 2400,
-      temperature: 0.22,
-    };
+    model = isCreator ? cfg.intent : sub === 'student' ? cfg.intent : cfg.intent;
+    maxTokens = isCreator ? 2800 : 2400;
+    temperature = 0.22;
+  } else if (args.task === 'deck_structure') {
+    model = cfg.structure;
+    maxTokens = isCreator ? 4000 : 3600;
+    temperature = 0.25;
+  } else if (args.task === 'deck_reason') {
+    model = cfg.reason;
+    maxTokens = isCreator ? 2800 : 2400;
+    temperature = 0.35;
+  } else if (args.task === 'deck_compose') {
+    model = cfg.compose;
+    maxTokens = isCreator ? 28_000 : isFreeTaste ? 12_000 : sub === 'student' ? 20_000 : 12_000;
+    temperature = 0.28;
+  } else if (args.task === 'magic_edit_text') {
+    model = cfg.magicEdit;
+    maxTokens = isCreator ? 3200 : 2800;
+    temperature = 0.15;
+  } else if (args.task === 'deck_polish') {
+    model = cfg.polish;
+    maxTokens = isCreator ? 8000 : 6000;
+    temperature = isCreator ? 0.22 : 0.25;
   }
 
-  if (args.task === 'deck_structure') {
-    return isCreator
-      ? {
-          provider: 'openrouter',
-          model: AGENT_MODELS.claudeStructure,
-          label: TEXT_LABELS.sonnet,
-          maxTokens: 4000,
-          temperature: 0.25,
-        }
-      : {
-          provider: 'openrouter',
-          model: AGENT_MODELS.claudeStructure,
-          label: TEXT_LABELS.sonnet,
-          maxTokens: 3600,
-          temperature: 0.25,
-        };
-  }
+  model = capModelsToTier([model], sub)[0] ?? OR_MODELS.coach;
 
-  if (args.task === 'deck_reason') {
-    return isCreator
-      ? {
-          provider: 'openrouter',
-          model: AGENT_MODELS.claudeStructure,
-          label: TEXT_LABELS.sonnetStrategy,
-          maxTokens: 2800,
-          temperature: 0.35,
-        }
-      : {
-          provider: 'openrouter',
-          model: AGENT_MODELS.claudeStructure,
-          label: TEXT_LABELS.sonnetStrategy,
-          maxTokens: 2400,
-          temperature: 0.35,
-        };
-  }
+  return {
+    provider: 'openrouter',
+    model,
+    label: labelForModel(model),
+    maxTokens,
+    temperature,
+  };
+}
 
-  if (args.task === 'deck_compose') {
-    return {
-      provider: 'openrouter',
-      model: OR_MODELS.composerPrimary,
-      label: isFreeTaste ? `${TEXT_LABELS.gpt55} · Preview` : TEXT_LABELS.gpt55,
-      maxTokens: isCreator ? 28_000 : isFreeTaste ? 12_000 : 24_000,
-      temperature: 0.28,
-    };
-  }
-
-  if (args.task === 'magic_edit_text') {
-    return isCreator
-      ? {
-          provider: 'openrouter',
-          model: AGENT_MODELS.gptOrchestrator,
-          label: TEXT_LABELS.gpt55,
-          maxTokens: 3200,
-          temperature: 0.15,
-        }
-      : {
-          provider: 'openrouter',
-          model: AGENT_MODELS.claudeStructure,
-          label: TEXT_LABELS.sonnet,
-          maxTokens: 2800,
-          temperature: 0.15,
-        };
-  }
-
-  if (args.task === 'deck_polish') {
-    return isCreator
-      ? {
-          provider: 'openrouter',
-          model: OR_MODELS.refineFallback,
-          label: TEXT_LABELS.sonnet,
-          maxTokens: 8000,
-          temperature: 0.22,
-        }
-      : {
-          provider: 'openrouter',
-          model: OR_MODELS.refineFallback,
-          label: TEXT_LABELS.sonnet,
-          maxTokens: 6000,
-          temperature: 0.25,
-        };
-  }
-
-  return isCreator
-    ? {
-        provider: 'openrouter',
-        model: OR_MODELS.refineFallback,
-        label: TEXT_LABELS.sonnet,
-        maxTokens: 6000,
-        temperature: 0.25,
-      }
-    : {
-        provider: 'openrouter',
-        model: OR_MODELS.refineFallback,
-        label: TEXT_LABELS.sonnet,
-        maxTokens: 6000,
-        temperature: 0.25,
-      };
+/** Full text cascade for a task (primary + tier fallbacks). */
+export function getTextModelCascade(args: {
+  plan: string | null | undefined;
+  task: AiTask;
+  spendState?: SpendState;
+  freeTaste?: boolean;
+}): string[] {
+  const primary = selectTextModel({
+    plan: args.plan,
+    task: args.task,
+    complexity: { promptChars: 0, slideCount: 8 },
+    spendState: args.spendState,
+    freeTaste: args.freeTaste,
+  });
+  const sub = toSubscriptionTier(
+    normalizePlan(args.plan),
+    Boolean(args.spendState?.forcedEconomyMode),
+    args.freeTaste,
+  );
+  const extras =
+    args.task === 'deck_compose'
+      ? TIER_TEXT[sub].composeFallbacks
+      : TIER_TEXT[sub].magicEditFallbacks;
+  return capModelsToTier(uniqueModels([primary.model, ...extras]), sub);
 }
 
 /** Compose fallback chain when primary stream fails. */
@@ -357,27 +329,12 @@ export function getComposeFallbackModels(args: {
   spendState?: SpendState;
   freeTaste?: boolean;
 }): string[] {
-  const tier = resolveQualityTier(
-    normalizePlan(args.plan),
-    Boolean(args.spendState?.forcedEconomyMode),
-    args.freeTaste,
-  );
-  if (tier === 'economy' || tier === 'free') {
-    return uniqueModels([OR_MODELS.coach]);
-  }
-  if (tier === 'creator') {
-    return uniqueModels([
-      OR_MODELS.composerFallback,
-      AGENT_MODELS.claudeStructure,
-      AGENT_MODELS.geminiPro,
-      OR_MODELS.refineFallback,
-    ]);
-  }
-  return uniqueModels([
-    OR_MODELS.composerFallback,
-    AGENT_MODELS.claudeStructure,
-    AGENT_MODELS.geminiPro,
-  ]);
+  return getTextModelCascade({
+    plan: args.plan,
+    task: 'deck_compose',
+    spendState: args.spendState,
+    freeTaste: args.freeTaste,
+  });
 }
 
 export function selectImageProvider(args: {

@@ -10,11 +10,12 @@ type PlannerChatProps = {
   messages: Message[];
   loading: boolean;
   topic: string;
+  onQuickReply?: (text: string) => void;
 };
 
 const NEAR_BOTTOM_THRESHOLD = 96;
 
-export function PlannerChat({ messages, loading, topic }: PlannerChatProps) {
+export function PlannerChat({ messages, loading, topic, onQuickReply }: PlannerChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -99,6 +100,8 @@ export function PlannerChat({ messages, loading, topic }: PlannerChatProps) {
               role={msg.role}
               content={msg.content}
               isStreaming={isStreaming}
+              isLast={isLast}
+              onQuickReply={onQuickReply}
             />
           );
         })}

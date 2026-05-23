@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -69,26 +69,24 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
           }}
           transition={{ duration: 0.5 }}
         />
-        <motion.div
+        <div
           className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-primary/90 text-[7px] font-black uppercase tracking-wider text-white"
-          layout
         >
           Live
-        </motion.div>
-        <motion.div
+        </div>
+        <div
           className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/50 text-[7px] font-bold text-white/70 backdrop-blur-sm"
-          layout
         >
           {index + 1}
-        </motion.div>
+        </div>
       </motion.div>
     );
   }
 
   return (
     <motion.div
-      className="w-full rounded-md overflow-hidden relative"
-      style={{ aspectRatio: '16/9', border: '1px solid rgba(255,255,255,0.08)' }}
+      className="w-full rounded-none overflow-hidden relative"
+      style={{ aspectRatio: '16/9', border: '1px solid rgba(0,0,0,0.1)' }}
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
@@ -140,10 +138,13 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
                   textAlign: (el.textStyle?.textAlign as React.CSSProperties['textAlign']) || 'left',
                   lineHeight: el.textStyle?.lineHeight || 1.4,
                   opacity: el.opacity ?? 1,
-                  overflow: 'hidden',
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
-                  transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+                  overflowWrap: 'anywhere',
+                  overflow: 'visible',
+                  margin: 0,
+                  padding: 0,
+                  transform: el.rotation ? `rotate(${el.rotation}deg) translateY(-0.1em)` : `translateY(-0.1em)`,
                 }}
               >
                 {el.content}
@@ -163,15 +164,9 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
                   width: el.width,
                   height: el.height,
                   background: el.shapeStyle?.fill || '#7B61FF',
-                  border: el.shapeStyle?.strokeWidth
-                    ? `${el.shapeStyle.strokeWidth}px solid ${el.shapeStyle.stroke || 'transparent'}`
-                    : 'none',
-                  borderRadius:
-                    el.shapeType === 'circle'
-                      ? '50%'
-                      : el.shapeType === 'triangle'
-                        ? '0'
-                        : el.shapeStyle?.cornerRadius || 0,
+                  border: el.shapeStyle?.strokeWidth && el.shapeStyle?.stroke ? `${el.shapeStyle.strokeWidth}px solid ${el.shapeStyle.stroke}` : 'none',
+                  borderRadius: el.shapeStyle?.cornerRadius ? `${el.shapeStyle.cornerRadius}px` : undefined,
+                  boxSizing: 'border-box',
                   opacity: el.opacity ?? 1,
                   transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
                 }}
@@ -207,7 +202,7 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
           Visuals
         </div>
       )}
-      <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/50 text-[7px] font-bold text-white/70 backdrop-blur-sm">
+      <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-white/70 text-[7px] font-bold text-neutral-800 backdrop-blur-sm shadow-sm">
         {index + 1}
       </div>
     </motion.div>
@@ -251,23 +246,22 @@ function SlideRailItem({
 }: SlideRailItemProps) {
   return (
     <motion.div
-      layout
+      layout="position"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="relative group"
+      className="relative group w-[160px] mx-auto"
       onClick={onSelect}
       onMouseEnter={() => onHover(index)}
       onMouseLeave={() => onHover(null)}
     >
       <motion.div
-        className={`relative rounded-[20px] overflow-hidden transition-all duration-500 ${
+        className={`relative rounded-none overflow-hidden transition-all duration-300 shadow-sm ${
           isActive
-            ? 'ring-[3px] ring-primary ring-offset-4 shadow-2xl shadow-primary/10'
-            : 'hover:shadow-xl hover:shadow-black/5'
+            ? 'ring-2 ring-indigo-500'
+            : 'hover:ring-1 hover:ring-neutral-300'
         }`}
-        layout
       >
         <SlideThumbnail slide={slide} index={index} colors={colors} />
 
@@ -277,7 +271,7 @@ function SlideRailItem({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-[6px] flex flex-col items-center justify-center gap-3 z-30"
+              className="absolute inset-0 bg-white/80 backdrop-blur-[6px] flex flex-col items-center justify-center gap-3 z-30"
             >
               <motion.div className="flex gap-2">
                 <button
@@ -287,7 +281,7 @@ function SlideRailItem({
                     onReorderUp();
                   }}
                   disabled={!canMoveUp}
-                  className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white text-white hover:text-black transition-all disabled:opacity-20 flex items-center justify-center"
+                  className="w-9 h-9 rounded-xl bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition-all disabled:opacity-20 flex items-center justify-center shadow-sm"
                 >
                   <ChevronUp size={16} />
                 </button>
@@ -297,7 +291,7 @@ function SlideRailItem({
                     e.stopPropagation();
                     onDuplicate();
                   }}
-                  className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white text-white hover:text-black transition-all flex items-center justify-center"
+                  className="w-9 h-9 rounded-xl bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition-all flex items-center justify-center shadow-sm"
                 >
                   <Copy size={16} />
                 </button>
@@ -310,7 +304,7 @@ function SlideRailItem({
                     onReorderDown();
                   }}
                   disabled={!canMoveDown}
-                  className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white text-white hover:text-black transition-all disabled:opacity-20 flex items-center justify-center"
+                  className="w-9 h-9 rounded-xl bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition-all disabled:opacity-20 flex items-center justify-center shadow-sm"
                 >
                   <ChevronDown size={16} />
                 </button>
@@ -320,7 +314,7 @@ function SlideRailItem({
                     e.stopPropagation();
                     onRemove();
                   }}
-                  className="w-9 h-9 rounded-xl bg-red-500/20 hover:bg-red-500 text-red-200 hover:text-white transition-all flex items-center justify-center"
+                  className="w-9 h-9 rounded-xl bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 transition-all flex items-center justify-center shadow-sm"
                 >
                   <Trash2 size={16} />
                 </button>
@@ -330,10 +324,10 @@ function SlideRailItem({
         </AnimatePresence>
       </motion.div>
 
-      <motion.div className="mt-2 flex items-center justify-between px-2 gap-1" layout>
+      <motion.div className="mt-2 flex items-center justify-between px-0.5 gap-1">
         <span
           className={`text-[9px] font-bold uppercase tracking-widest truncate ${
-            isActive ? 'text-primary' : 'text-black/20'
+            isActive ? 'text-indigo-600' : 'text-neutral-500'
           }`}
         >
           {slide.isGeneratingPlaceholder
@@ -342,7 +336,7 @@ function SlideRailItem({
         </span>
         {isActive && (
           <motion.div
-            className="w-1.5 h-1.5 rounded-full bg-primary shrink-0"
+            className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"
             animate={{ scale: [1, 1.35, 1] }}
             transition={{ duration: 1.2, repeat: Infinity }}
           />
@@ -420,7 +414,7 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
     <aside
       id="tour-gallery"
       className={`
-        z-[130] w-[220px] shrink-0 border-r-2 border-black/[0.08] bg-[#FBFBFC] flex flex-col overflow-hidden shadow-[1px_0_10px_rgba(0,0,0,0.02)]
+        z-[130] w-[180px] shrink-0 border-r border-neutral-200 bg-neutral-50/50 flex flex-col overflow-hidden
         max-md:fixed max-md:left-0 max-md:top-[var(--editor-topbar-h,104px)]
         max-md:h-[calc(100dvh-var(--editor-topbar-h,104px)-env(safe-area-inset-bottom,0px))]
         max-md:w-[min(260px,88vw)] max-md:transition-transform max-md:duration-300 max-md:ease-[cubic-bezier(0.16,1,0.3,1)]
@@ -431,10 +425,10 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
     >
       <motion.div layout className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-5 sm:py-8 gap-2 min-w-0">
         <motion.div className="flex flex-col min-w-0" layout>
-          <span className="text-[10px] font-bold text-black/30 uppercase tracking-[0.3em] truncate">
+          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.3em] truncate">
             Gallery
           </span>
-          <h2 className="text-[clamp(15px,4vw,18px)] font-semibold text-black tracking-tighter truncate">
+          <h2 className="text-[clamp(15px,4vw,18px)] font-semibold text-neutral-900 tracking-tighter truncate">
             {isLiveGenerating ? 'Building deck' : `${slides.length} Slides`}
           </h2>
           {isLiveGenerating && (
@@ -461,30 +455,29 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
           type="button"
           onClick={handleAddSlide}
           disabled={editor.isGenerating}
-          className="w-10 h-10 min-w-10 shrink-0 flex items-center justify-center rounded-2xl bg-white border border-black/[0.05] text-black hover:text-primary hover:border-primary/20 shadow-sm transition-all active:scale-[0.9] group touch-manipulation disabled:opacity-40"
-          title="Add Architectural Slide"
+          className="w-10 h-10 min-w-10 shrink-0 flex items-center justify-center rounded-2xl bg-white border border-neutral-200 text-neutral-500 hover:text-neutral-900 hover:border-neutral-300 shadow-sm transition-all active:scale-[0.9] group touch-manipulation disabled:opacity-40"
+          title="Add Slide"
         >
           <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" />
         </button>
       </motion.div>
 
       <motion.div
-        className={`flex-1 min-h-0 px-3 sm:px-4 pt-4 pb-[max(2rem,env(safe-area-inset-bottom,0px))] custom-scrollbar ${
+        className={`flex-1 min-h-0 pt-4 pb-[max(2rem,env(safe-area-inset-bottom,0px))] custom-scrollbar ${
           useVirtualRail ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden space-y-5'
         }`}
         data-lenis-prevent
-        layout
       >
-        <AnimatePresence mode="popLayout">
+        <AnimatePresence>
           {slides.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-40 text-center opacity-20 px-4">
+            <div className="flex flex-col items-center justify-center h-40 text-center opacity-40 px-4">
               <motion.div
-                className="w-12 h-12 rounded-2xl border-2 border-dashed border-black mb-4"
-                animate={{ rotate: [0, 4, -4, 0] }}
-                transition={{ duration: 4, repeat: Infinity }}
+                className="w-12 h-12 rounded-2xl border-2 border-dashed border-neutral-300 mb-4"
+                animate={{ rotate: 180 }}
+                transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
               />
-              <p className="text-[11px] font-bold uppercase tracking-widest leading-relaxed">
-                {isLiveGenerating ? 'Preparing slidesâ€¦' : 'Vault Empty'}
+              <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-neutral-400">
+                {isLiveGenerating ? 'Preparing slides…' : 'No Slides'}
               </p>
             </div>
           ) : useVirtualRail ? (
@@ -492,7 +485,7 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
               items={slides}
               estimateSize={132}
               gap={20}
-              className="h-full pr-1"
+              className="h-full"
               getKey={(slide) => slide.id}
               renderItem={(slide, index) => renderSlideRailItem(slide, index)}
             />

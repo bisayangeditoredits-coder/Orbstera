@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useEffect, useState, useCallback } from 'react';
@@ -8,6 +10,11 @@ import { Toolbar } from '@/components/editor/Toolbar';
 import { TopBar } from '@/components/editor/TopBar';
 import { MagicEditToolbar } from '@/components/editor/MagicEditToolbar';
 import { GenerativeFillToolbar } from '@/components/editor/GenerativeFillToolbar';
+import { LeftIconRail } from '@/components/editor/LeftIconRail';
+import { TopPropertiesBar } from '@/components/editor/TopPropertiesBar';
+import { TopInsertBar } from '@/components/editor/TopInsertBar';
+import { BottomSlideStrip } from '@/components/editor/BottomSlideStrip';
+import { SlideNotesBar } from '@/components/editor/SlideNotesBar';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/cn';
 import { useSearchParams } from 'next/navigation';
@@ -18,6 +25,7 @@ import type { PresentationData } from '@/types';
 import { isSlideDeckBackgroundImage } from '@/lib/slide-background';
 import { createStarterPresentation } from '@/lib/editor-starter-deck';
 import { createEditorGeneratingShell } from '@/lib/editor-generating-shell';
+import { Monitor } from 'lucide-react';
 
 const EditorCanvasLoading = () => (
   <div className="flex-1 min-h-0 flex items-center justify-center bg-neutral-50/50">
@@ -63,6 +71,112 @@ const DesignPanel = dynamic(
   { ssr: false },
 );
 
+const LayoutsPanel = dynamic(
+  () => import('@/components/editor/LayoutsPanel').then((m) => m.LayoutsPanel),
+  { ssr: false },
+);
+
+const PhotosPanel = dynamic(
+  () => import('@/components/editor/PhotosPanel').then((m) => m.PhotosPanel),
+  { ssr: false },
+);
+
+const IconsPanel = dynamic(
+  () => import('@/components/editor/IconsPanel').then((m) => m.IconsPanel),
+  { ssr: false },
+);
+
+const QRPanel = dynamic(
+  () => import('@/components/editor/QRPanel').then((m) => m.QRPanel),
+  { ssr: false },
+);
+
+const ChartsPanel = dynamic(
+  () => import('@/components/editor/ChartsPanel').then((m) => m.ChartsPanel),
+  { ssr: false },
+);
+
+const GiphyPanel = dynamic(
+  () => import('@/components/editor/GiphyPanel').then((m) => m.GiphyPanel),
+  { ssr: false },
+);
+const AIPanel = dynamic(
+  () => import('@/components/editor/AIPanel').then((m) => m.AIPanel),
+  { ssr: false },
+);
+const VideoPanel = dynamic(
+  () => import('@/components/editor/VideoPanel').then((m) => m.VideoPanel),
+  { ssr: false },
+);
+const AnimationsPanel = dynamic(
+  () => import('@/components/editor/AnimationsPanel').then((m) => m.AnimationsPanel),
+  { ssr: false },
+);
+const AvatarsPanel = dynamic(
+  () => import('@/components/editor/AvatarsPanel').then((m) => m.AvatarsPanel),
+  { ssr: false },
+);
+const FlagsPanel = dynamic(
+  () => import('@/components/editor/FlagsPanel').then((m) => m.FlagsPanel),
+  { ssr: false },
+);
+const ShapesPanel = dynamic(
+  () => import('@/components/editor/ShapesPanel').then((m) => m.ShapesPanel),
+  { ssr: false },
+);
+const MockupsPanel = dynamic(
+  () => import('@/components/editor/MockupsPanel').then((m) => m.MockupsPanel),
+  { ssr: false },
+);
+const VideosPanel = dynamic(
+  () => import('@/components/editor/VideosPanel').then((m) => m.VideosPanel),
+  { ssr: false },
+);
+const PollinationsPanel = dynamic(
+  () => import('@/components/editor/PollinationsPanel').then((m) => m.PollinationsPanel),
+  { ssr: false },
+);
+const WikipediaPanel = dynamic(
+  () => import('@/components/editor/WikipediaPanel').then((m) => m.WikipediaPanel),
+  { ssr: false },
+);
+const WordSuggesterPanel = dynamic(
+  () => import('@/components/editor/WordSuggesterPanel').then((m) => m.WordSuggesterPanel),
+  { ssr: false },
+);
+
+const AppsPanel = dynamic(
+  () => import('@/components/editor/AppsPanel').then((m) => m.AppsPanel),
+  { ssr: false }
+);
+
+const TimelinePanel = dynamic(
+  () => import('@/components/editor/TimelinePanel').then((m) => m.TimelinePanel),
+  { ssr: false },
+);
+
+const SVGPatternPanel = dynamic(
+  () => import('@/components/editor/SVGPatternPanel').then((m) => m.SVGPatternPanel),
+  { ssr: false },
+);
+
+const MapPanel = dynamic(
+  () => import('@/components/editor/MapPanel').then((m) => m.MapPanel),
+  { ssr: false },
+);
+
+const GrammarPanel = dynamic(
+  () => import('@/components/editor/GrammarPanel').then((m) => m.GrammarPanel),
+  { ssr: false },
+);
+
+const MermaidPanel = dynamic(
+  () => import('@/components/editor/MermaidPanel').then((m) => m.MermaidPanel),
+  { ssr: false },
+);
+
+import { GlobalFontLoader } from '@/components/editor/GlobalFontLoader';
+
 export default function EditorClient() {
   const activePanel = usePresentationStore((s) => s.activePanel);
   const isPanelOpen = usePresentationStore((s) => s.isPanelOpen);
@@ -80,6 +194,19 @@ export default function EditorClient() {
   const [deckLoadStatus, setDeckLoadStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [deckLoadMessage, setDeckLoadMessage] = useState<string | null>(null);
 
+  // Track which panels have been visited so they stay mounted (preserving state)
+  const [visitedPanels, setVisitedPanels] = useState<Set<string>>(() => new Set(['generate']));
+  useEffect(() => {
+    if (activePanel) {
+      setVisitedPanels((prev) => {
+        if (prev.has(activePanel)) return prev;
+        const next = new Set(prev);
+        next.add(activePanel);
+        return next;
+      });
+    }
+  }, [activePanel]);
+
   const validatePresentationPayload = (data: any): data is PresentationData => {
     return !!data && typeof data === 'object' && typeof data.id === 'string' && Array.isArray((data as any).slides);
   };
@@ -89,6 +216,7 @@ export default function EditorClient() {
     const prompt = searchParams.get('prompt');
     const mode = searchParams.get('mode');
     const id = searchParams.get('id');
+    const copilotApproved = searchParams.get('copilot_approved');
     const ac = new AbortController();
 
     if (id) {
@@ -142,7 +270,7 @@ export default function EditorClient() {
           setDeckLoadStatus('error');
           setDeckLoadMessage('Failed to load deck. Please refresh and try again.');
         });
-    } else if (prompt || mode) {
+    } else if (prompt || mode || copilotApproved) {
       setActivePanel('generate');
       setPanelOpen(true);
       setDeckLoadStatus('idle');
@@ -157,11 +285,12 @@ export default function EditorClient() {
     const prompt = searchParams.get('prompt');
     const mode = searchParams.get('mode');
     const fileName = searchParams.get('fileName');
+    const copilotApproved = searchParams.get('copilot_approved');
     const st = usePresentationStore.getState();
 
     if (id) return;
 
-    const hasDeepLinkIntent = !!(prompt || mode || fileName);
+    const hasDeepLinkIntent = !!(prompt || mode || fileName || copilotApproved);
     if (hasDeepLinkIntent) {
       if (!st.presentation && !st.editor.isGenerating) {
         st.setPresentation(createEditorGeneratingShell());
@@ -246,6 +375,40 @@ export default function EditorClient() {
     { enableOnFormTags: false },
     [],
   );
+
+  // Escape → deselect all
+  useHotkeys('escape', () => {
+    const st = usePresentationStore.getState();
+    st.selectElement(null);
+    st.clearMultiSelection?.();
+  }, { enableOnFormTags: false }, []);
+
+  // Ctrl+D → duplicate selected element
+  useHotkeys('ctrl+d, meta+d', (e) => {
+    e.preventDefault();
+    const st = usePresentationStore.getState();
+    const sel = st.editor.selectedElementId;
+    const slide = st.presentation?.slides?.[st.currentSlideIndex];
+    if (sel && slide) st.duplicateElement(slide.id, sel);
+  }, { enableOnFormTags: false }, []);
+
+  // Ctrl+] → bring forward  /  Ctrl+[ → send backward
+  useHotkeys('ctrl+], meta+]', (e) => {
+    e.preventDefault();
+    const st = usePresentationStore.getState();
+    const sel = st.editor.selectedElementId;
+    const slide = st.presentation?.slides?.[st.currentSlideIndex];
+    if (sel && slide) st.reorderElements(slide.id, sel, 'up', true);
+  }, { enableOnFormTags: false }, []);
+
+  useHotkeys('ctrl+[, meta+[', (e) => {
+    e.preventDefault();
+    const st = usePresentationStore.getState();
+    const sel = st.editor.selectedElementId;
+    const slide = st.presentation?.slides?.[st.currentSlideIndex];
+    if (sel && slide) st.reorderElements(slide.id, sel, 'down', true);
+  }, { enableOnFormTags: false }, []);
+
   useHotkeys('ctrl+g, meta+g', (e) => {
     e.preventDefault();
     setActivePanel('generate');
@@ -403,14 +566,42 @@ export default function EditorClient() {
     );
   }
 
+  // Helper: render a panel keeping it mounted after first visit, hiding with CSS when not active
+  const panel = (id: string, node: React.ReactNode) => {
+    if (!visitedPanels.has(id)) return null;
+    const isActive = isPanelOpen && (activePanel as string) === id;
+    return (
+      <div key={id} style={{ display: isActive ? 'contents' : 'none' }}>
+        {node}
+      </div>
+    );
+  };
+
   return (
-    <div className="editor-shell h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-background text-textMain flex flex-col select-none">
-      <OnboardingTour />
+    <>
+      {/* ── Mobile Graceful Block ── */}
+      <div className="flex md:hidden h-[100dvh] w-full flex-col items-center justify-center bg-[#F7F8FA] p-6 text-center">
+        <div className="h-16 w-16 mb-4 rounded-2xl bg-indigo-100 flex items-center justify-center">
+          <Monitor size={28} className="text-indigo-600" />
+        </div>
+        <h2 className="text-xl font-black text-neutral-900 mb-2">Desktop Only</h2>
+        <p className="text-[13px] font-medium text-neutral-500 leading-relaxed max-w-[260px]">
+          The presentation editor is designed for larger screens. Please open this on your desktop or laptop to edit.
+        </p>
+        <Link href="/my-presentations" className="mt-6 rounded-xl bg-indigo-600 px-6 py-3 text-[13px] font-bold text-white shadow-lg hover:bg-indigo-700 transition-colors">
+          Back to Dashboard
+        </Link>
+      </div>
+
+      <div className="editor-shell hidden md:flex h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-background text-textMain flex-col select-none">
+        <GlobalFontLoader />
+        <OnboardingTour />
       <PresentMode />
       <TopBar
         showMobileGalleryTrigger={!isMdUp}
         onOpenMobileGallery={() => setMobileGalleryOpen(true)}
       />
+      <TopPropertiesBar />
 
       <div className="flex-1 flex overflow-hidden min-h-0 min-w-0 relative">
         {!isMdUp && mobileGalleryOpen && (
@@ -431,23 +622,57 @@ export default function EditorClient() {
           />
         )}
 
+        {/* Left icon rail */}
+        <LeftIconRail />
+
         {/* Left: slide thumbnails */}
         <Sidebar
           drawerOpen={isMdUp || mobileGalleryOpen}
           onAfterSlideSelect={closeMobileGallery}
         />
 
-        {/* Center: Photoshop-style tool rail + canvas workspace */}
-        <main className="flex-1 relative flex flex-row min-w-0 overflow-hidden bg-[#E8ECF1]">
-          <Toolbar />
-          <div className="relative flex flex-1 flex-col min-w-0 min-h-0">
+        {/* Center: canvas + bottom bars */}
+        <main
+          className="flex-1 relative flex flex-col min-w-0 overflow-hidden bg-[#1e2430]"
+          data-canvas-workspace
+          onClick={(e) => {
+            // Deselect when clicking the workspace background (not the canvas or UI elements)
+            const target = e.target as HTMLElement;
+            const isWorkspaceBg =
+              target.hasAttribute('data-canvas-workspace') ||
+              target.closest('[data-canvas-workspace]') === e.currentTarget;
+            const isInsideCanvas = target.closest('.konvajs-content') ||
+              target.closest('[data-lenis-prevent]') ||
+              target.closest('button') ||
+              target.closest('input') ||
+              target.closest('select') ||
+              target.closest('textarea');
+            if (!isInsideCanvas && target.closest('[data-canvas-workspace]')) {
+              usePresentationStore.getState().selectElement(null);
+            }
+          }}
+        >
+          {/* Hidden Toolbar — keeps file input + keyboard shortcuts alive */}
+          <div className="sr-only" style={{ position: 'absolute', pointerEvents: 'none' }}>
+            <Toolbar />
+          </div>
+
+          {/* Canvas workspace — overflow:visible so transformer handles extend beyond slide edge */}
+          <div className="flex-1 relative flex flex-col min-w-0 min-h-0" style={{ overflow: 'visible' }}>
+            <TopInsertBar />
             <CanvasArea />
             <GenerativeFillToolbar />
             <MagicEditToolbar />
           </div>
+
+          {/* Slide notes below canvas */}
+          <SlideNotesBar />
+
+          {/* Horizontal slide strip at very bottom */}
+          <BottomSlideStrip />
         </main>
 
-        {/* Right: context panels */}
+        {/* Right: context panels — kept mounted after first visit to preserve state */}
         <aside
           aria-hidden={!isPanelOpen}
           className={cn(
@@ -464,15 +689,37 @@ export default function EditorClient() {
             !isPanelOpen && 'md:w-0 md:opacity-0 md:border-l-0 md:overflow-hidden md:pointer-events-none',
           )}
         >
-          {isPanelOpen && activePanel === 'generate' && (
-            <GeneratePanel onClose={() => setPanelOpen(false)} />
-          )}
-          {isPanelOpen && activePanel === 'layers' && <LayersPanel />}
-          {isPanelOpen && activePanel === 'design' && <DesignPanel />}
-          {isPanelOpen && activePanel === 'notes' && <NotesPanel />}
+          {panel('generate', <GeneratePanel onClose={() => setPanelOpen(false)} />)}
+          {panel('layers', <LayersPanel />)}
+          {panel('design', <DesignPanel />)}
+          {panel('notes', <NotesPanel />)}
+          {panel('animations', <AnimationsPanel />)}
+          {panel('layouts', <LayoutsPanel />)}
+          {panel('photos', <PhotosPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('icons', <IconsPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('giphy', <GiphyPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('qr', <QRPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('charts', <ChartsPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('ai', <AIPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('video', <VideoPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('pollinations', <PollinationsPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('wikipedia', <WikipediaPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('wordsuggester', <WordSuggesterPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('apps', <AppsPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('avatars', <AvatarsPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('flags', <FlagsPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('mockups', <MockupsPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('videos', <VideosPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('shapes', <ShapesPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('timeline', <TimelinePanel onClose={() => setPanelOpen(false)} />)}
+          {panel('svgpattern', <SVGPatternPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('map', <MapPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('grammar', <GrammarPanel onClose={() => setPanelOpen(false)} />)}
+          {panel('mermaid', <MermaidPanel onClose={() => setPanelOpen(false)} />)}
         </aside>
       </div>
     </div>
+    </>
   );
 }
 

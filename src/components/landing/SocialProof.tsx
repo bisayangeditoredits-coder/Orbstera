@@ -3,7 +3,14 @@
 import { motion } from 'framer-motion';
 
 export function SocialProof() {
-  const brands = ['Foresight', 'Goodwell', 'Luminary', 'Magnolia', 'Norse Star', 'Mastermind'];
+  const brands = [
+    { name: 'Norse Star', color: 'bg-indigo-500', shape: 'rounded-sm' },
+    { name: 'Mastermind', color: 'bg-rose-500', shape: 'rounded-full' },
+    { name: 'Foresight', color: 'bg-blue-500', shape: 'rounded-[1px] rotate-45' },
+    { name: 'Goodwell', color: 'bg-emerald-500', shape: 'rounded-[4px]' },
+    { name: 'Luminary', color: 'bg-amber-500', shape: 'rounded-full' },
+    { name: 'Magnolia', color: 'bg-violet-500', shape: 'rounded-tl-lg rounded-br-lg' }
+  ];
   
   return (
     <section className="w-full py-16 bg-white flex flex-col items-center overflow-hidden border-y border-blue-50/50">
@@ -25,13 +32,13 @@ export function SocialProof() {
           >
             {/* First Set */}
             <div className="flex gap-x-12 sm:gap-x-20 pr-12 sm:pr-20 w-max items-center">
-              {[...brands, ...brands].map((brand, i) => (
-                <div key={`set1-${i}`} className="flex items-center gap-2.5 sm:gap-3 opacity-[0.35] hover:opacity-100 transition-all duration-300 cursor-pointer grayscale hover:grayscale-0 shrink-0 group">
-                   <div className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-black/[0.04] group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-black/20 group-hover:bg-primary/60 rounded-full transition-colors" />
+              {[...brands, ...brands, ...brands].map((brand, i) => (
+                <div key={`set1-${i}`} className="flex items-center gap-2.5 sm:gap-3 opacity-[0.4] hover:opacity-100 transition-all duration-300 cursor-pointer grayscale hover:grayscale-0 shrink-0 group">
+                   <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-slate-50 border border-slate-200 group-hover:border-transparent group-hover:shadow-sm flex items-center justify-center transition-all">
+                      <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 ${brand.color} ${brand.shape} opacity-60 group-hover:opacity-100 transition-opacity`} />
                    </div>
                    <span className="text-lg sm:text-xl font-extrabold text-neutral-800 tracking-tighter uppercase italic whitespace-nowrap">
-                     {brand}
+                     {brand.name}
                    </span>
                 </div>
               ))}
@@ -39,13 +46,13 @@ export function SocialProof() {
             
             {/* Second Set (Perfect Duplicate for seamless looping) */}
             <div className="flex gap-x-12 sm:gap-x-20 pr-12 sm:pr-20 w-max items-center">
-              {[...brands, ...brands].map((brand, i) => (
-                <div key={`set2-${i}`} className="flex items-center gap-2.5 sm:gap-3 opacity-[0.35] hover:opacity-100 transition-all duration-300 cursor-pointer grayscale hover:grayscale-0 shrink-0 group">
-                   <div className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-black/[0.04] group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-                      <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-black/20 group-hover:bg-primary/60 rounded-full transition-colors" />
+              {[...brands, ...brands, ...brands].map((brand, i) => (
+                <div key={`set2-${i}`} className="flex items-center gap-2.5 sm:gap-3 opacity-[0.4] hover:opacity-100 transition-all duration-300 cursor-pointer grayscale hover:grayscale-0 shrink-0 group">
+                   <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-slate-50 border border-slate-200 group-hover:border-transparent group-hover:shadow-sm flex items-center justify-center transition-all">
+                      <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 ${brand.color} ${brand.shape} opacity-60 group-hover:opacity-100 transition-opacity`} />
                    </div>
                    <span className="text-lg sm:text-xl font-extrabold text-neutral-800 tracking-tighter uppercase italic whitespace-nowrap">
-                     {brand}
+                     {brand.name}
                    </span>
                 </div>
               ))}

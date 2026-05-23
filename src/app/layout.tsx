@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "@/components/layout/Providers";
 import { PageTransition } from "@/components/layout/PageTransition";
 import { GlobalNavbar } from "@/components/layout/GlobalNavbar";
+import { CookieBanner } from "@/components/layout/CookieBanner";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
@@ -35,6 +36,8 @@ export const viewport: Viewport = {
   themeColor: "#FDFCF9",
 };
 
+import { GlobalLeadModal } from "@/components/modals/GlobalLeadModal";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -42,12 +45,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+      </head>
       <body className={`${inter.variable} ${spaceGrotesk.variable} ${lora.variable} ${montserrat.variable} font-sans bg-background text-textMain min-h-dvh max-w-[100vw] overflow-x-clip antialiased`}>
         <Providers>
           <GlobalNavbar />
           <PageTransition>
             {children}
           </PageTransition>
+          <CookieBanner />
+          <GlobalLeadModal />
         </Providers>
       </body>
     </html>

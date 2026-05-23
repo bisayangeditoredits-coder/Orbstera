@@ -1,55 +1,62 @@
-import Link from 'next/link';
-// Navbar removed
-import { Footer } from '@/components/layout/Footer';
+'use client';
 
-export const metadata = {
-  title: 'Privacy Policy — Orbstera',
-  description: 'How Orbstera handles your data when you use our presentation platform.',
-};
+import React from 'react';
+import { Footer } from '@/components/layout/Footer';
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-[#FDFCF9] text-neutral-900">
-      {/* Navbar removed */}
-      <main className="mx-auto max-w-2xl px-5 pb-24 pt-28 sm:px-8 sm:pt-32">
-        <h1
-          className="text-3xl font-semibold tracking-tight text-neutral-950"
-          style={{ fontFamily: 'var(--font-space-grotesk), ui-sans-serif, system-ui' }}
-        >
-          Privacy policy
-        </h1>
-        <p className="mt-2 text-sm text-neutral-500">Last updated: May 11, 2026</p>
-        <div className="mt-12 space-y-6 text-sm leading-relaxed text-neutral-600">
-          <p>
-            Orbstera (&quot;we&quot;, &quot;us&quot;) provides an AI-assisted presentation product. This page summarizes how we treat
-            information you provide when you use the website and editor. For legal certainty in your jurisdiction,
-            contact us and we will provide the full policy your counsel may require.
-          </p>
-          <p>
-            <strong className="text-neutral-900">Account &amp; authentication.</strong> If you sign in with email or a
-            social provider, our authentication partner (Supabase) processes credentials according to their terms. We
-            store profile and usage metadata needed to run subscriptions and quotas.
-          </p>
-          <p>
-            <strong className="text-neutral-900">Content you create.</strong> Presentations you save may be stored in
-            your configured cloud storage (for example Cloudflare R2) under your account namespace. We do not sell your
-            slide content to third parties.
-          </p>
-          <p>
-            <strong className="text-neutral-900">AI providers.</strong> When you use generation features, prompts and
-            context are sent to model providers (such as OpenRouter and connected model hosts) under their respective
-            policies. Do not submit secrets or regulated health or financial data you are not permitted to share.
-          </p>
-          <p>
-            <strong className="text-neutral-900">Contact.</strong>{' '}
-            <Link href="/contact" className="font-medium text-primary underline-offset-4 hover:underline">
-              Contact us
-            </Link>{' '}
-            for data requests or deletion where applicable.
-          </p>
+    <main className="min-h-screen w-full bg-white pt-32 pb-16 font-sans text-slate-900">
+      <div className="max-w-4xl mx-auto px-6 sm:px-12">
+        <h1 className="text-4xl md:text-5xl font-bold mb-8 text-[#1E293B]">Privacy Policy</h1>
+        <p className="text-sm text-slate-500 mb-12">Last Updated: May 23, 2026</p>
+
+        <div className="prose prose-slate max-w-none text-slate-600 space-y-6">
+          <section>
+            <h2 className="text-2xl font-semibold text-slate-900 mb-4">1. Information We Collect</h2>
+            <p>
+              We collect information you provide directly to us when you create an account, subscribe to our newsletter, or use our services. This includes your name, email address, payment information, and the prompts/files you upload to generate presentations.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold text-slate-900 mb-4">2. How We Use Your Information</h2>
+            <p>
+              We use the information we collect to operate, maintain, and improve our services, process transactions, communicate with you, and personalize your experience. We do not use your private presentation data to train our foundational AI models without your explicit consent.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold text-slate-900 mb-4">3. Data Sharing and Disclosure</h2>
+            <p>
+              We do not sell your personal information. We may share your information with third-party service providers (such as payment processors and cloud hosting platforms) who need access to such information to carry out work on our behalf.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold text-slate-900 mb-4">4. Data Security</h2>
+            <p>
+              We implement reasonable security measures to protect your information. However, no security system is impenetrable, and we cannot guarantee the absolute security of your data.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold text-slate-900 mb-4">5. Your Rights</h2>
+            <p>
+              Depending on your location, you may have the right to access, correct, or delete your personal data. You can manage your account information directly from your dashboard or contact us for assistance.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold text-slate-900 mb-4">6. Cookies and Tracking</h2>
+            <p>
+              We use cookies and similar tracking technologies to track activity on our service and hold certain information to enhance your user experience and analyze traffic patterns.
+            </p>
+          </section>
         </div>
-      </main>
-      <Footer />
-    </div>
+      </div>
+      <div className="mt-24">
+        <Footer />
+      </div>
+    </main>
   );
 }

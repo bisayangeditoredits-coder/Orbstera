@@ -2,28 +2,15 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
-import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
+import { chargeCreditsBeforeJob, getActionCreditCost, getCreditConfig } from '@/lib/billing/credits';
 import { getBillingPlan } from '@/lib/billing/resolve-plan';
+import { getPlannerModelCascade, type SubscriptionTier } from '@/lib/ai/tier-models';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
 export const runtime = 'nodejs';
 /** Streaming planner replies; align with OpenRouter stream timeout budget. */
 export const maxDuration = 120;
-
-// ── Tiered AI Models ─────────────────────────────────────────────────────────
-// Free           → Best available free models (auto-fallback on 429)
-// Student Pro    → Claude Sonnet (smart, fast, great at narrative structure)
-// Creator Pro    → GPT-5.5 (frontier reasoning, investor-grade decks)
-const FREE_MODELS = [
-  'meta-llama/llama-3.3-70b-instruct:free', // Primary free model
-  'mistralai/mistral-7b-instruct:free',      // Fallback #1
-  'qwen/qwen3-8b:free',                      // Fallback #2
-  'deepseek/deepseek-r1:free',               // Fallback #3
-] as const;
-
-const STUDENT_PRO_MODEL = 'anthropic/claude-sonnet-4-5';  // Fast + smart narrative
-const CREATOR_PRO_MODEL = 'openai/gpt-5.5';               // Frontier — investor-grade
 
 // ── System Prompts ────────────────────────────────────────────────────────────
 function getOutputRules(brandKit?: any) {
@@ -107,12 +94,6 @@ Remind them to click "Generate deck" when ready.`;
 
 export async function POST(req: Request) {
   try {
-    const { messages, sessionId, topic } = await req.json();
-
-    if (!messages || !Array.isArray(messages)) {
-      return NextResponse.json({ error: 'Messages array is required' }, { status: 400 });
-    }
-
     const auth = await requireAiUser(req, 'default');
     if ('response' in auth) {
       if (auth.response.status === 401) {
@@ -122,6 +103,12 @@ export async function POST(req: Request) {
     }
     const user = auth.user;
     const userId = user.id;
+
+    const { messages, sessionId, topic } = await req.json();
+
+    if (!messages || !Array.isArray(messages)) {
+      return NextResponse.json({ error: 'Messages array is required' }, { status: 400 });
+    }
 
     const cookieStore = cookies();
     const supabase = createServerClient(
@@ -140,7 +127,7 @@ export async function POST(req: Request) {
     const brandKit = profileData?.brand_kit as any;
 
     const plan = await getBillingPlan(user.id);
-    const planTier: 'free' | 'student' | 'creator' =
+    let planTier: SubscriptionTier =
       plan === 'creator_pro' || plan === 'admin'
         ? 'creator'
         : plan === 'pro' || plan === 'student_pro'
@@ -148,24 +135,29 @@ export async function POST(req: Request) {
           : 'free';
 
     const creditConfig = await getCreditConfig(supabase);
-    const plannerCost = creditConfig.costs.rewrite ?? 1;
-    const creditCheck = await ensureCredits({
+    const plannerCost = getActionCreditCost(creditConfig, 'rewrite');
+    const creditCheck = await chargeCreditsBeforeJob({
       supabase,
       userId: user.id,
-      cost: plannerCost,
       action: 'rewrite',
+      cost: plannerCost,
       meta: { route: 'planner/chat', planTier },
     });
+
     if (!creditCheck.ok) {
-      return NextResponse.json(
-        {
-          error: 'INSUFFICIENT_CREDITS',
-          message: 'Not enough credits for planner messages.',
-          credits: creditCheck.summary,
-          required: plannerCost,
-        },
-        { status: 402 },
-      );
+      if (planTier !== 'free') {
+        return NextResponse.json(
+          {
+            error: 'INSUFFICIENT_CREDITS',
+            message: `Not enough credits for planner (${plannerCost} required).`,
+            credits: creditCheck.summary,
+            required: plannerCost,
+          },
+          { status: 402 },
+        );
+      }
+      console.warn(`[Planner] Free user out of credits (${user.id}); using free models only.`);
+      planTier = 'free';
     }
 
     // ── Save user message to DB (best-effort, non-blocking) ──────────────────
@@ -199,23 +191,23 @@ export async function POST(req: Request) {
 
     if (planTier === 'creator') {
       systemPrompt = getCreatorProSystemPrompt(brandKit) + topicLine;
-      modelsToTry = [CREATOR_PRO_MODEL, STUDENT_PRO_MODEL]; // GPT-5.5 → Claude fallback
       temperature = 0.55;
       max_tokens = 2500;
     } else if (planTier === 'student') {
       systemPrompt = getStudentProSystemPrompt(brandKit) + topicLine;
-      modelsToTry = [STUDENT_PRO_MODEL, ...FREE_MODELS];
       temperature = 0.6;
       max_tokens = 2000;
     } else {
       systemPrompt = getBaseSystemPrompt(brandKit) + topicLine;
-      modelsToTry = [...FREE_MODELS];
       temperature = 0.7;
       max_tokens = 1500;
     }
 
+    modelsToTry = getPlannerModelCascade(planTier);
+
     let response: Response | null = null;
     let selectedModel = modelsToTry[0];
+    let allErrors: string[] = [];
 
     for (const model of modelsToTry) {
       selectedModel = model;
@@ -245,17 +237,20 @@ export async function POST(req: Request) {
       }
 
       const status = res.status;
-      console.warn(`[Planner] Model ${model} returned ${status}, ${status === 429 ? 'trying next...' : 'giving up.'}`);
-      if (status !== 429) {
-        // Non-rate-limit error — don't retry with another model
-        const err = await res.text();
-        throw new Error(`OpenRouter error (${status}): ${err}`);
+      const errText = await res.text();
+      allErrors.push(`[${model}: ${status}] ${errText}`);
+      console.warn(`[Planner] Model ${model} returned ${status}, trying next... Error: ${errText}`);
+      
+      // Only stop looping on severe auth errors
+      if (status === 401) {
+        throw new Error(`OpenRouter auth error (${status}): ${errText}`);
       }
-      // 429 — loop to next model
+      
+      // 400 (Invalid Model), 404, 429, 500+ -> loop to next model
     }
 
     if (!response) {
-      throw new Error('All AI models are currently rate-limited. Please try again in a moment.');
+      throw new Error(`All AI models failed to respond. Errors: ${allErrors.join(' | ')}`);
     }
 
     // ── Stream back to client while saving full response to DB ───────────────

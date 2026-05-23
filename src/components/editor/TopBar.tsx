@@ -107,6 +107,9 @@ function ExportModal({ step, done, error, onClose }: {
             </>
           ) : (
             <>
+              <p className="w-full text-[11px] leading-relaxed text-indigo-700/90 bg-indigo-50/90 border border-indigo-100 rounded-xl px-3.5 py-2.5 text-center text-pretty">
+                Note: Slide animations and transitions will not be applied to the exported Microsoft PowerPoint file. Animations are exclusively experienced beautifully here in Orbstera.
+              </p>
               {/* Animated export icon */}
               <div className="relative w-20 h-20 flex items-center justify-center">
                 <motion.div
@@ -395,6 +398,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
   const [showWatermarkModal, setShowWatermarkModal] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [pdfExporting, setPdfExporting] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const handleImportFile = async (file: File | null) => {
@@ -583,6 +587,44 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
     }
   };
 
+  // ── PDF Export ─────────────────────────────────────────────────────────────
+  const handleExportPdf = async () => {
+    if (!presentation || pdfExporting) return;
+    setPdfExporting(true);
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const slides = presentation.slides;
+      const store = usePresentationStore.getState();
+      const origIndex = store.currentSlideIndex;
+
+      const W = 1280, H = 720;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H], compress: true });
+
+      for (let i = 0; i < slides.length; i++) {
+        store.setCurrentSlideIndex(i);
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        await new Promise((r) => setTimeout(r, 120));
+
+        const stage = (window as any).__konvaStage;
+        if (stage) {
+          const dataUrl = stage.toDataURL({ mimeType: 'image/jpeg', quality: 0.92, pixelRatio: 1.5 });
+          if (i > 0) doc.addPage([W, H], 'landscape');
+          doc.addImage(dataUrl, 'JPEG', 0, 0, W, H, '', 'FAST');
+        }
+      }
+
+      store.setCurrentSlideIndex(origIndex);
+
+      const safeName = (presentation.title ?? 'Presentation').replace(/[^a-zA-Z0-9\s-_]/g, '').trim() || 'Presentation';
+      doc.save(`${safeName}.pdf`);
+    } catch (err) {
+      console.error('PDF export error:', err);
+      alert('PDF export failed. Please try again.');
+    } finally {
+      setPdfExporting(false);
+    }
+  };
+
   const handleCheckout = async () => {
     try {
       const res = await fetch('/api/dodo/checkout', {
@@ -654,6 +696,9 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
                 </p>
               </div>
               
+              <p className="w-full text-[11px] leading-relaxed text-indigo-700/90 bg-indigo-50/90 border border-indigo-100 rounded-xl px-3 py-2.5 text-center text-pretty">
+                Note: Slide animations and transitions will not be applied to the exported Microsoft PowerPoint file. Animations are exclusively experienced beautifully here in Orbstera.
+              </p>
               <div className="w-full space-y-3 shrink-0">
                 <button
                   onClick={handleCheckout}
@@ -907,12 +952,25 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
             type="button"
             onClick={handleExportCheck}
             disabled={!presentation || isExporting}
-            className="min-h-9 h-9 sm:h-[36px] px-3.5 sm:px-4 flex items-center gap-2 text-[12px] sm:text-[13px] font-semibold text-white bg-gradient-to-b from-[#5B7CFF] to-primary hover:from-primary hover:to-[#3d5ef0] rounded-full shadow-[0_4px_14px_-4px_rgba(59,130,246,0.55),0_0_0_1px_rgba(255,255,255,0.12)_inset] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none relative overflow-hidden group touch-manipulation"
+            className="min-h-9 h-9 sm:h-[36px] px-3.5 sm:px-4 flex items-center shrink-0 whitespace-nowrap gap-2 text-[12px] sm:text-[13px] font-semibold text-white bg-gradient-to-b from-[#5B7CFF] to-primary hover:from-primary hover:to-[#3d5ef0] rounded-full shadow-[0_4px_14px_-4px_rgba(59,130,246,0.55),0_0_0_1px_rgba(255,255,255,0.12)_inset] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none relative overflow-hidden group touch-manipulation"
           >
             <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/18 to-transparent opacity-0 group-hover:opacity-100 group-hover:translate-x-full transition-all duration-700 translate-x-[-100%]" />
             <Download size={15} className="shrink-0 relative" strokeWidth={1.75} />
-            <span className="hidden xs:inline relative">Export .pptx</span>
-            <span className="xs:hidden relative">PPTX</span>
+            <span className="hidden xs:inline relative whitespace-nowrap">Export .pptx</span>
+            <span className="xs:hidden relative whitespace-nowrap">PPTX</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            disabled={!presentation || pdfExporting}
+            title="Export as PDF"
+            className="min-h-9 h-9 sm:h-[36px] px-3 sm:px-3.5 flex items-center gap-1.5 text-[12px] sm:text-[13px] font-semibold text-neutral-700 bg-white border border-black/[0.08] hover:bg-neutral-50 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation"
+          >
+            {pdfExporting
+              ? <Loader2 size={14} className="animate-spin" />
+              : <FileText size={14} strokeWidth={1.75} />
+            }
+            <span className="hidden sm:inline">{pdfExporting ? 'Exporting…' : 'PDF'}</span>
           </button>
         </div>
         </div>

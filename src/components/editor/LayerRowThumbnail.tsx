@@ -3,37 +3,17 @@
 import { useState, useMemo } from 'react';
 import type { SlideElement } from '@/types';
 import { editorImageFetchUrl } from '@/lib/r2-public-url';
-import { Type, ImageIcon, Square, BarChart2, Sparkles } from 'lucide-react';
+import { Type, ImageIcon, Square, Sparkles } from 'lucide-react';
 
 const FRAME = 44;
 
 function FallbackIcon({ el }: { el: SlideElement }) {
   switch (el.type) {
-    case 'text':   return <Type size={16} className="text-neutral-400" strokeWidth={1.5} />;
-    case 'image':  return <ImageIcon size={16} className="text-neutral-400" strokeWidth={1.5} />;
-    case 'chart':  return <BarChart2 size={16} className="text-neutral-400" strokeWidth={1.5} />;
-    case 'icon':   return <Sparkles size={16} className="text-violet-400" strokeWidth={1.5} />;
-    default:       return <Square size={16} className="text-neutral-400" strokeWidth={1.5} />;
+    case 'text':   return <Type size={16} className="text-neutral-500" strokeWidth={1.5} />;
+    case 'image':  return <ImageIcon size={16} className="text-neutral-500" strokeWidth={1.5} />;
+    case 'icon':   return <Sparkles size={16} className="text-neutral-500" strokeWidth={1.5} />;
+    default:       return <Square size={16} className="text-neutral-500" strokeWidth={1.5} />;
   }
-}
-
-function MiniChart({ el }: { el: SlideElement }) {
-  const chart = el.chartData;
-  if (!chart?.datasets?.[0]?.data?.length) {
-    return <BarChart2 size={16} className="text-neutral-400" strokeWidth={1.5} />;
-  }
-  const data = chart.datasets[0].data.slice(0, 5);
-  const colors = chart.datasets[0].backgroundColor;
-  const max = Math.max(...data.map((d) => Math.abs(d)), 1);
-  return (
-    <div className="flex items-end justify-center gap-0.5 h-6 px-1">
-      {data.map((v, i) => {
-        const h = Math.max(2, Math.round((Math.abs(v) / max) * 20));
-        const bg = Array.isArray(colors) ? colors[i % colors.length] : colors || '#7B61FF';
-        return <div key={i} className="w-1.5 rounded-sm shrink-0" style={{ height: h, background: typeof bg === 'string' ? bg : '#7B61FF' }} />;
-      })}
-    </div>
-  );
 }
 
 function ShapePreview({ el }: { el: SlideElement }) {
@@ -64,7 +44,6 @@ function ShapePreview({ el }: { el: SlideElement }) {
 }
 
 // ─── Text Thumbnail ────────────────────────────────────────────────────────────
-// Renders a clean, readable text preview on a white/light bg — like Canva/Photoshop layers
 function TextThumbnail({ el }: { el: SlideElement }) {
   const ts = el.textStyle || {};
   const text = (el.content || '').trim();
@@ -83,7 +62,6 @@ function TextThumbnail({ el }: { el: SlideElement }) {
           fontWeight: ts.fontWeight === 'bold' ? 700 : 400,
           fontStyle: ts.fontStyle === 'italic' ? 'italic' : 'normal',
           color: ts.color || '#1a1a1a',
-          // If text color matches bg too closely, force a readable color
           ...(ts.color?.toLowerCase() === bgColor.toLowerCase() ? { color: bgColor === '#f8f9fa' ? '#1a1a1a' : '#ffffff' } : {}),
           overflow: 'hidden',
           display: '-webkit-box',
@@ -115,7 +93,7 @@ export function LayerRowThumbnail({ el }: { el: SlideElement }) {
       className="relative shrink-0 overflow-hidden rounded-xl border border-neutral-200/80 bg-neutral-100"
       style={{ width: FRAME, height: FRAME }}
     >
-      {/* Text: clean label preview — no checkered bg, no scaling hell */}
+      {/* Text: clean label preview */}
       {el.type === 'text' && <TextThumbnail el={el} />}
 
       {/* Image: show actual image */}
@@ -148,15 +126,8 @@ export function LayerRowThumbnail({ el }: { el: SlideElement }) {
         </div>
       )}
 
-      {/* Chart */}
-      {el.type === 'chart' && (
-        <div className="flex h-full w-full items-center justify-center bg-white">
-          <MiniChart el={el} />
-        </div>
-      )}
-
       {/* Icon / other */}
-      {el.type !== 'text' && el.type !== 'image' && el.type !== 'shape' && el.type !== 'chart' && (
+      {el.type !== 'text' && el.type !== 'image' && el.type !== 'shape' && (
         <div className="flex h-full w-full items-center justify-center bg-white">
           <FallbackIcon el={el} />
         </div>

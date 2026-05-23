@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { extractJsonObject } from '@/lib/ai/openrouter';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
+import { chargeCreditsBeforeJob, getDeckGenerationCreditCost, getCreditConfig } from '@/lib/billing/credits';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
@@ -108,15 +108,10 @@ if (
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
   try {
-    const formData = await req.formData();
-    const file = formData.get('file') as File;
-
-    if (!file) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    const contentLength = Number(req.headers.get('content-length') ?? 0);
+    if (contentLength > 50 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Payload too large. Maximum upload is 50MB.' }, { status: 413 });
     }
-
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
 
     const auth = await requireAiUser(req, 'heavy');
     if ('response' in auth) {
@@ -126,6 +121,16 @@ export async function POST(req: Request) {
       return auth.response;
     }
     const user = auth.user;
+
+    const formData = await req.formData();
+    const file = formData.get('file') as File;
+
+    if (!file) {
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
     const cookieStore = cookies();
     const supabase = createServerClient(
@@ -138,13 +143,14 @@ export async function POST(req: Request) {
     const plan = await getBillingPlan(user.id);
 
     const creditConfig = await getCreditConfig(supabase);
-    const cost = creditConfig.costs.deck_medium || 80;
-    const creditCheck = await ensureCredits({
+    const cost = getDeckGenerationCreditCost(creditConfig, 10);
+    const creditCheck = await chargeCreditsBeforeJob({
       supabase,
       userId: user.id,
-      cost,
       action: 'deck_medium',
-      meta: { fileName: file.name },
+      cost,
+      meta: { fileName: file.name, route: 'enhance-ppt' },
+      idempotencyKey: requestId,
     });
 
     if (!creditCheck.ok) {
@@ -250,8 +256,11 @@ export async function POST(req: Request) {
 
     let response = await callOpenRouter(model);
 
-    // Fallback if the selected model fails (e.g. out of credits)
-    if (!response.ok && (response.status === 402 || response.status === 400) && model !== composerFallback) {
+    // Fallback if the selected model fails due to credits
+    if (!response.ok && (response.status === 402 || response.status === 403)) {
+      console.warn(`[Enhance] ${model} failed (out of credits). Using free fallback meta-llama/llama-3.2-3b-instruct:free`);
+      response = await callOpenRouter('meta-llama/llama-3.2-3b-instruct:free');
+    } else if (!response.ok && response.status === 400 && model !== composerFallback) {
       console.warn(`[Enhance] ${model} failed, trying configured fallback composer…`);
       response = await callOpenRouter(composerFallback);
     }

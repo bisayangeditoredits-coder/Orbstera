@@ -3,15 +3,16 @@ import { HeroSection } from '@/components/landing/HeroSection';
 import { Footer } from '@/components/layout/Footer';
 
 const SocialProof = dynamic(() => import('@/components/landing/SocialProof').then((m) => ({ default: m.SocialProof })));
-const Showcase = dynamic(() => import('@/components/landing/Showcase').then((m) => ({ default: m.Showcase })));
+
+const ResponsiveMockups = dynamic(() => import('@/components/landing/ResponsiveMockups').then((m) => ({ default: m.ResponsiveMockups })));
+const AnalyticsMockup = dynamic(() => import('@/components/landing/AnalyticsMockup').then((m) => ({ default: m.AnalyticsMockup })));
 const Features = dynamic(() => import('@/components/landing/Features').then((m) => ({ default: m.Features })));
-const Integrations = dynamic(() => import('@/components/landing/Integrations').then((m) => ({ default: m.Integrations })));
-const EditorPreview = dynamic(() => import('@/components/landing/EditorPreview').then((m) => ({ default: m.EditorPreview })));
-const Templates = dynamic(() => import('@/components/landing/Templates').then((m) => ({ default: m.Templates })));
+const Showcase = dynamic(() => import('@/components/landing/Showcase').then((m) => ({ default: m.Showcase })));
+const AboutUs = dynamic(() => import('@/components/landing/AboutUs').then((m) => ({ default: m.AboutUs })));
+const Team = dynamic(() => import('@/components/landing/Team').then((m) => ({ default: m.Team })));
 const Pricing = dynamic(() => import('@/components/landing/Pricing').then((m) => ({ default: m.Pricing })));
 const Testimonials = dynamic(() => import('@/components/landing/Testimonials').then((m) => ({ default: m.Testimonials })));
 const FAQ = dynamic(() => import('@/components/landing/FAQ').then((m) => ({ default: m.FAQ })));
-const DesktopDownload = dynamic(() => import('@/components/landing/DesktopDownload').then((m) => ({ default: m.DesktopDownload })));
 const CTA = dynamic(() => import('@/components/landing/CTA').then((m) => ({ default: m.CTA })));
 
 export default function Home() {
@@ -19,16 +20,31 @@ export default function Home() {
     <main className="flex min-h-screen w-full max-w-[100vw] flex-col items-center justify-between overflow-x-clip">
       <HeroSection />
       <SocialProof />
+
+      <ResponsiveMockups />
+      <AnalyticsMockup />
       <Showcase />
       <Features />
-      <Integrations />
-      <EditorPreview />
-      <Templates />
-      <Pricing />
+      <AboutUs />
+      <Team />
       <Testimonials />
+      <Pricing />
       <FAQ />
-      <DesktopDownload />
       <CTA />
+      
+      {/* Massive Premium Element Section */}
+      <section className="w-full bg-[#FAFAFA] pt-8 pb-16 sm:pt-12 sm:pb-24 overflow-hidden border-t border-black/[0.04]">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8 flex flex-col items-center justify-center">
+          <div className="relative w-full max-w-5xl mx-auto max-h-[500px] flex items-center justify-center">
+            <img 
+              src="/premium-icons/oRBSTERA-ELEMENT 1.png" 
+              alt="Orbstera Premium Element" 
+              className="w-full h-auto max-h-[500px] object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.15)] hover:scale-105 transition-transform duration-700"
+            />
+          </div>
+        </div>
+      </section>
+
       <Footer />
     </main>
   );

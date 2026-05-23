@@ -30,11 +30,18 @@ interface PresentationStore {
   reorderElements: (slideId: string, elementId: string, direction: 'up' | 'down', saveHistory?: boolean) => void;
   /** `orderedIds` is top-first (same as Layers panel): first id = frontmost on canvas (= last in storage). */
   setElementsOrder: (slideId: string, orderedIdsTopFirst: string[], saveHistory?: boolean) => void;
+  copyElement: () => void;
+  pasteElement: () => void;
+  duplicateElement: (slideId: string, elementId: string) => void;
 
   // ─── Editor State ─────────────────────────────────────────────────────────
   editor: EditorState;
   setEditorState: (updates: Partial<EditorState>) => void;
   selectElement: (id: string | null) => void;
+  /** Select multiple elements at once (Shift+Click, lasso) */
+  selectElements: (ids: string[]) => void;
+  /** Clear all multi-selection state */
+  clearMultiSelection: () => void;
 
   // ─── History (Undo/Redo) ──────────────────────────────────────────────────
   history: HistoryEntry[];
@@ -44,8 +51,8 @@ interface PresentationStore {
   redo: () => void;
 
   // ─── UI Panels ────────────────────────────────────────────────────────────
-  activePanel: 'generate' | 'layers' | 'design' | 'notes';
-  setActivePanel: (panel: 'generate' | 'layers' | 'design' | 'notes') => void;
+  activePanel: 'generate' | 'layers' | 'design' | 'notes' | 'layouts' | 'photos' | 'icons' | 'qr' | 'charts' | 'giphy' | 'ai' | 'video' | 'videos' | 'animations' | 'pollinations' | 'wikipedia' | 'wordsuggester' | 'apps' | 'avatars' | 'flags' | 'mockups' | 'shapes' | 'timeline' | 'svgpattern' | 'map' | 'grammar' | 'mermaid';
+  setActivePanel: (panel: 'generate' | 'layers' | 'design' | 'notes' | 'layouts' | 'photos' | 'icons' | 'qr' | 'charts' | 'giphy' | 'ai' | 'video' | 'videos' | 'animations' | 'pollinations' | 'wikipedia' | 'wordsuggester' | 'apps' | 'avatars' | 'flags' | 'mockups' | 'shapes' | 'timeline' | 'svgpattern' | 'map' | 'grammar' | 'mermaid') => void;
   isPanelOpen: boolean;
   setPanelOpen: (open: boolean) => void;
 
@@ -650,9 +657,58 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     });
   },
 
+  copyElement: () => {
+    const state = get();
+    if (!state.presentation || !state.editor.selectedElementId) return;
+    const slide = state.presentation.slides[state.currentSlideIndex];
+    if (!slide) return;
+    const element = slide.elements?.find((el) => el.id === state.editor.selectedElementId);
+    if (element) {
+      set({ editor: { ...state.editor, clipboardElement: JSON.parse(JSON.stringify(element)) } });
+    }
+  },
+
+  pasteElement: () => {
+    const state = get();
+    if (!state.presentation || !state.editor.clipboardElement) return;
+    const slide = state.presentation.slides[state.currentSlideIndex];
+    if (!slide) return;
+    
+    // Create a deep copy with a new ID and slightly offset position
+    const newElement: SlideElement = {
+      ...JSON.parse(JSON.stringify(state.editor.clipboardElement)),
+      id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      x: state.editor.clipboardElement.x + 20,
+      y: state.editor.clipboardElement.y + 20,
+    };
+    
+    get().addElement(slide.id, newElement);
+    get().selectElement(newElement.id);
+  },
+
+  duplicateElement: (slideId, elementId) => {
+    const state = get();
+    if (!state.presentation) return;
+    const slide = state.presentation.slides.find((s) => s.id === slideId);
+    if (!slide) return;
+    const element = slide.elements?.find((el) => el.id === elementId);
+    if (!element) return;
+
+    const newElement: SlideElement = {
+      ...JSON.parse(JSON.stringify(element)),
+      id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      x: element.x + 20,
+      y: element.y + 20,
+    };
+
+    get().addElement(slideId, newElement);
+    get().selectElement(newElement.id);
+  },
+
   editor: {
     activeTool: 'select',
     selectedElementId: null,
+    selectedElementIds: [],
     generativeFillTarget: null,
     isDragging: false,
     isResizing: false,
@@ -690,7 +746,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   selectElement: (id) =>
     set((state) => {
       const updates: Partial<PresentationStore> = {
-        editor: { ...state.editor, selectedElementId: id }
+        editor: { ...state.editor, selectedElementId: id, selectedElementIds: id ? [id] : [] }
       };
       // With a selection: open side panel and show Layers (properties / stack).
       if (id !== null) {
@@ -704,6 +760,20 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       }
       return updates;
     }),
+
+  selectElements: (ids) =>
+    set((state) => ({
+      editor: {
+        ...state.editor,
+        selectedElementIds: ids,
+        selectedElementId: ids.length === 1 ? ids[0] : null,
+      },
+    })),
+
+  clearMultiSelection: () =>
+    set((state) => ({
+      editor: { ...state.editor, selectedElementId: null, selectedElementIds: [] },
+    })),
 
   history: [],
   historyIndex: -1,

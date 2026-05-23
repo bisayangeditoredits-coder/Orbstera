@@ -5,7 +5,12 @@ import { openRouterImageGeneration } from '@/lib/ai/openrouter-image';
 import type { ImageVisualProfile } from '@/lib/ai/agent-models';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
-import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
+import {
+  chargeCreditsBeforeJob,
+  getActionCreditCost,
+  getCreditConfig,
+  getImageCreditAction,
+} from '@/lib/billing/credits';
 import { selectImageProvider } from '@/lib/ai/router';
 import { addEstimatedSpend, getSpendState } from '@/lib/ai/spend';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
@@ -20,6 +25,15 @@ export const maxDuration = 120;
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
   try {
+    const auth = await requireAiUser(req, 'default');
+    if ('response' in auth) {
+      if (auth.response.status === 401) {
+        return aiUnauthorized('Please sign in to generate images.');
+      }
+      return auth.response;
+    }
+    const user = auth.user;
+
     const body = await req.json();
     const {
       prompt,
@@ -51,15 +65,6 @@ export async function POST(req: Request) {
     const w = Math.max(256, Math.min(1536, Math.round(Number(width)) || 1024));
     const h = Math.max(256, Math.min(1536, Math.round(Number(height)) || 1024));
 
-    const auth = await requireAiUser(req, 'default');
-    if ('response' in auth) {
-      if (auth.response.status === 401) {
-        return aiUnauthorized('Please sign in to generate images.');
-      }
-      return auth.response;
-    }
-    const user = auth.user;
-
     const cookieStore = cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -75,13 +80,15 @@ export async function POST(req: Request) {
     const freeTaste = plan === 'free';
     const premiumRequested =
       visualProfile === 'cinematic' && (plan === 'creator_pro' || plan === 'admin');
-    const imageCost = premiumRequested ? creditConfig.costs.image_premium : creditConfig.costs.image_standard;
-    const credit = await ensureCredits({
+    const imageAction = getImageCreditAction(plan, premiumRequested);
+    const imageCost = getActionCreditCost(creditConfig, imageAction);
+    const credit = await chargeCreditsBeforeJob({
       supabase,
       userId: user.id,
+      action: imageAction,
       cost: imageCost,
-      action: premiumRequested ? 'image_premium' : 'image_standard',
       meta: { w, h, visualProfile },
+      idempotencyKey: requestId,
     });
     if (!credit.ok) {
       return NextResponse.json(

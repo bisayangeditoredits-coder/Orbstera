@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { OR_MODELS } from '@/lib/ai/models';
 import { openRouterComplete } from '@/lib/ai/openrouter';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
-import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
+import { chargeCreditsBeforeJob, getActionCreditCost, getCreditConfig } from '@/lib/billing/credits';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -32,13 +32,13 @@ export async function POST(req: Request) {
     );
 
     const creditConfig = await getCreditConfig(supabase);
-    const coachCost = creditConfig.costs.rewrite ?? 3;
+    const coachCost = getActionCreditCost(creditConfig, 'rewrite');
 
-    const creditCheck = await ensureCredits({
+    const creditCheck = await chargeCreditsBeforeJob({
       supabase,
       userId: user.id,
-      cost: coachCost,
       action: 'rewrite',
+      cost: coachCost,
       meta: { route: 'coach' },
       idempotencyKey: requestId,
     });

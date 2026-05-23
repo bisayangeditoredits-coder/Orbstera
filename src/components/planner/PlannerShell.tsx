@@ -35,6 +35,8 @@ export function PlannerShell() {
   const [planTier, setPlanTier] = useState<'free' | 'pro'>('free');
   const [mobileTab, setMobileTab] = useState<MobileTab>('chat');
 
+  const [slideNotes, setSlideNotes] = useState<Record<number, string>>({});
+
   const initStartedRef = useRef(false);
   const prevSlideCountRef = useRef(0);
 
@@ -258,10 +260,25 @@ export function PlannerShell() {
       .filter((block) => block.split(': ')[1]?.trim())
       .join('\n\n');
 
-    const outlineBlock = formatOutlineForContext(outlineSlides);
+    // Add notes to the slides outline block
+    const annotatedSlides = outlineSlides.map((s) => ({
+      ...s,
+      description: slideNotes[s.number]
+        ? `${s.description ? s.description + ' | ' : ''}User Notes: ${slideNotes[s.number]}`
+        : s.description,
+    }));
+    
+    const outlineBlock = formatOutlineForContext(annotatedSlides);
     const fullContext = [chatContext, outlineBlock].filter(Boolean).join('\n\n');
 
-    setEditorState({ copilotContext: fullContext });
+    setEditorState({
+      copilotContext: fullContext,
+      plannerHandoff: {
+        topic,
+        sessionId,
+        outlineSlideCount: outlineSlides.length > 0 ? outlineSlides.length : undefined,
+      },
+    });
     router.push('/editor?copilot_approved=true');
   };
 
@@ -316,7 +333,7 @@ export function PlannerShell() {
             mobileTab !== 'chat' && 'hidden md:flex',
           )}
         >
-          <PlannerChat messages={messages} loading={loading} topic={topic} />
+          <PlannerChat messages={messages} loading={loading} topic={topic} onQuickReply={handleQuickReply} />
 
           {showMobileOutlineBanner && (
             <button
@@ -351,7 +368,10 @@ export function PlannerShell() {
             loading={loading}
             topic={topic}
             canGenerate={canGenerate}
+            slideNotes={slideNotes}
             onGenerate={handleGenerate}
+            onReorder={setOutlineSlides}
+            onUpdateSlideNotes={(num, notes) => setSlideNotes((p) => ({ ...p, [num]: notes }))}
           />
         </div>
       </div>

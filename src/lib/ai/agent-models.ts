@@ -22,6 +22,10 @@ export const AGENT_MODELS = {
 } as const;
 
 export const IMAGE_MODELS = {
+  /** OpenAI image (Creator Pro hero / premium slides) */
+  dalle: process.env.OPENROUTER_IMAGE_DALLE ?? 'openai/dall-e-3',
+  /** Google Imagen (Creator Pro fallback) */
+  imagen: process.env.OPENROUTER_IMAGE_IMAGEN ?? 'google/gemini-2.5-flash-image',
   /** Studio-grade slide imagery (Student Pro, standard paid decks) */
   flux: process.env.OPENROUTER_IMAGE_FLUX ?? 'black-forest-labs/flux-1.1-pro',
   /** Cinematic / Creator Pro premium slides */

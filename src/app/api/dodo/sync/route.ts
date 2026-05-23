@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import {
   applySubscriptionUpgrade,
   isValidBillingUserId,
 } from '@/lib/billing/subscription';
+import { getServiceSupabase } from '@/lib/billing/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,9 +45,11 @@ export async function GET(req: Request) {
       return NextResponse.redirect(`${appUrl}/my-presentations?payment=failed_sig#settings`);
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseAdmin = getServiceSupabase();
+    if (!supabaseAdmin) {
+      console.error('[Dodo Sync] Missing Supabase configuration');
+      return NextResponse.redirect(failedUrl);
+    }
 
     const result = await applySubscriptionUpgrade({
       supabaseAdmin,

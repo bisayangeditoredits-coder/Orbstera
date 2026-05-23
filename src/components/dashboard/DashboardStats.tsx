@@ -1,184 +1,170 @@
 'use client';
 
+import { Plus, Zap, TrendingUp, FileText, Clock, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import {
-  LayoutDashboard,
-  TrendingUp,
-  TrendingDown,
-  Zap,
-  Minus,
-} from 'lucide-react';
 import type { DeckMeta } from '@/types/deck-meta';
 import type { CreditState } from '@/hooks/useCredits';
-import {
-  computeWeeklyActivity,
-  computeWeeklyGrowth,
-  sparklineHeights,
-  formatPlanLabel,
-  totalSlides,
-} from './dashboard-utils';
 
-type DashboardStatsProps = {
+type Props = {
   decks: DeckMeta[];
   userName: string;
   credits: CreditState;
-  onOpenSettings?: () => void;
+  onNewDeck: () => void;
+  onOpenSettings: () => void;
 };
 
-function SparkBars({ heights, accent = 'primary' }: { heights: number[]; accent?: 'primary' | 'red' }) {
-  const barClass =
-    accent === 'red'
-      ? 'bg-red-400/15 group-hover:bg-red-400/25'
-      : 'bg-primary/15 group-hover:bg-primary/25';
-  return (
-    <div className="mt-6 flex h-12 w-full items-end gap-1">
-      {heights.map((h, i) => (
-        <div key={i} className={`flex-1 rounded-t-md transition-colors ${barClass}`} style={{ height: `${h}%` }} />
-      ))}
-    </div>
-  );
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
 }
 
-export function DashboardStats({ decks, userName, credits, onOpenSettings }: DashboardStatsProps) {
-  const deckCount = decks.length;
-  const slides = totalSlides(decks);
-  const activity = computeWeeklyActivity(decks);
-  const growth = computeWeeklyGrowth(decks);
-  const activityHeights = sparklineHeights(activity);
-  const creditHeights = sparklineHeights(
-    Array.from({ length: 7 }, (_, i) => Math.max(0, credits.usagePct - (6 - i) * 3)),
-  );
-
+export function DashboardStats({ decks, userName, credits, onNewDeck, onOpenSettings }: Props) {
   const firstName = userName.split(' ')[0] || 'Creator';
   const isFree = credits.plan === 'free' || !credits.plan;
+  const usagePct = credits.usagePct ?? 0;
+
+  // Most recent deck
+  const lastEdited = decks.length > 0
+    ? [...decks].sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())[0]
+    : null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-      className="grid grid-cols-1 gap-5 md:grid-cols-3 md:gap-6"
-    >
-      <div className="group relative overflow-hidden rounded-lg border border-white/70 bg-white p-6 shadow-sm transition-shadow hover:shadow-lg sm:p-8">
-        <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
-          <div className="flex h-12 w-12 items-center justify-center rounded-md bg-primary/10 text-primary transition group-hover:scale-105">
-            <LayoutDashboard size={24} strokeWidth={1.75} />
+    <div className="space-y-6 pb-2">
+      {/* ── Hero greeting row ── */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1">
+            {getGreeting()}
+          </p>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-[1.1]">
+            {firstName}
+          </h1>
+          <p className="text-sm text-slate-400 mt-2 font-medium">
+            {decks.length === 0
+              ? 'Ready to create your first presentation?'
+              : `${decks.length} presentation${decks.length === 1 ? '' : 's'} in your workspace`}
+          </p>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="flex items-center gap-2 h-10 px-4 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <Zap size={13} className={usagePct >= 90 ? 'text-amber-500' : 'text-slate-400'} />
+            <span className={usagePct >= 90 ? 'text-amber-600' : ''}>
+              {credits.loading ? '—' : `${credits.remaining ?? 0} credits`}
+            </span>
+            {isFree && (
+              <Link
+                href="/pricing"
+                onClick={(e) => e.stopPropagation()}
+                className="ml-0.5 text-[11px] font-bold text-primary hover:underline"
+              >
+                Upgrade
+              </Link>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={onNewDeck}
+            className="flex items-center gap-2 h-10 px-5 rounded-lg bg-primary text-white text-[13px] font-bold hover:bg-primaryHover active:scale-[0.97] transition-all shadow-md shadow-blue-500/20"
+          >
+            <Plus size={15} strokeWidth={2.5} />
+            New deck
+          </button>
+        </div>
+      </div>
+
+      {/* ── Stats row ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Total Decks */}
+        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-default">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100">
+              <FileText size={15} className="text-slate-400" strokeWidth={1.75} />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Total</span>
           </div>
+          <p className="text-2xl font-extrabold text-slate-900 tracking-tight">{decks.length}</p>
+          <p className="text-[11px] text-slate-400 font-medium mt-0.5">Presentations</p>
         </div>
-        <h2
-          className="pr-14 text-2xl font-bold tracking-tight text-slate-900"
-          style={{ fontFamily: 'var(--font-space-grotesk), ui-sans-serif, system-ui' }}
-        >
-          Welcome back, {firstName}
-        </h2>
-        <p className="mt-2 text-sm text-slate-500">
-          {deckCount} presentation{deckCount === 1 ? '' : 's'} in your workspace
-        </p>
-        <div className="mt-6 flex flex-wrap gap-2">
-          <span className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
-            {deckCount} decks · {slides} slides
-          </span>
-          {isFree && (
-            <Link
-              href="/pricing"
-              className="rounded-full border border-slate-200 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 transition hover:border-primary hover:text-primary"
-            >
-              Upgrade
-            </Link>
-          )}
-          {onOpenSettings ? (
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              className="rounded-full border border-slate-200 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 transition hover:border-primary hover:text-primary"
-            >
-              Usage details
-            </button>
-          ) : (
-            <Link
-              href="/my-presentations#settings"
-              className="rounded-full border border-slate-200 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 transition hover:border-primary hover:text-primary"
-            >
-              Usage details
-            </Link>
-          )}
-        </div>
-      </div>
 
-      <div className="group rounded-lg border border-white/70 bg-white p-6 shadow-sm transition-shadow hover:shadow-lg sm:p-8">
-        <div className="mb-4 flex items-start justify-between gap-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Weekly activity</p>
-          {growth.percent !== null ? (
-            <span
-              className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold ${
-                growth.percent >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
-              }`}
-            >
-              {growth.percent >= 0 ? (
-                <TrendingUp size={14} strokeWidth={1.75} />
-              ) : (
-                <TrendingDown size={14} strokeWidth={1.75} />
-              )}
-              {growth.percent >= 0 ? '+' : ''}
-              {growth.percent}%
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-500">
-              <Minus size={14} strokeWidth={1.75} />
-              —
-            </span>
-          )}
-        </div>
-        <p className="font-montserrat text-4xl font-black tabular-nums text-slate-900">{growth.current}</p>
-        <p className="text-xs text-slate-400">Decks edited in the last 7 days</p>
-        <SparkBars heights={activityHeights} />
-      </div>
-
-      {onOpenSettings ? (
+        {/* Credits */}
         <button
           type="button"
           onClick={onOpenSettings}
-          className="group w-full rounded-lg border border-white/70 bg-white p-6 text-left shadow-sm transition-shadow hover:border-primary/20 hover:shadow-lg sm:p-8"
+          className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-left"
         >
-          <div className="mb-4 flex items-start justify-between gap-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">AI credits</p>
-          <span className="flex items-center gap-1 rounded-lg bg-primary/5 px-2 py-1 text-xs font-bold text-primary">
-            <Zap size={14} strokeWidth={1.75} />
-            {formatPlanLabel(credits.plan)}
-          </span>
-        </div>
-        <p className="font-montserrat text-4xl font-black tabular-nums text-slate-900">
-          {credits.loading ? '—' : `${credits.usagePct}%`}
-        </p>
-        <p className="text-xs text-slate-400">
-          {credits.loading
-            ? 'Loading usage…'
-            : `${credits.used} / ${credits.monthlyLimit} credits this month`}
-        </p>
-        <SparkBars heights={creditHeights} />
-        </button>
-      ) : (
-        <div className="group rounded-lg border border-white/70 bg-white p-6 shadow-sm transition-shadow hover:shadow-lg sm:p-8">
-          <div className="mb-4 flex items-start justify-between gap-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">AI credits</p>
-            <span className="flex items-center gap-1 rounded-lg bg-primary/5 px-2 py-1 text-xs font-bold text-primary">
-              <Zap size={14} strokeWidth={1.75} />
-              {formatPlanLabel(credits.plan)}
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100">
+              <Zap size={15} className="text-slate-400" strokeWidth={1.75} />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">
+              {usagePct.toFixed(0)}% used
             </span>
           </div>
-          <p className="font-montserrat text-4xl font-black tabular-nums text-slate-900">
-            {credits.loading ? '—' : `${credits.usagePct}%`}
+          <p className={`text-2xl font-extrabold tracking-tight ${usagePct >= 90 ? 'text-amber-500' : 'text-slate-900'}`}>
+            {credits.loading ? '—' : credits.remaining ?? 0}
           </p>
-          <p className="text-xs text-slate-400">
-            {credits.loading
-              ? 'Loading usage…'
-              : `${credits.used} / ${credits.monthlyLimit} credits this month`}
+          <p className="text-[11px] text-slate-400 font-medium mt-0.5">Credits left</p>
+        </button>
+
+        {/* Plan */}
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-left"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100">
+              <TrendingUp size={15} className="text-slate-400" strokeWidth={1.75} />
+            </div>
+            <ArrowRight size={12} className="text-slate-300" strokeWidth={1.75} />
+          </div>
+          <p className="text-2xl font-extrabold text-slate-900 tracking-tight capitalize">
+            {credits.plan || 'Free'}
           </p>
-          <SparkBars heights={creditHeights} />
+          <p className="text-[11px] text-slate-400 font-medium mt-0.5">Current plan</p>
+        </button>
+
+        {/* Last edited */}
+        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-default">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100">
+              <Clock size={15} className="text-slate-400" strokeWidth={1.75} />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Recent</span>
+          </div>
+          <p className="text-sm font-bold text-slate-900 tracking-tight truncate leading-snug">
+            {lastEdited ? lastEdited.title || 'Untitled' : '—'}
+          </p>
+          <p className="text-[11px] text-slate-400 font-medium mt-0.5">Last edited</p>
+        </div>
+      </div>
+
+      {/* ── Empty state ── */}
+      {decks.length === 0 && (
+        <div className="border border-dashed border-slate-200 rounded-xl p-8 text-center bg-slate-50/50">
+          <div className="w-10 h-10 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center mx-auto mb-4">
+            <Plus size={18} className="text-slate-400" strokeWidth={1.75} />
+          </div>
+          <h3 className="font-bold text-slate-900 mb-1 text-sm">Create your first deck</h3>
+          <p className="text-sm text-slate-400 mb-5">Our AI will generate a stunning presentation in seconds.</p>
+          <button
+            type="button"
+            onClick={onNewDeck}
+            className="inline-flex items-center gap-2 h-10 px-6 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primaryHover transition-all shadow-md shadow-blue-500/20"
+          >
+            <Plus size={14} strokeWidth={2.5} /> Get started
+          </button>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
-

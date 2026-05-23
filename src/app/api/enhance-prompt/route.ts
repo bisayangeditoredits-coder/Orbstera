@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { openRouterComplete } from '@/lib/ai/openrouter';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { ensureCredits, getCreditConfig } from '@/lib/billing/credits';
+import { chargeCreditsBeforeJob, getActionCreditCost, getCreditConfig } from '@/lib/billing/credits';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 
@@ -57,13 +57,14 @@ export async function POST(req: Request) {
     const plan = await getBillingPlan(user.id);
 
     const creditConfig = await getCreditConfig(supabase);
-    const cost = creditConfig.costs.rewrite || 3;
-    const creditCheck = await ensureCredits({
+    const cost = getActionCreditCost(creditConfig, 'rewrite');
+    const creditCheck = await chargeCreditsBeforeJob({
       supabase,
       userId: user.id,
-      cost,
       action: 'rewrite',
+      cost,
       meta: { purpose },
+      idempotencyKey: requestId,
     });
 
     if (!creditCheck.ok) {

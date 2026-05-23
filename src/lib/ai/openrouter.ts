@@ -51,6 +51,16 @@ export async function openRouterComplete(
 
   if (!res.ok) {
     const t = await res.text();
+    
+    // Automatically fallback to a free model if credits are exhausted
+    if (res.status === 402 || (res.status === 403 && t.toLowerCase().includes('credit'))) {
+      const fallbackModel = 'meta-llama/llama-3.2-3b-instruct:free';
+      if (opts.model !== fallbackModel) {
+        console.warn(`[OpenRouter] Credits exhausted for ${opts.model}. Falling back to ${fallbackModel}.`);
+        return openRouterComplete(appUrl, { ...opts, model: fallbackModel });
+      }
+    }
+    
     throw new Error(`OpenRouter ${opts.model}: ${res.status} ${t}`);
   }
 
@@ -82,6 +92,20 @@ export async function openRouterStream(
     },
     opts.timeoutMs ?? OPENROUTER_TIMEOUT.stream,
   );
+
+  if (!res.ok) {
+    const clonedRes = res.clone();
+    const t = await clonedRes.text();
+    
+    // Automatically fallback to a free model if credits are exhausted
+    if (res.status === 402 || (res.status === 403 && t.toLowerCase().includes('credit'))) {
+      const fallbackModel = 'meta-llama/llama-3.2-3b-instruct:free';
+      if (opts.model !== fallbackModel) {
+        console.warn(`[OpenRouter] Credits exhausted for ${opts.model}. Falling back to ${fallbackModel}.`);
+        return openRouterStream(appUrl, { ...opts, model: fallbackModel });
+      }
+    }
+  }
 
   return res;
 }

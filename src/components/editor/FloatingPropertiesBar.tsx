@@ -1,0 +1,174 @@
+'use client';
+
+import { useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { usePresentationStore } from '@/store/usePresentationStore';
+import { useShallow } from 'zustand/react/shallow';
+import {
+  Lock, Unlock,
+  Copy, Trash2,
+  ChevronUp, ChevronDown,
+  Eye,
+} from 'lucide-react';
+import type { SlideElement } from '@/types';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+interface BtnProps {
+  active?: boolean;
+  title: string;
+  onClick: () => void;
+  children: React.ReactNode;
+  danger?: boolean;
+  disabled?: boolean;
+  className?: string;
+}
+function Btn({ active, title, onClick, children, danger, disabled, className }: BtnProps) {
+  return (
+    <button
+      type="button"
+      title={title}
+      disabled={disabled}
+      onMouseDown={(e) => { e.preventDefault(); if (!disabled) onClick(); }}
+      className={`
+        flex items-center justify-center w-8 h-8 rounded-md transition-all duration-100 shrink-0 select-none
+        ${active
+          ? 'bg-indigo-600 text-white shadow-sm'
+          : danger
+            ? 'text-red-500 hover:bg-red-50 hover:text-red-600'
+            : 'text-neutral-600 hover:bg-black/[0.06] hover:text-neutral-900'
+        }
+        ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+        ${className ?? ''}
+      `}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
+interface FloatingPropertiesBarProps {
+  scale: number;
+  canvasLeft: number;
+  canvasTop: number;
+}
+
+export function FloatingPropertiesBar({ scale, canvasLeft, canvasTop }: FloatingPropertiesBarProps) {
+  const { selectedElementId } = usePresentationStore(
+    useShallow((s) => ({ selectedElementId: s.editor.selectedElementId }))
+  );
+
+  const slide = usePresentationStore((s) => s.presentation?.slides[s.currentSlideIndex]);
+  const updateElement = usePresentationStore((s) => s.updateElement);
+  const removeElement = usePresentationStore((s) => s.removeElement);
+  const duplicateElement = usePresentationStore((s) => s.duplicateElement);
+  const reorderElements = usePresentationStore((s) => s.reorderElements);
+
+  const el = slide?.elements?.find((e) => e.id === selectedElementId);
+  const show = !!(el && slide && !el.id.startsWith('bg-'));
+
+  const update = useCallback((updates: Partial<SlideElement>, saveHistory = false) => {
+    if (!slide || !el) return;
+    updateElement(slide.id, el.id, updates, saveHistory);
+  }, [slide, el, updateElement]);
+
+  const commitUpdate = useCallback((updates: Partial<SlideElement>) => {
+    update(updates, true);
+  }, [update]);
+
+  if (!show || !el || !slide) return null;
+
+  // Position the bar: fixed, above the element on screen
+  // Clamp to viewport so it never goes off-screen
+  const rawTop = canvasTop + el.y * scale - 48;
+  const rawLeft = canvasLeft + el.x * scale;
+  const barTop = Math.max(120, Math.min(window.innerHeight - 80, rawTop));
+  const barLeft = Math.max(8, Math.min(window.innerWidth - 200, rawLeft));
+
+  const currentElementIds = (slide.elements || []).map(e => e.id);
+  const myIndex = currentElementIds.indexOf(el.id);
+  const canMoveUp = myIndex < currentElementIds.length - 1;
+  const canMoveDown = myIndex > 0;
+
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          key={`fpb-${el.id}`}
+          initial={{ opacity: 0, y: -8, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -6, scale: 0.97 }}
+          transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
+          style={{
+            position: 'fixed',
+            top: barTop,
+            left: barLeft,
+            zIndex: 9999,
+          }}
+          className="flex items-center gap-1 bg-white backdrop-blur-xl border border-black/10 rounded-xl shadow-lg px-2 py-1.5 pointer-events-auto select-none"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {/* ── Z-order ──────────────────────────────────────── */}
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              title="Bring forward (Ctrl+])"
+              disabled={!canMoveUp}
+              onMouseDown={(e) => { e.preventDefault(); if (canMoveUp) reorderElements(slide.id, el.id, 'up'); }}
+              className={`flex items-center justify-center w-8 h-8 rounded-md transition-all ${canMoveUp ? 'text-neutral-500 hover:text-indigo-600 hover:bg-black/[0.06]' : 'text-neutral-300 cursor-not-allowed'}`}
+            >
+              <ChevronUp size={14} strokeWidth={2.5} />
+            </button>
+            <button
+              type="button"
+              title="Send backward (Ctrl+[)"
+              disabled={!canMoveDown}
+              onMouseDown={(e) => { e.preventDefault(); if (canMoveDown) reorderElements(slide.id, el.id, 'down'); }}
+              className={`flex items-center justify-center w-8 h-8 rounded-md transition-all ${canMoveDown ? 'text-neutral-500 hover:text-indigo-600 hover:bg-black/[0.06]' : 'text-neutral-300 cursor-not-allowed'}`}
+            >
+              <ChevronDown size={14} strokeWidth={2.5} />
+            </button>
+          </div>
+
+          <div className="w-px h-5 bg-black/[0.09] shrink-0 mx-1" />
+
+          {/* ── Actions ──────────────────────────────────────── */}
+          <Btn
+            title={el.locked ? 'Unlock element' : 'Lock element (prevents accidental moves)'}
+            active={el.locked}
+            onClick={() => commitUpdate({ locked: !el.locked })}
+          >
+            {el.locked ? <Lock size={14} strokeWidth={2.5} /> : <Unlock size={14} strokeWidth={2} />}
+          </Btn>
+
+          <Btn
+            title={el.visible === false ? 'Show element' : 'Hide element'}
+            active={el.visible === false}
+            onClick={() => commitUpdate({ visible: el.visible === false ? true : false })}
+          >
+            <Eye size={14} strokeWidth={2} />
+          </Btn>
+
+          <Btn
+            title="Duplicate (Ctrl+D)"
+            onClick={() => duplicateElement(slide.id, el.id)}
+          >
+            <Copy size={14} strokeWidth={2} />
+          </Btn>
+
+          <Btn
+            danger
+            title="Delete element (Delete)"
+            disabled={el.locked}
+            onClick={() => {
+              removeElement(slide.id, el.id);
+              usePresentationStore.getState().selectElement(null);
+            }}
+          >
+            <Trash2 size={14} strokeWidth={2} />
+          </Btn>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}

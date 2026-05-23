@@ -41,9 +41,8 @@ export const BLOG_POSTS: BlogPost[] = [
       'A practical walkthrough of turning a rough idea into a coherent deck using AI orchestration without losing your voice.',
     readMinutes: 5,
     category: 'Workflow',
-    image:
-      'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=2000&q=85',
-    imageAlt: 'Collaborators working together around a laptop in a bright workspace',
+    image: '/blog_pitch.png',
+    imageAlt: 'Futuristic 3D visualization of AI-powered presentation slides generation and design orchestration',
     accent: ['#1e1b4b', '#4338ca', '#818cf8'],
     body: [
       'Most founders lose time translating a brain dump into slide order. Large language models excel at sequencing: they can propose sections, slide titles, and supporting bullets faster than any blank canvas.',

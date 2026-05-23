@@ -5,7 +5,6 @@ export type SlideLayoutType =
   | 'split'
   | 'media'
   | 'quote'
-  | 'chart'
   | 'team'
   | 'timeline'
   | 'closing'
@@ -63,24 +62,9 @@ export interface AnimationConfig {
   delay?: number;
 }
 
-// ─── Chart Types ──────────────────────────────────────────────────────────────
-export type ChartType = 'bar' | 'line' | 'pie' | 'donut';
-
-export interface ChartDataset {
-  label: string;
-  data: number[];
-  backgroundColor?: string | string[];
-  borderColor?: string | string[];
-}
-
-export interface ChartData {
-  type: ChartType;
-  labels: string[];
-  datasets: ChartDataset[];
-}
 
 // ─── Canvas Element Types ─────────────────────────────────────────────────────
-export type ElementType = 'text' | 'image' | 'shape' | 'chart' | 'icon';
+export type ElementType = 'text' | 'image' | 'shape' | 'icon' | 'draw';
 
 export interface TextStyle {
   fontFamily?: string;
@@ -106,6 +90,7 @@ export interface ShapeStyle {
   shadowOffsetY?: number;
 }
 
+
 export interface SlideElement {
   id: string;
   type: ElementType;
@@ -126,12 +111,14 @@ export interface SlideElement {
   aiImagePending?: boolean;
   maskType?: 'circle' | 'heart' | 'square' | 'none';
   // Shape element
-  shapeType?: 'rect' | 'circle' | 'triangle' | 'star' | 'line' | 'arrow';
+  shapeType?: 'rect' | 'circle' | 'triangle' | 'star' | 'line' | 'arrow' | 'path';
   shapeStyle?: ShapeStyle;
-  // Chart element
-  chartData?: ChartData;
+  // Freehand drawing
+  points?: number[];
   // Animation
   animation?: AnimationConfig;
+  // Image display mode
+  objectFit?: 'cover' | 'contain' | 'fill';
   zIndex?: number;
 }
 
@@ -152,7 +139,6 @@ export interface Slide {
   content?: SlideContentBlock;
   imagePrompt?: string;
   imageUrl?: string;
-  chart?: ChartData | null;
   animation?: AnimationConfig;
   /** Per-slide transition in presentation mode (overrides deck default). */
   slideTransition?: SlideTransition;
@@ -261,11 +247,16 @@ export type EditorToolId =
   | 'chart'
   | 'frame-circle'
   | 'frame-heart'
-  | 'frame-box';
+  | 'frame-box'
+  | 'divider'
+  | 'draw';
 
 export interface EditorState {
   activeTool: EditorToolId;
   selectedElementId: string | null;
+  /** Multi-selected element IDs (for Shift+Click and lasso selection) */
+  selectedElementIds: string[];
+  clipboardElement?: SlideElement | null;
   /** After drawing a generative-fill region, prompts appear for this element. */
   generativeFillTarget: { slideId: string; elementId: string } | null;
   isDragging: boolean;
@@ -305,6 +296,12 @@ export interface EditorState {
   cloudSyncMessage?: string;
   /** Stores context approved from the Planner copilot phase */
   copilotContext?: string;
+  /** Structured handoff from Planner → Editor generate (no UI; routing metadata only) */
+  plannerHandoff?: {
+    topic?: string;
+    sessionId?: string | null;
+    outlineSlideCount?: number;
+  };
   hasSeenWelcome?: boolean;
 }
 

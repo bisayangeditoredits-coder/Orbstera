@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { assertPublicHttpUrl } from '@/lib/security/url-fetch-policy';
-import { enforceAiRateLimit } from '@/lib/rate-limit-server';
+import {
+  enforceAiIpRateLimit,
+  enforceAiUserRateLimit,
+  requireRateLimitInfrastructure,
+} from '@/lib/rate-limit-server';
 
 /** Extract readable text from crude HTML (best-effort). */
 function stripHtml(html: string): string {
@@ -16,6 +20,12 @@ function stripHtml(html: string): string {
 }
 
 export async function POST(req: Request) {
+  const infra = requireRateLimitInfrastructure();
+  if (infra) return infra;
+
+  const ipLimited = await enforceAiIpRateLimit(req, 'default');
+  if (ipLimited) return ipLimited;
+
   const cookieStore = cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,8 +35,8 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const limited = await enforceAiRateLimit(req, user.id, 'default');
-  if (limited) return limited;
+  const userLimited = await enforceAiUserRateLimit(req, user.id, 'default');
+  if (userLimited) return userLimited;
 
   const ct = req.headers.get('content-type') || '';
 

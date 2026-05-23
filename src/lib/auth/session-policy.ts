@@ -11,7 +11,7 @@ export const CLIENT_CACHE_MAX_AGE_MS = SESSION_MAX_AGE_MS;
 export function isSessionStartedAtExpired(startedAt: string | undefined): boolean {
   if (!startedAt) return false;
   const t = Date.parse(startedAt);
-  if (!Number.isFinite(t)) return true;
+  if (!Number.isFinite(t)) return false; // Unknown format — don't expire, let Supabase decide
   return Date.now() - t > SESSION_MAX_AGE_MS;
 }
 

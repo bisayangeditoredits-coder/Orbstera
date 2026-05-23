@@ -1,14 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import { Search, Plus, Menu, AlertTriangle } from 'lucide-react';
+import { Search, Menu, AlertTriangle, ArrowLeft } from 'lucide-react';
 import type { DashboardSection } from './dashboard-types';
 
 const SECTION_TITLES: Record<DashboardSection, string> = {
   overview: 'Workspace',
   decks: 'My Documents',
   'planner-history': 'Chat History',
-  settings: 'Account',
+  settings: 'Account & Billing',
+};
+
+const SECTION_SUBTITLES: Record<DashboardSection, string> = {
+  overview: 'Your presentation workspace',
+  decks: 'All your saved presentations',
+  'planner-history': 'Previous AI planning sessions',
+  settings: 'Manage your plan and preferences',
 };
 
 type DashboardHeaderProps = {
@@ -26,7 +33,6 @@ export function DashboardHeader({
   section,
   query,
   onQueryChange,
-  onNewDeck,
   onOpenMenu,
   onOpenSettings,
   onBackToWorkspace,
@@ -35,98 +41,104 @@ export function DashboardHeader({
   const showSearch = section !== 'settings';
 
   return (
-    <header className="sticky top-0 z-20 flex shrink-0 flex-col gap-3 border-b border-white/50 bg-[#F0F7FF]/80 px-4 py-4 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-5">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <button
-          type="button"
-          onClick={onOpenMenu}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/60 bg-white/80 text-slate-700 shadow-sm transition hover:bg-white lg:hidden"
-          aria-label="Open menu"
-        >
-          <Menu size={22} strokeWidth={1.75} />
-        </button>
+    <header className="sticky top-0 z-20 flex shrink-0 flex-col border-b border-slate-100 bg-white/98 backdrop-blur-md">
+      {/* Top bar */}
+      <div className="flex items-center justify-between gap-4 px-5 py-3 sm:px-8">
+        {/* Left: mobile menu + page title */}
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={onOpenMenu}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 transition lg:hidden"
+            aria-label="Open menu"
+          >
+            <Menu size={18} strokeWidth={1.75} />
+          </button>
 
-        <div className="min-w-0 lg:hidden">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Orbstera</p>
-          <h1 className="truncate font-montserrat text-lg font-bold text-slate-900">
-            {SECTION_TITLES[section]}
-          </h1>
+          <div className="min-w-0 hidden lg:block">
+            <div className="flex items-center gap-2">
+              {section === 'settings' && onBackToWorkspace && (
+                <button
+                  type="button"
+                  onClick={onBackToWorkspace}
+                  className="flex items-center gap-1.5 text-[12px] font-semibold text-slate-400 hover:text-slate-700 transition-colors mr-1"
+                >
+                  <ArrowLeft size={13} />
+                  Back
+                </button>
+              )}
+              <h1 className="text-[15px] font-bold text-slate-900 tracking-tight truncate">
+                {SECTION_TITLES[section]}
+              </h1>
+            </div>
+            <p className="text-[11px] text-slate-400 font-medium">{SECTION_SUBTITLES[section]}</p>
+          </div>
+
+          <div className="min-w-0 lg:hidden">
+            <h1 className="text-base font-bold text-slate-900 tracking-tight">{SECTION_TITLES[section]}</h1>
+          </div>
         </div>
 
+        {/* Center: Search */}
         {showSearch && (
-          <div className="relative hidden min-w-0 flex-1 group sm:block sm:max-w-md">
+          <div className="relative hidden flex-1 max-w-sm group sm:flex items-center mx-4">
             <Search
-              size={18}
-              strokeWidth={1.75}
-              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-primary"
+              size={15}
+              strokeWidth={2}
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-primary"
             />
             <input
               type="search"
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
               placeholder="Search presentations…"
-              className="w-full min-h-[44px] rounded-md border border-transparent bg-white/90 py-3 pl-12 pr-4 text-sm shadow-sm outline-none transition focus:border-primary/20 focus:ring-4 focus:ring-primary/10"
+              className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-4 text-sm outline-none transition focus:border-primary/30 focus:bg-white focus:ring-2 focus:ring-primary/10 placeholder:text-slate-400"
             />
           </div>
         )}
+
+        {/* Right: credits warning */}
+        <div className="flex items-center gap-2 shrink-0">
+          {creditsWarning && (
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-amber-200 bg-amber-50 text-[11px] font-bold text-amber-700 hover:bg-amber-100 transition-all"
+            >
+              <AlertTriangle size={12} strokeWidth={2.5} />
+              <span className="hidden sm:inline">Low credits</span>
+            </button>
+          )}
+
+          {section === 'settings' && (
+            <button
+              type="button"
+              onClick={onBackToWorkspace}
+              className="flex lg:hidden items-center h-8 px-3 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold text-slate-600 hover:bg-slate-50 transition-all"
+            >
+              ← Back
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* Mobile search */}
       {showSearch && (
-        <div className="relative w-full group sm:hidden">
+        <div className="relative px-4 pb-3 group sm:hidden">
           <Search
-            size={18}
-            strokeWidth={1.75}
-            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+            size={15}
+            strokeWidth={2}
+            className="pointer-events-none absolute left-7.5 top-1/2 -translate-y-1/2 text-slate-400"
           />
           <input
             type="search"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
             placeholder="Search presentations…"
-            className="w-full min-h-[44px] rounded-md border border-transparent bg-white/90 py-3 pl-12 pr-4 text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary/10"
+            className="w-full h-9 rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-4 text-sm outline-none focus:border-primary/30 focus:bg-white focus:ring-2 focus:ring-primary/10"
           />
         </div>
       )}
-
-      <div className="flex items-center justify-end gap-3 sm:gap-4">
-        {creditsWarning && (
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            className="flex min-h-[44px] items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900 transition hover:bg-amber-100"
-            title="Credits running low — view plan"
-          >
-            <AlertTriangle size={16} strokeWidth={1.75} />
-            <span className="hidden sm:inline">Low credits</span>
-          </button>
-        )}
-        {section === 'settings' ? (
-          <button
-            type="button"
-            onClick={onBackToWorkspace}
-            className="flex min-h-[44px] items-center rounded-xl border border-white/80 bg-white/90 px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-white"
-          >
-            Back to workspace
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onNewDeck}
-            className="flex min-h-[44px] items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 transition hover:bg-primaryHover active:scale-[0.98] sm:px-8"
-          >
-            <Plus size={18} strokeWidth={2} />
-            New deck
-          </button>
-        )}
-        {section !== 'settings' && (
-          <Link
-            href="/pricing"
-            className="hidden min-h-[44px] items-center rounded-xl border border-white/80 bg-white/90 px-4 py-3 text-xs font-bold text-slate-600 shadow-sm transition hover:text-primary lg:inline-flex"
-          >
-            Pricing
-          </Link>
-        )}
-      </div>
     </header>
   );
 }

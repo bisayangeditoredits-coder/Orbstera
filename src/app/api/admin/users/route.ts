@@ -1,18 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import {
   assertTrustedOrigin,
   PRIVATE_API_HEADERS,
   requireAdminUser,
   untrustedOriginResponse,
 } from '@/lib/auth/server';
-
-function adminClientOrNull() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!url || !key) return null;
-  return createClient(url, key);
-}
+import { getServiceSupabase } from '@/lib/billing/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +16,7 @@ export async function GET(req: Request) {
   if ('response' in auth) return auth.response;
 
   try {
-    const supabaseAdmin = adminClientOrNull();
+    const supabaseAdmin = getServiceSupabase();
     if (!supabaseAdmin) {
       return NextResponse.json(
         { error: 'Admin API is disabled: set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.' },

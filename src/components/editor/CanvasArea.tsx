@@ -6,6 +6,8 @@ import { ImageIcon } from 'lucide-react';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import type { DeckGenerationLifecycle } from '@/types';
 import { KonvaCanvas, CANVAS_WIDTH, CANVAS_HEIGHT } from './KonvaCanvas';
+import { FloatingPropertiesBar } from './FloatingPropertiesBar';
+import { AlignmentToolbar } from './AlignmentToolbar';
 
 // ─── Generation Loader (deterministic milestones — no faux random %) ───────────────────
 
@@ -323,16 +325,36 @@ export function CanvasArea() {
 
   // Refs for logic
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasDivRef = useRef<HTMLDivElement>(null);
   const panRef = useRef(pan);
   const zoomRef = useRef(zoom);
   const isSpacePressedRef = useRef(false);
   const velocityRef = useRef({ x: 0, y: 0 });
   const lastPanPosRef = useRef({ x: 0, y: 0 });
   const rafMomentumRef = useRef<number | null>(null);
+  const [canvasDivRect, setCanvasDivRect] = useState({ left: 0, top: 0 });
 
   useEffect(() => { panRef.current = pan; }, [pan]);
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
   useEffect(() => { isSpacePressedRef.current = isSpacePressed; }, [isSpacePressed]);
+
+  // Track canvas div bounding rect for FloatingTextToolbar absolute positioning.
+  useEffect(() => {
+    const el = canvasDivRef.current;
+    if (!el) return;
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      setCanvasDivRect({ left: r.left, top: r.top });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [pan, zoom]);
 
   // Measure container before paint so centering uses real dimensions (main column + sidebars).
   useLayoutEffect(() => {
@@ -498,13 +520,14 @@ export function CanvasArea() {
       ref={containerRef}
       id="tour-canvas"
       data-lenis-prevent
-      className={`flex-1 relative overflow-hidden flex items-center justify-center min-h-0 bg-[#D8DEE6] ${
+      className={`flex-1 relative flex items-center justify-center min-h-0 ${
         isPanning || isSpacePressed
           ? 'cursor-grabbing'
           : activeTool !== 'select'
             ? 'cursor-crosshair'
             : 'cursor-default'
       }`}
+      style={{ overflow: 'clip', background: '#D8DEE6' }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -527,8 +550,10 @@ export function CanvasArea() {
         />
       )}
 
-      <div className="relative z-10 w-full h-full overflow-hidden">
+      {/* overflow:visible so transformer handles can extend outside the slide boundary */}
+      <div className="relative z-10 w-full h-full" style={{ overflow: 'visible' }}>
         <div
+          ref={canvasDivRef}
           style={{
             position: 'absolute',
             left: (containerSize.w - scaledW) / 2 + pan.x,
@@ -537,16 +562,43 @@ export function CanvasArea() {
             height: scaledH,
             boxShadow: '0 8px 32px -8px rgba(15,23,42,0.35), 0 0 0 1px rgba(15,23,42,0.12)',
             borderRadius: 2,
-            overflow: 'hidden',
+            // overflow:visible lets transformer handles render outside the slide edge.
+            // Slide content is visually clipped by clip-path so nothing bleeds outside the white area.
+            overflow: 'visible',
             backgroundColor: '#ffffff',
+            // clip-path on the inner canvas content only (set on KonvaCanvas wrapper below)
           }}
         >
+          {/* Clip slide content to the slide boundary without clipping transformer handles */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            overflow: 'hidden',
+            borderRadius: 2,
+            pointerEvents: 'none',
+            zIndex: 0,
+          }} />
           <KonvaCanvas scale={effectiveScale} />
         </div>
       </div>
 
+      {/* ── Floating Toolbars ──────────────────────────────────────────────── */}
+      <div className="absolute inset-0 z-[201] pointer-events-none">
+        {/* Alignment toolbar — top-center, visible when 2+ elements selected */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-auto">
+          <AlignmentToolbar />
+        </div>
+      </div>
+
+      {/* Floating properties bar — rendered at fixed position in viewport, above selected element */}
+      <FloatingPropertiesBar
+        scale={effectiveScale}
+        canvasLeft={canvasDivRect.left}
+        canvasTop={canvasDivRect.top}
+      />
+
       <div className="absolute bottom-3 left-3 right-3 z-50 flex items-end justify-between gap-3 pointer-events-none">
-        <p className="hidden sm:block text-[10px] font-medium text-neutral-600/90 bg-white/85 border border-neutral-200/80 rounded-md px-2.5 py-1 shadow-sm">
+        <p className="hidden sm:block text-[10px] font-medium text-neutral-600/90 bg-white/90 border border-neutral-200/80 rounded-md px-2.5 py-1 shadow-sm">
           Space + drag to pan · Ctrl + scroll to zoom · Shift constrains shapes
         </p>
       </div>

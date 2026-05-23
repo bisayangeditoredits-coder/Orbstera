@@ -74,6 +74,68 @@ function getLimiter(prefix: string, max: number): Ratelimit | null {
   return lim;
 }
 
+async function runRateLimitChecks(
+  checks: Promise<{ success: boolean }>[],
+  logPrefix: string,
+): Promise<NextResponse | null> {
+  const results = await Promise.allSettled(checks);
+
+  for (const result of results) {
+    if (result.status === 'rejected') {
+      if (process.env.NODE_ENV === 'production') {
+        console.error(`[rate-limit${logPrefix}] Redis error — failing closed:`, result.reason);
+        return NextResponse.json(
+          {
+            error: 'SERVICE_UNAVAILABLE',
+            message: 'Rate limiting is temporarily unavailable. Please try again later.',
+          },
+          { status: 503 },
+        );
+      }
+      console.warn(`[rate-limit${logPrefix}] Redis error — failing open (dev):`, result.reason);
+      continue;
+    }
+    if (!result.value.success) {
+      return NextResponse.json(
+        {
+          error: 'RATE_LIMITED',
+          message:
+            logPrefix === ':api'
+              ? 'Too many requests. Please slow down and try again.'
+              : 'Too many requests. Please wait a moment and try again.',
+        },
+        {
+          status: 429,
+          headers: { 'Retry-After': logPrefix === ':api' ? '15' : '10' },
+        },
+      );
+    }
+  }
+
+  return null;
+}
+
+/** IP-only check — run before Supabase auth to block abuse without DB round-trips. */
+export async function enforceAiIpRateLimit(
+  req: Request,
+  tier: AiTier = 'default',
+): Promise<NextResponse | null> {
+  const ipLim = getLimiter(`ai:ip:${tier}`, LIMITS.ip[tier]);
+  if (!ipLim) return null;
+  return runRateLimitChecks([ipLim.limit(clientIp(req))], '');
+}
+
+/** Per-user check — run after auth. */
+export async function enforceAiUserRateLimit(
+  _req: Request,
+  userId: string,
+  tier: AiTier = 'default',
+): Promise<NextResponse | null> {
+  const userLim = getLimiter(`ai:user:${tier}`, LIMITS.user[tier]);
+  if (!userLim) return null;
+  return runRateLimitChecks([userLim.limit(userId)], '');
+}
+
 /**
  * Per-user + per-IP sliding window.
  * No-op when Upstash Redis is not configured (dev / missing env).
@@ -90,38 +152,35 @@ export async function enforceAiRateLimit(
 
   if (!userLim && !ipLim) return null;
 
-  const checks = await Promise.allSettled([
-    userLim && userId ? userLim.limit(userId) : Promise.resolve({ success: true }),
-    ipLim ? ipLim.limit(clientIp(req)) : Promise.resolve({ success: true }),
-  ]);
+  const checks: Promise<{ success: boolean }>[] = [];
+  if (userLim && userId) checks.push(userLim.limit(userId));
+  if (ipLim) checks.push(ipLim.limit(clientIp(req)));
+  if (checks.length === 0) return null;
 
-  for (const result of checks) {
-    if (result.status === 'rejected') {
-      if (process.env.NODE_ENV === 'production') {
-        console.error('[rate-limit] Redis error — failing closed:', result.reason);
-        return NextResponse.json(
-          {
-            error: 'SERVICE_UNAVAILABLE',
-            message: 'Rate limiting is temporarily unavailable. Please try again later.',
-          },
-          { status: 503 },
-        );
-      }
-      console.warn('[rate-limit] Redis error — failing open (dev):', result.reason);
-      continue;
-    }
-    if (!result.value.success) {
-      return NextResponse.json(
-        { error: 'RATE_LIMITED', message: 'Too many requests. Please wait a moment and try again.' },
-        {
-          status: 429,
-          headers: { 'Retry-After': '10' },
-        },
-      );
-    }
-  }
+  return runRateLimitChecks(checks, '');
+}
 
-  return null;
+/** IP-only API rate limit — before auth. */
+export async function enforceApiIpRateLimit(
+  req: Request,
+  tier: ApiTier = 'default',
+): Promise<NextResponse | null> {
+  const { ip, prefix } = apiTierKeys(tier);
+  const ipLim = getLimiter(`${prefix}:ip`, ip);
+  if (!ipLim) return null;
+  return runRateLimitChecks([ipLim.limit(clientIp(req))], ':api');
+}
+
+/** Per-user API rate limit — after auth. */
+export async function enforceApiUserRateLimit(
+  _req: Request,
+  userId: string,
+  tier: ApiTier = 'default',
+): Promise<NextResponse | null> {
+  const { user, prefix } = apiTierKeys(tier);
+  const userLim = getLimiter(`${prefix}:user`, user);
+  if (!userLim) return null;
+  return runRateLimitChecks([userLim.limit(userId)], ':api');
 }
 
 function apiTierKeys(tier: ApiTier): { user: number; ip: number; prefix: string } {
@@ -151,33 +210,10 @@ export async function enforceApiRateLimit(
 
   if (!userLim && !ipLim) return null;
 
-  const checks = await Promise.allSettled([
-    userLim && userId ? userLim.limit(userId) : Promise.resolve({ success: true }),
-    ipLim ? ipLim.limit(clientIp(req)) : Promise.resolve({ success: true }),
-  ]);
+  const checks: Promise<{ success: boolean }>[] = [];
+  if (userLim && userId) checks.push(userLim.limit(userId));
+  if (ipLim) checks.push(ipLim.limit(clientIp(req)));
+  if (checks.length === 0) return null;
 
-  for (const result of checks) {
-    if (result.status === 'rejected') {
-      if (process.env.NODE_ENV === 'production') {
-        console.error('[rate-limit:api] Redis error — failing closed:', result.reason);
-        return NextResponse.json(
-          {
-            error: 'SERVICE_UNAVAILABLE',
-            message: 'Rate limiting is temporarily unavailable. Please try again later.',
-          },
-          { status: 503 },
-        );
-      }
-      console.warn('[rate-limit:api] Redis error — failing open (dev):', result.reason);
-      continue;
-    }
-    if (!result.value.success) {
-      return NextResponse.json(
-        { error: 'RATE_LIMITED', message: 'Too many requests. Please slow down and try again.' },
-        { status: 429, headers: { 'Retry-After': '15' } },
-      );
-    }
-  }
-
-  return null;
+  return runRateLimitChecks(checks, ':api');
 }

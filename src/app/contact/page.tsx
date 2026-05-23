@@ -2,12 +2,20 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-// Navbar removed
 import { Footer } from '@/components/layout/Footer';
+import { Mail, MapPin, Phone, ArrowRight, Clock } from 'lucide-react';
+import { motion } from 'framer-motion';
+
+const OFFICES = [
+  { city: "San Francisco", address: "101 Mission Street, Suite 2400", flag: "🇺🇸" },
+  { city: "London", address: "22 Bishopsgate, EC2N 4BQ", flag: "🇬🇧" },
+  { city: "Singapore", address: "Marina Bay Financial Centre", flag: "🇸🇬" },
+];
 
 export default function ContactPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [company, setCompany] = useState('');
   const [message, setMessage] = useState('');
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -18,47 +26,106 @@ export default function ContactPage() {
     setError(null);
     setName('');
     setEmail('');
+    setCompany('');
     setMessage('');
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFCF9] text-neutral-900">
-      {/* Navbar removed */}
-      <main className="mx-auto max-w-6xl px-5 pb-24 pt-28 sm:px-8 sm:pt-32">
-        <div className="grid gap-16 lg:grid-cols-2 lg:gap-24">
+    <div className="min-h-screen bg-white text-neutral-900 font-sans">
+
+      {/* ── HERO ── */}
+      <section className="bg-gradient-to-br from-blue-600 to-blue-800 pt-32 pb-24 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#ffffff 1.5px, transparent 1.5px)', backgroundSize: '28px 28px' }} />
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white/10 blur-[120px] rounded-full pointer-events-none" />
+
+        <div className="max-w-6xl mx-auto px-6 sm:px-12 relative z-10">
+          <div className="inline-flex items-center gap-2 border border-white/30 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-white/70 mb-8">
+            <div className="w-1.5 h-1.5 bg-white rounded-full" />
+            Contact Orbstera
+          </div>
+          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter text-white leading-[1] mb-6 max-w-3xl">
+            Let&apos;s build something <span className="text-blue-200">extraordinary.</span>
+          </h1>
+          <p className="text-white/60 text-lg max-w-xl leading-relaxed">
+            Whether you&apos;re scaling a startup or managing enterprise decks — our team is ready to talk.
+          </p>
+        </div>
+      </section>
+
+      {/* ── MAIN GRID ── */}
+      <section className="max-w-6xl mx-auto px-6 sm:px-12 py-24">
+        <div className="grid lg:grid-cols-2 gap-16 lg:gap-24">
+
+          {/* ── LEFT: Info ── */}
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary/80">Contact</p>
-            <h1
-              className="mt-4 text-4xl font-semibold tracking-[-0.04em] text-neutral-950"
-              style={{ fontFamily: 'var(--font-space-grotesk), ui-sans-serif, system-ui' }}
-            >
-              Let&apos;s talk about your team&apos;s decks
-            </h1>
-            <p className="mt-6 text-sm leading-relaxed text-neutral-600">
-              For product questions, partnerships, or press, send a note. When email delivery is configured on the
-              server, your message is sent through Resend to our inbox—otherwise use the address below.
-            </p>
-            <p className="mt-8 text-sm text-neutral-500">
-              Direct email:{' '}
-              <a href="mailto:hello@orbstera.ai" className="font-medium text-neutral-900 underline-offset-4 hover:underline">
-                hello@orbstera.ai
-              </a>
-            </p>
+            <h2 className="text-3xl font-bold text-[#1E293B] tracking-tight mb-8">Get in touch</h2>
+
+            <div className="space-y-6 mb-12">
+              <div className="flex gap-4 items-start">
+                <div className="w-10 h-10 border border-slate-200 flex items-center justify-center text-[#3B82F6] shrink-0">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1">Email</p>
+                  <a href="mailto:hello@orbstera.ai" className="text-slate-800 font-semibold hover:text-blue-600 transition-colors">hello@orbstera.ai</a>
+                </div>
+              </div>
+              <div className="flex gap-4 items-start">
+                <div className="w-10 h-10 border border-slate-200 flex items-center justify-center text-[#3B82F6] shrink-0">
+                  <Phone className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1">Enterprise Sales</p>
+                  <p className="text-[#1E293B] font-semibold">+1 (415) 800-0000</p>
+                </div>
+              </div>
+              <div className="flex gap-4 items-start">
+                <div className="w-10 h-10 border border-slate-200 flex items-center justify-center text-[#3B82F6] shrink-0">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1">Response Time</p>
+                  <p className="text-[#1E293B] font-semibold">Within 4 business hours</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Offices */}
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-6">Global Offices</p>
+              <div className="space-y-0 border-t border-slate-100">
+                {OFFICES.map((o, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -12 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.1 }}
+                    className="flex items-start gap-4 py-5 border-b border-slate-100"
+                  >
+                    <span className="text-2xl">{o.flag}</span>
+                    <div className="flex gap-2 items-start">
+                      <MapPin className="w-4 h-4 text-slate-300 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="font-bold text-slate-800 text-sm">{o.city}</p>
+                        <p className="text-slate-400 text-xs">{o.address}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className="border border-neutral-200 bg-white p-8 shadow-[0_1px_0_rgba(0,0,0,0.04)] sm:p-10">
+          {/* ── RIGHT: Form ── */}
+          <div className="border border-slate-200 bg-white p-8 sm:p-12 shadow-xl shadow-slate-100/50">
             {sent ? (
-              <div className="py-8 text-center">
-                <p className="text-lg font-semibold text-neutral-950">Message sent</p>
-                <p className="mt-2 text-sm text-neutral-600">
-                  Thanks—we received your note and will reply when we can.
-                </p>
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="mt-8 text-sm font-medium text-primary underline-offset-4 hover:underline"
-                >
-                  Send another
+              <div className="h-full flex flex-col items-center justify-center text-center py-16">
+                <div className="w-16 h-16 bg-green-50 border border-green-100 flex items-center justify-center text-green-500 text-3xl mb-6">✓</div>
+                <h3 className="text-2xl font-bold text-slate-800 mb-3">Message received.</h3>
+                <p className="text-slate-500 text-sm mb-8 max-w-xs">We&apos;ll get back to you within 4 business hours. Check your inbox.</p>
+                <button onClick={resetForm} className="text-sm font-bold text-blue-600 uppercase tracking-widest hover:text-blue-700 transition-colors">
+                  Send another message
                 </button>
               </div>
             ) : (
@@ -72,27 +139,15 @@ export default function ContactPage() {
                     const res = await fetch('/api/contact', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ name, email, message }),
+                      body: JSON.stringify({ name, email, message: `Company: ${company}\n\n${message}` }),
                     });
-                    const data = (await res.json()) as {
-                      ok?: boolean;
-                      error?: string;
-                    };
-                    if (res.ok && data.ok) {
-                      setSent(true);
-                      return;
-                    }
+                    const data = (await res.json()) as { ok?: boolean; error?: string };
+                    if (res.ok && data.ok) { setSent(true); return; }
                     if (data.error === 'CONTACT_NOT_CONFIGURED') {
-                      setError(
-                        'This site is not yet wired for outbound mail. Please email hello@orbstera.ai directly, or ask your admin to set RESEND_API_KEY and CONTACT_TO_EMAIL.',
-                      );
+                      setError('Email not configured. Please email hello@orbstera.ai directly.');
                       return;
                     }
-                    if (data.error === 'VALIDATION') {
-                      setError('Please check the fields: name, a valid email, and at least 10 characters in your message.');
-                      return;
-                    }
-                    setError('Something went wrong sending your message. Try again or use email directly.');
+                    setError('Something went wrong. Please try again or email us directly.');
                   } catch {
                     setError('Network error. Check your connection and try again.');
                   } finally {
@@ -100,75 +155,53 @@ export default function ContactPage() {
                   }
                 }}
               >
-                <div>
-                  <label htmlFor="name" className="text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
-                    Name
-                  </label>
-                  <input
-                    id="name"
-                    name="name"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    autoComplete="name"
-                    className="mt-2 w-full border border-neutral-200 bg-neutral-50/50 px-4 py-3 text-sm outline-none transition focus:border-primary/40 focus:bg-white"
-                  />
+                <h3 className="text-xl font-bold text-[#1E293B] mb-2">Send a message</h3>
+                <p className="text-slate-400 text-sm mb-6">Fill in your details and we&apos;ll be in touch shortly.</p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="name" className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-2">Full Name</label>
+                    <input id="name" name="name" required value={name} onChange={e => setName(e.target.value)}
+                      className="w-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#3B82F6] focus:bg-white transition-colors" />
+                  </div>
+                  <div>
+                    <label htmlFor="company" className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-2">Company</label>
+                    <input id="company" name="company" value={company} onChange={e => setCompany(e.target.value)}
+                      className="w-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#3B82F6] focus:bg-white transition-colors" />
+                  </div>
                 </div>
+
                 <div>
-                  <label htmlFor="email" className="text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
-                    Work email
-                  </label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoComplete="email"
-                    className="mt-2 w-full border border-neutral-200 bg-neutral-50/50 px-4 py-3 text-sm outline-none transition focus:border-primary/40 focus:bg-white"
-                  />
+                  <label htmlFor="email" className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-2">Work Email</label>
+                  <input id="email" name="email" type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                    className="w-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#3B82F6] focus:bg-white transition-colors" />
                 </div>
+
                 <div>
-                  <label htmlFor="msg" className="text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
-                    How can we help?
-                  </label>
-                  <textarea
-                    id="msg"
-                    name="message"
-                    required
-                    minLength={10}
-                    rows={5}
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    className="mt-2 w-full resize-y border border-neutral-200 bg-neutral-50/50 px-4 py-3 text-sm outline-none transition focus:border-primary/40 focus:bg-white"
-                  />
+                  <label htmlFor="msg" className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-2">How can we help?</label>
+                  <textarea id="msg" name="message" required minLength={10} rows={5} value={message} onChange={e => setMessage(e.target.value)}
+                    className="w-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#3B82F6] focus:bg-white transition-colors resize-y" />
                 </div>
+
                 {error && (
-                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="alert">
-                    {error}
-                  </p>
+                  <p className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{error}</p>
                 )}
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  aria-busy={submitting}
-                  className="w-full bg-neutral-900 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
+
+                <button type="submit" disabled={submitting}
+                  className="w-full bg-blue-600 text-white font-bold text-xs uppercase tracking-[0.15em] py-4 flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors disabled:opacity-60 group"
                 >
-                  {submitting ? 'Sending…' : 'Submit'}
+                  {submitting ? 'Sending…' : <><span>Send Message</span><ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>}
                 </button>
-                <p className="text-center text-[11px] text-neutral-400">
-                  By sending, you agree to our{' '}
-                  <Link href="/privacy" className="underline-offset-2 hover:underline">
-                    Privacy Policy
-                  </Link>
-                  .
+                <p className="text-center text-[10px] text-slate-300">
+                  By submitting, you agree to our{' '}
+                  <Link href="/privacy" className="underline underline-offset-2 hover:text-slate-500">Privacy Policy</Link>.
                 </p>
               </form>
             )}
           </div>
         </div>
-      </main>
+      </section>
+
       <Footer />
     </div>
   );

@@ -1,7 +1,7 @@
 import type { AnimationEntrance } from '@/types';
 
 /** PowerPoint-style labels for editor UI; values stay `AnimationEntrance` for Present + export. */
-export const PPT_STYLE_ENTRANCE_OPTIONS: { value: AnimationEntrance; label: string }[] = [
+export const PPT_STYLE_ENTRANCE_OPTIONS: { value: AnimationEntrance | string; label: string }[] = [
   { value: 'none', label: 'None (Appear)' },
   { value: 'fadeIn', label: 'Fade' },
   { value: 'fadeSlideUp', label: 'Fly In — From Bottom' },
@@ -25,6 +25,15 @@ export const PPT_STYLE_ENTRANCE_OPTIONS: { value: AnimationEntrance; label: stri
   { value: 'glitch', label: 'Glitch' },
   { value: 'typewriterWords', label: 'Appear By Word' },
   { value: 'staggerLines', label: 'Appear By Line' },
+  // Animate.css Third-Party Presets
+  { value: 'animate__bounceIn', label: '3rd Party: Bounce In' },
+  { value: 'animate__bounceInDown', label: '3rd Party: Bounce In Down' },
+  { value: 'animate__fadeInDown', label: '3rd Party: Fade In Down' },
+  { value: 'animate__flipInX', label: '3rd Party: Flip In X' },
+  { value: 'animate__lightSpeedInRight', label: '3rd Party: Light Speed' },
+  { value: 'animate__rollIn', label: '3rd Party: Roll In' },
+  { value: 'animate__jackInTheBox', label: '3rd Party: Jack In The Box' },
+  { value: 'animate__zoomInUp', label: '3rd Party: Zoom In Up' },
 ];
 
 export const PPT_ANIMATION_HINT =

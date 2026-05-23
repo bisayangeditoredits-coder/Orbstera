@@ -53,11 +53,16 @@ export async function POST(req: Request) {
   const exportJobId = req.headers.get('x-export-job-id')?.trim() || '';
 
   try {
+    const contentLength = Number(req.headers.get('content-length') ?? 0);
+    if (!workerUserId && contentLength > 100 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Payload too large. Maximum export payload is 100MB.' }, { status: 413 });
+    }
+
     let authedUserId: string;
     if (workerUserId) {
       authedUserId = workerUserId;
     } else {
-      const auth = await requireAiUser(req, 'default');
+      const auth = await requireAiUser(req, 'heavy');
       if ('response' in auth) {
         if (auth.response.status === 401) {
           return aiUnauthorized('Please sign in to export presentations.');

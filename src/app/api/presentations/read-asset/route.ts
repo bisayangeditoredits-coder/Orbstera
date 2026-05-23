@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { requireApiUserWithRateLimit } from '@/lib/auth/require-api-route';
+import { PRIVATE_IMMUTABLE_ASSET } from '@/lib/http/cache-headers';
 
 let s3Client: S3Client | null = null;
 if (
@@ -19,18 +19,7 @@ if (
   });
 }
 
-async function getAuthUser() {
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } },
-  );
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
-}
-
-async function streamToBuffer(stream: any): Promise<Buffer> {
+async function streamToBuffer(stream: AsyncIterable<Uint8Array | Buffer>): Promise<Buffer> {
   const chunks: Buffer[] = [];
   for await (const chunk of stream) chunks.push(Buffer.from(chunk));
   return Buffer.concat(chunks);
@@ -47,8 +36,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
   }
 
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireApiUserWithRateLimit(req, 'default');
+  if ('response' in auth) return auth.response;
+  const user = auth.user;
 
   const { searchParams } = new URL(req.url);
   const rawKey = searchParams.get('key');
@@ -72,17 +62,16 @@ export async function GET(req: Request) {
 
   try {
     const obj = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-    const buf = await streamToBuffer(obj.Body);
+    const buf = await streamToBuffer(obj.Body as AsyncIterable<Uint8Array | Buffer>);
     if (buf.byteLength > MAX_BYTES) {
       return NextResponse.json({ error: 'Asset too large' }, { status: 413 });
     }
     const ct = obj.ContentType || 'application/octet-stream';
-    // Node Buffer is a valid fetch body at runtime; DOM BodyInit types disagree with Buffer's ArrayBufferLike generics (TS 5.7+).
     return new NextResponse(buf as unknown as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': ct,
-        'Cache-Control': 'private, no-store, max-age=0',
+        ...PRIVATE_IMMUTABLE_ASSET,
       },
     });
   } catch (e: unknown) {

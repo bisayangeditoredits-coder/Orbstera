@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import type { ImageVisualProfile } from '@/lib/ai/agent-models';
 import { openRouterImageGeneration } from '@/lib/ai/openrouter-image';
+import { selectImageProvider, type AiTask } from '@/lib/ai/router';
+import { getSpendState } from '@/lib/ai/spend';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
+import { imageRateLimit } from '@/lib/rate-limit';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
@@ -12,25 +15,6 @@ export const maxDuration = 120;
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
   try {
-    const body = await req.json();
-    const {
-      prompt,
-      size: sizeIn,
-      width,
-      height,
-      visualProfile = 'cinematic',
-    } = body as {
-      prompt?: string;
-      size?: string;
-      width?: number;
-      height?: number;
-      visualProfile?: ImageVisualProfile;
-    };
-
-    if (!prompt) {
-      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
-    }
-
     if (!OPENROUTER_API_KEY.trim()) {
       return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured.' }, { status: 503 });
     }
@@ -44,9 +28,53 @@ export async function POST(req: Request) {
     }
     const user = auth.user;
 
+    if (imageRateLimit) {
+      const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
+      const identifier = `${user.id}-${ip}`;
+      const { success, limit, reset, remaining } = await imageRateLimit.limit(identifier);
+      if (!success) {
+        return NextResponse.json(
+          { error: 'Rate limit exceeded. Please try again later.' },
+          {
+            status: 429,
+            headers: {
+              'X-RateLimit-Limit': limit.toString(),
+              'X-RateLimit-Remaining': remaining.toString(),
+              'X-RateLimit-Reset': reset.toString(),
+            },
+          }
+        );
+      }
+    }
+
+    const body = await req.json();
+    const {
+      prompt,
+      size: sizeIn,
+      width,
+      height,
+      visualProfile = 'cinematic',
+      task = 'image_generate',
+      sourceImage,
+      maskImage,
+    } = body as {
+      prompt?: string;
+      size?: string;
+      width?: number;
+      height?: number;
+      visualProfile?: ImageVisualProfile;
+      task?: AiTask;
+      sourceImage?: string;
+      maskImage?: string;
+      transparent?: boolean;
+    };
+
+    if (!prompt) {
+      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
+    }
+
     const { createServerClient } = await import('@supabase/ssr');
     const { cookies } = await import('next/headers');
-    const { ensureCredits, getCreditConfig } = await import('@/lib/billing/credits');
 
     const cookieStore = cookies();
     const supabase = createServerClient(
@@ -56,54 +84,105 @@ export async function POST(req: Request) {
     );
 
     const { getBillingPlan } = await import('@/lib/billing/resolve-plan');
-    const { readFreeTierUsage, incrementFreeTierUsage } = await import('@/lib/billing/free-tier-usage');
+    const { consumeFreeGenfillSlot, isPaidPlan } = await import('@/lib/billing/free-genfill-redis');
     const plan = await getBillingPlan(user.id);
-    const isPaid = plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro' || plan === 'admin';
+    const isPaid = isPaidPlan(plan);
 
+    const isGenfillTask = task === 'genfill_image' || task === 'magic_edit_image';
+
+    // ── FREE USERS: Pollinations + monthly Redis cap (no credits) ──
     if (!isPaid) {
-      const { FREE_TIER } = await import('@/lib/billing/free-tier-limits');
-      const usage = await readFreeTierUsage(user.id);
-      if (usage.free_generative_fill_uses >= FREE_TIER.generativeFillUses) {
+      const slot = await consumeFreeGenfillSlot(user.id);
+      if (!slot.ok) {
         return NextResponse.json(
           {
             error: 'FREE_LIMIT_REACHED',
-            message: `Free accounts are limited to ${FREE_TIER.generativeFillUses} Generative Fill uses. Upgrade to Pro for unlimited access.`,
-            used: usage.free_generative_fill_uses,
-            limit: FREE_TIER.generativeFillUses,
+            message: 'You have used all 15 free AI image edits this month. Upgrade to Pro for unlimited.',
+            used: slot.used,
+            remaining: 0,
           },
-          { status: 403 },
+          { status: 402 },
         );
       }
-      await incrementFreeTierUsage(user.id, 'free_generative_fill_uses');
+      try {
+        const { generatePollinationsImageUrl } = await import('@/lib/pollinations-image');
+        let pw = 1024;
+        let ph = 1024;
+        if (typeof width === 'number' && typeof height === 'number' && width > 0 && height > 0) {
+          pw = Math.round(width);
+          ph = Math.round(height);
+          // Scale down proportionally if either exceeds 1024 (Pollinations free limit)
+          if (pw > 1024 || ph > 1024) {
+            const scale = Math.min(1024 / pw, 1024 / ph);
+            pw = Math.round(pw * scale);
+            ph = Math.round(ph * scale);
+          }
+          // Scale up proportionally if either is below 256 — never clamp independently
+          if (pw < 256 || ph < 256) {
+            const scale = Math.max(256 / pw, 256 / ph);
+            pw = Math.round(pw * scale);
+            ph = Math.round(ph * scale);
+          }
+          // Align to 8px grid for diffusion models
+          pw = Math.max(8, Math.round(pw / 8) * 8);
+          ph = Math.max(8, Math.round(ph / 8) * 8);
+        }
+        const freeUrl = await generatePollinationsImageUrl({ prompt: String(prompt), width: pw, height: ph });
+
+        // Optional background removal for transparent flag
+        let finalFreeUrl = freeUrl;
+        if (body.transparent) {
+          const bgKey = process.env.REMOVE_BG_API_KEY?.trim();
+          if (bgKey) {
+            try {
+              const b64Data = freeUrl.split(',')[1];
+              const formData = new FormData();
+              formData.append('image_file_b64', b64Data);
+              formData.append('size', 'auto');
+              const bgRes = await fetch('https://api.remove.bg/v1.0/removebg', {
+                method: 'POST',
+                headers: { 'X-Api-Key': bgKey },
+                body: formData,
+              });
+              if (bgRes.ok) {
+                const arrayBuffer = await bgRes.arrayBuffer();
+                finalFreeUrl = `data:image/png;base64,${Buffer.from(arrayBuffer).toString('base64')}`;
+              }
+            } catch (bgErr) {
+              console.warn('[Image] Free-user background removal error:', bgErr);
+            }
+          }
+        }
+        return NextResponse.json({ url: finalFreeUrl });
+      } catch (freeErr) {
+        console.error('[Image] Pollinations generation failed for free user:', freeErr);
+        return NextResponse.json({ error: 'Image generation failed. Please try again.' }, { status: 502 });
+      }
     }
 
+    // ── PAID USERS: deduct credits then use OpenRouter → Pollinations fallback ──
+    const { chargeCreditsBeforeJob, getActionCreditCost, getCreditConfig, getGenfillCreditAction } =
+      await import('@/lib/billing/credits');
     const creditConfig = await getCreditConfig(supabase);
-    // Tier-based genfill cost — prevents underbilling paid users
-    let creditAction: 'genfill_creator' | 'genfill_pro' | 'genfill_free';
-    if (plan === 'creator_pro' || plan === 'admin') {
-      creditAction = 'genfill_creator';
-    } else if (plan === 'student_pro' || plan === 'pro') {
-      creditAction = 'genfill_pro';
-    } else {
-      creditAction = 'genfill_free';
-    }
-    const cost = creditConfig.costs[creditAction] ?? creditConfig.costs.image_standard ?? 5;
+    const creditAction = isGenfillTask
+      ? getGenfillCreditAction(plan)
+      : (await import('@/lib/billing/credits')).getImageCreditAction(
+          plan,
+          (plan === 'creator_pro' || plan === 'admin') && visualProfile === 'cinematic',
+        );
+    const cost = getActionCreditCost(creditConfig, creditAction);
 
-    const creditCheck = await ensureCredits({
+    const creditCheck = await chargeCreditsBeforeJob({
       supabase,
       userId: user.id,
-      cost,
       action: creditAction,
+      cost,
+      meta: { route: 'generate/image', task },
+      idempotencyKey: requestId,
     });
-
     if (!creditCheck.ok) {
       return NextResponse.json(
-        {
-          error: 'INSUFFICIENT_CREDITS',
-          message: 'Not enough credits to generate image.',
-          credits: creditCheck.summary,
-          required: cost,
-        },
+        { error: 'INSUFFICIENT_CREDITS', message: 'Not enough credits to generate image.', credits: creditCheck.summary, required: cost },
         { status: 402 },
       );
     }
@@ -115,66 +194,65 @@ export async function POST(req: Request) {
       size = `${w}x${h}`;
     }
 
+    const spend = await getSpendState({ supabase });
+    const isGenfill = task === 'genfill_image' || task === 'magic_edit_image';
+    const imgSel = selectImageProvider({
+      plan,
+      visualProfile,
+      premiumRequested: (plan === 'creator_pro' || plan === 'admin') && visualProfile === 'cinematic',
+      spendState: { forcedEconomyMode: spend.forcedEconomyMode },
+      task: isGenfill ? task : 'image_generate',
+      hasOpenRouterKey: true,
+      hasClaidKey: Boolean(process.env.CLAID_API_KEY?.trim()),
+      hasPollinationsKey: true,
+    });
+
     const result = await openRouterImageGeneration({
       prompt: String(prompt),
       size,
       visualProfile,
+      model: imgSel.model,
+      modelCascade: imgSel.modelCascade,
+      qualityBoost: plan === 'creator_pro' || plan === 'admin' || plan === 'student_pro' || plan === 'pro',
+      sourceImage: typeof sourceImage === 'string' ? sourceImage : undefined,
+      maskImage: typeof maskImage === 'string' ? maskImage : undefined,
+      plan,
     });
 
     if (!result.ok || !result.url) {
-      console.warn('[Image] OpenRouter failed, falling back to free Pollinations API:', result.status);
+      console.warn('[Image] OpenRouter failed, falling back to Pollinations:', result.status);
       try {
         const { generatePollinationsImageUrl } = await import('@/lib/pollinations-image');
-        
         let w = 1024;
         let h = 1024;
         if (typeof width === 'number' && typeof height === 'number') {
-           w = Math.min(1920, Math.max(256, Math.round(width)));
-           h = Math.min(1920, Math.max(256, Math.round(height)));
+          w = Math.min(1920, Math.max(256, Math.round(width)));
+          h = Math.min(1920, Math.max(256, Math.round(height)));
         }
-        
-        const fallbackUrl = await generatePollinationsImageUrl({
-          prompt: String(prompt),
-          width: w,
-          height: h
-        });
-        
-        // --- BACKGROUND REMOVAL (TRANSPARENT FLAG) ---
+        const fallbackUrl = await generatePollinationsImageUrl({ prompt: String(prompt), width: w, height: h });
         let finalFallbackUrl = fallbackUrl;
         if (body.transparent) {
           const bgKey = process.env.REMOVE_BG_API_KEY?.trim();
           if (bgKey) {
             try {
-              console.log('[Image] Transparent flag enabled for Pollinations, removing background...');
               const b64Data = fallbackUrl.split(',')[1];
               const formData = new FormData();
               formData.append('image_file_b64', b64Data);
               formData.append('size', 'auto');
-              const bgRes = await fetch('https://api.remove.bg/v1.0/removebg', {
-                method: 'POST',
-                headers: { 'X-Api-Key': bgKey },
-                body: formData,
-              });
+              const bgRes = await fetch('https://api.remove.bg/v1.0/removebg', { method: 'POST', headers: { 'X-Api-Key': bgKey }, body: formData });
               if (bgRes.ok) {
                 const arrayBuffer = await bgRes.arrayBuffer();
-                const base64 = Buffer.from(arrayBuffer).toString('base64');
-                finalFallbackUrl = `data:image/png;base64,${base64}`;
-                console.log('[Image] Background removed successfully.');
+                finalFallbackUrl = `data:image/png;base64,${Buffer.from(arrayBuffer).toString('base64')}`;
               }
             } catch (bgErr) {
               console.warn('[Image] Background removal error:', bgErr);
             }
           }
         }
-        // ----------------------------------------------
-        
         return NextResponse.json({ url: finalFallbackUrl });
       } catch (fallbackError) {
         console.error('[Image] Pollinations fallback also failed:', fallbackError);
-        return NextResponse.json(
-          { error: `Image AI service error: OpenRouter ${result.status}` },
-          { status: 502 }
-        );
+        return NextResponse.json({ error: `Image AI service error: OpenRouter ${result.status}` }, { status: 502 });
       }
     }
 

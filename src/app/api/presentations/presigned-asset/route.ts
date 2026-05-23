@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { getR2PublicBaseTrimmed } from '@/lib/r2-public-url';
+import { requireApiUserWithRateLimit } from '@/lib/auth/require-api-route';
+import { PRIVATE_NO_STORE } from '@/lib/http/cache-headers';
 
 let s3Client: S3Client | null = null;
 if (
@@ -20,17 +20,6 @@ if (
       secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_KEY,
     },
   });
-}
-
-async function getAuthUser() {
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } },
-  );
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
 }
 
 function extFromMime(mime: string): string {
@@ -60,8 +49,9 @@ export async function POST(req: Request) {
     );
   }
 
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireApiUserWithRateLimit(req, 'write');
+  if ('response' in auth) return auth.response;
+  const user = auth.user;
 
   const body = await req.json().catch(() => ({}));
   const presentationId = typeof body.presentationId === 'string' && body.presentationId.trim()
@@ -83,5 +73,5 @@ export async function POST(req: Request) {
   const putUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
   const publicUrl = `${publicBase}/${key}`;
 
-  return NextResponse.json({ putUrl, publicUrl, key }, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } });
+  return NextResponse.json({ putUrl, publicUrl, key }, { headers: PRIVATE_NO_STORE });
 }

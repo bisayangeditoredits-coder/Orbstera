@@ -22,7 +22,11 @@ export async function GET(req: Request, { params }: { params: { slug: string } }
       return NextResponse.json({ error: 'Template not found' }, { status: 404 });
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=3600, max-age=3600, stale-while-revalidate=86400',
+      },
+    });
   } catch (err) {
     console.error('Template API Error:', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
