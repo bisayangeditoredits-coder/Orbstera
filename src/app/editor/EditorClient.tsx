@@ -25,6 +25,7 @@ import type { PresentationData } from '@/types';
 import { isSlideDeckBackgroundImage } from '@/lib/slide-background';
 import { createStarterPresentation } from '@/lib/editor-starter-deck';
 import { createEditorGeneratingShell } from '@/lib/editor-generating-shell';
+import { ComponentErrorBoundary } from '@/components/editor/ComponentErrorBoundary';
 import { Monitor } from 'lucide-react';
 
 const EditorCanvasLoading = () => (
@@ -572,7 +573,9 @@ export default function EditorClient() {
     const isActive = isPanelOpen && (activePanel as string) === id;
     return (
       <div key={id} style={{ display: isActive ? 'contents' : 'none' }}>
-        {node}
+        <ComponentErrorBoundary region={`${id} Panel`}>
+          {node}
+        </ComponentErrorBoundary>
       </div>
     );
   };
@@ -596,7 +599,9 @@ export default function EditorClient() {
       <div className="editor-shell hidden md:flex h-[100dvh] max-h-[100dvh] w-full max-w-[100vw] overflow-hidden bg-background text-textMain flex-col select-none">
         <GlobalFontLoader />
         <OnboardingTour />
-      <PresentMode />
+      <ComponentErrorBoundary region="Presentation Mode">
+        <PresentMode />
+      </ComponentErrorBoundary>
       <TopBar
         showMobileGalleryTrigger={!isMdUp}
         onOpenMobileGallery={() => setMobileGalleryOpen(true)}

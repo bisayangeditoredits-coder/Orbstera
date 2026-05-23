@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -9,8 +9,11 @@ import {
   Copy, Trash2,
   ChevronUp, ChevronDown,
   Eye,
+  FlipHorizontal2, FlipVertical2,
+  Move,
 } from 'lucide-react';
 import type { SlideElement } from '@/types';
+import { ColorPicker } from './ColorPicker';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 interface BtnProps {
@@ -46,6 +49,18 @@ function Btn({ active, title, onClick, children, danger, disabled, className }: 
   );
 }
 
+// ── Get element's current fill/text color ─────────────────────────────────────
+function getElementColor(el: SlideElement): string | null {
+  if (el.type === 'text') {
+    // textStyle.color is the canonical field (same as DesignPanel uses)
+    return (el as any).textStyle?.color ?? (el as any).style?.color ?? '#1a1a1a';
+  }
+  if (el.type === 'shape') {
+    return (el as any).shapeStyle?.fill ?? '#7B61FF';
+  }
+  return null;
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 interface FloatingPropertiesBarProps {
   scale: number;
@@ -54,9 +69,13 @@ interface FloatingPropertiesBarProps {
 }
 
 export function FloatingPropertiesBar({ scale, canvasLeft, canvasTop }: FloatingPropertiesBarProps) {
-  const { selectedElementId } = usePresentationStore(
-    useShallow((s) => ({ selectedElementId: s.editor.selectedElementId }))
+  const { selectedElementId, isPanningImage } = usePresentationStore(
+    useShallow((s) => ({ 
+      selectedElementId: s.editor.selectedElementId,
+      isPanningImage: s.editor.isPanningImage
+    }))
   );
+  const setEditorState = usePresentationStore((s) => s.setEditorState);
 
   const slide = usePresentationStore((s) => s.presentation?.slides[s.currentSlideIndex]);
   const updateElement = usePresentationStore((s) => s.updateElement);
@@ -78,9 +97,8 @@ export function FloatingPropertiesBar({ scale, canvasLeft, canvasTop }: Floating
 
   if (!show || !el || !slide) return null;
 
-  // Position the bar: fixed, above the element on screen
-  // Clamp to viewport so it never goes off-screen
-  const rawTop = canvasTop + el.y * scale - 48;
+  // Position the bar higher above the element to clear the rotation handle
+  const rawTop = canvasTop + el.y * scale - 84;
   const rawLeft = canvasLeft + el.x * scale;
   const barTop = Math.max(120, Math.min(window.innerHeight - 80, rawTop));
   const barLeft = Math.max(8, Math.min(window.innerWidth - 200, rawLeft));
@@ -90,10 +108,29 @@ export function FloatingPropertiesBar({ scale, canvasLeft, canvasTop }: Floating
   const canMoveUp = myIndex < currentElementIds.length - 1;
   const canMoveDown = myIndex > 0;
 
+  const elColor = getElementColor(el);
+
+  // Apply color change live (no history) — mirrors how DesignPanel does it
+  const handleColorChange = (newColor: string) => {
+    const elAny = el as any;
+    if (el.type === 'text') {
+      updateElement(slide.id, el.id, {
+        textStyle: { ...elAny.textStyle, color: newColor },
+        // also patch style.color for legacy renderers
+        style: { ...elAny.style, color: newColor },
+      } as any, false);
+    } else if (el.type === 'shape') {
+      updateElement(slide.id, el.id, {
+        shapeStyle: { ...elAny.shapeStyle, fill: newColor },
+      } as any, false);
+    }
+  };
+
   return (
     <AnimatePresence>
       {show && (
-        <motion.div
+        <>
+          <motion.div
           key={`fpb-${el.id}`}
           initial={{ opacity: 0, y: -8, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -132,6 +169,40 @@ export function FloatingPropertiesBar({ scale, canvasLeft, canvasTop }: Floating
 
           <div className="w-px h-5 bg-black/[0.09] shrink-0 mx-1" />
 
+          {/* ── Color Picker ─────────────────────────────────── */}
+          {elColor && (
+            <>
+              <ColorPicker
+                color={elColor}
+                label={el.type === 'text' ? 'Text Color' : 'Fill'}
+                variant="icon"
+                onChange={handleColorChange}
+              />
+              <div className="w-px h-5 bg-black/[0.09] shrink-0 mx-1" />
+            </>
+          )}
+
+          {/* ── Flip ─────────────────────────────────────────── */}
+          {(el.type === 'shape' || el.type === 'image') && (
+            <>
+              <div className="flex items-center gap-0.5">
+                <Btn
+                  title="Flip horizontally"
+                  onClick={() => commitUpdate({ flipX: !el.flipX })}
+                >
+                  <FlipHorizontal2 size={14} strokeWidth={2} />
+                </Btn>
+                <Btn
+                  title="Flip vertically"
+                  onClick={() => commitUpdate({ flipY: !el.flipY })}
+                >
+                  <FlipVertical2 size={14} strokeWidth={2} />
+                </Btn>
+              </div>
+              <div className="w-px h-5 bg-black/[0.09] shrink-0 mx-1" />
+            </>
+          )}
+
           {/* ── Actions ──────────────────────────────────────── */}
           <Btn
             title={el.locked ? 'Unlock element' : 'Lock element (prevents accidental moves)'}
@@ -167,7 +238,8 @@ export function FloatingPropertiesBar({ scale, canvasLeft, canvasTop }: Floating
           >
             <Trash2 size={14} strokeWidth={2} />
           </Btn>
-        </motion.div>
+          </motion.div>
+        </>
       )}
     </AnimatePresence>
   );

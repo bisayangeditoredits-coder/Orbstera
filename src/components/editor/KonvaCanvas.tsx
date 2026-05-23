@@ -14,6 +14,7 @@ import {
   Line,
   Star,
   Path,
+  Circle,
 } from 'react-konva';
 import Konva from 'konva';
 import useImage from 'use-image';
@@ -47,6 +48,8 @@ function getObjectFitCoverCrop(
   img: HTMLImageElement | undefined,
   boxWidth: number,
   boxHeight: number,
+  cropPositionX: number = 0.5,
+  cropPositionY: number = 0.5
 ): { crop: { x: number; y: number; width: number; height: number } } | Record<string, never> {
   if (!img || !img.width || !img.height) return {};
   const imageRatio = img.width / img.height;
@@ -60,11 +63,11 @@ function getObjectFitCoverCrop(
   if (imageRatio > boxRatio) {
     // Image is wider than box — crop sides
     cropWidth = img.height * boxRatio;
-    cropX = (img.width - cropWidth) / 2;
+    cropX = (img.width - cropWidth) * cropPositionX;
   } else if (imageRatio < boxRatio) {
     // Image is taller than box — crop top/bottom
     cropHeight = img.width / boxRatio;
-    cropY = (img.height - cropHeight) / 2;
+    cropY = (img.height - cropHeight) * cropPositionY;
   }
 
   return { crop: { x: cropX, y: cropY, width: cropWidth, height: cropHeight } };
@@ -104,6 +107,9 @@ function ElementNode({
   onDragEndSnapping,
   onMultiDragEnd,
 }: ElementNodeProps) {
+  const isPanningImage = usePresentationStore((s) => s.editor.isPanningImage);
+  const panStartRef = useRef<{ pointerX: number; pointerY: number; cropX: number; cropY: number } | null>(null);
+
   const applySnap = (x: number, y: number, w?: number, h?: number) => {
     if (w != null && h != null) {
       const s = snapRect(x, y, w, h, gridSize, snapToGrid);
@@ -229,10 +235,22 @@ function ElementNode({
     const node = shapeRef.current!;
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
-    node.scaleX(1);
-    node.scaleY(1);
-    const newWidth = Math.max(MIN_PLACE, el.width * scaleX);
-    const newHeight = Math.max(MIN_PLACE, el.height * scaleY);
+    node.scaleX(el.flipX ? -1 : 1);
+    node.scaleY(el.flipY ? -1 : 1);
+    
+    const newWidth = Math.max(MIN_PLACE, el.width * Math.abs(scaleX));
+    const newHeight = Math.max(MIN_PLACE, el.height * Math.abs(scaleY));
+    
+    const newScaleXSign = scaleX < 0 ? -1 : 1;
+    const oldScaleXSign = el.flipX ? -1 : 1;
+    const flippedX = newScaleXSign !== oldScaleXSign;
+    const nextFlipX = flippedX ? !el.flipX : !!el.flipX;
+
+    const newScaleYSign = scaleY < 0 ? -1 : 1;
+    const oldScaleYSign = el.flipY ? -1 : 1;
+    const flippedY = newScaleYSign !== oldScaleYSign;
+    const nextFlipY = flippedY ? !el.flipY : !!el.flipY;
+
     const s = applySnap(node.x(), node.y(), newWidth, newHeight);
     onChange(
       {
@@ -241,6 +259,8 @@ function ElementNode({
         width: s.width ?? newWidth,
         height: s.height ?? newHeight,
         rotation: node.rotation(),
+        flipX: nextFlipX,
+        flipY: nextFlipY,
       },
       true,
     );
@@ -252,7 +272,7 @@ function ElementNode({
     y: el.y,
     rotation: el.rotation || 0,
     opacity: el.opacity ?? 1,
-    draggable: elementDraggable && !el.id.startsWith('bg-'),
+    draggable: elementDraggable && !el.id.startsWith('bg-') && isPanningImage !== el.id,
     listening: elementListening && !el.id.startsWith('bg-'),
     onClick: (e: Konva.KonvaEventObject<MouseEvent>) => onSelect(e),
     onTap: () => onSelect(),
@@ -296,15 +316,25 @@ function ElementNode({
     height: el.height,
     rotation: el.rotation || 0,
     opacity: el.opacity ?? 1,
-    draggable: elementDraggable && !el.id.startsWith('bg-'),
+    scaleX: el.flipX ? -1 : 1,
+    scaleY: el.flipY ? -1 : 1,
+    offsetX: el.flipX ? el.width : 0,
+    offsetY: el.flipY ? el.height : 0,
+    draggable: elementDraggable && !el.id.startsWith('bg-') && isPanningImage !== el.id,
     listening: elementListening && !el.id.startsWith('bg-'),
     onClick: (e: Konva.KonvaEventObject<MouseEvent>) => onSelect(e),
     onTap: () => onSelect(),
     onDblClick: () => {
-      if (el.type === 'text' && !el.locked && activeTool === 'select') onDblClickText();
+      if (el.type === 'text' && !el.locked && activeTool === 'select' && onDblClickText) onDblClickText();
+      if (el.type === 'image' && !el.locked && activeTool === 'select') {
+        usePresentationStore.getState().setEditorState({ isPanningImage: el.id });
+      }
     },
     onDblTap: () => {
-      if (el.type === 'text' && !el.locked && activeTool === 'select') onDblClickText();
+      if (el.type === 'text' && !el.locked && activeTool === 'select' && onDblClickText) onDblClickText();
+      if (el.type === 'image' && !el.locked && activeTool === 'select') {
+        usePresentationStore.getState().setEditorState({ isPanningImage: el.id });
+      }
     },
     onDragStart: () => {
       dragStartPosRef.current = { x: el.x, y: el.y };
@@ -335,10 +365,22 @@ function ElementNode({
       const node = shapeRef.current!;
       const scaleX = node.scaleX();
       const scaleY = node.scaleY();
-      node.scaleX(1);
-      node.scaleY(1);
-      const newWidth = Math.max(MIN_PLACE, node.width() * scaleX);
-      const newHeight = Math.max(MIN_PLACE, node.height() * scaleY);
+      node.scaleX(el.flipX ? -1 : 1);
+      node.scaleY(el.flipY ? -1 : 1);
+      
+      const newWidth = Math.max(MIN_PLACE, el.width * Math.abs(scaleX));
+      const newHeight = Math.max(MIN_PLACE, el.height * Math.abs(scaleY));
+      
+      const newScaleXSign = scaleX < 0 ? -1 : 1;
+      const oldScaleXSign = el.flipX ? -1 : 1;
+      const flippedX = newScaleXSign !== oldScaleXSign;
+      const nextFlipX = flippedX ? !el.flipX : !!el.flipX;
+
+      const newScaleYSign = scaleY < 0 ? -1 : 1;
+      const oldScaleYSign = el.flipY ? -1 : 1;
+      const flippedY = newScaleYSign !== oldScaleYSign;
+      const nextFlipY = flippedY ? !el.flipY : !!el.flipY;
+
       const s = applySnap(node.x(), node.y(), newWidth, newHeight);
       onChange(
         {
@@ -347,6 +389,8 @@ function ElementNode({
           width: s.width ?? newWidth,
           height: s.height ?? newHeight,
           rotation: node.rotation(),
+          flipX: nextFlipX,
+          flipY: nextFlipY,
         },
         true,
       );
@@ -507,8 +551,124 @@ function ElementNode({
               y={0}
               width={el.width}
               height={el.height}
-              {...getObjectFitCoverCrop(img as HTMLImageElement, el.width, el.height)}
+              {...getObjectFitCoverCrop(img as HTMLImageElement, el.width, el.height, el.cropPositionX, el.cropPositionY)}
+              draggable={isPanningImage === el.id}
+              dragBoundFunc={(pos) => {
+                if (isPanningImage === el.id) return { x: 0, y: 0 };
+                return pos;
+              }}
+              onDragStart={(e) => {
+                if (isPanningImage !== el.id) return;
+                e.cancelBubble = true;
+                panStartRef.current = {
+                  pointerX: e.evt.clientX,
+                  pointerY: e.evt.clientY,
+                  cropX: el.cropPositionX ?? 0.5,
+                  cropY: el.cropPositionY ?? 0.5,
+                };
+              }}
+              onDragMove={(e) => {
+                if (isPanningImage !== el.id || !panStartRef.current) return;
+                e.cancelBubble = true;
+                
+                const dx = e.evt.clientX - panStartRef.current.pointerX;
+                const dy = e.evt.clientY - panStartRef.current.pointerY;
+
+                const naturalWidth = (img as HTMLImageElement).naturalWidth || img.width;
+                const naturalHeight = (img as HTMLImageElement).naturalHeight || img.height;
+                const imageRatio = naturalWidth / naturalHeight;
+                const boxRatio = el.width / el.height;
+                
+                let scaledWidth = el.width;
+                let scaledHeight = el.height;
+                
+                if (imageRatio > boxRatio) {
+                  scaledWidth = el.height * imageRatio;
+                } else {
+                  scaledHeight = el.width / imageRatio;
+                }
+
+                const overflowX = Math.max(0.1, scaledWidth - el.width);
+                const overflowY = Math.max(0.1, scaledHeight - el.height);
+
+                const scale = e.target.getAbsoluteScale().x;
+
+                let newCropX = panStartRef.current.cropX - (dx / (overflowX * scale));
+                let newCropY = panStartRef.current.cropY - (dy / (overflowY * scale));
+                
+                newCropX = Math.max(0, Math.min(1, newCropX));
+                newCropY = Math.max(0, Math.min(1, newCropY));
+
+                onChange({ cropPositionX: newCropX, cropPositionY: newCropY });
+              }}
+              onDragEnd={(e) => {
+                if (isPanningImage !== el.id) return;
+                e.cancelBubble = true;
+                panStartRef.current = null;
+              }}
             />
+          )}
+
+          {/* Centered Move Handle when in Pan Mode */}
+          {img && isPanningImage === el.id && (
+            <Group 
+              x={el.width / 2} 
+              y={el.height / 2}
+              draggable={true}
+              onDragStart={(e) => {
+                e.cancelBubble = true;
+                panStartRef.current = {
+                  pointerX: e.evt.clientX,
+                  pointerY: e.evt.clientY,
+                  cropX: el.cropPositionX ?? 0.5,
+                  cropY: el.cropPositionY ?? 0.5,
+                };
+              }}
+              onDragMove={(e) => {
+                e.cancelBubble = true;
+                if (!panStartRef.current) return;
+                
+                // Visual reset: keep the handle perfectly in the center
+                e.target.x(el.width / 2);
+                e.target.y(el.height / 2);
+
+                const dx = e.evt.clientX - panStartRef.current.pointerX;
+                const dy = e.evt.clientY - panStartRef.current.pointerY;
+
+                const naturalWidth = (img as HTMLImageElement).naturalWidth || img.width;
+                const naturalHeight = (img as HTMLImageElement).naturalHeight || img.height;
+                const imageRatio = naturalWidth / naturalHeight;
+                const boxRatio = el.width / el.height;
+                
+                let scaledWidth = el.width;
+                let scaledHeight = el.height;
+                if (imageRatio > boxRatio) scaledWidth = el.height * imageRatio;
+                else scaledHeight = el.width / imageRatio;
+
+                const overflowX = Math.max(0.1, scaledWidth - el.width);
+                const overflowY = Math.max(0.1, scaledHeight - el.height);
+
+                const scale = e.target.getAbsoluteScale().x;
+
+                let newCropX = panStartRef.current.cropX - (dx / (overflowX * scale));
+                let newCropY = panStartRef.current.cropY - (dy / (overflowY * scale));
+                
+                newCropX = Math.max(0, Math.min(1, newCropX));
+                newCropY = Math.max(0, Math.min(1, newCropY));
+
+                onChange({ cropPositionX: newCropX, cropPositionY: newCropY });
+              }}
+              onDragEnd={(e) => {
+                e.cancelBubble = true;
+                panStartRef.current = null;
+                e.target.x(el.width / 2);
+                e.target.y(el.height / 2);
+              }}
+            >
+              <Circle radius={22} fill="#ffffff" shadowColor="black" shadowBlur={12} shadowOpacity={0.2} shadowOffset={{x:0, y:3}} />
+              <Circle radius={20} fill="#4f46e5" />
+              <Path data="M 5 9 L 2 12 L 5 15 M 9 5 L 12 2 L 15 5 M 19 9 L 22 12 L 19 15 M 15 19 L 12 22 L 9 19 M 2 12 L 22 12 M 12 2 L 12 22" stroke="white" strokeWidth={2} lineCap="round" lineJoin="round" x={-12} y={-12} />
+            </Group>
           )}
         </Group>
       );

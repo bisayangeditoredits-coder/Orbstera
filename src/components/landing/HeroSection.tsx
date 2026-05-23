@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff, ShieldCheck, Zap, Clock3, Star, Lock, ChevronDown } from 'lucide-react';
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
 import { explainGetUserMediaError, explainRecognitionStartError } from '@/lib/mic-access';
@@ -138,6 +138,7 @@ function SlideCountDropdown({
 }
 
 export function HeroSection() {
+  const [isPending, startTransition] = useTransition();
   const [prompt, setPrompt] = useState("");
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -691,7 +692,9 @@ export function HeroSection() {
 
     // Direct routing to the Planner Copilot for create mode
     if (activeMode === 'create' || activeMode === 'voice') {
-      router.push(`/planner?topic=${encodeURIComponent(effectivePrompt)}&slides=${slideCount}`);
+      startTransition(() => {
+        router.push(`/planner?topic=${encodeURIComponent(effectivePrompt)}&slides=${slideCount}`);
+      });
       return;
     }
 
@@ -700,7 +703,9 @@ export function HeroSection() {
     if (selectedFile) params.set('fileName', selectedFile.name);
     params.set('mode', activeMode);
 
-    router.push(`/editor?${params.toString()}`);
+    startTransition(() => {
+      router.push(`/editor?${params.toString()}`);
+    });
   };
 
   return (
@@ -958,7 +963,7 @@ export function HeroSection() {
                 <div className="flex justify-center mt-3 sm:mt-5">
                   <button
                     onClick={handleGenerate}
-                    disabled={!prompt.trim() && !interimTranscript.trim()}
+                    disabled={(!prompt.trim() && !interimTranscript.trim()) || isPending}
                     className="group relative h-11 sm:h-12 px-8 sm:px-10 bg-primary text-white rounded-full text-[12px] sm:text-[13px] font-bold shadow-xl hover:bg-primaryHover hover:scale-[1.02] transition-all active:scale-95 flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none"
                   >
                     <motion.div
@@ -966,8 +971,12 @@ export function HeroSection() {
                       transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                       className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]"
                     />
-                    <Sparkles size={16} className="relative z-10 group-hover:rotate-12 transition-transform" />
-                    <span className="relative z-10">Generate Presentation</span>
+                    {isPending ? (
+                      <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin relative z-10" />
+                    ) : (
+                      <Sparkles size={16} className="relative z-10 group-hover:rotate-12 transition-transform" />
+                    )}
+                    <span className="relative z-10">{isPending ? 'Starting...' : 'Generate Presentation'}</span>
                     <ArrowRight size={16} className="relative z-10 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
@@ -992,7 +1001,7 @@ export function HeroSection() {
                   <button
                     type="button"
                     onClick={handleGenerate}
-                    disabled={activeMode === 'create' ? !prompt.trim() : !selectedFile}
+                    disabled={(activeMode === 'create' ? !prompt.trim() : !selectedFile) || isPending}
                     className="group relative w-full sm:w-auto min-h-11 px-5 sm:px-8 justify-center bg-primary text-white rounded-full text-[11px] sm:text-[12px] font-bold shadow-xl hover:bg-primaryHover hover:scale-[1.01] sm:hover:scale-[1.02] transition-all active:scale-[0.98] flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none shrink-0"
                   >
                     <motion.div
@@ -1000,8 +1009,11 @@ export function HeroSection() {
                       transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                       className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]"
                     />
+                    {isPending && (
+                      <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin relative z-10" />
+                    )}
                     <span className="relative z-10 truncate max-w-[16rem] sm:max-w-none">
-                      {activeMode === 'enhance' ? 'Enhance PPT' : 'Generate Presentation'}
+                      {isPending ? 'Starting...' : activeMode === 'enhance' ? 'Enhance PPT' : 'Generate Presentation'}
                     </span>
                     <ArrowRight size={16} className="relative z-10 shrink-0 group-hover:translate-x-1 transition-transform" />
                   </button>

@@ -643,6 +643,20 @@ function PropertyInspector({ element, slideId }: { element: SlideElement; slideI
             min={0} max={100} unit="%"
             onChange={(v) => upd({ opacity: v / 100 })}
           />
+          <div className="pt-2 border-t border-neutral-100 mt-2 space-y-3">
+            <Slider
+              label="Image Pan X"
+              value={(element.cropPositionX ?? 0.5) * 100}
+              min={0} max={100} unit="%"
+              onChange={(v) => upd({ cropPositionX: v / 100 })}
+            />
+            <Slider
+              label="Image Pan Y"
+              value={(element.cropPositionY ?? 0.5) * 100}
+              min={0} max={100} unit="%"
+              onChange={(v) => upd({ cropPositionY: v / 100 })}
+            />
+          </div>
           {element.maskType && element.maskType !== 'none' && (
             <div className="rounded-lg bg-indigo-50 px-3 py-2 flex items-center gap-2">
               <Sparkles size={12} className="text-indigo-500 shrink-0" />

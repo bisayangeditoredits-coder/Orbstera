@@ -16,7 +16,7 @@ const STYLES = [
 
 function buildPollinationsUrl(prompt: string, style: string, seed: number) {
   const full = encodeURIComponent(`${prompt}, ${style}`);
-  return `https://image.pollinations.ai/prompt/${full}?width=1280&height=720&nologo=true&seed=${seed}`;
+  return `https://image.pollinations.ai/prompt/${full}?width=1280&height=720&seed=${seed}`;
 }
 
 export function PollinationsPanel({ onClose }: { onClose?: () => void }) {

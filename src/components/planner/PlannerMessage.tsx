@@ -36,7 +36,7 @@ export function PlannerMessage({ role, content, isStreaming, isLast, onQuickRepl
         className={`${
           isUser
             ? 'rounded-2xl rounded-br-md bg-slate-900 px-5 py-4 text-white shadow-md shadow-slate-900/15 self-end'
-            : 'rounded-2xl rounded-bl-md border border-slate-200 bg-white px-5 py-4 shadow-sm self-start'
+            : 'rounded-2xl rounded-bl-md border border-slate-200 bg-white px-5 py-4 shadow-sm self-start break-words overflow-x-auto max-w-full'
         } ${isStreaming && !isUser ? 'transition-[min-height] duration-150 ease-out' : ''}`}
       >
         {!isUser && (

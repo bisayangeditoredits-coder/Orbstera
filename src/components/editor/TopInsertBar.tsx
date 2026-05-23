@@ -285,12 +285,31 @@ export function TopInsertBar() {
   const activePanel       = usePresentationStore((s) => s.activePanel);
   const isPanelOpen       = usePresentationStore((s) => s.isPanelOpen);
 
-  const [showMore, setShowMore]     = useState(false);
-  const [showShapes, setShowShapes] = useState(false);
-  const [showImage, setShowImage]   = useState(false);
-  const moreRef   = useRef<HTMLDivElement>(null);
-  const shapesRef = useRef<HTMLDivElement>(null);
-  const imageRef  = useRef<HTMLDivElement>(null);
+  const [showMore, setShowMore]           = useState(false);
+  const [showShapes, setShowShapes]       = useState(false);
+  const [showImage, setShowImage]         = useState(false);
+  const [hoveredTip, setHoveredTip]       = useState<'Layouts' | 'Text' | null>(null);
+  const moreRef    = useRef<HTMLDivElement>(null);
+  const shapesRef  = useRef<HTMLDivElement>(null);
+  const imageRef   = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleTipMouseEnter = (label: 'Layouts' | 'Text') => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => {
+      setHoveredTip(label);
+      const vid = videoRef.current;
+      if (vid) {
+        vid.currentTime = 0;
+        vid.play().catch(() => {});
+      }
+    }, 1000);
+  };
+  const handleTipMouseLeave = () => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    setHoveredTip(null);
+  };
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -440,8 +459,70 @@ export function TopInsertBar() {
           );
         }
 
+        // Layouts & Text buttons — with resetting video tooltip
+        if (item.label === 'Layouts' || item.label === 'Text') {
+          return (
+            <div
+              key={idx}
+              className="flex items-center relative"
+              onMouseEnter={() => handleTipMouseEnter(item.label as 'Layouts' | 'Text')}
+              onMouseLeave={handleTipMouseLeave}
+            >
+              <button
+                type="button"
+                onClick={() => handlePrimary(item)}
+                title={item.label}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
+                  isActive
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'
+                }`}
+              >
+                <Icon size={14} strokeWidth={isActive ? 2 : 1.7} />
+                <span className="hidden sm:inline">{item.label}</span>
+              </button>
+
+              {/* Video tooltip — resets on every hover */}
+              <AnimatePresence>
+                {hoveredTip === item.label && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                    transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                    className="absolute top-full mt-2 left-0 z-[999] bg-white p-2 rounded-lg shadow-xl border border-neutral-200 w-[280px] pointer-events-none origin-top-left"
+                  >
+                    <div className="mb-2 mt-0.5 px-0.5">
+                      <h4 className="text-[11px] font-bold text-neutral-900 leading-none">
+                        {item.label === 'Layouts' ? 'Smart Layouts' : 'Text Tool'}
+                      </h4>
+                      <p className="text-[9px] text-neutral-500 mt-1 leading-none">
+                        {item.label === 'Layouts' ? 'Auto-arrange slide elements' : 'Add custom text elements'}
+                      </p>
+                    </div>
+                    <div className="rounded-md overflow-hidden bg-neutral-50 relative aspect-[4/3]">
+                      <video
+                        ref={videoRef}
+                        src={item.label === 'Layouts' ? "/Video_Demo-tools/Layout_Tool.mp4" : "/Video_Demo-tools/Text_Tool-video.mp4"}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        preload="auto"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {item.dividerAfter && <div className="w-px h-5 bg-neutral-200 mx-1.5" />}
+            </div>
+          );
+        }
+
         return (
-          <div key={idx} className="flex items-center">
+          <div key={idx} className="flex items-center relative group">
             <button
               type="button"
               onClick={() => handlePrimary(item)}

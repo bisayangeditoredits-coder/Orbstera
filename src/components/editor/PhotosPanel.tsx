@@ -26,7 +26,9 @@ export function PhotosPanel({ onClose }: { onClose?: () => void }) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   
+  const selectedElementId = usePresentationStore((s) => s.editor.selectedElementId);
   const addElement = usePresentationStore((s) => s.addElement);
+  const updateElement = usePresentationStore((s) => s.updateElement);
   const currentSlideIndex = usePresentationStore((s) => s.currentSlideIndex);
   const presentation = usePresentationStore((s) => s.presentation);
 
@@ -57,6 +59,14 @@ export function PhotosPanel({ onClose }: { onClose?: () => void }) {
     if (currentSlideIndex === null || !presentation) return;
     const slideId = presentation.slides[currentSlideIndex]?.id;
     if (!slideId) return;
+
+    // Check if an image is currently selected
+    const selectedEl = presentation.slides[currentSlideIndex]?.elements?.find(e => e.id === selectedElementId);
+    if (selectedEl && selectedEl.type === 'image') {
+      updateElement(slideId, selectedElementId!, { src: photo.urls.full });
+      return;
+    }
+
     const MAX_W = 600, MAX_H = 500;
     let w = photo.width || 400, h = photo.height || 300;
     if (w > MAX_W) { h = h * (MAX_W / w); w = MAX_W; }

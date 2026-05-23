@@ -58,19 +58,21 @@ export function PlannerComposer({
             Customize your deck
           </p>
         )}
-        <div className="mb-3 flex flex-wrap gap-2">
+        <div className="-mx-4 sm:-mx-6 mb-3 flex overflow-x-auto gap-2 px-4 sm:px-6 pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {chips.map(({ label, icon: Icon }) => (
             <button
               key={label}
               type="button"
               disabled={loading}
               onClick={() => onQuickReply(label)}
-              className="group flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-white hover:text-slate-900 disabled:opacity-50"
+              className="group flex whitespace-nowrap shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-white hover:text-slate-900 disabled:opacity-50"
             >
               <Icon size={14} className="text-slate-500 transition-colors group-hover:text-slate-800" />
               {label}
             </button>
           ))}
+          {/* Spacer for proper right-edge scrolling */}
+          <div className="w-1 shrink-0" aria-hidden="true" />
         </div>
 
         {/* Text input */}

@@ -709,6 +709,8 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     activeTool: 'select',
     selectedElementId: null,
     selectedElementIds: [],
+    clipboardElement: null,
+    isPanningImage: null,
     generativeFillTarget: null,
     isDragging: false,
     isResizing: false,
@@ -746,7 +748,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   selectElement: (id) =>
     set((state) => {
       const updates: Partial<PresentationStore> = {
-        editor: { ...state.editor, selectedElementId: id, selectedElementIds: id ? [id] : [] }
+        editor: { ...state.editor, selectedElementId: id, selectedElementIds: id ? [id] : [], isPanningImage: null }
       };
       // With a selection: open side panel and show Layers (properties / stack).
       if (id !== null) {
@@ -941,7 +943,9 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
               });
               const json = await res.json();
               if (json.url) get().updateElement(slideId, bgId, { src: json.url });
-            } catch (e) {}
+            } catch (e) {
+              console.error('[DeckGen] Hero background image failed:', e);
+            }
           });
         }
         elements.push({ id: uid('el-hero-overlay'), type: 'shape', shapeType: 'rect', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(5, 5, 10, 0.65)', stroke: 'transparent', strokeWidth: 0 }, animation: { entrance: 'fadeIn', duration: 1000 } });
@@ -989,7 +993,9 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
             });
             const json = await res.json();
             if (json.url) get().updateElement(slideId, imgId, { src: json.url });
-          } catch (e) {}
+          } catch (e) {
+            console.error('[DeckGen] Split/media slide image failed:', e);
+          }
         });
       }
     } else if (isQuote) {

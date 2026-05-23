@@ -6,7 +6,7 @@ import { Layout, Columns, Image as ImageIcon, LayoutGrid, LayoutList, AlignLeft 
 
 const CANVAS_W = 1280;
 const CANVAS_H = 720;
-const IMG_PLACEHOLDER = 'https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=800&auto=format&fit=crop';
+const IMG_PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23d4d4d4'/%3E%3Ccircle cx='120' cy='100' r='30' fill='%23f0f0f0'/%3E%3Cpath d='M-20 320 L150 150 L250 250 L300 200 L450 350 Z' fill='%23f0f0f0'/%3E%3C/svg%3E";
 
 const LAYOUTS = [
   {
@@ -14,7 +14,7 @@ const LAYOUTS = [
     name: 'Hero Title',
     thumbnail: (
       <div className="w-full h-full flex flex-col items-center justify-center gap-1 opacity-80 group-hover:opacity-100">
-        <div className="w-3/4 h-2 bg-indigo-500 rounded-sm" />
+        <div className="w-3/4 h-2 bg-blue-500 rounded-sm" />
         <div className="w-1/2 h-1 bg-neutral-300 rounded-sm" />
       </div>
     ),
@@ -39,7 +39,7 @@ const LAYOUTS = [
       <div className="w-full h-full flex items-center justify-between gap-1 opacity-80 group-hover:opacity-100">
         <div className="w-1/2 h-full bg-neutral-200 rounded-sm" />
         <div className="w-1/2 h-full flex flex-col justify-center gap-1 p-1">
-          <div className="w-full h-1.5 bg-indigo-500 rounded-sm" />
+          <div className="w-full h-1.5 bg-blue-500 rounded-sm" />
           <div className="w-3/4 h-1 bg-neutral-300 rounded-sm" />
           <div className="w-3/4 h-1 bg-neutral-300 rounded-sm" />
         </div>
@@ -72,7 +72,7 @@ const LAYOUTS = [
     thumbnail: (
       <div className="w-full h-full flex items-center justify-between gap-1 opacity-80 group-hover:opacity-100">
         <div className="w-1/2 h-full flex flex-col justify-center gap-1 p-1">
-          <div className="w-full h-1.5 bg-indigo-500 rounded-sm" />
+          <div className="w-full h-1.5 bg-blue-500 rounded-sm" />
           <div className="w-3/4 h-1 bg-neutral-300 rounded-sm" />
           <div className="w-3/4 h-1 bg-neutral-300 rounded-sm" />
         </div>
@@ -105,7 +105,7 @@ const LAYOUTS = [
     name: 'Three Columns',
     thumbnail: (
       <div className="w-full h-full flex flex-col justify-between gap-1 p-0.5 opacity-80 group-hover:opacity-100">
-        <div className="w-1/3 h-1.5 bg-indigo-500 rounded-sm mx-auto" />
+        <div className="w-1/3 h-1.5 bg-blue-500 rounded-sm mx-auto" />
         <div className="flex gap-1 h-full pb-1">
           <div className="flex-1 bg-neutral-200 rounded-sm" />
           <div className="flex-1 bg-neutral-200 rounded-sm" />
@@ -164,7 +164,7 @@ const LAYOUTS = [
     name: 'Bento Grid',
     thumbnail: (
       <div className="w-full h-full flex flex-col justify-between gap-1 p-0.5 opacity-80 group-hover:opacity-100">
-        <div className="w-1/2 h-1.5 bg-indigo-500 rounded-sm" />
+        <div className="w-1/2 h-1.5 bg-blue-500 rounded-sm" />
         <div className="flex gap-1 h-full">
           <div className="flex-1 bg-neutral-200 rounded-sm" />
           <div className="flex-[1.5] flex flex-col gap-1">
@@ -217,7 +217,7 @@ const LAYOUTS = [
     thumbnail: (
       <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 opacity-80 group-hover:opacity-100">
         <div className="w-8 h-8 rounded-full bg-neutral-200 mb-1" />
-        <div className="w-3/4 h-1 bg-indigo-500 rounded-sm" />
+        <div className="w-3/4 h-1 bg-blue-500 rounded-sm" />
         <div className="w-2/3 h-1 bg-neutral-300 rounded-sm" />
       </div>
     ),
@@ -242,7 +242,7 @@ const LAYOUTS = [
       <div className="w-full h-full flex items-center justify-center gap-1 opacity-80 group-hover:opacity-100">
         <div className="w-10 h-10 rounded-full bg-neutral-200" />
         <div className="w-1/2 flex flex-col gap-1">
-          <div className="w-full h-1.5 bg-indigo-500 rounded-sm" />
+          <div className="w-full h-1.5 bg-blue-500 rounded-sm" />
           <div className="w-1/2 h-1 bg-neutral-300 rounded-sm" />
           <div className="w-full h-1 bg-neutral-300 mt-1 rounded-sm" />
         </div>
@@ -263,9 +263,9 @@ const LAYOUTS = [
     name: 'Process Steps',
     thumbnail: (
       <div className="w-full h-full flex items-center justify-center gap-1 opacity-80 group-hover:opacity-100">
-        <div className="w-1/4 h-8 border border-neutral-300 rounded-sm flex flex-col justify-center items-center gap-0.5"><div className="w-1/2 h-0.5 bg-indigo-500" /></div>
-        <div className="w-1/4 h-8 border border-neutral-300 rounded-sm flex flex-col justify-center items-center gap-0.5"><div className="w-1/2 h-0.5 bg-indigo-500" /></div>
-        <div className="w-1/4 h-8 border border-neutral-300 rounded-sm flex flex-col justify-center items-center gap-0.5"><div className="w-1/2 h-0.5 bg-indigo-500" /></div>
+        <div className="w-1/4 h-8 border border-neutral-300 rounded-sm flex flex-col justify-center items-center gap-0.5"><div className="w-1/2 h-0.5 bg-blue-500" /></div>
+        <div className="w-1/4 h-8 border border-neutral-300 rounded-sm flex flex-col justify-center items-center gap-0.5"><div className="w-1/2 h-0.5 bg-blue-500" /></div>
+        <div className="w-1/4 h-8 border border-neutral-300 rounded-sm flex flex-col justify-center items-center gap-0.5"><div className="w-1/2 h-0.5 bg-blue-500" /></div>
       </div>
     ),
     generate: (uid: () => string, palette: string[], headingFont: string, bodyFont: string) => {
@@ -296,7 +296,7 @@ const LAYOUTS = [
     name: 'Big Statistic',
     thumbnail: (
       <div className="w-full h-full flex flex-col justify-center items-center opacity-80 group-hover:opacity-100 gap-1">
-        <div className="w-1/2 h-4 bg-indigo-500 rounded-sm" />
+        <div className="w-1/2 h-4 bg-blue-500 rounded-sm" />
         <div className="w-3/4 h-1 bg-neutral-300 rounded-sm" />
       </div>
     ),
@@ -316,7 +316,7 @@ const LAYOUTS = [
       <div className="relative w-full h-full overflow-hidden rounded-sm opacity-80 group-hover:opacity-100">
         <div className="absolute inset-0 bg-neutral-200" style={{ clipPath: 'polygon(38% 0, 100% 0, 100% 100%, 0 100%, 0 0)' }} />
         <div className="absolute left-0 top-0 w-[38%] h-full bg-neutral-800" />
-        <div className="absolute left-[34%] top-0 w-[6%] h-[140%] -rotate-12 bg-indigo-500/80 origin-top" />
+        <div className="absolute left-[34%] top-0 w-[6%] h-[140%] -rotate-12 bg-blue-500/80 origin-top" />
         <div className="absolute left-1.5 top-2 w-[30%] space-y-0.5">
           <div className="w-full h-0.5 bg-white/40 rounded-sm" />
           <div className="w-4/5 h-1 bg-white rounded-sm" />
@@ -405,12 +405,12 @@ const LAYOUTS = [
     thumbnail: (
       <div className="relative w-full h-full bg-neutral-900 rounded-sm overflow-hidden opacity-80 group-hover:opacity-100">
         <div className="absolute left-1 top-1.5 w-6 h-0.5 bg-neutral-500 rounded-sm" />
-        <div className="absolute left-1 top-3 w-[55%] h-3 bg-indigo-500 rounded-sm" />
+        <div className="absolute left-1 top-3 w-[55%] h-3 bg-blue-500 rounded-sm" />
         <div className="absolute left-1 bottom-2 w-[38%] h-0.5 bg-white/30 rounded-sm" />
         <div className="absolute right-1 top-2 bottom-2 w-[32%] flex flex-col justify-between gap-0.5">
-          <div className="h-[30%] rounded-sm border border-white/10 bg-white/5 p-0.5"><div className="w-2/3 h-1 bg-indigo-400/80 rounded-sm" /></div>
-          <div className="h-[30%] rounded-sm border border-white/10 bg-white/5 p-0.5"><div className="w-2/3 h-1 bg-indigo-400/60 rounded-sm" /></div>
-          <div className="h-[30%] rounded-sm border border-white/10 bg-white/5 p-0.5"><div className="w-2/3 h-1 bg-indigo-400/40 rounded-sm" /></div>
+          <div className="h-[30%] rounded-sm border border-white/10 bg-white/5 p-0.5"><div className="w-2/3 h-1 bg-blue-400/80 rounded-sm" /></div>
+          <div className="h-[30%] rounded-sm border border-white/10 bg-white/5 p-0.5"><div className="w-2/3 h-1 bg-blue-400/60 rounded-sm" /></div>
+          <div className="h-[30%] rounded-sm border border-white/10 bg-white/5 p-0.5"><div className="w-2/3 h-1 bg-blue-400/40 rounded-sm" /></div>
         </div>
       </div>
     ),
@@ -478,7 +478,7 @@ const LAYOUTS = [
     name: 'Luxury Bento',
     thumbnail: (
       <div className="w-full h-full flex flex-col gap-0.5 p-0.5 opacity-80 group-hover:opacity-100">
-        <div className="w-2/5 h-1 bg-indigo-500 rounded-sm" />
+        <div className="w-2/5 h-1 bg-blue-500 rounded-sm" />
         <div className="flex-1 flex gap-0.5 min-h-0">
           <div className="flex-[1.618] bg-neutral-200 rounded-sm" />
           <div className="flex-1 flex flex-col gap-0.5">
@@ -489,7 +489,7 @@ const LAYOUTS = [
             <div className="flex-1 bg-neutral-200 rounded-sm" />
             <div className="flex-1 flex gap-0.5">
               <div className="flex-1 bg-neutral-200 rounded-sm" />
-              <div className="flex-1 bg-indigo-500/20 rounded-sm border border-indigo-200" />
+              <div className="flex-1 bg-blue-500/20 rounded-sm border border-blue-200" />
             </div>
           </div>
         </div>
@@ -549,7 +549,7 @@ const LAYOUTS = [
       <div className="w-full h-full flex gap-0.5 opacity-80 group-hover:opacity-100">
         <div className="w-[38.2%] h-full flex flex-col justify-center gap-1 p-1">
           <div className="w-3/4 h-0.5 bg-neutral-400 rounded-sm" />
-          <div className="w-full h-1.5 bg-indigo-500 rounded-sm" />
+          <div className="w-full h-1.5 bg-blue-500 rounded-sm" />
           <div className="w-full h-0.5 bg-neutral-300 rounded-sm" />
           <div className="w-5/6 h-0.5 bg-neutral-300 rounded-sm" />
         </div>
@@ -589,8 +589,8 @@ const LAYOUTS = [
     thumbnail: (
       <div className="w-full h-full flex gap-0.5 opacity-80 group-hover:opacity-100">
         <div className="w-[62%] h-full flex flex-col justify-center gap-1 p-1">
-          <div className="w-full h-2 bg-indigo-500 rounded-sm leading-none" />
-          <div className="w-4/5 h-2 bg-indigo-500/70 rounded-sm" />
+          <div className="w-full h-2 bg-blue-500 rounded-sm leading-none" />
+          <div className="w-4/5 h-2 bg-blue-500/70 rounded-sm" />
           <div className="w-1/3 h-0.5 bg-neutral-400 mt-0.5 rounded-sm" />
         </div>
         <div className="flex-1 h-full bg-neutral-200 rounded-sm" />
@@ -624,11 +624,11 @@ const LAYOUTS = [
     name: 'Metric Trio',
     thumbnail: (
       <div className="w-full h-full flex flex-col gap-0.5 p-0.5 opacity-80 group-hover:opacity-100">
-        <div className="w-1/2 h-1 bg-indigo-500 rounded-sm" />
+        <div className="w-1/2 h-1 bg-blue-500 rounded-sm" />
         <div className="flex-1 flex gap-0.5">
           {[0, 1, 2].map((i) => (
             <div key={i} className="flex-1 rounded-sm border border-neutral-200 bg-white flex flex-col justify-end p-0.5 gap-0.5">
-              <div className={`w-2/3 h-1.5 rounded-sm ${i === 1 ? 'bg-indigo-500' : 'bg-neutral-800'}`} />
+              <div className={`w-2/3 h-1.5 rounded-sm ${i === 1 ? 'bg-blue-500' : 'bg-neutral-800'}`} />
               <div className="w-full h-0.5 bg-neutral-300 rounded-sm" />
             </div>
           ))}
@@ -761,8 +761,8 @@ export function LayoutsPanel() {
     <div className="flex flex-col h-full bg-[#F7F8FA]">
       <div className="flex-none pt-4 px-4 pb-3 border-b border-neutral-100 bg-white sticky top-0 z-20">
         <h2 className="text-[14px] font-bold text-neutral-900 leading-tight flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
-            <Layout className="w-4 h-4 text-indigo-600" />
+          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+            <Layout className="w-4 h-4 text-blue-600" />
           </div>
           <div>
             Smart Layouts
@@ -776,13 +776,13 @@ export function LayoutsPanel() {
           <button
             key={layout.id}
             onClick={() => handleInsert(layout)}
-            className="w-full flex items-center gap-3.5 p-3 rounded-[14px] bg-white border border-neutral-200 hover:border-indigo-300 hover:shadow-md transition-all text-left group"
+            className="w-full flex items-center gap-3.5 p-3 rounded-[14px] bg-white border border-neutral-200 hover:border-blue-300 hover:shadow-md transition-all text-left group"
           >
             <div className="w-14 h-10 rounded-md border border-neutral-200 bg-neutral-50 shrink-0 p-1.5 shadow-sm">
               {layout.thumbnail}
             </div>
             <div>
-              <div className="text-[13px] font-bold text-neutral-800 group-hover:text-indigo-700 transition-colors">
+              <div className="text-[13px] font-bold text-neutral-800 group-hover:text-blue-700 transition-colors">
                 {layout.name}
               </div>
             </div>

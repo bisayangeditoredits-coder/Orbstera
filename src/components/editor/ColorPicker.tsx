@@ -164,8 +164,8 @@ export function ColorPicker({
     const el = triggerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const popW = 300;
-    const popH = 420;
+    const popW = 240;
+    const popH = 340;
     let left = rect.left;
     let top = rect.bottom + 8;
     if (left + popW > window.innerWidth - 12) {
@@ -295,14 +295,14 @@ export function ColorPicker({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 6, scale: 0.97 }}
           transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-          className="fixed z-[200] w-[300px] rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-xl shadow-[0_24px_80px_-12px_rgba(15,23,42,0.28),0_0_0_1px_rgba(255,255,255,0.8)_inset] overflow-hidden"
+          className="fixed z-[200] w-[240px] rounded-xl border border-slate-200/90 bg-white/95 backdrop-blur-xl shadow-[0_24px_80px_-12px_rgba(15,23,42,0.28),0_0_0_1px_rgba(255,255,255,0.8)_inset] overflow-hidden"
           style={{ top: popoverPos.top, left: popoverPos.left }}
         >
-          <div className="relative px-4 pt-4 pb-3 border-b border-slate-100 bg-gradient-to-br from-slate-50 via-white to-indigo-50/40">
-            <div className="flex items-start justify-between gap-2">
+          <div className="relative px-3 pt-3 pb-2 border-b border-slate-100 bg-gradient-to-br from-slate-50 via-white to-indigo-50/40">
+            <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">{label}</p>
-                <p className="text-[13px] font-semibold text-slate-800 mt-0.5">Precision color</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">{label}</p>
+                <p className="text-[12px] font-semibold text-slate-800 mt-0.5">Precision color</p>
               </div>
               <button
                 type="button"
@@ -310,23 +310,23 @@ export function ColorPicker({
                   setOpen(false);
                   applyHex(localHex, { commit: true });
                 }}
-                className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                className="h-6 w-6 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 aria-label="Close"
               >
-                <X size={14} />
+                <X size={12} />
               </button>
             </div>
 
-            <div className="mt-3 flex items-center gap-3">
-              <div className="relative h-14 w-14 rounded-xl overflow-hidden ring-1 ring-slate-200/80 shadow-inner shrink-0">
+            <div className="mt-2 flex items-center gap-2">
+              <div className="relative h-10 w-10 rounded-lg overflow-hidden ring-1 ring-slate-200/80 shadow-inner shrink-0">
                 <Checkerboard className="absolute inset-0" />
                 <div className="absolute inset-0" style={{ backgroundColor: localHex }} />
               </div>
-              <div className="flex-1 min-w-0 grid grid-cols-3 gap-1.5">
+              <div className="flex-1 min-w-0 grid grid-cols-3 gap-1">
                 {(['Fill', 'UI', 'Text'] as const).map((slot, i) => (
                   <div
                     key={slot}
-                    className="h-8 rounded-lg border border-slate-200/80 overflow-hidden relative"
+                    className="h-6 rounded-md border border-slate-200/80 overflow-hidden relative"
                     style={{
                       background:
                         i === 0
@@ -336,7 +336,7 @@ export function ColorPicker({
                             : `linear-gradient(180deg, transparent 40%, ${localHex} 40%)`,
                     }}
                   >
-                    <span className="absolute bottom-0.5 left-1 text-[7px] font-bold text-white/90 drop-shadow-md">
+                    <span className="absolute bottom-0.5 left-1 text-[6px] font-bold text-white/90 drop-shadow-md">
                       {slot}
                     </span>
                   </div>
@@ -345,10 +345,10 @@ export function ColorPicker({
             </div>
           </div>
 
-          <div className="p-4 space-y-3.5">
+          <div className="p-3 space-y-2.5">
             <div
               ref={svRef}
-              className="relative h-[148px] w-full rounded-xl cursor-crosshair overflow-hidden ring-1 ring-slate-200/90 shadow-inner touch-none"
+              className="relative h-[100px] w-full rounded-lg cursor-crosshair overflow-hidden ring-1 ring-slate-200/90 shadow-inner touch-none"
               style={{ backgroundColor: hueColor }}
               {...bindDrag(pickSv)}
             >
@@ -394,10 +394,10 @@ export function ColorPicker({
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">HEX</span>
-              <div className="flex-1 flex items-center rounded-xl border border-slate-200 bg-slate-50/80 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/15 overflow-hidden">
-                <span className="pl-3 text-[12px] font-mono text-slate-400 select-none">#</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider shrink-0">HEX</span>
+              <div className="flex-1 flex items-center rounded-lg border border-slate-200 bg-slate-50/80 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/15 overflow-hidden">
+                <span className="pl-2 text-[11px] font-mono text-slate-400 select-none">#</span>
                 <input
                   value={hexInput.replace(/^#/, '')}
                   onChange={(e) => {
@@ -410,29 +410,29 @@ export function ColorPicker({
                     if (n) applyHex(n, { commit: true });
                     else setHexInput(localHex.replace(/^#/, ''));
                   }}
-                  className="flex-1 py-2 pr-2 bg-transparent text-[12px] font-mono font-semibold text-slate-800 outline-none uppercase tracking-wide"
+                  className="flex-1 py-1.5 pr-2 bg-transparent text-[11px] font-mono font-semibold text-slate-800 outline-none uppercase tracking-wide"
                   spellCheck={false}
                 />
               </div>
               <button
                 type="button"
                 onClick={copyHex}
-                className="h-9 w-9 shrink-0 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition-all"
+                className="h-7 w-7 shrink-0 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition-all"
                 title="Copy hex"
               >
-                {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
               </button>
             </div>
 
             {rgb && (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 {(['R', 'G', 'B'] as const).map((ch, i) => (
                   <div
                     key={ch}
-                    className="rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-1.5 text-center"
+                    className="rounded-md bg-slate-50 border border-slate-100 px-2 py-1 text-center"
                   >
-                    <span className="text-[9px] font-bold text-slate-400">{ch}</span>
-                    <p className="text-[11px] font-mono font-semibold text-slate-700 tabular-nums">
+                    <span className="text-[8px] font-bold text-slate-400">{ch}</span>
+                    <p className="text-[10px] font-mono font-semibold text-slate-700 tabular-nums">
                       {[rgb.r, rgb.g, rgb.b][i]}
                     </p>
                   </div>
@@ -442,17 +442,22 @@ export function ColorPicker({
 
             {presets.length > 0 && (
               <div>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-2">
+                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-1.5">
                   {palettePresets?.length ? 'Deck palette' : 'Swatches'}
                 </p>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1">
                   {presets.map((c) => (
-                    <SwatchButton
+                    <button
                       key={c}
-                      c={c}
-                      active={localHex.toUpperCase() === c.toUpperCase()}
-                      onPick={(picked) => applyHex(picked, { commit: true })}
-                      size="sm"
+                      type="button"
+                      title={c}
+                      onClick={() => applyHex(c, { commit: true })}
+                      className={`h-5 w-5 rounded-md border-2 transition-all hover:scale-110 ${
+                        localHex.toUpperCase() === c.toUpperCase()
+                          ? 'border-indigo-500 ring-1 ring-indigo-400/30 scale-110'
+                          : 'border-white/80 hover:border-indigo-300/60'
+                      }`}
+                      style={{ background: c }}
                     />
                   ))}
                 </div>
@@ -461,15 +466,20 @@ export function ColorPicker({
 
             {recent.length > 0 && (
               <div>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-2">Recent</p>
-                <div className="flex flex-wrap gap-1.5">
+                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-1.5">Recent</p>
+                <div className="flex flex-wrap gap-1">
                   {recent.map((c) => (
-                    <SwatchButton
+                    <button
                       key={c}
-                      c={c}
-                      active={localHex.toUpperCase() === c}
-                      onPick={(picked) => applyHex(picked, { commit: true })}
-                      size="sm"
+                      type="button"
+                      title={c}
+                      onClick={() => applyHex(c, { commit: true })}
+                      className={`h-5 w-5 rounded-md border-2 transition-all hover:scale-110 ${
+                        localHex.toUpperCase() === c
+                          ? 'border-indigo-500 ring-1 ring-indigo-400/30 scale-110'
+                          : 'border-white/80 hover:border-indigo-300/60'
+                      }`}
+                      style={{ background: c }}
                     />
                   ))}
                 </div>

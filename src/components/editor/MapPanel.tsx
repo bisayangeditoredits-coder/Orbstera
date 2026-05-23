@@ -168,6 +168,9 @@ export function MapPanel({ onClose }: { onClose?: () => void }) {
   const [mapStyle, setMapStyle] = useState('standard');
   const [inserted, setInserted] = useState(false);
 
+  const [predictions, setPredictions] = useState<any[]>([]);
+  const [showPredictions, setShowPredictions] = useState(false);
+
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Rebuild iframe whenever location/zoom/style changes
@@ -178,6 +181,39 @@ export function MapPanel({ onClose }: { onClose?: () => void }) {
     const doc = iframeRef.current.contentDocument;
     if (doc) { doc.open(); doc.write(iframeHtml); doc.close(); }
   }, [iframeHtml]);
+
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (query.trim().length > 2) {
+        try {
+          const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`);
+          const data = await res.json();
+          setPredictions(data.features || []);
+          setShowPredictions(true);
+        } catch {
+          // ignore
+        }
+      } else {
+        setPredictions([]);
+        setShowPredictions(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const selectPrediction = useCallback((p: any) => {
+    const lon = p.geometry.coordinates[0];
+    const lat = p.geometry.coordinates[1];
+    const props = p.properties;
+    const displayName = [props.name, props.city || props.county, props.state, props.country]
+      .filter((v, i, a) => v && a.indexOf(v) === i)
+      .join(', ');
+
+    setQuery(displayName);
+    setShowPredictions(false);
+    setResult({ lat, lon, name: displayName });
+    setError('');
+  }, []);
 
   const search = useCallback(async () => {
     if (!query.trim()) return;
@@ -265,14 +301,18 @@ export function MapPanel({ onClose }: { onClose?: () => void }) {
       <div className="flex-1 overflow-y-auto bg-[#F7F8FA]" style={{ scrollbarWidth: 'none' }}>
         <div className="px-4 pt-4 pb-6 space-y-3">
 
-          {/* Search */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 relative">
             <div className="relative flex-1">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
               <input
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  if (result) setResult(null);
+                }}
                 onKeyDown={(e) => e.key === 'Enter' && search()}
+                onFocus={() => { if (predictions.length) setShowPredictions(true); }}
+                onBlur={() => setTimeout(() => setShowPredictions(false), 200)}
                 placeholder="Search any city, place, address…"
                 className="w-full h-10 bg-white border border-neutral-200 rounded-xl pl-8 pr-3 text-[13px] font-medium text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 transition-all"
               />
@@ -283,6 +323,37 @@ export function MapPanel({ onClose }: { onClose?: () => void }) {
                 ? <Loader2 size={14} className="animate-spin text-white" />
                 : <ArrowRight size={14} className="text-white" />}
             </button>
+
+            {/* Predictions Dropdown */}
+            <AnimatePresence>
+              {showPredictions && predictions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  className="absolute top-full left-0 right-12 mt-2 bg-white rounded-xl shadow-xl border border-neutral-200 overflow-hidden z-50 flex flex-col"
+                >
+                  {predictions.map((p, i) => {
+                    const props = p.properties;
+                    const title = props.name || props.city || props.county || 'Unknown location';
+                    const subtitle = [props.city || props.county, props.state, props.country].filter((v, i, a) => v && v !== title && a.indexOf(v) === i).join(', ');
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => selectPrediction(p)}
+                        className="flex items-start gap-3 px-3 py-2.5 text-left hover:bg-neutral-50 border-b border-neutral-100 last:border-0 transition-colors"
+                      >
+                        <MapPin size={13} className="text-neutral-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-[12px] font-bold text-neutral-800 leading-none mb-1">{title}</p>
+                          {subtitle && <p className="text-[10px] text-neutral-400 leading-none">{subtitle}</p>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {error && <p className="text-[12px] text-red-400 text-center py-1">{error}</p>}

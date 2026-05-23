@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import {
   ArrowLeft,
   ArrowRight,
@@ -51,29 +52,29 @@ export function PlannerHeader({
         </Link>
 
         <div className="min-w-0 border-l border-slate-200 pl-3 sm:pl-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-primary/5 text-primary">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-primary/5 text-primary">
               <Sparkles size={18} strokeWidth={1.75} className="text-primary" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-[15px] font-semibold leading-tight tracking-tight text-slate-900">
+              <h1 className="text-[14px] sm:text-[15px] font-semibold leading-tight tracking-tight text-slate-900 truncate">
                 Presentation Copilot
               </h1>
-              <div className="mt-1 flex items-center gap-2">
+              <div className="mt-1 flex items-center gap-1.5 sm:gap-2 overflow-hidden">
                 {planTier === 'pro' ? (
-                  <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-500/20">
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-500/20">
                     <Crown size={9} strokeWidth={2.5} /> PRO
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-600 ring-1 ring-inset ring-slate-200">
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-600 ring-1 ring-inset ring-slate-200">
                     <Zap size={9} strokeWidth={2.5} /> FREE
                   </span>
                 )}
                 {topic && (
                   <>
-                    <span className="h-3 w-px bg-slate-200" aria-hidden="true" />
+                    <span className="h-3 w-px shrink-0 bg-slate-200" aria-hidden="true" />
                     <span
-                      className="max-w-[150px] truncate text-[11px] font-medium text-slate-500 sm:max-w-[340px]"
+                      className="truncate text-[10px] sm:text-[11px] font-medium text-slate-500 max-w-[80px] sm:max-w-[150px] md:max-w-[250px] lg:max-w-[340px]"
                       title={topic}
                     >
                       {topic}
@@ -116,21 +117,28 @@ export function PlannerHeader({
           My decks
         </Link>
 
-        <button
+          <button
           type="button"
           onClick={onGenerate}
           disabled={!canGenerate}
           title={!canGenerate ? 'Waiting for Copilot to finish your outline' : 'Generate your presentation'}
           className={cn(
-            'inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-[13px] font-bold transition sm:w-auto sm:flex-none sm:px-6',
+            'group relative overflow-hidden inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-[13px] font-bold transition sm:w-auto sm:flex-none sm:px-6',
             canGenerate
-                ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20 hover:bg-slate-800'
+                ? 'bg-primary text-white shadow-lg shadow-primary/25 hover:bg-primaryHover active:scale-[0.99]'
               : 'cursor-not-allowed border border-slate-200/90 bg-white text-slate-500 shadow-sm',
           )}
         >
-          <CheckCircle2 size={17} strokeWidth={1.75} />
-          Generate deck
-          <ArrowRight size={15} className="opacity-80" />
+          {canGenerate && (
+            <motion.div
+              animate={{ x: ['-100%', '100%'] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]"
+            />
+          )}
+          <CheckCircle2 size={17} strokeWidth={1.75} className="relative z-10" />
+          <span className="relative z-10">Generate deck</span>
+          <ArrowRight size={15} className={cn("relative z-10 opacity-80", canGenerate && "group-hover:translate-x-1 transition-transform")} />
         </button>
       </div>
       </div>

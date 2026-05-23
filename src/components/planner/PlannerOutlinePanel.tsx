@@ -389,11 +389,16 @@ export function PlannerOutlinePanel({
           <button
             type="button"
             onClick={onGenerate}
-            className="flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-[13px] font-bold text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 active:scale-[0.99]"
+            className="group relative overflow-hidden flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-[13px] font-bold text-white shadow-xl shadow-primary/25 transition hover:bg-primaryHover active:scale-[0.99]"
           >
-            <CheckCircle2 size={18} strokeWidth={1.75} />
-            Generate deck
-            <ArrowRight size={15} className="opacity-80" />
+            <motion.div
+              animate={{ x: ['-100%', '100%'] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]"
+            />
+            <CheckCircle2 size={18} strokeWidth={1.75} className="relative z-10" />
+            <span className="relative z-10">Generate deck</span>
+            <ArrowRight size={15} className="relative z-10 opacity-80 group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
       )}

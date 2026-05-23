@@ -1,5 +1,6 @@
-'use client';
-
+import { useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import {
   LayoutTemplate, Sparkles, MousePointer2, Type, Upload,
@@ -27,6 +28,31 @@ export function LeftIconRail() {
   const isPanelOpen     = usePresentationStore((s) => s.isPanelOpen);
   const setActivePanel  = usePresentationStore((s) => s.setActivePanel);
   const setPanelOpen    = usePresentationStore((s) => s.setPanelOpen);
+
+  const [showAiTip, setShowAiTip] = useState(false);
+  const [tipPos, setTipPos] = useState({ top: 0, left: 0 });
+  const aiVideoRef = useRef<HTMLVideoElement>(null);
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleAiMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const top = rect.top;
+    const left = rect.right + 8;
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => {
+      setTipPos({ top, left });
+      setShowAiTip(true);
+      const vid = aiVideoRef.current;
+      if (vid) {
+        vid.currentTime = 0;
+        vid.play().catch(() => {});
+      }
+    }, 1000);
+  };
+  const handleAiMouseLeave = () => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    setShowAiTip(false);
+  };
 
   const handleItem = (item: typeof RAIL_ITEMS[number]) => {
     if ('panel' in item && item.panel) {
@@ -62,27 +88,68 @@ export function LeftIconRail() {
           const isPanelActive = 'panel' in item && item.panel && activePanel === item.panel && isPanelOpen;
           const isActive = isToolActive || isPanelActive;
 
+          const isAiFill = item.id === 'gen-fill';
+
           return (
-            <button
+            <div
               key={item.id}
-              type="button"
-              onClick={() => handleItem(item)}
-              title={item.label}
-              className={cn(
-                'relative flex flex-col items-center justify-center gap-1.5 w-full py-3.5 transition-all duration-150 cursor-pointer group',
-                isActive
-                  ? 'text-primary bg-primary/10'
-                  : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100',
-              )}
+              className="relative w-full"
+              onMouseEnter={isAiFill ? handleAiMouseEnter : undefined}
+              onMouseLeave={isAiFill ? handleAiMouseLeave : undefined}
             >
-              {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[4px] h-6 bg-primary rounded-r-full" />
+              <button
+                type="button"
+                onClick={() => handleItem(item)}
+                title={item.label}
+                className={cn(
+                  'relative flex flex-col items-center justify-center gap-1.5 w-full py-3.5 transition-all duration-150 cursor-pointer group',
+                  isActive
+                    ? 'text-primary bg-primary/10'
+                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100',
+                )}
+              >
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[4px] h-6 bg-primary rounded-r-full" />
+                )}
+                <Icon size={20} strokeWidth={isActive ? 2 : 1.6} />
+                <span className="text-[9.5px] font-semibold tracking-wide leading-none text-center px-1">
+                  {item.label}
+                </span>
+              </button>
+
+              {isAiFill && typeof window !== 'undefined' && createPortal(
+                <AnimatePresence>
+                  {showAiTip && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -4, scale: 0.97 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: -4, scale: 0.97 }}
+                      transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                      style={{ top: tipPos.top, left: tipPos.left }}
+                      className="fixed z-[9999] bg-white p-2 rounded-lg shadow-xl border border-neutral-200 w-[280px] pointer-events-none origin-left"
+                    >
+                      <div className="mb-2 mt-0.5 px-0.5 text-left">
+                        <h4 className="text-[11px] font-bold text-neutral-900 leading-none">Generative Fill</h4>
+                        <p className="text-[9px] text-neutral-500 mt-1 leading-none">AI-powered image generation</p>
+                      </div>
+                      <div className="rounded-md overflow-hidden bg-neutral-50 relative aspect-[4/3]">
+                        <video
+                          ref={aiVideoRef}
+                          src="/Video_Demo-tools/SMART-LAYOUT-TOOL (1) (1).mp4"
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          preload="auto"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>,
+                document.body
               )}
-              <Icon size={20} strokeWidth={isActive ? 2 : 1.6} />
-              <span className="text-[9.5px] font-semibold tracking-wide leading-none text-center px-1">
-                {item.label}
-              </span>
-            </button>
+            </div>
           );
         })}
       </div>

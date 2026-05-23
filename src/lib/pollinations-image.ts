@@ -16,7 +16,7 @@ export async function generatePollinationsImageUrl(params: {
   const h = Math.max(256, Math.min(1536, Math.round(params.height) || 1024));
   const seed = Math.floor(Math.random() * 1000000);
   
-  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(params.prompt)}?width=${w}&height=${h}&nologo=true&seed=${seed}`;
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(params.prompt)}?width=${w}&height=${h}&seed=${seed}`;
   
   const response = await fetch(url);
   if (!response.ok) {

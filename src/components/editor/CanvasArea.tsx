@@ -8,6 +8,7 @@ import type { DeckGenerationLifecycle } from '@/types';
 import { KonvaCanvas, CANVAS_WIDTH, CANVAS_HEIGHT } from './KonvaCanvas';
 import { FloatingPropertiesBar } from './FloatingPropertiesBar';
 import { AlignmentToolbar } from './AlignmentToolbar';
+import { ComponentErrorBoundary } from './ComponentErrorBoundary';
 
 // ─── Generation Loader (deterministic milestones — no faux random %) ───────────────────
 
@@ -508,6 +509,16 @@ export function CanvasArea() {
     }
   }, [setEditorState]);
 
+  // Cleanup RAF momentum on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (rafMomentumRef.current) {
+        cancelAnimationFrame(rafMomentumRef.current);
+        rafMomentumRef.current = null;
+      }
+    };
+  }, []);
+
   const handleMouseUp = () => {
     if (isPanning) {
       setIsPanning(false);
@@ -578,7 +589,9 @@ export function CanvasArea() {
             pointerEvents: 'none',
             zIndex: 0,
           }} />
-          <KonvaCanvas scale={effectiveScale} />
+          <ComponentErrorBoundary region="Canvas">
+            <KonvaCanvas scale={effectiveScale} />
+          </ComponentErrorBoundary>
         </div>
       </div>
 

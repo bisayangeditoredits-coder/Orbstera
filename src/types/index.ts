@@ -102,11 +102,15 @@ export interface SlideElement {
   opacity?: number;
   locked?: boolean;
   visible?: boolean;
+  flipX?: boolean;
+  flipY?: boolean;
   // Text element
   content?: string;
   textStyle?: TextStyle;
   // Image element
   src?: string;
+  cropPositionX?: number; // 0 to 1, default 0.5
+  cropPositionY?: number; // 0 to 1, default 0.5
   /** True while this slot is waiting on deck-level /api/generate-image (UI placeholder). */
   aiImagePending?: boolean;
   maskType?: 'circle' | 'heart' | 'square' | 'none';
@@ -257,6 +261,8 @@ export interface EditorState {
   /** Multi-selected element IDs (for Shift+Click and lasso selection) */
   selectedElementIds: string[];
   clipboardElement?: SlideElement | null;
+  /** Image element ID that is currently in Pan/Crop mode */
+  isPanningImage: string | null;
   /** After drawing a generative-fill region, prompts appear for this element. */
   generativeFillTarget: { slideId: string; elementId: string } | null;
   isDragging: boolean;

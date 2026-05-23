@@ -22,7 +22,7 @@ export async function GET(req: Request) {
 
   try {
     const randomSeed = Math.floor(Math.random() * 1_000_000);
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true&seed=${randomSeed}`;
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?seed=${randomSeed}`;
 
     const response = await fetch(imageUrl);
     if (!response.ok) {
