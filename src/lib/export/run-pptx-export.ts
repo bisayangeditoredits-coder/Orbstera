@@ -324,23 +324,7 @@ export async function runPptxExport(params: {
       // ── 1. Solid background color ──────────────────────────────────────────
       pptSlide.background = { color: bgColor };
 
-      // ── 2. Gradient overlay to match Konva canvas gradient ─────────────────
-      // Canvas renders: accent+'33' at corner 0, transparent at 50%, accent+'22' at corner 1
-      // We approximate with a diagonal linear gradient shape overlay
-      pptSlide.addShape(pptx.ShapeType.rect, {
-        x: 0, y: 0, w: PPTX_W, h: PPTX_H,
-        fill: {
-          type:     'gradient',
-          gradType: 'linear',
-          angle:    315,
-          stops: [
-            { position: 0,   color: accent, transparency: 80 },
-            { position: 50,  color: 'FFFFFF', transparency: 100 },
-            { position: 100, color: accent, transparency: 85 },
-          ],
-        } as any,
-        line: { type: 'none' },
-      });
+      // ── 2. (Gradient overlay removed to match current KonvaCanvas background) ──
 
       // ── 3. Hero background image (low opacity, full-slide) ─────────────────
       const bgEl = findDeckBackgroundElement(slide.elements);
@@ -521,12 +505,11 @@ export async function runPptxExport(params: {
     const buffer = await pptx.write({ outputType: 'arraybuffer' }) as ArrayBuffer;
 
     // ── Inject entrance animations via OOXML post-processing ─────────────────
-    // pptxgenjs doesn't expose element animations via its public API so we
-    // patch the raw XML buffer. We convert to string, find each slide's spTree,
-    // and append a <p:timing> block with fade-in animations for every text/shape.
-    const xmlStr = await injectAnimations(buffer, slides, palette);
+    // Temporarily disabled: The experimental OOXML patching caused shape ID mismatches,
+    // resulting in missing elements (black boxes) in the exported PPTX.
+    // const xmlStr = await injectAnimations(buffer, slides, palette);
 
-    const finalBuffer = xmlStr instanceof ArrayBuffer ? xmlStr : buffer;
+    const finalBuffer = buffer; // Use the safe, unpatched buffer
 
   if (jobId && exportR2Client && process.env.CLOUDFLARE_R2_BUCKET_NAME) {
     const exportKey = `exports/${userId}/${jobId}.pptx`;
