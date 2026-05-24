@@ -1,7 +1,21 @@
 import type { PresentationData, Slide, SlideElement } from '@/types';
+import { mapWithConcurrency } from '@/lib/async-pool';
 
 /** Inline data URLs above this length are uploaded to R2 before the deck JSON is POSTed. */
 const DATA_URL_OFFLOAD_MIN_CHARS = 2_000;
+
+/** Parallel presign/upload cap (browser + API); override with NEXT_PUBLIC_CLOUD_SAVE_OFFLOAD_CONCURRENCY */
+const DEFAULT_OFFLOAD_CONCURRENCY = 6;
+
+function cloudSaveOffloadConcurrency(): number {
+  const raw =
+    typeof process !== 'undefined'
+      ? process.env.NEXT_PUBLIC_CLOUD_SAVE_OFFLOAD_CONCURRENCY
+      : undefined;
+  const n = Number(raw);
+  if (Number.isFinite(n) && n >= 1) return Math.min(12, Math.floor(n));
+  return DEFAULT_OFFLOAD_CONCURRENCY;
+}
 
 /** Same-origin /api/presentations/upload-asset must stay under typical serverless body limits (e.g. Vercel ~4.5 MB). */
 const SERVER_UPLOAD_MAX_BYTES = 4_000_000;
@@ -146,33 +160,66 @@ function shouldOffloadDataUrl(s: string | undefined): s is string {
   return typeof s === 'string' && s.startsWith('data:') && s.length >= DATA_URL_OFFLOAD_MIN_CHARS;
 }
 
+type DataUrlOffloadJob = {
+  dataUrl: string;
+  apply: (publicUrl: string) => void;
+};
+
 /**
  * Clones the presentation and replaces large `data:` image payloads with R2 HTTPS URLs
  * so the JSON POST stays under platform body limits (fixes HTTP 413 on autosave).
+ * Offloads unique data URLs concurrently to reduce serverless wall time.
  */
 export async function preparePresentationForCloudSave(presentation: PresentationData): Promise<PresentationData> {
   const deckId = presentation.id || 'draft';
   const dedupe = new Map<string, string>();
   const clone = structuredClone(presentation) as PresentationData;
+  const jobs: DataUrlOffloadJob[] = [];
 
-  const processElement = async (el: SlideElement) => {
-    if (el.type !== 'image' || !shouldOffloadDataUrl(el.src)) return;
-    const url = await uploadDataUrlOnce(el.src!, deckId, dedupe);
-    if (url) el.src = url;
-  };
-
-  const processSlide = async (slide: Slide) => {
+  for (const slide of clone.slides || []) {
     if (shouldOffloadDataUrl(slide.imageUrl)) {
-      const url = await uploadDataUrlOnce(slide.imageUrl!, deckId, dedupe);
-      if (url) slide.imageUrl = url;
+      const dataUrl = slide.imageUrl!;
+      jobs.push({
+        dataUrl,
+        apply: (publicUrl) => {
+          slide.imageUrl = publicUrl;
+        },
+      });
     }
-    const els = slide.elements;
-    if (els?.length) {
-      for (const el of els) await processElement(el);
+    for (const el of slide.elements || []) {
+      if (el.type === 'image' && shouldOffloadDataUrl(el.src)) {
+        const dataUrl = el.src!;
+        jobs.push({
+          dataUrl,
+          apply: (publicUrl) => {
+            el.src = publicUrl;
+          },
+        });
+      }
     }
-  };
+  }
 
-  for (const slide of clone.slides || []) await processSlide(slide);
+  if (jobs.length === 0) return clone;
+
+  /** One upload per unique data URL; many elements can share the same inline image. */
+  const byDataUrl = new Map<string, DataUrlOffloadJob[]>();
+  for (const job of jobs) {
+    const list = byDataUrl.get(job.dataUrl) ?? [];
+    list.push(job);
+    byDataUrl.set(job.dataUrl, list);
+  }
+
+  const uniqueUrls = Array.from(byDataUrl.keys());
+  const concurrency = cloudSaveOffloadConcurrency();
+
+  await mapWithConcurrency(uniqueUrls, concurrency, async (dataUrl) => {
+    const url = await uploadDataUrlOnce(dataUrl, deckId, dedupe);
+    if (!url) return;
+    for (const job of byDataUrl.get(dataUrl) ?? []) {
+      job.apply(url);
+    }
+  });
+
   return clone;
 }
 

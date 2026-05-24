@@ -6,23 +6,118 @@ export type JobPollRecord = {
   error?: string;
 };
 
-/** Exponential backoff capped at 8s to reduce poll amplification under load. */
+export type PollJobOptions = {
+  intervalMs?: number;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+  onProgress?: (job: JobPollRecord) => void;
+  /** Force HTTP polling even when SSE is available */
+  preferPolling?: boolean;
+};
+
+const DEFAULT_TIMEOUT_MS = 600_000;
+
+/** Aggressive exponential backoff with jitter (HTTP fallback). */
 function pollIntervalMs(attempt: number, baseMs: number): number {
-  const exp = Math.min(baseMs * Math.pow(1.35, attempt), 8_000);
-  return Math.round(exp);
+  const exp = Math.min(baseMs * Math.pow(1.55, attempt), 30_000);
+  const jitter = Math.floor(Math.random() * 400);
+  return Math.round(exp + jitter);
 }
 
-export async function pollJobUntilDone(
-  jobId: string,
-  options?: {
-    intervalMs?: number;
-    timeoutMs?: number;
-    signal?: AbortSignal;
-    onProgress?: (job: JobPollRecord) => void;
-  },
-): Promise<JobPollRecord> {
-  const baseIntervalMs = options?.intervalMs ?? 1500;
-  const timeoutMs = options?.timeoutMs ?? 600_000;
+function parseSseEvents(buffer: string): { events: string[]; rest: string } {
+  const parts = buffer.split('\n\n');
+  const rest = parts.pop() ?? '';
+  return { events: parts.filter(Boolean), rest };
+}
+
+function parseSseDataLine(block: string): JobPollRecord | null {
+  for (const line of block.split('\n')) {
+    if (!line.startsWith('data:')) continue;
+    const raw = line.slice(5).trim();
+    if (!raw) continue;
+    try {
+      return JSON.parse(raw) as JobPollRecord;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Single SSE connection; server polls Redis every 2s.
+ */
+async function watchJobViaSse(jobId: string, options?: PollJobOptions): Promise<JobPollRecord> {
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  if (options?.signal) {
+    if (options.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+    options.signal.addEventListener('abort', onAbort, { once: true });
+  }
+
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/stream`, {
+      method: 'GET',
+      credentials: 'include',
+      signal: controller.signal,
+      headers: { Accept: 'text/event-stream' },
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(
+        typeof (err as { message?: string }).message === 'string'
+          ? (err as { message: string }).message
+          : `Job stream failed (${res.status})`,
+      );
+    }
+
+    if (!res.body) {
+      throw new Error('Job stream unavailable');
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const { events, rest } = parseSseEvents(buffer);
+      buffer = rest;
+
+      for (const block of events) {
+        const job = parseSseDataLine(block);
+        if (!job?.status) continue;
+        options?.onProgress?.(job);
+        if (job.status === 'completed') return job;
+        if (job.status === 'failed') {
+          throw new Error(job.error || 'Generation failed');
+        }
+      }
+    }
+
+    throw new Error('Job stream ended unexpectedly');
+  } catch (e) {
+    if (isAbortError(e)) throw e;
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
+    if (options?.signal) options.signal.removeEventListener('abort', onAbort);
+  }
+}
+
+function isAbortError(e: unknown): boolean {
+  return e instanceof DOMException && e.name === 'AbortError';
+}
+
+async function pollJobViaHttp(jobId: string, options?: PollJobOptions): Promise<JobPollRecord> {
+  const baseIntervalMs = options?.intervalMs ?? 2_000;
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const start = Date.now();
   let attempt = 0;
 
@@ -39,7 +134,9 @@ export async function pollJobUntilDone(
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(
-        typeof err.message === 'string' ? err.message : `Job poll failed (${res.status})`,
+        typeof (err as { message?: string }).message === 'string'
+          ? (err as { message: string }).message
+          : `Job poll failed (${res.status})`,
       );
     }
     const job = (await res.json()) as JobPollRecord;
@@ -56,4 +153,22 @@ export async function pollJobUntilDone(
   }
 
   throw new Error('Job timed out');
+}
+
+/**
+ * Prefer SSE (one connection); fall back to HTTP polling with aggressive backoff.
+ */
+export async function pollJobUntilDone(
+  jobId: string,
+  options?: PollJobOptions,
+): Promise<JobPollRecord> {
+  if (!options?.preferPolling && typeof fetch !== 'undefined') {
+    try {
+      return await watchJobViaSse(jobId, options);
+    } catch (e) {
+      if (isAbortError(e)) throw e;
+      console.warn('[poll-job] SSE unavailable, falling back to HTTP poll:', e);
+    }
+  }
+  return pollJobViaHttp(jobId, options);
 }

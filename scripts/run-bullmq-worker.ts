@@ -1,5 +1,10 @@
 /**
- * BullMQ worker entry (requires REDIS_URL + WORKER_INTERNAL_SECRET + NEXT_PUBLIC_APP_URL).
+ * BullMQ worker — runs deck generation inline (no Vercel callback).
+ *
+ * Requires: REDIS_URL, NEXT_PUBLIC_APP_URL, SUPABASE_SERVICE_ROLE_KEY, OPENROUTER_API_KEY
+ * Optional: GENERATE_WORKER_CONCURRENCY (default 2)
+ * Legacy: GENERATE_WORKER_USE_HTTP_CALLBACK=true + WORKER_INTERNAL_SECRET
+ *
  * Usage: npx tsx scripts/run-bullmq-worker.ts
  */
 import './load-env-local';
@@ -38,7 +43,7 @@ async function main() {
   handle = await createBullWorker();
   if (!handle) {
     console.error(
-      'BullMQ worker not started. Set REDIS_URL (or UPSTASH_REDIS_URL), WORKER_INTERNAL_SECRET, NEXT_PUBLIC_APP_URL.',
+      'BullMQ worker not started. Set REDIS_URL (or UPSTASH_REDIS_URL), NEXT_PUBLIC_APP_URL, SUPABASE_SERVICE_ROLE_KEY.',
     );
     process.exit(1);
   }

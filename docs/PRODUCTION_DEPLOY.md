@@ -59,9 +59,12 @@ docker run --env-file .env.production orbstera-worker
 Or without Docker:
 
 ```bash
-npm run worker:generate:bullmq   # terminal 1
+npm run worker:generate:bullmq   # terminal 1 — inline AI (no Vercel callback)
 npm run worker:export:inline     # terminal 2
 ```
+
+Worker env must include `OPENROUTER_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` (same as Vercel).  
+`WORKER_INTERNAL_SECRET` is only needed if `GENERATE_WORKER_USE_HTTP_CALLBACK=true`.
 
 ## 4. Cloudflare (recommended)
 

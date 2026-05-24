@@ -32,13 +32,23 @@ Health: `GET /api/health` — Supabase/R2 live pings, Redis, queue depth, worker
 
 When workers are enabled, decks with **≥12 slides** (override `GENERATE_ASYNC_SLIDE_THRESHOLD`) auto-queue even without `GENERATE_ASYNC_DEFAULT`.
 
-Workers call `POST /api/internal/process-generate` (batch orchestration + compose). BullMQ is used when `REDIS_URL` is set; otherwise legacy `queue:generate:v1` list.
+BullMQ workers run `runDeckGenerationBatch` **inline** (no Vercel HTTP). Set `GENERATE_WORKER_USE_HTTP_CALLBACK=true` only for legacy HTTP to `/api/internal/process-generate`. BullMQ is used when `REDIS_URL` is set; otherwise legacy `queue:generate:v1` list.
 
 ## Async PPTX export
 
 Decks with **≥12 slides** (override `EXPORT_ASYNC_SLIDE_THRESHOLD`): `POST /api/export/pptx?async=1` → **202** + job poll. Run `npm run worker:export` (in-process PPTX by default via `scripts/run-export-worker.ts`; set `EXPORT_WORKER_INLINE=false` for legacy HTTP callback).
 
 Verify env before deploy: `npm run verify:scale-env:strict` (see [PRODUCTION_DEPLOY.md](./PRODUCTION_DEPLOY.md))
+
+## Job status (clients)
+
+- Prefer **SSE**: `GET /api/jobs/[id]/stream` (one connection; server polls Redis every 2s).
+- Fallback: `GET /api/jobs/[id]` with exponential backoff (client `pollJobUntilDone`).
+
+## Credits under load
+
+- **Redis fast-path** (`src/lib/billing/credit-redis.ts`): atomic reserve in Upstash before `consume_credits_atomic_v2`, rollback on RPC failure.
+- Disable with `CREDITS_REDIS_FAST_PATH=false`.
 
 ## API rate limits (storage)
 

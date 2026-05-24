@@ -5,6 +5,14 @@ import {
   PLAN_MAX_AI_SPEND_USD,
 } from '@/lib/billing/credit-cap-defaults';
 import { getBillingPlan } from '@/lib/billing/resolve-plan';
+import {
+  adjustCreditFastPathRefund,
+  isCreditRedisFastPathEnabled,
+  releaseCreditsRedisFastPath,
+  reserveCreditsRedisFastPath,
+  setCreditFastPathUsed,
+  syncCreditFastPathFromProfile,
+} from '@/lib/billing/credit-redis';
 import { getServiceSupabase } from '@/lib/billing/supabase-admin';
 
 export type PlanTier = 'free' | 'student_pro' | 'pro' | 'creator_pro' | 'admin';
@@ -296,6 +304,7 @@ async function readSummaryFromProfile(supabase: any, userId: string, plan: PlanT
     );
     const remaining = Math.max(0, lim - used);
     const resetAt = typeof data?.credits_reset_at === 'string' ? data.credits_reset_at : null;
+    void syncCreditFastPathFromProfile(userId, monthKey, used);
     return { plan, monthKey, monthlyLimit: lim, used, remaining, resetAt };
   } catch {
     return { plan, monthKey, monthlyLimit, used: 0, remaining: monthlyLimit, resetAt: null };
@@ -405,16 +414,49 @@ export async function consumeCreditsForUser(args: {
     return { ok: false, error: 'BILLING_UNAVAILABLE', summary };
   }
 
+  const monthKey = summary.monthKey;
+  const monthlyLimit = summary.monthlyLimit;
+  let redisReserved = false;
+
+  if (isCreditRedisFastPathEnabled()) {
+    const fast = await reserveCreditsRedisFastPath({
+      userId: args.userId,
+      monthKey,
+      cost,
+      monthlyLimit,
+    });
+    if (fast?.ok === false) {
+      const refreshed = await readSummaryFromProfile(admin, args.userId, plan, config);
+      return { ok: false, error: 'INSUFFICIENT_CREDITS', summary: refreshed };
+    }
+    if (fast?.ok === true) redisReserved = true;
+  }
+
   const meta = args.meta && typeof args.meta === 'object' ? args.meta : {};
-  const { data, error } = await admin.rpc('consume_credits_atomic_v2', {
-    p_user_id: args.userId,
-    p_cost: cost,
-    p_action: args.action,
-    p_meta: meta,
-    p_idempotency_key: args.idempotencyKey ?? null,
-  });
+  let data: unknown;
+  let error: { message?: string } | null = null;
+
+  try {
+    const rpc = await admin.rpc('consume_credits_atomic_v2', {
+      p_user_id: args.userId,
+      p_cost: cost,
+      p_action: args.action,
+      p_meta: meta,
+      p_idempotency_key: args.idempotencyKey ?? null,
+    });
+    data = rpc.data;
+    error = rpc.error;
+  } catch (e) {
+    if (redisReserved) {
+      await releaseCreditsRedisFastPath(args.userId, monthKey, cost);
+    }
+    throw e;
+  }
 
   if (error) {
+    if (redisReserved) {
+      await releaseCreditsRedisFastPath(args.userId, monthKey, cost);
+    }
     if (allowLegacyCreditFallback()) {
       return consumeCreditsLegacy({
         supabase: admin,
@@ -431,8 +473,17 @@ export async function consumeCreditsForUser(args: {
 
   const payload = (data ?? {}) as RpcV2Payload;
   if (payload.ok === true) {
+    if (payload.duplicate === true && redisReserved) {
+      await releaseCreditsRedisFastPath(args.userId, monthKey, cost);
+    } else if (typeof payload.credits_used_month === 'number') {
+      await setCreditFastPathUsed(args.userId, monthKey, payload.credits_used_month);
+    }
     const next = await readSummaryFromProfile(admin, args.userId, plan, config);
     return { ok: true, summary: next, duplicate: payload.duplicate === true };
+  }
+
+  if (redisReserved) {
+    await releaseCreditsRedisFastPath(args.userId, monthKey, cost);
   }
 
   if (payload.error === 'INSUFFICIENT_CREDITS') {
@@ -455,12 +506,19 @@ export async function refundCreditsForUser(args: {
   if (cost <= 0) return;
 
   try {
-    await admin.rpc('refund_credits_atomic_v2', {
+    const { data } = await admin.rpc('refund_credits_atomic_v2', {
       p_user_id: args.userId,
       p_cost: cost,
       p_idempotency_key: args.idempotencyKey,
       p_reason: args.reason ?? 'refund',
     });
+    const payload = (data ?? {}) as { ok?: boolean; credits_used_month?: number };
+    if (payload.ok && typeof payload.credits_used_month === 'number') {
+      const monthKey = monthKeyUTC();
+      await setCreditFastPathUsed(args.userId, monthKey, payload.credits_used_month);
+    } else if (isCreditRedisFastPathEnabled()) {
+      await adjustCreditFastPathRefund(args.userId, monthKeyUTC(), cost);
+    }
   } catch (e) {
     console.error('[credits] refund failed:', e);
   }

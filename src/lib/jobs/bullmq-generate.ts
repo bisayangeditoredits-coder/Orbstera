@@ -1,4 +1,5 @@
 import type { DeckGenerationJobBody } from '@/lib/ai/run-deck-generation-batch';
+import { processGenerateJob, type ProcessGenerateJobPayload } from '@/lib/jobs/process-generate-job';
 
 const QUEUE_NAME = 'generate-deck';
 
@@ -24,11 +25,7 @@ async function getQueue(): Promise<import('bullmq').Queue | null> {
   return queuePromise;
 }
 
-export async function enqueueBullGenerateJob(payload: {
-  jobId: string;
-  userId: string;
-  body: DeckGenerationJobBody;
-}): Promise<boolean> {
+export async function enqueueBullGenerateJob(payload: ProcessGenerateJobPayload): Promise<boolean> {
   const queue = await getQueue();
   if (!queue) return false;
   await queue.add(
@@ -54,8 +51,14 @@ export type BullWorkerHandle = {
 export async function createBullWorker(): Promise<BullWorkerHandle | null> {
   const redisUrl = process.env.REDIS_URL?.trim() || process.env.UPSTASH_REDIS_URL?.trim();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  const secret = process.env.WORKER_INTERNAL_SECRET?.trim();
-  if (!redisUrl || !appUrl || !secret) return null;
+  if (!redisUrl || !appUrl) return null;
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() && process.env.GENERATE_WORKER_USE_HTTP_CALLBACK !== 'true') {
+    console.error(
+      '[bullmq] SUPABASE_SERVICE_ROLE_KEY required for inline worker (or set GENERATE_WORKER_USE_HTTP_CALLBACK=true)',
+    );
+    return null;
+  }
 
   const { Worker } = await import('bullmq');
   const IORedis = (await import('ioredis')).default;
@@ -64,23 +67,15 @@ export async function createBullWorker(): Promise<BullWorkerHandle | null> {
   const worker = new Worker(
     QUEUE_NAME,
     async (job) => {
-      const data = job.data as { jobId: string; userId: string; body: DeckGenerationJobBody };
-      const res = await fetch(`${appUrl.replace(/\/$/, '')}/api/internal/process-generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-worker-secret': secret,
-        },
-        body: JSON.stringify(data),
-        signal: AbortSignal.timeout(280_000),
-      });
-      if (!res.ok) {
-        const t = await res.text().catch(() => '');
-        throw new Error(`Internal process-generate ${res.status}: ${t}`);
-      }
+      const data = job.data as ProcessGenerateJobPayload;
+      await processGenerateJob(data);
     },
     { connection, concurrency: Number(process.env.GENERATE_WORKER_CONCURRENCY || 2) },
   );
+
+  worker.on('completed', (job) => {
+    console.log('[bullmq] completed', job.id);
+  });
 
   return {
     worker,
