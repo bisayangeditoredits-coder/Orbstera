@@ -991,7 +991,6 @@ export function KonvaCanvas({ scale }: { scale: number }) {
         e.preventDefault();
         const idsToDelete = selIds.length > 1 ? selIds : sel ? [sel] : [];
         if (idsToDelete.length > 0) {
-          store.pushHistory();
           idsToDelete.forEach((id) => removeElement(currentSlide.id, id));
           clearMultiSelection();
         }
@@ -1200,7 +1199,10 @@ export function KonvaCanvas({ scale }: { scale: number }) {
                 onChange={(updates, save) => updateElement(slide.id, el.id, updates, save)}
                 activeTool={activeTool}
                 isEditingText={editingTextId === el.id}
-                onDblClickText={() => setEditingTextId(el.id)}
+                onDblClickText={() => {
+                  usePresentationStore.getState().pushHistory();
+                  setEditingTextId(el.id);
+                }}
                 previewElementId={previewElementId}
                 snapToGrid={snapToGrid}
                 gridSize={gridSize}

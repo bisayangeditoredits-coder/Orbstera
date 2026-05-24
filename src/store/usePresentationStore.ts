@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { PresentationData, Slide, SlideElement, HistoryEntry, EditorState } from '@/types';
 import { finalizeSlideMotion } from '@/lib/presentationMotion';
 
-const MAX_HISTORY = 50;
+/** Cap undo stack size to limit RAM on large decks (structured clones per step). */
+const MAX_HISTORY_STEPS = 10;
 
 /** Lightweight signature for undo dedup (avoids full JSON.stringify on large decks). */
 function slidesHistorySignature(slides: Slide[]): string {
@@ -12,6 +13,19 @@ function slidesHistorySignature(slides: Slide[]): string {
       return `${s.id}:${els.length}:${els.map((e) => `${e.id}:${e.x}:${e.y}:${e.width}:${e.height}`).join(';')}`;
     })
     .join('|');
+}
+
+function historyEntrySignature(entry: HistoryEntry): string {
+  return `${entry.theme}:${slidesHistorySignature(entry.slides)}`;
+}
+
+/** Deck content only — excludes editor UI, generation flags, sync metadata, etc. */
+function captureHistorySnapshot(presentation: PresentationData): HistoryEntry {
+  return {
+    slides: structuredClone(presentation.slides),
+    theme: presentation.theme || 'dark',
+    timestamp: Date.now(),
+  };
 }
 
 // ── Canvas dimensions (must match KonvaCanvas.tsx) ──────────────────────────
@@ -788,40 +802,16 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   history: [],
   historyIndex: -1,
 
-  // ── History Management (enhanced) ────────────────────────────────────────
-  // Store a snapshot of the entire editor UI (presentation + editor state).
-  // Use structuredClone for deep copy (fast, handles Dates, etc.).
-  // Before pushing a new entry, compare with the previous snapshot and skip if identical
-  // to keep history concise.
+  // ── History (undo/redo) — slides + theme only, bounded stack ─────────────
   pushHistory: () => {
     const state = get();
     if (!state.presentation) return;
-    const snapshot = {
-      slides: structuredClone(state.presentation.slides),
-      timestamp: Date.now(),
-      editor: {
-        selectedElementId: state.editor.selectedElementId,
-        selectedElementIds: [...state.editor.selectedElementIds],
-        zoom: state.editor.zoom,
-        showGrid: state.editor.showGrid,
-        snapToGrid: state.editor.snapToGrid,
-        // Add other UI flags as needed
-      },
-    } as any;
+    const snapshot = captureHistorySnapshot(state.presentation);
     const history = state.history.slice(0, state.historyIndex + 1);
     const last = history[history.length - 1];
-    if (last) {
-      const lastSig = slidesHistorySignature((last as { slides?: Slide[] }).slides || []);
-      const nextSig = slidesHistorySignature(snapshot.slides);
-      const editorUnchanged =
-        last.editor?.selectedElementId === snapshot.editor.selectedElementId &&
-        last.editor?.zoom === snapshot.editor.zoom &&
-        JSON.stringify(last.editor?.selectedElementIds ?? []) ===
-          JSON.stringify(snapshot.editor.selectedElementIds);
-      if (lastSig === nextSig && editorUnchanged) return;
-    }
+    if (last && historyEntrySignature(last) === historyEntrySignature(snapshot)) return;
     history.push(snapshot);
-    if (history.length > MAX_HISTORY) history.shift();
+    while (history.length > MAX_HISTORY_STEPS) history.shift();
     set({ history, historyIndex: history.length - 1 });
   },
 
@@ -829,24 +819,27 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     const state = get();
     if (state.historyIndex <= 0 || !state.presentation) return;
     const newIndex = state.historyIndex - 1;
-    const entry = state.history[newIndex] as any;
+    const entry = state.history[newIndex];
     set({
-      presentation: { ...state.presentation, slides: entry.slides },
-      // Restore editor snapshot if present
-      editor: { ...state.editor, ...(entry.editor || {}) },
+      presentation: {
+        ...state.presentation,
+        slides: structuredClone(entry.slides),
+        theme: entry.theme,
+      },
       historyIndex: newIndex,
     });
   },
   redo: () => {
     const state = get();
-    if (!state.presentation || state.historyIndex >= state.history.length - 1) {
-      return;
-    }
+    if (!state.presentation || state.historyIndex >= state.history.length - 1) return;
     const newIndex = state.historyIndex + 1;
-    const entry = state.history[newIndex] as any;
+    const entry = state.history[newIndex];
     set({
-      presentation: { ...state.presentation, slides: entry.slides },
-      editor: { ...state.editor, ...(entry.editor || {}) },
+      presentation: {
+        ...state.presentation,
+        slides: structuredClone(entry.slides),
+        theme: entry.theme,
+      },
       historyIndex: newIndex,
     });
   },

@@ -993,7 +993,6 @@ export function LayersPanel() {
 
   const handleDragStart = useCallback((index: number, e: React.DragEvent) => {
     draggedItemIndex.current = index;
-    usePresentationStore.getState().pushHistory();
     // Required for Firefox
     e.dataTransfer.effectAllowed = 'move';
     // A transparent image or minimal data to hide default ghost if desired, but default is fine
@@ -1021,7 +1020,7 @@ export function LayersPanel() {
 
   const handleDragEnd = useCallback(() => {
     draggedItemIndex.current = null;
-    if (slide) setElementsOrder(slide.id, localIds, false);
+    if (slide) setElementsOrder(slide.id, localIds, true);
   }, [slide, localIds, setElementsOrder]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {

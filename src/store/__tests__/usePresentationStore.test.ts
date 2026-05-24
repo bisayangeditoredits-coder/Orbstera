@@ -47,7 +47,7 @@ describe('usePresentationStore History', () => {
 
   it('should push history correctly', () => {
     const store = usePresentationStore.getState();
-    store.setPresentation({ id: 'test-1', slides: [], title: 'Test' } as any);
+    store.setPresentation({ id: 'test-1', slides: [], title: 'Test', theme: 'dark' } as any);
     
     // pushHistory is called in setPresentation, so history length should be 1
     expect(usePresentationStore.getState().history.length).toBe(1);
@@ -56,7 +56,7 @@ describe('usePresentationStore History', () => {
 
   it('should undo and redo correctly', () => {
     const store = usePresentationStore.getState();
-    store.setPresentation({ id: 'test-1', slides: [], title: 'Test' } as any);
+    store.setPresentation({ id: 'test-1', slides: [], title: 'Test', theme: 'dark' } as any);
     
     // Add a slide
     usePresentationStore.getState().addSlide({ id: 's1', elements: [] } as any);
@@ -74,5 +74,20 @@ describe('usePresentationStore History', () => {
     usePresentationStore.getState().redo();
     expect(usePresentationStore.getState().historyIndex).toBe(1);
     expect(usePresentationStore.getState().presentation?.slides.length).toBe(1);
+  });
+
+  it('caps history at MAX_HISTORY_STEPS and stores slides + theme only', () => {
+    const store = usePresentationStore.getState();
+    store.setPresentation({ id: 'test-1', slides: [], title: 'Test', theme: 'dark' } as any);
+
+    for (let i = 0; i < 15; i++) {
+      usePresentationStore.getState().addSlide({ id: `s${i}`, elements: [] } as any);
+    }
+
+    const { history, historyIndex } = usePresentationStore.getState();
+    expect(history.length).toBeLessThanOrEqual(10);
+    expect(historyIndex).toBe(history.length - 1);
+    expect(history[0]).toMatchObject({ theme: 'dark' });
+    expect(history[0]).not.toHaveProperty('editor');
   });
 });

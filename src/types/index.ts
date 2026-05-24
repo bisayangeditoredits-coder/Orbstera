@@ -221,11 +221,11 @@ export interface PresentationData {
 }
 
 // ─── Editor State Types ───────────────────────────────────────────────────────
+/** Undo/redo snapshot — deck content only (no transient editor UI). */
 export interface HistoryEntry {
   slides: Slide[];
+  theme: string;
   timestamp: number;
-  // Snapshot of editor UI (selected elements, zoom, grid, etc.) for full undo/redo
-  editor?: Partial<EditorState>;
 }
 
 export type DeckGenerationLifecycle =
