@@ -22,9 +22,9 @@ const THEMES = [
     description: 'Clean white & blue',
     bg: '#FFFFFF',
     text: '#0F172A',
-    subtext: '#3B82F6',
-    accent: '#3B82F6',
-    palette: ['#FFFFFF', '#0F172A', '#3B82F6', '#93C5FD'],
+    subtext: '#0009fa',
+    accent: '#0009fa',
+    palette: ['#FFFFFF', '#0F172A', '#0009fa', '#93C5FD'],
   },
   {
     id: 'midnight',

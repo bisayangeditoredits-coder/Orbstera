@@ -190,6 +190,7 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
     return () => {
       stopAudioAnalysis();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isListening, lottieId]);
 
   return (

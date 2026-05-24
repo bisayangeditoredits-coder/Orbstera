@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
@@ -120,7 +121,7 @@ const SLIDE_ACTIONS = [
   {
     id: 'notes'    as const, icon: FileText,    label: 'Write Speaker Notes',
     desc: 'Generates notes you can read while presenting',
-    color: '#3B82F6',
+    color: '#0009fa',
   },
   {
     id: 'improve'  as const, icon: Stars,        label: 'Improve This Slide',
@@ -285,13 +286,12 @@ function TextRewriteSection() {
   const selectedEl = selectedId ? slide?.elements?.find(e => e.id === selectedId) : null;
   const textContent = selectedEl?.content || '';
 
-  const ctx = { deckTitle: presentation?.title, slideTitle: slide?.title, palette: presentation?.colorPalette };
-
   const run = useCallback(async (promptText: string, actionId: string) => {
     if (!textContent.trim() || loading) return;
     setLoading(actionId);
     setResult(null);
     try {
+      const ctx = { deckTitle: presentation?.title, slideTitle: slide?.title, palette: presentation?.colorPalette };
       const data = await callMagicEdit(
         `${promptText}\n\nOriginal text:\n"${textContent}"`,
         selectedEl as unknown as Record<string, unknown>,
@@ -300,7 +300,7 @@ function TextRewriteSection() {
       if (data.content) setResult({ text: data.content });
     } catch (e) { console.error(e); }
     finally { setLoading(null); }
-  }, [textContent, loading, selectedEl, ctx]);
+  }, [textContent, loading, selectedEl, presentation?.title, presentation?.colorPalette, slide?.title]);
 
   const apply = () => {
     if (!result || !slide || !selectedId) return;

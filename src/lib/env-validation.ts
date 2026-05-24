@@ -45,5 +45,19 @@ export function validateProductionEnv(): void {
     }
   }
 
+  if (process.env.GENERATE_ASYNC_DEFAULT === 'true' && process.env.GENERATE_WORKER_ENABLED !== 'true') {
+    console.error(
+      '[env] ❌ GENERATE_ASYNC_DEFAULT=true but GENERATE_WORKER_ENABLED≠true — queued decks will never finish',
+    );
+  }
+  if (process.env.GENERATE_WORKER_ENABLED === 'true' && !process.env.WORKER_INTERNAL_SECRET?.trim()) {
+    console.error('[env] ❌ GENERATE_WORKER_ENABLED without WORKER_INTERNAL_SECRET');
+  }
+  if (process.env.GENERATE_WORKER_ENABLED !== 'true') {
+    console.warn(
+      '[env] ⚠️  GENERATE_WORKER_ENABLED not true — production will use long SSE on serverless (poor scale)',
+    );
+  }
+
   console.log('[env] ✅ Environment validation complete');
 }

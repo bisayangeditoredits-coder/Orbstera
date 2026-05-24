@@ -80,14 +80,14 @@ export function GenerativeFillToolbar() {
       return;
     }
     inputRef.current?.focus();
-  }, [target?.elementId, target?.slideId]);
+  }, [target]);
 
   useEffect(() => {
     if (!target || !slide) return;
     if (target.slideId !== slide.id) {
       setEditorState({ generativeFillTarget: null });
     }
-  }, [slide?.id, target, setEditorState]);
+  }, [slide, target, setEditorState]);
 
   const dismiss = useCallback(() => {
     setEditorState({ generativeFillTarget: null });

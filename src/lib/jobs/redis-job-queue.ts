@@ -50,22 +50,45 @@ export async function getJobRecord(id: string): Promise<JobRecord | null> {
   return v ?? null;
 }
 
+function mergeJobRecord(cur: JobRecord, patch: Partial<JobRecord>): JobRecord {
+  return {
+    ...cur,
+    ...patch,
+    id: cur.id,
+    userId: cur.userId,
+    type: patch.type ?? cur.type,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/** Optimistic read-merge-write with retries to reduce lost progress updates under concurrent workers. */
 export async function updateJobRecord(
   id: string,
   patch: Partial<JobRecord>,
 ): Promise<JobRecord | null> {
   if (!redis) return null;
-  const cur = await getJobRecord(id);
-  if (!cur) return null;
-  const next: JobRecord = {
-    ...cur,
-    ...patch,
-    id: cur.id,
-    userId: cur.userId,
-    updatedAt: new Date().toISOString(),
-  };
-  await redis.set(`${PREFIX}${id}`, next, { ex: TTL_SEC });
-  return next;
+
+  const key = `${PREFIX}${id}`;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const cur = await getJobRecord(id);
+    if (!cur) return null;
+    const next = mergeJobRecord(cur, patch);
+    await redis.set(key, next, { ex: TTL_SEC });
+    const verify = await redis.get<JobRecord>(key);
+    if (
+      verify &&
+      verify.updatedAt === next.updatedAt &&
+      verify.status === next.status &&
+      (verify.progress ?? null) === (next.progress ?? null)
+    ) {
+      return verify;
+    }
+    if (attempt < 3) {
+      await new Promise((r) => setTimeout(r, 15 * (attempt + 1)));
+    }
+  }
+
+  return getJobRecord(id);
 }
 
 /** Push generate payload for an external worker (see docs/SCALING.md). */

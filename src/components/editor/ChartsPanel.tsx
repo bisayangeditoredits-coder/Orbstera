@@ -24,7 +24,7 @@ export function ChartsPanel({ onClose }: { onClose?: () => void }) {
         datasets: [{
           label: 'Data',
           data: dataArray,
-          backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#6366f1', '#ec4899', '#8b5cf6'],
+          backgroundColor: ['#0009fa', '#ef4444', '#10b981', '#f59e0b', '#6366f1', '#ec4899', '#8b5cf6'],
         }]
       },
       options: {

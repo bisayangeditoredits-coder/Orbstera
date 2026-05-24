@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { enforceContactRateLimit } from '@/lib/rate-limit-server';
+import { withRouteError } from '@/lib/api/with-route-error';
 
 const bodySchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -15,7 +17,10 @@ function escapeHtml(s: string) {
     .replace(/"/g, '&quot;');
 }
 
-export async function POST(req: Request) {
+async function postContact(req: Request) {
+  const limited = await enforceContactRateLimit(req);
+  if (limited) return limited;
+
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const to = process.env.CONTACT_TO_EMAIL?.trim();
   const from =
@@ -70,3 +75,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true as const });
 }
+
+export const POST = withRouteError('POST /api/contact', postContact);

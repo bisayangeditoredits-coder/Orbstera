@@ -224,6 +224,8 @@ export interface PresentationData {
 export interface HistoryEntry {
   slides: Slide[];
   timestamp: number;
+  // Snapshot of editor UI (selected elements, zoom, grid, etc.) for full undo/redo
+  editor?: Partial<EditorState>;
 }
 
 export type DeckGenerationLifecycle =
@@ -284,6 +286,8 @@ export interface EditorState {
   generationPendingImages: number;
   generationImageJobsTotal: number;
   generationImageJobsCompleted: number;
+  /** Failed /api/generate-image tasks in the current generationEpoch */
+  generationImageJobsFailed: number;
   previewElementId: string | null;
   reasoning: string;
   pan: { x: number; y: number };

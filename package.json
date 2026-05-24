@@ -18,7 +18,11 @@
     "worker:export": "node scripts/process-export-jobs.mjs",
     "worker:export:inline": "npx tsx scripts/run-export-worker.ts",
     "load-test:health": "node scripts/load-test/generate-smoke.mjs",
-    "verify:scale-env": "node scripts/verify-scale-env.mjs"
+    "load-test:api": "node scripts/load-test/api-smoke.mjs",
+    "verify:scale-env": "node scripts/verify-scale-env.mjs",
+    "verify:scale-env:ci": "node scripts/verify-scale-env.mjs --ci",
+    "verify:scale-env:strict": "node scripts/verify-scale-env.mjs --strict",
+    "ci": "npm run lint && npm run verify:scale-env:ci && npm run build"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1044.0",

@@ -1,6 +1,8 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { usePresentationStore } from '@/store/usePresentationStore';
+import { VirtualRow } from '@/components/ui/VirtualRow';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { findDeckBackgroundElement } from '@/lib/slide-background';
 import { editorImageFetchUrl } from '@/lib/r2-public-url';
@@ -143,18 +145,24 @@ export function BottomSlideStrip() {
         <ChevronLeft size={15} />
       </button>
 
-      {/* Scrollable thumbnails */}
-      <div className="flex-1 flex items-center gap-2 overflow-x-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-        {slides.map((slide, i) => (
-          <HorizThumb
-            key={slide.id}
-            slide={slide}
-            index={i}
-            isActive={i === currentSlideIndex}
-            colorBg={colorBg}
-            onClick={() => setCurrentSlideIndex(i)}
-          />
-        ))}
+      {/* Scrollable thumbnails — virtualized when many slides */}
+      <div className="flex-1 min-w-0 flex items-center">
+        <VirtualRow
+          items={slides}
+          estimateSize={80}
+          gap={8}
+          className="h-[45px] w-full"
+          getKey={(slide) => slide.id}
+          renderItem={(slide, i) => (
+            <HorizThumb
+              slide={slide}
+              index={i}
+              isActive={i === currentSlideIndex}
+              colorBg={colorBg}
+              onClick={() => setCurrentSlideIndex(i)}
+            />
+          )}
+        />
         {/* Add slide */}
         <button
           type="button"

@@ -192,7 +192,7 @@ export default function FeaturesPage() {
       <section className="max-w-7xl mx-auto px-6 sm:px-12 py-24">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-4">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#3B82F6] mb-4">Social Proof</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#0009fa] mb-4">Social Proof</p>
             <h2 className="text-4xl md:text-5xl font-extrabold text-[#1E293B] tracking-tighter">What our users say</h2>
           </div>
           <p className="text-slate-400 text-sm max-w-xs">Join thousands of professionals who have already transformed how they present.</p>
@@ -212,7 +212,7 @@ export default function FeaturesPage() {
               transition={{ delay: i * 0.1 }}
               className="border-b border-r border-slate-100 p-8 md:p-10 flex flex-col gap-6"
             >
-              <Quote className="w-8 h-8 text-[#3B82F6]/30" />
+              <Quote className="w-8 h-8 text-[#0009fa]/30" />
               <p className="text-[#1E293B] font-medium leading-relaxed text-sm flex-1">&ldquo;{t.quote}&rdquo;</p>
               <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
                 <img src={t.avatar} alt={t.name} className="w-10 h-10 object-cover shrink-0" />

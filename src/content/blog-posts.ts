@@ -25,7 +25,7 @@ export const BLOG_POSTS: BlogPost[] = [
     image:
       'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=2000&q=85',
     imageAlt: 'Team reviewing a presentation on a large display in a modern office',
-    accent: ['#0f172a', '#1e3a5f', '#3b82f6'],
+    accent: ['#0f172a', '#1e3a5f', '#0009fa'],
     body: [
       'The best presentations are not collections of slides. They are arguments: a claim, evidence, and a clear ask. When teams start with layout, they optimize for aesthetics instead of outcomes.',
       'Begin with a one-page outline: audience, tension, resolution, and the single decision you need at the end of the room. Every slide should advance that arc. If a slide does not change what the audience believes or does next, cut it.',

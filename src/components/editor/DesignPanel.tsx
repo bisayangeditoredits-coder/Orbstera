@@ -22,7 +22,7 @@ const STYLE_MODES: { id: string; label: string }[] = [
 
 const THEMES = [
   { name: 'Midnight',  palette: ['#05050A', '#FFFFFF', '#38BDF8', '#94A3B8'], preview: ['#05050A', '#38BDF8'] },
-  { name: 'Ocean',     palette: ['#0A1628', '#FFFFFF', '#3B82F6', '#93C5FD'], preview: ['#0A1628', '#3B82F6'] },
+  { name: 'Ocean',     palette: ['#0A1628', '#FFFFFF', '#0009fa', '#93C5FD'], preview: ['#0A1628', '#0009fa'] },
   { name: 'Ember',     palette: ['#0F0A00', '#FFFFFF', '#F97316', '#FED7AA'], preview: ['#0F0A00', '#F97316'] },
   { name: 'Forest',    palette: ['#071A0F', '#FFFFFF', '#22C55E', '#BBF7D0'], preview: ['#071A0F', '#22C55E'] },
   { name: 'Rose',      palette: ['#130A10', '#FFFFFF', '#EC4899', '#FBCFE8'], preview: ['#130A10', '#EC4899'] },

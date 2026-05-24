@@ -150,7 +150,7 @@ function AnimatedTextContent({
   if (entrance === 'typewriterWords') {
     const words = splitWords(content || '');
     return (
-      <div style={{ ...baseStyle, overflow: 'hidden' }}>
+      <div style={{ ...baseStyle, overflow: 'visible' }}>
         {words.map((w, wi) => (
           <motion.span
             key={`${wi}-${w.slice(0, 8)}`}
@@ -168,7 +168,7 @@ function AnimatedTextContent({
   const lines = (content || '').split('\n');
   if (entrance === 'staggerLines' && lines.length > 1) {
     return (
-      <div style={{ ...baseStyle, overflow: 'hidden' }}>
+      <div style={{ ...baseStyle, overflow: 'visible' }}>
         {lines.map((line, li) => (
           <motion.div
             key={li}
@@ -228,10 +228,9 @@ const PresentElementLayer = memo(function PresentElementLayer({
     whiteSpace: 'pre-wrap',
     wordBreak: 'normal',
     overflowWrap: 'break-word',
-    overflow: 'hidden',
+    overflow: 'visible',
     margin: 0,
     padding: 0,
-    transform: 'translateY(-0.1em)',
   };
 
   const inner =

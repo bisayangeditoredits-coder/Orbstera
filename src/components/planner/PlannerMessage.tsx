@@ -15,7 +15,7 @@ type PlannerMessageProps = {
 
 const PRESET_COLORS = [
   '#0f172a', // slate-900
-  '#3b82f6', // blue-500
+  '#0009fa', // blue-500
   '#10b981', // emerald-500
   '#f59e0b', // amber-500
   '#ef4444', // red-500

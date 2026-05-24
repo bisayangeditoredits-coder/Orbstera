@@ -18,7 +18,7 @@ export function createStarterPresentation(): PresentationData {
     id: deckId,
     title: 'Untitled presentation',
     theme: 'modern-dark',
-    colorPalette: ['#05050A', '#FFFFFF', '#3B82F6', '#94A3B8'],
+    colorPalette: ['#05050A', '#FFFFFF', '#0009fa', '#94A3B8'],
     fontPairing: { heading: 'Space Grotesk', body: 'Inter' },
     animationStyle: 'cinematic-reveal',
     slides: [slide],

@@ -6,10 +6,11 @@ import {
   sessionExpiresAtIso,
 } from '@/lib/auth/session-policy';
 import { getApiUser, isAdminUser, PRIVATE_API_HEADERS } from '@/lib/auth/server';
+import { withRouteError } from '@/lib/api/with-route-error';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+async function getSession() {
   const user = await getApiUser();
   if (!user) {
     return NextResponse.json(
@@ -41,3 +42,5 @@ export async function GET() {
     { headers: PRIVATE_API_HEADERS },
   );
 }
+
+export const GET = withRouteError('GET /api/auth/session', getSession);

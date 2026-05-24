@@ -36,6 +36,8 @@ const LIMITS = {
     heavy: 24,
     apiDefault: 300,
     apiWrite: 100,
+    /** Public contact form — per IP per hour */
+    contact: 8,
   },
 } as const;
 
@@ -196,6 +198,32 @@ function apiTierKeys(tier: ApiTier): { user: number; ip: number; prefix: string 
     ip: LIMITS.ip.apiDefault,
     prefix: 'api:read',
   };
+}
+
+let _contactIpLimiter: Ratelimit | null | undefined;
+
+function getContactIpLimiter(): Ratelimit | null {
+  if (_contactIpLimiter !== undefined) return _contactIpLimiter;
+  if (!redis) {
+    _contactIpLimiter = null;
+    return null;
+  }
+  _contactIpLimiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(LIMITS.ip.contact, '1 h'),
+    prefix: 'rl:orb:contact:ip',
+  });
+  return _contactIpLimiter;
+}
+
+/** Contact form — IP only (no auth), 8 submissions per hour per IP in production. */
+export async function enforceContactRateLimit(req: Request): Promise<NextResponse | null> {
+  const infra = requireRateLimitInfrastructure();
+  if (infra) return infra;
+
+  const ipLim = getContactIpLimiter();
+  if (!ipLim) return null;
+  return runRateLimitChecks([ipLim.limit(clientIp(req))], ':contact');
 }
 
 /** Rate limit for storage/CRUD API routes (separate prefix from AI). */

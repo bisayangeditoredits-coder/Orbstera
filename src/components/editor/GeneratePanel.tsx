@@ -560,6 +560,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         generationPendingImages: 0,
         generationImageJobsTotal: 0,
         generationImageJobsCompleted: 0,
+        generationImageJobsFailed: 0,
         deckGenerationLifecycle: 'connecting',
         orchestrationMessage: 'Connecting to AI…',
         freeTasteActive: false,
@@ -611,6 +612,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               generationPendingImages: 0,
               generationImageJobsTotal: 0,
               generationImageJobsCompleted: 0,
+        generationImageJobsFailed: 0,
               orchestrationPhase: '',
               activeModelLabel: '',
             });
@@ -660,6 +662,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               generationPendingImages: 0,
               generationImageJobsTotal: 0,
               generationImageJobsCompleted: 0,
+        generationImageJobsFailed: 0,
             });
             if (appendMode === 'append') {
               const existingSlides = usePresentationStore.getState().presentation?.slides || [];
@@ -860,6 +863,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               generationPendingImages: 0,
               generationImageJobsTotal: 0,
               generationImageJobsCompleted: 0,
+        generationImageJobsFailed: 0,
             });
             if (appendMode === 'append') {
               const existingSlides = usePresentationStore.getState().presentation?.slides || [];
@@ -901,6 +905,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
             generationPendingImages: 0,
             generationImageJobsTotal: 0,
             generationImageJobsCompleted: 0,
+        generationImageJobsFailed: 0,
             orchestrationPhase: '',
             activeModelLabel: '',
             orchestrationMessage: '',

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createRouteSupabase, requireApiUser, PRIVATE_API_HEADERS } from '@/lib/auth/server';
+import { withRouteError } from '@/lib/api/with-route-error';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: Request) {
+async function getLedger(req: Request) {
   const auth = await requireApiUser();
   if ('response' in auth) return auth.response;
 
@@ -29,3 +30,5 @@ export async function GET(req: Request) {
     { headers: PRIVATE_API_HEADERS },
   );
 }
+
+export const GET = withRouteError('GET /api/credits/ledger', getLedger);

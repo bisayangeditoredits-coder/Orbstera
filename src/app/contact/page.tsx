@@ -62,7 +62,7 @@ export default function ContactPage() {
 
             <div className="space-y-6 mb-12">
               <div className="flex gap-4 items-start">
-                <div className="w-10 h-10 border border-slate-200 flex items-center justify-center text-[#3B82F6] shrink-0">
+                <div className="w-10 h-10 border border-slate-200 flex items-center justify-center text-[#0009fa] shrink-0">
                   <Mail className="w-4 h-4" />
                 </div>
                 <div>
@@ -71,7 +71,7 @@ export default function ContactPage() {
                 </div>
               </div>
               <div className="flex gap-4 items-start">
-                <div className="w-10 h-10 border border-slate-200 flex items-center justify-center text-[#3B82F6] shrink-0">
+                <div className="w-10 h-10 border border-slate-200 flex items-center justify-center text-[#0009fa] shrink-0">
                   <Phone className="w-4 h-4" />
                 </div>
                 <div>
@@ -80,7 +80,7 @@ export default function ContactPage() {
                 </div>
               </div>
               <div className="flex gap-4 items-start">
-                <div className="w-10 h-10 border border-slate-200 flex items-center justify-center text-[#3B82F6] shrink-0">
+                <div className="w-10 h-10 border border-slate-200 flex items-center justify-center text-[#0009fa] shrink-0">
                   <Clock className="w-4 h-4" />
                 </div>
                 <div>
@@ -162,25 +162,25 @@ export default function ContactPage() {
                   <div>
                     <label htmlFor="name" className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-2">Full Name</label>
                     <input id="name" name="name" required value={name} onChange={e => setName(e.target.value)}
-                      className="w-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#3B82F6] focus:bg-white transition-colors" />
+                      className="w-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#0009fa] focus:bg-white transition-colors" />
                   </div>
                   <div>
                     <label htmlFor="company" className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-2">Company</label>
                     <input id="company" name="company" value={company} onChange={e => setCompany(e.target.value)}
-                      className="w-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#3B82F6] focus:bg-white transition-colors" />
+                      className="w-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#0009fa] focus:bg-white transition-colors" />
                   </div>
                 </div>
 
                 <div>
                   <label htmlFor="email" className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-2">Work Email</label>
                   <input id="email" name="email" type="email" required value={email} onChange={e => setEmail(e.target.value)}
-                    className="w-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#3B82F6] focus:bg-white transition-colors" />
+                    className="w-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#0009fa] focus:bg-white transition-colors" />
                 </div>
 
                 <div>
                   <label htmlFor="msg" className="block text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-2">How can we help?</label>
                   <textarea id="msg" name="message" required minLength={10} rows={5} value={message} onChange={e => setMessage(e.target.value)}
-                    className="w-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#3B82F6] focus:bg-white transition-colors resize-y" />
+                    className="w-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-[#0009fa] focus:bg-white transition-colors resize-y" />
                 </div>
 
                 {error && (

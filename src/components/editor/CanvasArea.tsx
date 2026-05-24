@@ -9,6 +9,7 @@ import { KonvaCanvas, CANVAS_WIDTH, CANVAS_HEIGHT } from './KonvaCanvas';
 import { FloatingPropertiesBar } from './FloatingPropertiesBar';
 import { AlignmentToolbar } from './AlignmentToolbar';
 import { ComponentErrorBoundary } from './ComponentErrorBoundary';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 // ─── Generation Loader (deterministic milestones — no faux random %) ───────────────────
 
@@ -88,6 +89,7 @@ function GenerationAssetsBanner() {
   const editor = usePresentationStore((s) => s.editor);
   const total = editor.generationImageJobsTotal;
   const done = Math.min(editor.generationImageJobsCompleted, total);
+  const failed = editor.generationImageJobsFailed ?? 0;
   if (total <= 0 || editor.generationPendingImages <= 0) return null;
 
   const pct = Math.round((done / total) * 100);
@@ -105,7 +107,8 @@ function GenerationAssetsBanner() {
       <div className="flex flex-col gap-0.5 min-w-0">
         <span className="text-[10px] font-black uppercase tracking-widest text-black/55">Live AI visuals</span>
         <span className="text-[12px] font-semibold tracking-tight whitespace-nowrap">
-          {done}/{total} rendered · streaming to canvas ({pct}%)
+          {done}/{total} rendered
+          {failed > 0 ? ` · ${failed} failed` : ''} · streaming to canvas ({pct}%)
         </span>
       </div>
       <span className="relative h-1.5 w-24 overflow-hidden rounded-full bg-black/[0.07] shrink-0">
@@ -309,6 +312,9 @@ const ZOOM_MAX = 3;
 const SCROLL_ZOOM_SPEED = 0.0075;
 
 export function CanvasArea() {
+  // ── Global keyboard shortcuts (Ctrl+Z/Y, Delete, Escape, etc.) ──────────
+  useKeyboardShortcuts();
+
   /** Start at 0 so first layout pass does not run centering math with a fake width (avoids bad pan from ResizeObserver). */
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const setEditorState = usePresentationStore((s) => s.setEditorState);
@@ -384,7 +390,7 @@ export function CanvasArea() {
     if (!prev) return;
     if (Math.abs(w - prev.w) < 12 && Math.abs(h - prev.h) < 12) return;
     setEditorState({ pan: { x: 0, y: 0 } });
-  }, [containerSize.w, containerSize.h, setEditorState]);
+  }, [containerSize, setEditorState]);
 
   const baseFitScale =
     containerSize.w <= PAD * 2 || containerSize.h <= PAD * 2

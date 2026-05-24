@@ -32,6 +32,18 @@ We believe that presentations should be more than just slides; they should be im
 3. **Environment Variables**: Copy `.env.example` to `.env.local` and fill in the secrets.
 4. **Run development server**: `npm run dev`
 
+## Production scale
+
+Before going live with real traffic, follow **[docs/PRODUCTION_DEPLOY.md](docs/PRODUCTION_DEPLOY.md)**:
+
+```bash
+npm run verify:scale-env:strict
+npm run worker:generate:bullmq   # separate process / Docker
+npm run load-test:api -- https://your-domain.com 20
+```
+
+CI runs `npm run lint`, scale env logic checks, and `next build` on every push.
+
 ## 💎 Monetization Model
 
 Orbstera utilizes a tiered subscription model managed via Dodo Payments:

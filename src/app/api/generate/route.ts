@@ -19,7 +19,7 @@ import { addEstimatedSpend, getSpendState } from '@/lib/ai/spend';
 import { requireAiUser } from '@/lib/auth/require-ai-route';
 import { createJobRecord, enqueueGenerateJob, updateJobRecord } from '@/lib/jobs/redis-job-queue';
 import { isGenerateQueueEnabled, shouldPreferAsyncGenerate } from '@/lib/jobs/generate-queue-config';
-import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
+import { apiLog, captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import { v4 as uuidv4 } from 'uuid';
 import { globalRateLimit } from '@/lib/rate-limit';
 
@@ -174,7 +174,8 @@ export async function POST(req: Request) {
     }
 
     const jobId = uuidv4();
-    if (isGenerateQueueEnabled() && shouldPreferAsyncGenerate(finalSlideCount)) {
+    const preferAsync = shouldPreferAsyncGenerate(finalSlideCount);
+    if (preferAsync && isGenerateQueueEnabled()) {
       const queued = await enqueueGenerateJob({
         jobId,
         userId: user.id,
@@ -202,6 +203,19 @@ export async function POST(req: Request) {
           { status: 202 },
         );
       }
+      captureApiException(new Error('enqueueGenerateJob failed while workers enabled'), {
+        requestId,
+        route: 'POST /api/generate',
+        userId: user.id,
+        slideCount: finalSlideCount,
+      });
+    } else if (preferAsync && process.env.NODE_ENV === 'production') {
+      apiLog('generate', 'warn', 'sync_sse_fallback_large_deck', {
+        requestId,
+        userId: user.id,
+        slideCount: finalSlideCount,
+        hint: 'Set GENERATE_WORKER_ENABLED=true and GENERATE_ASYNC_DEFAULT=true',
+      });
     }
 
     void createJobRecord({

@@ -4,6 +4,16 @@ import { finalizeSlideMotion } from '@/lib/presentationMotion';
 
 const MAX_HISTORY = 50;
 
+/** Lightweight signature for undo dedup (avoids full JSON.stringify on large decks). */
+function slidesHistorySignature(slides: Slide[]): string {
+  return slides
+    .map((s) => {
+      const els = s.elements || [];
+      return `${s.id}:${els.length}:${els.map((e) => `${e.id}:${e.x}:${e.y}:${e.width}:${e.height}`).join(';')}`;
+    })
+    .join('|');
+}
+
 // ── Canvas dimensions (must match KonvaCanvas.tsx) ──────────────────────────
 const CANVAS_W = 1280;
 const CANVAS_H = 720;
@@ -727,6 +737,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     generationPendingImages: 0,
     generationImageJobsTotal: 0,
     generationImageJobsCompleted: 0,
+    generationImageJobsFailed: 0,
     previewElementId: null,
     reasoning: '',
     pan: { x: 0, y: 0 },
@@ -738,10 +749,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     generationGalleryOpen: false,
     cloudSyncStatus: 'idle',
     cloudSyncMessage: undefined,
-    copilotContext: '',
-    hasSeenWelcome: false,
   },
-
   setEditorState: (updates) =>
     set((state) => ({ editor: { ...state.editor, ...updates } })),
 
@@ -780,15 +788,39 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   history: [],
   historyIndex: -1,
 
+  // ── History Management (enhanced) ────────────────────────────────────────
+  // Store a snapshot of the entire editor UI (presentation + editor state).
+  // Use structuredClone for deep copy (fast, handles Dates, etc.).
+  // Before pushing a new entry, compare with the previous snapshot and skip if identical
+  // to keep history concise.
   pushHistory: () => {
     const state = get();
     if (!state.presentation) return;
-    const entry: HistoryEntry = {
-      slides: JSON.parse(JSON.stringify(state.presentation.slides)),
+    const snapshot = {
+      slides: structuredClone(state.presentation.slides),
       timestamp: Date.now(),
-    };
+      editor: {
+        selectedElementId: state.editor.selectedElementId,
+        selectedElementIds: [...state.editor.selectedElementIds],
+        zoom: state.editor.zoom,
+        showGrid: state.editor.showGrid,
+        snapToGrid: state.editor.snapToGrid,
+        // Add other UI flags as needed
+      },
+    } as any;
     const history = state.history.slice(0, state.historyIndex + 1);
-    history.push(entry);
+    const last = history[history.length - 1];
+    if (last) {
+      const lastSig = slidesHistorySignature((last as { slides?: Slide[] }).slides || []);
+      const nextSig = slidesHistorySignature(snapshot.slides);
+      const editorUnchanged =
+        last.editor?.selectedElementId === snapshot.editor.selectedElementId &&
+        last.editor?.zoom === snapshot.editor.zoom &&
+        JSON.stringify(last.editor?.selectedElementIds ?? []) ===
+          JSON.stringify(snapshot.editor.selectedElementIds);
+      if (lastSig === nextSig && editorUnchanged) return;
+    }
+    history.push(snapshot);
     if (history.length > MAX_HISTORY) history.shift();
     set({ history, historyIndex: history.length - 1 });
   },
@@ -797,16 +829,26 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     const state = get();
     if (state.historyIndex <= 0 || !state.presentation) return;
     const newIndex = state.historyIndex - 1;
-    const slides = JSON.parse(JSON.stringify(state.history[newIndex].slides));
-    set({ presentation: { ...state.presentation, slides }, historyIndex: newIndex });
+    const entry = state.history[newIndex] as any;
+    set({
+      presentation: { ...state.presentation, slides: entry.slides },
+      // Restore editor snapshot if present
+      editor: { ...state.editor, ...(entry.editor || {}) },
+      historyIndex: newIndex,
+    });
   },
-
   redo: () => {
     const state = get();
-    if (state.historyIndex >= state.history.length - 1 || !state.presentation) return;
+    if (!state.presentation || state.historyIndex >= state.history.length - 1) {
+      return;
+    }
     const newIndex = state.historyIndex + 1;
-    const slides = JSON.parse(JSON.stringify(state.history[newIndex].slides));
-    set({ presentation: { ...state.presentation, slides }, historyIndex: newIndex });
+    const entry = state.history[newIndex] as any;
+    set({
+      presentation: { ...state.presentation, slides: entry.slides },
+      editor: { ...state.editor, ...(entry.editor || {}) },
+      historyIndex: newIndex,
+    });
   },
 
   activePanel: 'generate',
@@ -816,7 +858,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
 
   initGenerationPlaceholders: (count) => {
     const base = get().presentation;
-    const palette = base?.colorPalette || ['#05050A', '#FFFFFF', '#3B82F6', '#94A3B8'];
+    const palette = base?.colorPalette || ['#05050A', '#FFFFFF', '#0009fa', '#94A3B8'];
     set({
       presentation: {
         title: base?.title && base.title !== 'Generating...' ? base.title : 'Generating...',
@@ -860,8 +902,35 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         },
       };
     });
-    work()
-      .catch(() => {})
+    void work()
+      .then(() => {
+        if (!scheduled) return;
+        set((state) => {
+          if (state.editor.generationEpoch !== epochSnapshot) return state;
+          return {
+            editor: {
+              ...state.editor,
+              generationImageJobsCompleted: Math.min(
+                state.editor.generationImageJobsTotal,
+                state.editor.generationImageJobsCompleted + 1,
+              ),
+            },
+          };
+        });
+      })
+      .catch((err) => {
+        console.error('[deck-generation-image]', err);
+        if (!scheduled) return;
+        set((state) => {
+          if (state.editor.generationEpoch !== epochSnapshot) return state;
+          return {
+            editor: {
+              ...state.editor,
+              generationImageJobsFailed: state.editor.generationImageJobsFailed + 1,
+            },
+          };
+        });
+      })
       .finally(() => {
         if (!scheduled) return;
         set((state) => {
@@ -870,10 +939,6 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
             editor: {
               ...state.editor,
               generationPendingImages: Math.max(0, state.editor.generationPendingImages - 1),
-              generationImageJobsCompleted: Math.min(
-                state.editor.generationImageJobsTotal,
-                state.editor.generationImageJobsCompleted + 1,
-              ),
             },
           };
         });
@@ -883,7 +948,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   streamSlide: (slideData) => {
     const state = get();
     if (!state.presentation) {
-      set({ presentation: { title: "Generating...", theme: "modern-dark", colorPalette: ["#05050A", "#FFFFFF", "#3B82F6", "#94A3B8"], fontPairing: { heading: "Space Grotesk", body: "Inter" }, animationStyle: "cinematic-reveal", slides: [] } });
+      set({ presentation: { title: "Generating...", theme: "modern-dark", colorPalette: ["#05050A", "#FFFFFF", "#0009fa", "#94A3B8"], fontPairing: { heading: "Space Grotesk", body: "Inter" }, animationStyle: "cinematic-reveal", slides: [] } });
     }
 
     const scheduleDeckImage = (work: () => Promise<void>) => {

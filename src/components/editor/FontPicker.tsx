@@ -150,7 +150,7 @@ export function FontPicker({ value, onChange }: FontPickerProps) {
                     style={{ fontFamily: search.trim() }}
                   >
                     <Type size={14} className="shrink-0 opacity-70" />
-                    <span className="truncate font-medium">Use "{search.trim()}"</span>
+                    <span className="truncate font-medium">Use &quot;{search.trim()}&quot;</span>
                   </button>
                 )}
 

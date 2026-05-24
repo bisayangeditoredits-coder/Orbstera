@@ -107,7 +107,7 @@ function SlideCountDropdown({
                     {count} cards
                   </span>
                   {tier === 'plus' && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500 text-white tracking-wide">PLUS</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary text-white tracking-wide">PLUS</span>
                   )}
                   {tier === 'pro' && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-white tracking-wide">PRO</span>
@@ -506,7 +506,7 @@ export function HeroSection() {
         } else if (el) {
           // Smoothly settle instead of snapping when listening toggles off.
           el.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1) translateZ(0)';
-          el.style.filter = 'drop-shadow(0 0 14px rgba(71,59,240,0.12))';
+          el.style.filter = 'drop-shadow(0 0 14px rgba(0,9,250,0.12))';
         }
 
         const lottie = document.getElementById('voice-orb-lottie') as { speed?: number } | null;
@@ -537,7 +537,7 @@ export function HeroSection() {
     const el = orbVisualRef.current;
     if (el) {
       el.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1) translateZ(0)';
-      el.style.filter = 'drop-shadow(0 0 14px rgba(71,59,240,0.12))';
+      el.style.filter = 'drop-shadow(0 0 14px rgba(0,9,250,0.12))';
     }
     // Clear canvas
     const canvas = canvasRef.current;
@@ -709,7 +709,7 @@ export function HeroSection() {
   };
 
   return (
-    <section className="relative w-full min-h-screen flex flex-col items-center pt-[max(6.25rem,calc(env(safe-area-inset-top)+5rem))] sm:pt-24 md:pt-28 pb-8 sm:pb-12 overflow-x-clip bg-gradient-to-b from-[#CDE4FF] via-white to-white">
+    <section className="relative w-full min-h-screen flex flex-col items-center pt-[max(6.25rem,calc(env(safe-area-inset-top)+5rem))] sm:pt-24 md:pt-28 pb-8 sm:pb-12 overflow-x-clip bg-gradient-to-b from-[#e6e8ff] via-white to-white">
       {/* Hidden File Input */}
       <input
         type="file"
@@ -728,7 +728,7 @@ export function HeroSection() {
         }}
       >
         {/* Mobile: static gradient only (lighter). md+: Lottie. */}
-        <div className="absolute inset-0 md:hidden bg-gradient-to-br from-[#B8D9FF] via-[#E8F4FF] to-white" aria-hidden />
+        <div className="absolute inset-0 md:hidden bg-gradient-to-br from-[#dbe1ff] via-[#f0f2ff] to-white" aria-hidden />
         <div className="absolute inset-0 w-full h-full opacity-80 mix-blend-multiply hidden md:block">
           {/* @ts-ignore */}
           <lottie-player
@@ -750,7 +750,7 @@ export function HeroSection() {
             animate={{ y: [null, "-40px", "40px"], opacity: [0.2, 0.65, 0.2], scale: [1, 1.45, 1] }}
             transition={{ duration: p.duration, repeat: Infinity, ease: "easeInOut", delay: p.delay }}
             className="absolute w-1.5 h-1.5 rounded-full will-change-transform hidden md:block"
-            style={{ background: 'radial-gradient(circle, rgba(71,59,240,0.8) 0%, transparent 80%)' }}
+            style={{ background: 'radial-gradient(circle, rgba(0,9,250,0.8) 0%, transparent 80%)' }}
           />
         ))}
       </div>
@@ -822,7 +822,7 @@ export function HeroSection() {
             <button
               type="button"
               onClick={() => { stopVoiceSession(); setActiveMode('voice'); setPrompt(''); setInterimTranscript(''); interimLiveRef.current = ''; accumulatedTextRef.current = ''; }}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'voice' ? 'bg-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)]' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'voice' ? 'bg-primary text-white shadow-[0_0_20px_rgba(0,9,250,0.4)]' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
             >
               <Mic size={14} />
               <span>Voice Protocol</span>
@@ -833,7 +833,7 @@ export function HeroSection() {
 
 
           {/* Original Animated Border Input */}
-          <div className="animated-border shadow-[0_40px_100px_-20px_rgba(71,59,240,0.25)] group">
+          <div className="animated-border shadow-[0_40px_100px_-20px_rgba(0,9,250,0.25)] group">
             <div className={`relative bg-white rounded-[1.45rem] flex flex-col p-4 sm:p-6 transition-all overflow-hidden ${activeMode === 'voice' ? 'min-h-[240px] sm:min-h-[300px] lg:min-h-[320px]' : 'min-h-[200px] h-auto sm:h-[220px]'}`}>
               {/* subtle premium sheen */}
               <div className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-primary/10 to-transparent" />
@@ -866,10 +866,10 @@ export function HeroSection() {
                         className="relative w-32 h-32 sm:w-36 sm:h-36 lg:w-40 lg:h-40 flex items-center justify-center will-change-transform"
                         style={{
                           transform: 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1) translateZ(0)',
-                          filter: 'drop-shadow(0 0 14px rgba(71,59,240,0.12))',
+                          filter: 'drop-shadow(0 0 14px rgba(0,9,250,0.12))',
                         }}
                       >
-                        <div className="absolute inset-2 rounded-full bg-gradient-to-br from-primary/30 via-indigo-400/10 to-cyan-300/20 blur-xl pointer-events-none" />
+                        <div className="absolute inset-2 rounded-full bg-gradient-to-br from-primary/30 via-primary/20 to-cyan-300/20 blur-xl pointer-events-none" />
                         <div className="absolute inset-[18%] rounded-full border border-primary/20 pointer-events-none" />
                         {/* @ts-ignore */}
                         <lottie-player
@@ -989,12 +989,13 @@ export function HeroSection() {
                       type="button"
                       onClick={handleEnhancePrompt}
                       disabled={isEnhancing}
-                      className="group flex items-center justify-center gap-1.5 px-4 sm:px-5 min-h-11 bg-primary/10 hover:bg-primary/20 text-primary rounded-full text-[11px] sm:text-[12px] font-bold transition-all disabled:opacity-50 shrink-0 w-full sm:w-auto sm:mr-auto"
+                      className="group relative overflow-hidden flex items-center justify-center gap-1.5 px-5 sm:px-6 min-h-11 rounded-full text-[11px] sm:text-[12px] font-bold text-primary bg-gradient-to-b from-primary/5 to-primary/10 hover:from-primary/10 hover:to-primary/20 border border-primary/20 hover:border-primary/40 shadow-[0_2px_10px_rgba(0,9,250,0.05)] hover:shadow-[0_4px_20px_rgba(0,9,250,0.15)] transition-all duration-300 disabled:opacity-50 shrink-0 w-full sm:w-auto sm:mr-auto active:scale-[0.97]"
                     >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent skew-x-[-20deg] translate-x-[-150%] group-hover:translate-x-[150%] transition-transform duration-700 ease-out" />
                       {isEnhancing ? (
-                        <span className="animate-pulse">Enhancing...</span>
+                        <span className="relative z-10 animate-pulse">Enhancing...</span>
                       ) : (
-                        <><Sparkles size={14} className="group-hover:rotate-12 transition-transform" /> Enhance Prompt</>
+                        <><Sparkles size={14} className="relative z-10 group-hover:rotate-12 transition-transform" /> <span className="relative z-10">Enhance Prompt</span></>
                       )}
                     </button>
                   ) : null}
@@ -1084,7 +1085,7 @@ export function HeroSection() {
                 
                 <div className="w-px h-[22px] bg-black/[0.06] mx-0.5" />
                 
-                <div className="h-[36px] px-4 flex items-center gap-2 text-[13px] font-semibold text-white bg-gradient-to-b from-[#5B7CFF] to-primary rounded-full shadow-[0_4px_14px_-4px_rgba(59,130,246,0.55),0_0_0_1px_rgba(255,255,255,0.12)_inset]">
+                <div className="h-[36px] px-4 flex items-center gap-2 text-[13px] font-semibold text-white bg-gradient-to-b from-[#333bfa] to-primary rounded-full shadow-[0_4px_14px_-4px_rgba(0,9,250,0.55),0_0_0_1px_rgba(255,255,255,0.12)_inset]">
                   Export .pptx
                 </div>
               </div>

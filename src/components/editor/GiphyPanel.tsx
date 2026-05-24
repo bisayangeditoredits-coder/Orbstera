@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -53,6 +54,7 @@ export function GiphyPanel({ onClose }: { onClose?: () => void }) {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchGifs('', 0, mode); }, [mode]);
 
   const handleAddGif = (gif: GiphyGif) => {

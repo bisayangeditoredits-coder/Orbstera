@@ -13,7 +13,6 @@ import { GenerativeFillToolbar } from '@/components/editor/GenerativeFillToolbar
 import { LeftIconRail } from '@/components/editor/LeftIconRail';
 import { TopPropertiesBar } from '@/components/editor/TopPropertiesBar';
 import { TopInsertBar } from '@/components/editor/TopInsertBar';
-import { BottomSlideStrip } from '@/components/editor/BottomSlideStrip';
 import { SlideNotesBar } from '@/components/editor/SlideNotesBar';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/cn';
@@ -444,90 +443,107 @@ export default function EditorClient() {
   if (requestedId && !presentation) {
     const isError = deckLoadStatus === 'error';
     return (
-      <div className="min-h-dvh max-h-dvh w-full max-w-[100vw] overflow-hidden flex items-center justify-center relative bg-[#FAFAFA]">
-        {/* Ambient background styling */}
+      <div className="min-h-dvh max-h-dvh w-full max-w-[100vw] overflow-hidden flex items-center justify-center relative bg-slate-50">
+        {/* Ambient premium background */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `radial-gradient(#e5e7eb 1px, transparent 1px)`,
-            backgroundSize: '24px 24px',
-            opacity: 0.6
-          }} />
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-[100%] bg-primary/5 blur-[60px]" />
+          {/* Base gradient */}
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-indigo-50 opacity-80" />
+          
+          {/* Large glowing orbs in background */}
+          <motion.div 
+            animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }}
+            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-[20%] left-[30%] -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-primary/10 blur-[100px]" 
+          />
+          <motion.div 
+            animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
+            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+            className="absolute bottom-[10%] right-[20%] translate-x-1/4 translate-y-1/4 w-[600px] h-[600px] rounded-full bg-violet-500/10 blur-[100px]" 
+          />
         </div>
 
         {/* Main glassmorphism card */}
         <motion.div
-          initial={{ opacity: 0, y: 16, scale: 0.98 }}
+          initial={{ opacity: 0, y: 30, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className="relative z-10 w-full max-w-sm mx-4 rounded-lg p-8 flex flex-col items-center text-center bg-white shadow-modal border border-neutral-200/80"
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="relative z-10 w-full max-w-[420px] mx-4 rounded-[32px] p-10 flex flex-col items-center text-center bg-white/70 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,9,250,0.07)] border border-white"
         >
-          {/* Icon */}
+          {/* Logo / Icon */}
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
+            initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.1, duration: 0.4, ease: 'backOut' }}
-            className="relative mb-6"
+            transition={{ delay: 0.1, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="relative mb-8"
           >
             {isError ? (
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-red-50 border border-red-100 shadow-sm">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <div className="w-20 h-20 rounded-[28px] flex items-center justify-center bg-red-50 border border-red-100 shadow-[0_8px_32px_rgba(239,68,68,0.15)]">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
               </div>
             ) : (
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-primary/5 border border-primary/10 shadow-sm">
-                <div className="w-7 h-7 rounded-full bg-primary animate-pulse shadow-[0_0_16px_rgba(59,130,246,0.4)]" />
+              <div className="relative w-24 h-24 rounded-[32px] flex items-center justify-center bg-white shadow-[0_12px_40px_rgba(0,9,250,0.12)] border border-white">
+                {/* Spinning outer ring */}
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-[-2px] rounded-[34px] bg-gradient-to-tr from-primary via-violet-500 to-transparent opacity-20"
+                />
+                <img src="/logo.png.png" alt="Orbstera" className="w-10 h-10 object-contain animate-pulse" style={{ animationDuration: '2s' }} />
               </div>
             )}
           </motion.div>
 
           {/* Label */}
-          <motion.p
-            initial={{ opacity: 0, y: 4 }}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.3 }}
-            className="text-[10px] font-bold uppercase tracking-[0.2em] mb-2"
-            style={{ color: isError ? '#ef4444' : '#9ca3af' }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className="mb-3 px-3 py-1 rounded-full bg-white/60 border border-neutral-200/50 shadow-sm inline-flex items-center"
           >
-            {isError ? 'Error' : 'Orbstera Editor'}
-          </motion.p>
+            <span 
+              className="text-[10px] font-bold uppercase tracking-[0.2em]"
+              style={{ color: isError ? '#ef4444' : '#0009fa' }}
+            >
+              {isError ? 'Error Loading' : 'Orbstera Engine'}
+            </span>
+          </motion.div>
 
           {/* Title */}
           <motion.h1
-            initial={{ opacity: 0, y: 6 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25, duration: 0.3 }}
-            className="text-[20px] leading-tight font-bold mb-2 text-neutral-900 tracking-tight"
+            transition={{ delay: 0.3, duration: 0.5 }}
+            className="text-[26px] leading-tight font-black mb-3 text-neutral-900 tracking-tight"
           >
-            {isError ? "Couldn't load deck" : 'Opening presentation\u2026'}
+            {isError ? "Connection Failed" : 'Opening Deck'}
           </motion.h1>
 
           {/* Subtitle */}
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.3 }}
-            className="text-[13px] leading-relaxed mb-8 text-neutral-500"
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="text-[14px] leading-relaxed mb-10 text-neutral-500 font-medium max-w-[280px]"
           >
             {isError
               ? (deckLoadMessage ?? 'Something went wrong while loading this presentation.')
-              : 'Loading slides and preparing the canvas.'}
+              : 'Initializing workspace and synchronizing your slides...'}
           </motion.p>
 
           {/* Progress bar (loading only) */}
           {!isError && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.35 }}
-              className="w-full mb-8 rounded-full overflow-hidden bg-neutral-100"
-              style={{ height: 4 }}
+              initial={{ opacity: 0, scaleX: 0.8 }}
+              animate={{ opacity: 1, scaleX: 1 }}
+              transition={{ delay: 0.5, duration: 0.5 }}
+              className="relative w-full h-[6px] mb-8 rounded-full overflow-hidden bg-neutral-100 shadow-inner"
             >
               <div
-                className="h-full rounded-full bg-primary"
+                className="absolute top-0 left-0 h-full w-1/3 rounded-full bg-gradient-to-r from-primary to-indigo-400 shadow-[0_0_12px_rgba(0,9,250,0.5)]"
                 style={{
-                  animation: 'deckLoadProgress 1.6s ease-in-out infinite',
+                  animation: 'shimmerSlide 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite',
                 }}
               />
             </motion.div>
@@ -535,21 +551,21 @@ export default function EditorClient() {
 
           {/* Action buttons */}
           <motion.div
-            initial={{ opacity: 0, y: 6 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.3 }}
-            className="flex gap-2.5 w-full"
+            transition={{ delay: 0.6, duration: 0.5 }}
+            className="flex gap-3 w-full"
           >
             <Link
               href="/my-presentations"
-              className="flex-1 rounded-md py-2.5 text-[13px] font-semibold text-center text-neutral-600 bg-white border border-neutral-200/80 hover:bg-neutral-50 hover:text-neutral-900 transition-colors shadow-sm"
+              className="flex-1 rounded-xl py-3.5 text-[13px] font-bold text-center text-neutral-600 bg-white/50 border border-white hover:bg-white hover:shadow-sm hover:text-neutral-900 transition-all"
             >
-              ← Library
+              Dashboard
             </Link>
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="flex-1 rounded-md py-2.5 text-[13px] font-semibold text-white bg-primary hover:bg-primaryHover shadow-[0_4px_12px_rgba(59,130,246,0.2)] transition-all"
+              className="flex-1 rounded-xl py-3.5 text-[13px] font-bold text-white bg-primary hover:bg-primaryHover shadow-[0_8px_24px_rgba(0,9,250,0.25)] hover:shadow-[0_12px_32px_rgba(0,9,250,0.35)] transition-all active:scale-95"
             >
               {isError ? 'Try Again' : 'Refresh'}
             </button>
@@ -557,10 +573,9 @@ export default function EditorClient() {
         </motion.div>
 
         <style>{`
-          @keyframes deckLoadProgress {
-            0%   { width: 0%;   margin-left: 0%; }
-            50%  { width: 40%;  margin-left: 30%; }
-            100% { width: 0%;   margin-left: 100%; }
+          @keyframes shimmerSlide {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(300%); }
           }
         `}</style>
       </div>
@@ -671,9 +686,6 @@ export default function EditorClient() {
           </div>
 
           {/* Slide notes below canvas */}
-
-          {/* Horizontal slide strip at very bottom */}
-          <BottomSlideStrip />
         </main>
 
         {/* Right: context panels — kept mounted after first visit to preserve state */}

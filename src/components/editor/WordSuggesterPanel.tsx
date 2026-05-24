@@ -43,7 +43,7 @@ export function WordSuggesterPanel({ onClose }: { onClose?: () => void }) {
       const lastWord = words[words.length - 1].replace(/[^a-zA-Z]/g, '');
       if (lastWord) setInputWord(lastWord);
     }
-  }, [selectedElement]);
+  }, [selectedElement, currentSlideIndex, presentation]);
 
   const fetchSuggestions = async (word: string, currentMode: SuggestionMode) => {
     if (!word.trim()) return;
@@ -77,7 +77,8 @@ export function WordSuggesterPanel({ onClose }: { onClose?: () => void }) {
     if (el?.type !== 'text' || !el.content) return;
 
     // Replace last occurrence of inputWord (case-insensitive)
-    const regex = new RegExp(`\\b${inputWord}\\b`, 'gi');
+    const escapedInput = inputWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escapedInput}\\b`, 'gi');
     const updated = el.content.replace(regex, newWord);
     updateElement(slide.id, selectedElement, { content: updated });
     setReplaced(newWord);
@@ -173,7 +174,7 @@ export function WordSuggesterPanel({ onClose }: { onClose?: () => void }) {
               className="bg-neutral-900 text-white text-[12px] font-semibold rounded-xl px-3 py-2.5 flex items-center gap-2"
             >
               <RefreshCw size={12} />
-              Replaced "{inputWord}" with "{replaced}"
+              Replaced &quot;{inputWord}&quot; with &quot;{replaced}&quot;
             </motion.div>
           )}
         </AnimatePresence>
@@ -206,7 +207,7 @@ export function WordSuggesterPanel({ onClose }: { onClose?: () => void }) {
             </div>
             {selectedEl && (
               <p className="text-[10px] text-neutral-400 mt-3 text-center">
-                Click a word to replace "{inputWord}" in your text layer
+                Click a word to replace &quot;{inputWord}&quot; in your text layer
               </p>
             )}
           </div>

@@ -1,0 +1,45 @@
+# Run after setting GitHub Actions secrets from production (optional).
+# Required secrets for strict check: same names as Vercel env vars.
+name: Production scale check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify-production-env:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Strict scale env
+        run: npm run verify:scale-env:strict
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          CLOUDFLARE_R2_ENDPOINT: ${{ secrets.CLOUDFLARE_R2_ENDPOINT }}
+          CLOUDFLARE_R2_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY }}
+          CLOUDFLARE_R2_SECRET_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_KEY }}
+          CLOUDFLARE_R2_BUCKET_NAME: ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}
+          DODO_PAYMENTS_WEBHOOK_SECRET: ${{ secrets.DODO_PAYMENTS_WEBHOOK_SECRET }}
+          GENERATE_WORKER_ENABLED: ${{ secrets.GENERATE_WORKER_ENABLED }}
+          GENERATE_ASYNC_DEFAULT: ${{ secrets.GENERATE_ASYNC_DEFAULT }}
+          WORKER_INTERNAL_SECRET: ${{ secrets.WORKER_INTERNAL_SECRET }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+
+      - name: Live health smoke
+        if: vars.PRODUCTION_APP_URL != ''
+        run: npm run load-test:api -- ${{ vars.PRODUCTION_APP_URL }} 10
+        env:
+          PRODUCTION_APP_URL: ${{ vars.PRODUCTION_APP_URL }}

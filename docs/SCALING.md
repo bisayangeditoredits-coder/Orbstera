@@ -1,6 +1,13 @@
 # Scalability guide (Orbstera / pptmaker)
 
+**Deploy checklist:** [PRODUCTION_DEPLOY.md](./PRODUCTION_DEPLOY.md)  
 Full audit: [INFRASTRUCTURE_AUDIT.md](./INFRASTRUCTURE_AUDIT.md).
+
+```bash
+npm run verify:scale-env:strict   # before production deploy
+npm run load-test:api -- https://your-app.com 20
+docker compose -f docker-compose.workers.yml up   # local workers
+```
 
 ## Production requirements
 
@@ -31,7 +38,7 @@ Workers call `POST /api/internal/process-generate` (batch orchestration + compos
 
 Decks with **≥12 slides** (override `EXPORT_ASYNC_SLIDE_THRESHOLD`): `POST /api/export/pptx?async=1` → **202** + job poll. Run `npm run worker:export` (in-process PPTX by default via `scripts/run-export-worker.ts`; set `EXPORT_WORKER_INLINE=false` for legacy HTTP callback).
 
-Verify env before deploy: `npm run verify:scale-env`
+Verify env before deploy: `npm run verify:scale-env:strict` (see [PRODUCTION_DEPLOY.md](./PRODUCTION_DEPLOY.md))
 
 ## API rate limits (storage)
 

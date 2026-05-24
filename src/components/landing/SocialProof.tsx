@@ -4,12 +4,12 @@ import { motion } from 'framer-motion';
 
 export function SocialProof() {
   const brands = [
-    { name: 'Norse Star', color: 'bg-indigo-500', shape: 'rounded-sm' },
-    { name: 'Mastermind', color: 'bg-rose-500', shape: 'rounded-full' },
-    { name: 'Foresight', color: 'bg-blue-500', shape: 'rounded-[1px] rotate-45' },
-    { name: 'Goodwell', color: 'bg-emerald-500', shape: 'rounded-[4px]' },
-    { name: 'Luminary', color: 'bg-amber-500', shape: 'rounded-full' },
-    { name: 'Magnolia', color: 'bg-violet-500', shape: 'rounded-tl-lg rounded-br-lg' }
+    { name: 'Axiom', color: 'bg-indigo-500', shape: 'rounded-sm', font: 'font-black tracking-tighter uppercase' },
+    { name: 'Nebula', color: 'bg-rose-500', shape: 'rounded-full', font: 'font-bold tracking-tight' },
+    { name: 'Capsule', color: 'bg-primary', shape: 'rounded-[1px] rotate-45', font: 'font-extrabold lowercase tracking-tighter' },
+    { name: 'Synthetix', color: 'bg-emerald-500', shape: 'rounded-[4px]', font: 'font-semibold tracking-widest uppercase text-[15px]' },
+    { name: 'Loomis', color: 'bg-amber-500', shape: 'rounded-full', font: 'font-serif font-bold italic tracking-tight' },
+    { name: 'Polymath', color: 'bg-violet-500', shape: 'rounded-tl-lg rounded-br-lg', font: 'font-bold tracking-normal' }
   ];
   
   return (
@@ -37,7 +37,7 @@ export function SocialProof() {
                    <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-slate-50 border border-slate-200 group-hover:border-transparent group-hover:shadow-sm flex items-center justify-center transition-all">
                       <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 ${brand.color} ${brand.shape} opacity-60 group-hover:opacity-100 transition-opacity`} />
                    </div>
-                   <span className="text-lg sm:text-xl font-extrabold text-neutral-800 tracking-tighter uppercase italic whitespace-nowrap">
+                   <span className={`text-lg sm:text-xl text-neutral-800 whitespace-nowrap ${brand.font}`}>
                      {brand.name}
                    </span>
                 </div>
@@ -51,7 +51,7 @@ export function SocialProof() {
                    <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-slate-50 border border-slate-200 group-hover:border-transparent group-hover:shadow-sm flex items-center justify-center transition-all">
                       <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 ${brand.color} ${brand.shape} opacity-60 group-hover:opacity-100 transition-opacity`} />
                    </div>
-                   <span className="text-lg sm:text-xl font-extrabold text-neutral-800 tracking-tighter uppercase italic whitespace-nowrap">
+                   <span className={`text-lg sm:text-xl text-neutral-800 whitespace-nowrap ${brand.font}`}>
                      {brand.name}
                    </span>
                 </div>

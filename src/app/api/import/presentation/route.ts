@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { convertPptxBufferToPresentation } from '@/lib/import/pptxToPresentation';
+import { withRouteError } from '@/lib/api/with-route-error';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,7 +21,7 @@ async function getAuthUser() {
   return user;
 }
 
-export async function POST(req: Request) {
+async function postImport(req: Request) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -78,3 +79,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: msg, code: 'IMPORT_PARSE_ERROR' }, { status: 422 });
   }
 }
+
+export const POST = withRouteError('POST /api/import/presentation', postImport);

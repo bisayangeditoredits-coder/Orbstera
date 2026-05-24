@@ -81,44 +81,44 @@ export function Navbar() {
     <Fragment>
       {/* ── Main Navbar ── */}
       <header
-        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-200 ${
+        className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] transition-all duration-300 w-[calc(100%-2rem)] max-w-6xl rounded-2xl ${
           scrolled
-            ? 'bg-white/95 backdrop-blur-md shadow-[0_1px_0_rgba(0,0,0,0.06)]'
-            : 'bg-white/90 backdrop-blur-sm'
+            ? 'bg-white/80 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] border border-white/40 py-2.5 px-3'
+            : 'bg-white/50 backdrop-blur-md shadow-sm border border-white/20 py-3 px-4'
         }`}
-        style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <div className="max-w-7xl mx-auto px-6 h-[52px] flex items-center justify-between gap-4">
+        <div className="w-full flex items-center justify-between gap-4">
 
           {/* ── Logo ── */}
-          <Link
-            href="/"
-            className="flex items-center shrink-0 group"
-            onClick={() => setMobileNavOpen(false)}
-          >
-            <img
-              src="/logo.png.png"
-              alt="Orbstera"
-              className="h-[22px] w-auto object-contain group-hover:opacity-80 transition-opacity"
-            />
-          </Link>
+          <div className="flex-1 flex justify-start pl-2">
+            <Link
+              href="/"
+              className="flex items-center shrink-0 group"
+              onClick={() => setMobileNavOpen(false)}
+            >
+              <img
+                src="/logo.png.png"
+                alt="Orbstera"
+                className="h-[22px] w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+              />
+            </Link>
+          </div>
 
           {/* ── Center Nav Links (desktop) ── */}
-          <nav className="hidden lg:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
+          <nav className="hidden lg:flex items-center justify-center gap-1.5 p-1 rounded-full bg-white/40 border border-white/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]">
             {NAV_LINKS.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="relative px-3 py-1.5 text-[11.5px] font-bold uppercase tracking-[0.08em] text-neutral-500 hover:text-neutral-900 transition-colors duration-150 group"
+                className="relative px-4 py-1.5 text-[13px] font-medium text-neutral-600 hover:text-neutral-900 rounded-full hover:bg-white/60 hover:shadow-sm transition-all duration-200"
               >
                 {item.label}
-                <span className="absolute bottom-0 left-3 right-3 h-[2px] bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left rounded-full opacity-0 group-hover:opacity-100" />
               </Link>
             ))}
             {user && (
               <Link
                 href="/my-presentations"
-                className="relative px-3 py-1.5 text-[11.5px] font-bold uppercase tracking-[0.08em] text-primary hover:text-primaryHover transition-colors duration-150"
+                className="relative px-4 py-1.5 text-[13px] font-bold text-primary hover:text-primaryHover rounded-full hover:bg-white/60 hover:shadow-sm transition-all duration-200"
               >
                 My Decks
               </Link>
@@ -126,12 +126,12 @@ export function Navbar() {
           </nav>
 
           {/* ── Right Actions ── */}
-          <div className="flex items-center gap-3 shrink-0 ml-auto lg:ml-0">
+          <div className="flex-1 flex items-center justify-end gap-2.5 shrink-0 pr-1">
 
             {/* Mobile burger */}
             <button
               type="button"
-              className="flex lg:hidden h-8 w-8 items-center justify-center rounded-lg text-neutral-600 hover:bg-neutral-100 transition-all"
+              className="flex lg:hidden h-9 w-9 items-center justify-center rounded-full text-neutral-600 bg-white/50 hover:bg-white shadow-sm border border-white/60 transition-all"
               onClick={() => setMobileNavOpen(true)}
               aria-label="Open menu"
             >
@@ -142,10 +142,10 @@ export function Navbar() {
             {!isLoading && !user && (
               <Link
                 href="/login"
-                className="hidden lg:inline-flex items-center gap-1.5 h-9 px-5 rounded-full bg-primary text-white text-[11.5px] font-bold uppercase tracking-[0.06em] hover:bg-primaryHover active:scale-[0.97] transition-all shadow-sm group"
+                className="hidden lg:inline-flex whitespace-nowrap items-center gap-2 h-9 px-5 rounded-full bg-primary text-white text-[12px] font-bold hover:bg-primaryHover active:scale-[0.97] transition-all shadow-[0_2px_12px_rgba(0,9,250,0.2)] hover:shadow-[0_4px_16px_rgba(0,9,250,0.3)] group"
               >
                 Start Creating
-                <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform opacity-70" />
               </Link>
             )}
 
@@ -153,10 +153,10 @@ export function Navbar() {
               <button
                 type="button"
                 onClick={() => setNewDeckOpen(true)}
-                className="hidden lg:inline-flex items-center gap-1.5 h-9 px-5 rounded-full bg-primary text-white text-[11.5px] font-bold uppercase tracking-[0.06em] hover:bg-primaryHover active:scale-[0.97] transition-all shadow-sm group"
+                className="hidden lg:inline-flex whitespace-nowrap items-center gap-2 h-9 px-5 rounded-full bg-primary text-white text-[12px] font-bold hover:bg-primaryHover active:scale-[0.97] transition-all shadow-[0_2px_12px_rgba(0,9,250,0.2)] hover:shadow-[0_4px_16px_rgba(0,9,250,0.3)] group"
               >
                 Start Creating
-                <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform opacity-70" />
               </button>
             )}
 
@@ -166,10 +166,10 @@ export function Navbar() {
                 <button
                   type="button"
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="flex items-center gap-2.5 pl-2 pr-3 h-9 rounded-full border border-neutral-200 hover:border-neutral-300 bg-white hover:bg-neutral-50 transition-all group"
+                  className="flex items-center gap-2.5 pl-1.5 pr-3.5 h-9 rounded-full border border-white/60 hover:border-white bg-white/40 hover:bg-white/80 shadow-sm hover:shadow transition-all group"
                 >
                   {/* Avatar */}
-                  <div className="h-6 w-6 rounded-full overflow-hidden bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                  <div className="h-6 w-6 rounded-full overflow-hidden bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-inner">
                     {avatarUrl ? (
                       <img src={avatarUrl} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
@@ -177,9 +177,9 @@ export function Navbar() {
                     )}
                   </div>
                   {/* Name + Role */}
-                  <div className="hidden sm:flex flex-col items-start leading-none">
-                    <span className="text-[11px] font-semibold text-neutral-800 truncate max-w-[90px]">{displayName}</span>
-                    <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-primary mt-[1px]">{userRole}</span>
+                  <div className="hidden sm:flex flex-col items-start justify-center pt-0.5">
+                    <span className="text-[11px] font-bold text-neutral-800 truncate max-w-[80px] leading-[1.1]">{displayName}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-primary leading-tight mt-[1px]">{userRole}</span>
                   </div>
                 </button>
 

@@ -30,8 +30,8 @@ const config: Config = {
         background: '#FFFFFF',
         surface: '#FFFFFF',
         panel: '#FAFAFA',
-        primary: '#3B82F6', // Soft AI Blue
-        primaryHover: '#2563EB',
+        primary: '#0009fa', // Deep Electric Blue
+        primaryHover: '#0007cc',
         textMain: '#000000',
         textSecondary: '#666666',
         textMuted: '#999999',
@@ -40,7 +40,7 @@ const config: Config = {
         accentBlue: '#EBF5FF',
       },
       backgroundImage: {
-        'accent-gradient': 'linear-gradient(135deg, #3B82F6, #60A5FA)',
+        'accent-gradient': 'linear-gradient(135deg, #0009fa, #4d54fc)',
         'premium-glass': 'linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.4) 100%)',
       },
       borderRadius: {
@@ -51,7 +51,7 @@ const config: Config = {
       },
       boxShadow: {
         'premium': '0 20px 40px -10px rgba(0, 0, 0, 0.05), 0 10px 20px -5px rgba(0, 0, 0, 0.02)',
-        'focus-ring': '0 0 0 2px #FFFFFF, 0 0 0 4px #3B82F6',
+        'focus-ring': '0 0 0 2px #FFFFFF, 0 0 0 4px #0009fa',
         'slide-frame': '0 30px 60px -12px rgba(0, 0, 0, 0.08), 0 18px 36px -18px rgba(0, 0, 0, 0.1)',
         modal: '0 24px 48px -12px rgba(15, 23, 42, 0.18)',
       },

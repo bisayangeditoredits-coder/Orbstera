@@ -183,6 +183,7 @@ export function PresentMode() {
     if (isPresenting) {
       setCurrentIndex(currentSlideIndex || 0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPresenting]);
 
   useEffect(() => {

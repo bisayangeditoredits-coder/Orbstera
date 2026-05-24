@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
@@ -235,7 +236,8 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
     if (!slide) return;
 
     const fullText = selected.fullText || selected.extract;
-    const hdSrc = hdImageUrl(selected);
+    // Fallback to gallery if main image is missing
+    const hdSrc = hdImageUrl(selected) || (selected.galleryUrls && selected.galleryUrls.length > 0 ? selected.galleryUrls[0] : undefined);
     const now = `el-wiki-${Date.now()}`;
     const uid = (s: string) => `${now}-${s}`;
 
@@ -262,7 +264,8 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
         } as any);
       }
 
-    } else if (insertMode === 'image-only' && hdSrc) {
+    } else if (insertMode === 'image-only') {
+      if (hdSrc) {
       const ow = selected.originalimage?.width ?? 1920, oh = selected.originalimage?.height ?? 1080;
       let w = ow, h = oh;
       if (w > 1100) { h = h * (1100 / w); w = 1100; }
@@ -272,6 +275,15 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
         x: Math.round((1280 - w) / 2), y: Math.round((720 - h) / 2),
         width: Math.round(w), height: Math.round(h), src: hdSrc, zIndex: 10,
       } as any);
+
+      } else {
+        addElement(slide.id, {
+          id: uid('t-fb'), type: 'text', x: 80, y: 240, width: 1120, height: 220,
+          content: selected.title + '\n(No Image Available)',
+          textStyle: { fontSize: 60, fontWeight: 'bold', color: WHITE, textAlign: 'center', lineHeight: 1.15, fontFamily: H },
+          zIndex: 10,
+        } as any);
+      }
 
     } else if (insertMode === 'title-body') {
       const body = getFirstParagraphs(fullText, 1400);
@@ -435,12 +447,19 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
         });
       }
 
-    } else if (insertMode === 'split-detail' && hdSrc) {
+    } else if (insertMode === 'split-detail') {
       // ── SPLIT DETAIL: photo left + rich text + facts right ────────────────
       // Photo panel (left half)
-      addElement(slide.id, {
-        id: uid('photo'), type: 'image', x: 0, y: 0, width: 520, height: 720, src: hdSrc, zIndex: 5,
-      } as any);
+      if (hdSrc) {
+        addElement(slide.id, {
+          id: uid('photo'), type: 'image', x: 0, y: 0, width: 520, height: 720, src: hdSrc, zIndex: 5,
+        } as any);
+      } else {
+        addElement(slide.id, {
+          id: uid('photo'), type: 'shape', shapeType: 'rect', x: 0, y: 0, width: 520, height: 720,
+          shapeStyle: { fill: '#1E1B4B', cornerRadius: 0 }, zIndex: 5,
+        } as any);
+      }
       // Gradient over photo
       addElement(slide.id, {
         id: uid('photo-ov'), type: 'shape', shapeType: 'rect', x: 0, y: 0, width: 520, height: 720,
@@ -662,6 +681,22 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
     setInserted(true);
     setTimeout(() => setInserted(false), 2200);
   }, [selected, insertMode, getSlide, addElement, updateSlide]);
+
+  const handleInsertGalleryImage = useCallback((url: string) => {
+    const slide = getSlide();
+    if (!slide) return;
+    const id = `el-wiki-gal-${Date.now()}`;
+    addElement(slide.id, {
+      id,
+      type: 'image',
+      x: 240, y: 160,
+      width: 800, height: 450,
+      src: url,
+      zIndex: 100,
+    } as any);
+    setInserted(true);
+    setTimeout(() => setInserted(false), 2200);
+  }, [getSlide, addElement]);
 
   const hasImage  = !!(selected && (hdImageUrl(selected) || (selected.galleryUrls && selected.galleryUrls.length > 0)));
   const canInsert = insertMode === 'image-only' ? hasImage
@@ -990,12 +1025,16 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
                       </div>
                       <div className="flex gap-2 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
                         {selected.galleryUrls.map((url, i) => (
-                          <div key={i} className="w-28 h-20 shrink-0 rounded-xl overflow-hidden border border-neutral-200 bg-neutral-100 relative group shadow-sm">
+                          <button 
+                            key={i} 
+                            onClick={() => handleInsertGalleryImage(url)}
+                            className="w-28 h-20 shrink-0 rounded-xl overflow-hidden border border-neutral-200 bg-neutral-100 relative group shadow-sm text-left cursor-pointer"
+                          >
                             <img src={url} alt={`Gallery image ${i+1}`} className="w-full h-full object-cover" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <ImagePlus size={14} className="text-white drop-shadow-md" />
                             </div>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     </div>

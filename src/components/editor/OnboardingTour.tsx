@@ -173,6 +173,7 @@ export function OnboardingTour() {
       window.removeEventListener('resize', updateCoords);
       observer.disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onboarding.isActive, onboarding.step, currentStep]);
 
   const handleFinish = () => {

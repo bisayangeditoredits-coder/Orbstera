@@ -1,0 +1,17 @@
+# Local or single-host worker stack. Set env in .env.local or export before `docker compose up`.
+# App (Next.js) still runs separately — e.g. Vercel or `npm run dev`.
+
+services:
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    environment:
+      NODE_ENV: production
+      GENERATE_WORKER_ENABLED: "true"
+      GENERATE_ASYNC_DEFAULT: "true"
+      GENERATE_USE_JOB_QUEUE: "true"
+    # Requires REDIS_URL, WORKER_INTERNAL_SECRET, Supabase, OpenRouter, R2 vars in env_file

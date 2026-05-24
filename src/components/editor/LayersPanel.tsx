@@ -77,7 +77,7 @@ function AITextActions({ text, onUpdate }: { text: string; onUpdate: (newText: s
 const QUICK_COLORS = [
   '#FFFFFF', '#F8FAFC', '#1e293b', '#0f172a',
   '#6366F1', '#8B5CF6', '#EC4899', '#F59E0B',
-  '#10B981', '#3B82F6', '#EF4444', '#F97316',
+  '#10B981', '#0009fa', '#EF4444', '#F97316',
   'transparent',
 ];
 

@@ -72,7 +72,7 @@ export default function BlogPage() {
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
           <div>
             <div className="inline-flex items-center gap-2 border border-slate-200 px-4 py-1.5 text-sm font-semibold text-slate-700 mb-6 shadow-sm">
-              <div className="w-1.5 h-1.5 bg-[#3B82F6] rounded-full" />
+              <div className="w-1.5 h-1.5 bg-[#0009fa] rounded-full" />
               Orbstera Journal
             </div>
             <h1 className="text-5xl md:text-6xl font-extrabold tracking-tighter text-[#1E293B]">
@@ -93,7 +93,7 @@ export default function BlogPage() {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
-          <div className="absolute top-6 left-6 bg-white text-[#3B82F6] text-xs font-bold px-3 py-1 uppercase tracking-widest">
+          <div className="absolute top-6 left-6 bg-white text-[#0009fa] text-xs font-bold px-3 py-1 uppercase tracking-widest">
             {FEATURED.category}
           </div>
 
@@ -108,7 +108,7 @@ export default function BlogPage() {
             <p className="text-white/70 max-w-xl text-sm leading-relaxed mb-8">{FEATURED.excerpt}</p>
             <button
               onClick={() => window.dispatchEvent(new Event('open-lead-modal'))}
-              className="inline-flex items-center gap-2 bg-white text-[#1E293B] font-bold text-sm px-6 py-3 hover:bg-[#3B82F6] hover:text-white transition-colors group/btn"
+              className="inline-flex items-center gap-2 bg-white text-[#1E293B] font-bold text-sm px-6 py-3 hover:bg-[#0009fa] hover:text-white transition-colors group/btn"
             >
               Read Full Article <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
             </button>
@@ -152,7 +152,7 @@ export default function BlogPage() {
                   alt={post.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
-                <div className="absolute top-4 left-4 bg-white text-[#3B82F6] text-[10px] font-bold px-3 py-1 uppercase tracking-widest">
+                <div className="absolute top-4 left-4 bg-white text-[#0009fa] text-[10px] font-bold px-3 py-1 uppercase tracking-widest">
                   {post.category}
                 </div>
               </div>
@@ -161,13 +161,13 @@ export default function BlogPage() {
                   <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{post.date}</span>
                   <span className="flex items-center gap-1"><User className="w-3 h-3" />{post.author}</span>
                 </div>
-                <h3 className="text-lg font-bold text-[#1E293B] mb-3 group-hover:text-[#3B82F6] transition-colors leading-snug tracking-tight">
+                <h3 className="text-lg font-bold text-[#1E293B] mb-3 group-hover:text-[#0009fa] transition-colors leading-snug tracking-tight">
                   {post.title}
                 </h3>
                 <p className="text-slate-500 text-sm leading-relaxed mb-6 line-clamp-2 flex-1">
                   {post.excerpt}
                 </p>
-                <div className="inline-flex items-center gap-2 text-xs font-bold text-[#3B82F6] uppercase tracking-widest group-hover:gap-3 transition-all">
+                <div className="inline-flex items-center gap-2 text-xs font-bold text-[#0009fa] uppercase tracking-widest group-hover:gap-3 transition-all">
                   Read Article <ArrowRight className="w-3.5 h-3.5" />
                 </div>
               </div>

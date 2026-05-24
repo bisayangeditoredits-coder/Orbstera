@@ -135,7 +135,7 @@ export function LeftIconRail() {
                       <div className="rounded-md overflow-hidden bg-neutral-50 relative aspect-[4/3]">
                         <video
                           ref={aiVideoRef}
-                          src="/Video_Demo-tools/SMART-LAYOUT-TOOL (1) (1).mp4"
+                          src="/Video_Demo-tools/Genfill_VIDEO-DEMO.mp4"
                           autoPlay
                           loop
                           muted

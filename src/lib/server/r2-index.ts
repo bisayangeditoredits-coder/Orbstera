@@ -38,6 +38,11 @@ export async function writeIndexWithMeta(args: {
   if (current.version !== args.expectedVersion) {
     return { ok: false, reason: 'conflict', version: current.version };
   }
+  // Double-read reduces lost updates when two tabs save within the same window.
+  const recheck = await readIndexMeta(args.client, args.bucket, args.metaKey);
+  if (recheck.version !== args.expectedVersion) {
+    return { ok: false, reason: 'conflict', version: recheck.version };
+  }
   const nextVersion = args.expectedVersion + 1;
   await args.client.send(
     new PutObjectCommand({

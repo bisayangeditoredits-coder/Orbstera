@@ -27,7 +27,7 @@ export default function TeamsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="inline-flex items-center gap-2 border border-slate-200 px-4 py-1.5 rounded-full text-sm mb-6 shadow-sm"
         >
-          <div className="w-1.5 h-1.5 bg-[#3B82F6] rounded-full" />
+          <div className="w-1.5 h-1.5 bg-[#0009fa] rounded-full" />
           <span className="font-medium text-slate-700">Team</span>
         </motion.div>
         
@@ -59,10 +59,10 @@ export default function TeamsPage() {
               <div className="w-full h-[320px] sm:h-[380px] relative overflow-hidden bg-slate-100">
                 <img src={member.image} alt={member.name} className="w-full h-full object-cover" />
                 <div className="absolute top-6 left-6 bg-white px-4 py-1.5 rounded-full text-xs font-semibold text-slate-700 shadow-sm flex items-center gap-2">
-                   <div className="w-2 h-2 bg-[#3B82F6] rounded-full" />
+                   <div className="w-2 h-2 bg-[#0009fa] rounded-full" />
                    Our Team
                 </div>
-                <div className="absolute top-6 right-6 w-10 h-10 bg-[#3B82F6] rounded-lg text-white flex items-center justify-center shadow-md">
+                <div className="absolute top-6 right-6 w-10 h-10 bg-[#0009fa] rounded-lg text-white flex items-center justify-center shadow-md">
                    <Network className="w-5 h-5" />
                 </div>
               </div>
@@ -74,9 +74,9 @@ export default function TeamsPage() {
 
                 <div className="relative z-10">
                    <h3 className="text-3xl font-bold text-[#1E293B] mb-1">{member.name}</h3>
-                   <p className="text-[#3B82F6] font-bold text-base mb-6">{member.role}</p>
+                   <p className="text-[#0009fa] font-bold text-base mb-6">{member.role}</p>
                    
-                   <button onClick={() => window.dispatchEvent(new Event('open-lead-modal'))} className="px-6 py-2 rounded-full border border-slate-200 text-slate-700 font-semibold text-sm hover:border-[#3B82F6] hover:text-[#3B82F6] transition-colors bg-white">
+                   <button onClick={() => window.dispatchEvent(new Event('open-lead-modal'))} className="px-6 py-2 rounded-full border border-slate-200 text-slate-700 font-semibold text-sm hover:border-[#0009fa] hover:text-[#0009fa] transition-colors bg-white">
                      View Profile
                    </button>
                 </div>
@@ -94,10 +94,10 @@ export default function TeamsPage() {
               <div className="w-full h-[280px] sm:h-[320px] relative overflow-hidden bg-slate-100">
                 <img src={member.image} alt={member.name} className="w-full h-full object-cover" />
                 <div className="absolute top-5 left-5 bg-white px-3 py-1 rounded-full text-[11px] font-semibold text-slate-700 shadow-sm flex items-center gap-1.5">
-                   <div className="w-1.5 h-1.5 bg-[#3B82F6] rounded-full" />
+                   <div className="w-1.5 h-1.5 bg-[#0009fa] rounded-full" />
                    Our Team
                 </div>
-                <div className="absolute top-5 right-5 w-8 h-8 bg-[#3B82F6] rounded-md text-white flex items-center justify-center shadow-md">
+                <div className="absolute top-5 right-5 w-8 h-8 bg-[#0009fa] rounded-md text-white flex items-center justify-center shadow-md">
                    <Network className="w-4 h-4" />
                 </div>
               </div>

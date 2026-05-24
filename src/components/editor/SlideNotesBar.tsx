@@ -57,7 +57,7 @@ export function SlideNotesBar() {
           onClick={runAiNotes}
           disabled={aiLoading}
           className="flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all disabled:opacity-50"
-          style={{ background: 'rgba(59,130,246,0.08)', color: '#3b82f6' }}
+          style={{ background: 'rgba(59,130,246,0.08)', color: '#0009fa' }}
         >
           {aiLoading
             ? <Loader2 size={11} className="animate-spin" />

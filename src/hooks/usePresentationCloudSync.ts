@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { postPresentationCloudSave } from '@/lib/presentation-cloud-save';
+import {
+  flushPresentationCloudSaveKeepalive,
+  postPresentationCloudSave,
+} from '@/lib/presentation-cloud-save';
 import { buildPresentationUpdatesAfterCloudSave } from '@/lib/merge-cloud-prepared';
 import { isCloudDirtySuppressed, suppressCloudDirtyDuring } from '@/lib/cloud-dirty-suppress';
 import { humanizeFetchError, isAbortLikeError } from '@/lib/network-error-message';
@@ -141,23 +144,31 @@ export function usePresentationCloudSync() {
     return () => window.clearInterval(id);
   }, [runSave]);
 
+  const flushOnExit = useCallback(() => {
+    if (!dirtyRef.current || savingRef.current) return;
+    const body = usePresentationStore.getState().presentation;
+    if (!body?.id) return;
+    void flushPresentationCloudSaveKeepalive(body).then((ok) => {
+      if (ok) dirtyRef.current = false;
+    });
+    void runSave();
+  }, [runSave]);
+
   useEffect(() => {
     const onVis = () => {
       if (document.visibilityState === 'hidden' && dirtyRef.current) {
-        void runSave();
+        flushOnExit();
       }
     };
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
-  }, [runSave]);
+  }, [flushOnExit]);
 
   useEffect(() => {
-    const onBeforeUnload = () => {
-      if (dirtyRef.current && usePresentationStore.getState().presentation?.id) {
-        void runSave();
-      }
+    const onPageHide = () => {
+      if (dirtyRef.current) flushOnExit();
     };
-    window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [runSave]);
+    window.addEventListener('pagehide', onPageHide);
+    return () => window.removeEventListener('pagehide', onPageHide);
+  }, [flushOnExit]);
 }

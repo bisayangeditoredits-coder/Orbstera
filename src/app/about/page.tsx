@@ -26,12 +26,12 @@ export default function AboutPage() {
           className="relative z-10"
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-sm font-semibold tracking-wide text-slate-700 mb-8 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-[#3B82F6] animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-[#0009fa] animate-pulse" />
             The Orbstera Story
           </div>
           
           <h1 className="text-5xl md:text-7xl lg:text-[80px] font-extrabold tracking-tighter text-[#1E293B] mb-8 leading-[1.1]">
-            We are redefining how<br/>the world <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#3B82F6] to-blue-600">presents ideas.</span>
+            We are redefining how<br/>the world <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0009fa] to-blue-600">presents ideas.</span>
           </h1>
           
           <p className="text-xl md:text-2xl text-slate-500 max-w-3xl mx-auto mb-12 font-medium leading-relaxed tracking-tight">
@@ -63,7 +63,7 @@ export default function AboutPage() {
               viewport={{ once: true }}
               className="flex flex-col justify-center"
             >
-              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-[#3B82F6] mb-8 shadow-xl shadow-blue-900/5">
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-[#0009fa] mb-8 shadow-xl shadow-blue-900/5">
                 <Lightbulb className="w-8 h-8" />
               </div>
               <h2 className="text-4xl font-bold text-[#1E293B] mb-6 tracking-tight">A world where ideas flow without friction.</h2>
@@ -80,7 +80,7 @@ export default function AboutPage() {
               transition={{ delay: 0.1 }}
               className="bg-white/60 backdrop-blur-xl rounded-[40px] p-12 border border-white shadow-2xl shadow-slate-200/50"
             >
-              <div className="w-16 h-16 bg-[#3B82F6] rounded-2xl flex items-center justify-center text-white mb-8 shadow-lg shadow-[#3B82F6]/20">
+              <div className="w-16 h-16 bg-[#0009fa] rounded-2xl flex items-center justify-center text-white mb-8 shadow-lg shadow-[#0009fa]/20">
                 <Target className="w-8 h-8" />
               </div>
               <h2 className="text-3xl font-bold text-[#1E293B] mb-6 tracking-tight">Our Core Mission</h2>
@@ -95,7 +95,7 @@ export default function AboutPage() {
                   "Maintain enterprise-grade security"
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-3 text-slate-700 font-medium">
-                    <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center shrink-0 text-[#3B82F6]">
+                    <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center shrink-0 text-[#0009fa]">
                       <ChevronRight className="w-4 h-4" />
                     </div>
                     {item}
@@ -112,12 +112,12 @@ export default function AboutPage() {
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
           <div>
             <div className="inline-flex items-center gap-2 border border-slate-200 px-4 py-1.5 rounded-full text-sm mb-6 shadow-sm">
-              <div className="w-1.5 h-1.5 bg-[#3B82F6] rounded-full" />
+              <div className="w-1.5 h-1.5 bg-[#0009fa] rounded-full" />
               <span className="font-medium text-slate-700">Leadership</span>
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-[#1E293B] tracking-tight">Meet the Experts</h2>
           </div>
-          <button onClick={() => window.dispatchEvent(new Event('open-lead-modal'))} className="group flex items-center gap-2 text-[#3B82F6] font-semibold hover:text-blue-700 transition-colors">
+          <button onClick={() => window.dispatchEvent(new Event('open-lead-modal'))} className="group flex items-center gap-2 text-[#0009fa] font-semibold hover:text-blue-700 transition-colors">
             View All Open Positions <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
@@ -128,23 +128,23 @@ export default function AboutPage() {
               <div className="w-full h-[280px] relative overflow-hidden bg-slate-100">
                 <img src={member.image} alt={member.name} className="w-full h-full object-cover" />
                 <div className="absolute top-5 left-5 bg-white px-3 py-1 rounded-full text-[11px] font-semibold text-slate-700 shadow-sm flex items-center gap-1.5">
-                   <div className="w-1.5 h-1.5 bg-[#3B82F6] rounded-full" />
+                   <div className="w-1.5 h-1.5 bg-[#0009fa] rounded-full" />
                    Leadership
                 </div>
-                <div className="absolute top-5 right-5 w-8 h-8 bg-[#3B82F6] rounded-md text-white flex items-center justify-center shadow-md">
+                <div className="absolute top-5 right-5 w-8 h-8 bg-[#0009fa] rounded-md text-white flex items-center justify-center shadow-md">
                    <Network className="w-4 h-4" />
                 </div>
               </div>
               
               <div className="p-6 relative bg-white border-t border-slate-50">
                  <h3 className="text-xl font-bold text-[#1E293B] mb-1">{member.name}</h3>
-                 <p className="text-[#3B82F6] font-semibold text-sm mb-5">{member.role}</p>
+                 <p className="text-[#0009fa] font-semibold text-sm mb-5">{member.role}</p>
                  
                  <div className="flex gap-2">
-                    <button onClick={() => window.dispatchEvent(new Event('open-lead-modal'))} className="w-8 h-8 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-[#3B82F6] transition-colors">
+                    <button onClick={() => window.dispatchEvent(new Event('open-lead-modal'))} className="w-8 h-8 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-[#0009fa] transition-colors">
                       <Globe className="w-4 h-4" />
                     </button>
-                    <button onClick={() => window.dispatchEvent(new Event('open-lead-modal'))} className="w-8 h-8 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-[#3B82F6] transition-colors">
+                    <button onClick={() => window.dispatchEvent(new Event('open-lead-modal'))} className="w-8 h-8 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-blue-50 hover:text-[#0009fa] transition-colors">
                       <Mail className="w-4 h-4" />
                     </button>
                  </div>
@@ -171,8 +171,8 @@ export default function AboutPage() {
             "Do you offer custom integrations via API?"
           ].map((q, i) => (
             <div key={i} className="py-6 border-b border-slate-200 cursor-pointer group flex justify-between items-center" onClick={() => window.dispatchEvent(new Event('open-lead-modal'))}>
-              <h4 className="text-lg font-bold text-[#1E293B] group-hover:text-[#3B82F6] transition-colors">{q}</h4>
-              <div className="text-slate-300 group-hover:text-[#3B82F6] transition-colors">
+              <h4 className="text-lg font-bold text-[#1E293B] group-hover:text-[#0009fa] transition-colors">{q}</h4>
+              <div className="text-slate-300 group-hover:text-[#0009fa] transition-colors">
                 <ChevronRight className="w-6 h-6" />
               </div>
             </div>

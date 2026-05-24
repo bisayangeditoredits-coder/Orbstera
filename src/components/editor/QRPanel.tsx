@@ -2,26 +2,47 @@
 
 import { useState } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { QrCode, X, Plus } from 'lucide-react';
+import { QrCode, X, Plus, Wifi, Link } from 'lucide-react';
 
 
 export function QRPanel({ onClose }: { onClose?: () => void }) {
+  const [tab, setTab] = useState<'text' | 'wifi'>('text');
+  
+  // text state
   const [data, setData] = useState('https://orbstera.com');
+  
+  // wifi state
+  const [ssid, setSsid] = useState('');
+  const [password, setPassword] = useState('');
+  const [encryption, setEncryption] = useState('WPA');
+  const [hidden, setHidden] = useState(false);
+
   const [color, setColor] = useState('#000000');
   
   const addElement = usePresentationStore((s) => s.addElement);
   const currentSlideIndex = usePresentationStore((s) => s.currentSlideIndex);
   const presentation = usePresentationStore((s) => s.presentation);
 
+  const getQrData = () => {
+    if (tab === 'text') return data;
+    if (tab === 'wifi') {
+      if (!ssid.trim()) return '';
+      return `WIFI:S:${ssid};T:${encryption};P:${password};H:${hidden ? 'true' : 'false'};;`;
+    }
+    return '';
+  };
+
+  const currentData = getQrData();
+
   const handleAddQR = () => {
     if (currentSlideIndex === null || !presentation) return;
     const slideId = presentation.slides[currentSlideIndex]?.id;
     if (!slideId) return;
-    if (!data.trim()) return;
+    if (!currentData.trim()) return;
 
     // api.qrserver.com uses hex without the hash
     const colorHex = color.replace('#', '');
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(data)}&color=${colorHex}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(currentData)}&color=${colorHex}`;
 
     addElement(slideId, {
       id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -32,7 +53,7 @@ export function QRPanel({ onClose }: { onClose?: () => void }) {
       height: 200,
       src: qrUrl,
       zIndex: 100,
-    });
+    } as any);
   };
 
   const COLORS = ['#000000', '#2563EB', '#DC2626', '#16A34A', '#7C3AED', '#DB2777'];
@@ -65,16 +86,80 @@ export function QRPanel({ onClose }: { onClose?: () => void }) {
 
       <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-6">
         <div className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-[12px] font-bold text-neutral-700">URL or Text Data</label>
-            <input
-              type="text"
-              value={data}
-              onChange={(e) => setData(e.target.value)}
-              placeholder="https://yourwebsite.com"
-              className="w-full h-11 bg-white border border-black/[0.08] rounded-xl px-4 text-[13px] font-medium text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/10 transition-all shadow-sm"
-            />
+          <div className="flex bg-neutral-100 p-1 rounded-xl">
+            <button
+              onClick={() => setTab('text')}
+              className={`flex-1 flex items-center justify-center gap-2 h-9 text-[12px] font-bold rounded-lg transition-all ${tab === 'text' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}`}
+            >
+              <Link size={14} /> Link / Text
+            </button>
+            <button
+              onClick={() => setTab('wifi')}
+              className={`flex-1 flex items-center justify-center gap-2 h-9 text-[12px] font-bold rounded-lg transition-all ${tab === 'wifi' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}`}
+            >
+              <Wifi size={14} /> Wi-Fi
+            </button>
           </div>
+
+          {tab === 'text' ? (
+            <div className="space-y-2">
+              <label className="text-[12px] font-bold text-neutral-700">URL or Text Data</label>
+              <input
+                type="text"
+                value={data}
+                onChange={(e) => setData(e.target.value)}
+                placeholder="https://yourwebsite.com"
+                className="w-full h-11 bg-white border border-black/[0.08] rounded-xl px-4 text-[13px] font-medium text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/10 transition-all shadow-sm"
+              />
+            </div>
+          ) : (
+            <div className="space-y-3 border border-black/[0.05] p-4 rounded-2xl bg-white shadow-sm">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-neutral-600 uppercase tracking-wider">Network Name (SSID)</label>
+                <input
+                  type="text"
+                  value={ssid}
+                  onChange={(e) => setSsid(e.target.value)}
+                  placeholder="My Home WiFi"
+                  className="w-full h-10 bg-neutral-50 border border-black/[0.06] rounded-lg px-3 text-[13px] font-medium focus:bg-white focus:outline-none focus:border-indigo-500/50 transition-all"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-neutral-600 uppercase tracking-wider">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                  className="w-full h-10 bg-neutral-50 border border-black/[0.06] rounded-lg px-3 text-[13px] font-medium focus:bg-white focus:outline-none focus:border-indigo-500/50 transition-all"
+                />
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1 space-y-1.5">
+                  <label className="text-[11px] font-bold text-neutral-600 uppercase tracking-wider">Security</label>
+                  <select
+                    value={encryption}
+                    onChange={(e) => setEncryption(e.target.value)}
+                    className="w-full h-10 bg-neutral-50 border border-black/[0.06] rounded-lg px-2 text-[13px] font-medium focus:bg-white focus:outline-none focus:border-indigo-500/50 transition-all"
+                  >
+                    <option value="WPA">WPA/WPA2</option>
+                    <option value="WEP">WEP</option>
+                    <option value="nopass">None</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 pt-6">
+                  <input
+                    type="checkbox"
+                    id="hidden-net"
+                    checked={hidden}
+                    onChange={(e) => setHidden(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <label htmlFor="hidden-net" className="text-[12px] font-medium text-neutral-700">Hidden</label>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <label className="text-[12px] font-bold text-neutral-700">QR Color</label>
@@ -93,10 +178,10 @@ export function QRPanel({ onClose }: { onClose?: () => void }) {
           <div className="pt-2">
             <div className="bg-white border border-black/[0.05] rounded-2xl p-6 flex flex-col items-center justify-center gap-4 shadow-sm">
               <div className="w-32 h-32 bg-neutral-50 border border-neutral-100 rounded-xl overflow-hidden flex items-center justify-center relative">
-                {data.trim() ? (
+                {currentData.trim() ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data)}&color=${color.replace('#', '')}`}
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(currentData)}&color=${color.replace('#', '')}`}
                     alt="QR Preview"
                     className="w-full h-full object-contain"
                   />
@@ -106,7 +191,7 @@ export function QRPanel({ onClose }: { onClose?: () => void }) {
               </div>
               <button
                 onClick={handleAddQR}
-                disabled={!data.trim()}
+                disabled={!currentData.trim()}
                 className="w-full h-11 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[13px] font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all shadow-md shadow-indigo-200"
               >
                 <Plus size={16} strokeWidth={2.5} />

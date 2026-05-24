@@ -130,6 +130,7 @@ export function TopPropertiesBar() {
 
   useEffect(() => {
     if (el) aspectRatio.current = el.width / Math.max(1, el.height);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [el?.id]);
 
   const update = useCallback((updates: Partial<SlideElement>, saveHistory = false) => {

@@ -41,6 +41,7 @@ import {
   useShapePlacementTool,
   useCanvasSelection,
 } from '@/hooks/canvas';
+import { GuidesOverlay } from './GuidesOverlay';
 
 export { CANVAS_WIDTH, CANVAS_HEIGHT, STAGE_PADDING };
 
@@ -1258,16 +1259,12 @@ export function KonvaCanvas({ scale }: { scale: number }) {
               rotateAnchorOffset={24}
               rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
             />
-          {smartGuides.map((guide, i) => (
-            <Line
-              key={`guide-${i}`}
-              points={[guide.x1, guide.y1, guide.x2, guide.y2]}
-              stroke="#ef4444"
-              strokeWidth={1}
-              dash={[4, 4]}
-              listening={false}
-            />
-          ))}
+          {/* ── Smart alignment guides ────────────────────────────────────── */}
+          <GuidesOverlay
+            guides={smartGuides}
+            canvasWidth={CANVAS_WIDTH}
+            canvasHeight={CANVAS_HEIGHT}
+          />
           {drawTool.previewPoints && drawTool.previewPoints.length >= 4 && (
             <Line
               points={drawTool.previewPoints}

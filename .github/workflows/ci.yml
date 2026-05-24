@@ -27,6 +27,9 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      - name: Scale env logic (CI)
+        run: npm run verify:scale-env:ci
+
       - name: Production build
         run: npm run build
         env:
@@ -34,3 +37,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
           SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role
+          OPENROUTER_API_KEY: placeholder-openrouter-key
+          UPSTASH_REDIS_REST_URL: https://placeholder.upstash.io
+          UPSTASH_REDIS_REST_TOKEN: placeholder-upstash-token
+          DODO_PAYMENTS_WEBHOOK_SECRET: placeholder-webhook-secret

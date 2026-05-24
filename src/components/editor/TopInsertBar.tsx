@@ -500,10 +500,10 @@ export function TopInsertBar() {
                         {item.label === 'Layouts' ? 'Auto-arrange slide elements' : 'Add custom text elements'}
                       </p>
                     </div>
-                    <div className="rounded-md overflow-hidden bg-neutral-50 relative aspect-[4/3]">
+                    <div className={`rounded-md overflow-hidden bg-neutral-50 relative ${item.label === 'Layouts' ? 'aspect-square' : 'aspect-[4/3]'}`}>
                       <video
                         ref={videoRef}
-                        src={item.label === 'Layouts' ? "/Video_Demo-tools/Layout_Tool.mp4" : "/Video_Demo-tools/Text_Tool-video.mp4"}
+                        src={item.label === 'Layouts' ? "/Video_Demo-tools/LAYOUT_TOOL.mp4" : "/Video_Demo-tools/TEXT_TOOL-VIDEO-DEMO.mp4"}
                         autoPlay
                         loop
                         muted

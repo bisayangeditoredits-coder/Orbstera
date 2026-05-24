@@ -108,7 +108,7 @@ export const CURATED_SWATCHES = [
   '#EAB308',
   '#22C55E',
   '#14B8A6',
-  '#3B82F6',
+  '#0009fa',
   '#6366F1',
   '#A855F7',
   '#EC4899',
