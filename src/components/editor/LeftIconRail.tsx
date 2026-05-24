@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import {
@@ -118,36 +118,37 @@ export function LeftIconRail() {
               </button>
 
               {isAiFill && typeof window !== 'undefined' && createPortal(
-                <AnimatePresence>
-                  {showAiTip && (
-                    <motion.div
-                      initial={{ opacity: 0, x: -4, scale: 0.97 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: -4, scale: 0.97 }}
-                      transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-                      style={{ top: tipPos.top, left: tipPos.left }}
-                      className="fixed z-[9999] bg-white p-2 rounded-lg shadow-xl border border-neutral-200 w-[280px] pointer-events-none origin-left"
-                    >
-                      <div className="mb-2 mt-0.5 px-0.5 text-left">
-                        <h4 className="text-[11px] font-bold text-neutral-900 leading-none">Generative Fill</h4>
-                        <p className="text-[9px] text-neutral-500 mt-1 leading-none">AI-powered image generation</p>
-                      </div>
-                      <div className="rounded-md overflow-hidden bg-neutral-50 relative aspect-[4/3]">
-                        <video
-                          ref={aiVideoRef}
-                          src="/Video_Demo-tools/Genfill_VIDEO-DEMO.mp4"
-                          autoPlay
-                          loop
-                          muted
-                          playsInline
-                          preload="auto"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    </motion.div>
+                <motion.div
+                  aria-hidden={!showAiTip}
+                  animate={{
+                    opacity: showAiTip ? 1 : 0,
+                    x: showAiTip ? 0 : -4,
+                    scale: showAiTip ? 1 : 0.97,
+                  }}
+                  transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                  style={{ top: tipPos.top, left: tipPos.left }}
+                  className={cn(
+                    'fixed z-[9999] bg-white p-2 rounded-lg shadow-xl border border-neutral-200 w-[280px] pointer-events-none origin-left',
+                    !showAiTip && 'invisible',
                   )}
-                </AnimatePresence>,
-                document.body
+                >
+                  <div className="mb-2 mt-0.5 px-0.5 text-left">
+                    <h4 className="text-[11px] font-bold text-neutral-900 leading-none">Generative Fill</h4>
+                    <p className="text-[9px] text-neutral-500 mt-1 leading-none">AI-powered image generation</p>
+                  </div>
+                  <div className="rounded-md overflow-hidden bg-neutral-900 relative aspect-[4/3]">
+                    <video
+                      ref={aiVideoRef}
+                      src="/Video_Demo-tools/Genfill_VIDEO-DEMO.mp4"
+                      loop
+                      muted
+                      playsInline
+                      preload="auto"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </motion.div>,
+                document.body,
               )}
             </div>
           );

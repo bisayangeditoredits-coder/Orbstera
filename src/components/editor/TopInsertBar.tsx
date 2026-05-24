@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/cn';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import {
   Type, Square, ImageIcon, Minus, ChevronDown,
@@ -292,18 +293,22 @@ export function TopInsertBar() {
   const moreRef    = useRef<HTMLDivElement>(null);
   const shapesRef  = useRef<HTMLDivElement>(null);
   const imageRef   = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const layoutsVideoRef = useRef<HTMLVideoElement>(null);
+  const textVideoRef = useRef<HTMLVideoElement>(null);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const playTipVideo = (label: 'Layouts' | 'Text') => {
+    const vid = label === 'Layouts' ? layoutsVideoRef.current : textVideoRef.current;
+    if (!vid) return;
+    vid.currentTime = 0;
+    vid.play().catch(() => {});
+  };
 
   const handleTipMouseEnter = (label: 'Layouts' | 'Text') => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
     hoverTimerRef.current = setTimeout(() => {
       setHoveredTip(label);
-      const vid = videoRef.current;
-      if (vid) {
-        vid.currentTime = 0;
-        vid.play().catch(() => {});
-      }
+      playTipVideo(label);
     }, 1000);
   };
   const handleTipMouseLeave = () => {
@@ -482,39 +487,49 @@ export function TopInsertBar() {
                 <span className="hidden sm:inline">{item.label}</span>
               </button>
 
-              {/* Video tooltip — resets on every hover */}
-              <AnimatePresence>
-                {hoveredTip === item.label && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -4, scale: 0.97 }}
-                    transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-                    className="absolute top-full mt-2 left-0 z-[999] bg-white p-2 rounded-lg shadow-xl border border-neutral-200 w-[280px] pointer-events-none origin-top-left"
-                  >
-                    <div className="mb-2 mt-0.5 px-0.5">
-                      <h4 className="text-[11px] font-bold text-neutral-900 leading-none">
-                        {item.label === 'Layouts' ? 'Smart Layouts' : 'Text Tool'}
-                      </h4>
-                      <p className="text-[9px] text-neutral-500 mt-1 leading-none">
-                        {item.label === 'Layouts' ? 'Auto-arrange slide elements' : 'Add custom text elements'}
-                      </p>
-                    </div>
-                    <div className={`rounded-md overflow-hidden bg-neutral-50 relative ${item.label === 'Layouts' ? 'aspect-square' : 'aspect-[4/3]'}`}>
-                      <video
-                        ref={videoRef}
-                        src={item.label === 'Layouts' ? "/Video_Demo-tools/LAYOUT_TOOL.mp4" : "/Video_Demo-tools/TEXT_TOOL-VIDEO-DEMO.mp4"}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        preload="auto"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </motion.div>
+              {/* Video tooltip — kept mounted so preload works; visibility via CSS */}
+              <motion.div
+                aria-hidden={hoveredTip !== item.label}
+                animate={{
+                  opacity: hoveredTip === item.label ? 1 : 0,
+                  y: hoveredTip === item.label ? 0 : -4,
+                  scale: hoveredTip === item.label ? 1 : 0.97,
+                }}
+                transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                className={cn(
+                  'absolute top-full mt-2 left-0 z-[999] bg-white p-2 rounded-lg shadow-xl border border-neutral-200 w-[280px] pointer-events-none origin-top-left',
+                  hoveredTip !== item.label && 'invisible',
                 )}
-              </AnimatePresence>
+              >
+                <div className="mb-2 mt-0.5 px-0.5">
+                  <h4 className="text-[11px] font-bold text-neutral-900 leading-none">
+                    {item.label === 'Layouts' ? 'Smart Layouts' : 'Text Tool'}
+                  </h4>
+                  <p className="text-[9px] text-neutral-500 mt-1 leading-none">
+                    {item.label === 'Layouts' ? 'Auto-arrange slide elements' : 'Add custom text elements'}
+                  </p>
+                </div>
+                <div
+                  className={cn(
+                    'rounded-md overflow-hidden bg-neutral-900 relative',
+                    item.label === 'Layouts' ? 'aspect-square' : 'aspect-[4/3]',
+                  )}
+                >
+                  <video
+                    ref={item.label === 'Layouts' ? layoutsVideoRef : textVideoRef}
+                    src={
+                      item.label === 'Layouts'
+                        ? '/Video_Demo-tools/LAYOUT_TOOL.mp4'
+                        : '/Video_Demo-tools/TEXT_TOOL-VIDEO-DEMO.mp4'
+                    }
+                    loop
+                    muted
+                    playsInline
+                    preload="auto"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </motion.div>
 
               {item.dividerAfter && <div className="w-px h-5 bg-neutral-200 mx-1.5" />}
             </div>
