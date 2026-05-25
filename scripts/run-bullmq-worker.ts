@@ -8,6 +8,10 @@
  * Usage: npx tsx scripts/run-bullmq-worker.ts
  */
 import './load-env-local';
+import ws from 'ws';
+if (typeof globalThis.WebSocket === 'undefined') {
+  (globalThis as any).WebSocket = ws;
+}
 import type { BullWorkerHandle } from '../src/lib/jobs/bullmq-generate';
 import { createBullWorker } from '../src/lib/jobs/bullmq-generate';
 

@@ -3,6 +3,10 @@
  * Requires: UPSTASH_REDIS_REST_*, WORKER_INTERNAL_SECRET, Supabase + R2 + public/ assets.
  */
 import './load-env-local';
+import ws from 'ws';
+if (typeof globalThis.WebSocket === 'undefined') {
+  (globalThis as any).WebSocket = ws;
+}
 import { Redis } from '@upstash/redis';
 import { runPptxExport, type PptxExportBody } from '../src/lib/export/run-pptx-export';
 import { updateJobRecord } from '../src/lib/jobs/redis-job-queue';
