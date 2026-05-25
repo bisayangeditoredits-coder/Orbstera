@@ -37,7 +37,7 @@ export function PhotosPanel({ onClose }: { onClose?: () => void }) {
       if (pageNum === 1) {
         patchPhotos({ photos: nextPhotos });
       } else {
-        const merged = [...usePanelStore.getState().photos, ...nextPhotos];
+        const merged = [...usePanelStore.getState().photos.photos, ...nextPhotos];
         patchPhotos({ photos: merged });
       }
       patchPhotos({
