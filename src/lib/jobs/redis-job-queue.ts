@@ -52,15 +52,25 @@ export async function getJobRecord(id: string): Promise<JobRecord | null> {
 
 function mergeJobRecord(cur: JobRecord, patch: Partial<JobRecord>): JobRecord {
   // Prevent late progress updates from reverting a terminal state back to 'running'
+  // and prevent clobbering the error/result of a terminal state.
   let newStatus = patch.status ?? cur.status;
-  if ((cur.status === 'completed' || cur.status === 'failed') && newStatus === 'running') {
-    newStatus = cur.status;
+  let newError = patch.error !== undefined ? patch.error : cur.error;
+  let newResult = patch.result !== undefined ? patch.result : cur.result;
+
+  if (cur.status === 'completed' || cur.status === 'failed') {
+    if (newStatus === 'running' || newStatus === 'queued') {
+      newStatus = cur.status; // keep terminal status
+      newError = cur.error; // preserve existing error
+      newResult = cur.result; // preserve existing result
+    }
   }
 
   return {
     ...cur,
     ...patch,
     status: newStatus,
+    error: newError,
+    result: newResult,
     id: cur.id,
     userId: cur.userId,
     type: patch.type ?? cur.type,
