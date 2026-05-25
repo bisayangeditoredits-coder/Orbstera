@@ -4,7 +4,9 @@ import { OrbsteraIcon, type OrbsteraIconProps } from '../Icon';
 export function IconChevronDown(props: OrbsteraIconProps) {
   return (
     <OrbsteraIcon viewBox="0 0 24 24" {...props}>
-    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={"M19.542 7.54309c0.3905 -0.39052 1.0235 -0.39052 1.4141 0 0.3904 0.39053 0.3905 1.02356 0 1.41406l-8.25 8.25005c-0.3661 0.366 -0.9452 0.3886 -1.3379 0.0683l-0.0762 -0.0683 -8.25001 -8.25005c-0.39052 -0.39052 -0.39052 -1.02353 0 -1.41406 0.39053 -0.39052 1.02354 -0.39052 1.41406 0L11.999 15.0861z"} />
+<g id="chevron-downward">
+    <path id="Union" fill="currentColor" d="M19.542 7.54309c0.3905 -0.39052 1.0235 -0.39052 1.4141 0 0.3904 0.39053 0.3905 1.02356 0 1.41406l-8.25 8.25005c-0.3661 0.366 -0.9452 0.3886 -1.3379 0.0683l-0.0762 -0.0683 -8.25001 -8.25005c-0.39052 -0.39052 -0.39052 -1.02353 0 -1.41406 0.39053 -0.39052 1.02354 -0.39052 1.41406 0L11.999 15.0861z" strokeWidth={props.strokeWidth || 1.5}></path>
+  </g>
     </OrbsteraIcon>
   );
 }

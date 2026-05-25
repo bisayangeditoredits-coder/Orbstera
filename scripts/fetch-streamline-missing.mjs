@@ -32,22 +32,24 @@ function pascalToFile(name) {
   return name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
 }
 
-function svgToPaths(svg) {
-  return [...svg.matchAll(/<path[^>]*\sd="([^"]+)"[^>]*\/?>/gi)].map((m) => m[1]);
+function svgToJsx(svg) {
+  let inner = svg.replace(/<svg[^>]*>/i, '').replace(/<\/svg>/i, '');
+  inner = inner.replace(/<desc>[\s\S]*?<\/desc>/gi, '');
+  inner = inner.replace(/stroke="#[0-9a-fA-F]+"/gi, 'stroke="currentColor"');
+  inner = inner.replace(/fill="#[0-9a-fA-F]+"/gi, 'fill="currentColor"');
+  inner = inner.replace(/stroke-width="[^"]*"/gi, 'strokeWidth={props.strokeWidth || 1.5}');
+  inner = inner.replace(/stroke-linecap/gi, 'strokeLinecap');
+  inner = inner.replace(/stroke-linejoin/gi, 'strokeLinejoin');
+  inner = inner.replace(/fill-rule/gi, 'fillRule');
+  inner = inner.replace(/clip-rule/gi, 'clipRule');
+  return inner.trim();
 }
 
-function writeComponent(name, paths) {
+function writeComponent(name, svgRaw) {
   const file = path.join(OUT_DIR, `${pascalToFile(name)}.tsx`);
-  const pathsJsx = paths
-    .map(
-      (d) =>
-        `    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={${JSON.stringify(d)}} />`,
-    )
-    .join('\n');
-  fs.writeFileSync(
-    file,
-    `/** Streamline Material Rounded Line (free) */\nimport { OrbsteraIcon, type OrbsteraIconProps } from '../Icon';\n\nexport function Icon${name}(props: OrbsteraIconProps) {\n  return (\n    <OrbsteraIcon viewBox="0 0 24 24" {...props}>\n${pathsJsx}\n    </OrbsteraIcon>\n  );\n}\n`,
-  );
+  const jsxInner = svgToJsx(svgRaw);
+  const content = `/** Streamline Material Rounded Line (free) — offline, do not fetch at runtime */\nimport { OrbsteraIcon, type OrbsteraIconProps } from '../Icon';\n\nexport function Icon${name}(props: OrbsteraIconProps) {\n  return (\n    <OrbsteraIcon viewBox="0 0 24 24" {...props}>\n${jsxInner}\n    </OrbsteraIcon>\n  );\n}\n`;
+  fs.writeFileSync(file, content);
 }
 
 async function main() {
@@ -61,7 +63,7 @@ async function main() {
       continue;
     }
     const svg = await res.text();
-    writeComponent(name, svgToPaths(svg));
+    writeComponent(name, svg);
     console.log('OK', name);
   }
   // rebuild index
