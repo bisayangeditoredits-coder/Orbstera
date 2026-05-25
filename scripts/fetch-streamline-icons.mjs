@@ -110,23 +110,21 @@ async function downloadSvg(hash, apiKey) {
   return res.text();
 }
 
-function svgToJsx(svg) {
-  let inner = svg.replace(/<svg[^>]*>/i, '').replace(/<\/svg>/i, '');
-  inner = inner.replace(/<desc>[\s\S]*?<\/desc>/gi, '');
-  inner = inner.replace(/stroke="#[0-9a-fA-F]+"/gi, 'stroke="currentColor"');
-  inner = inner.replace(/fill="#[0-9a-fA-F]+"/gi, 'fill="currentColor"');
-  inner = inner.replace(/stroke-width="[^"]*"/gi, 'strokeWidth={props.strokeWidth || 1.5}');
-  inner = inner.replace(/stroke-linecap/gi, 'strokeLinecap');
-  inner = inner.replace(/stroke-linejoin/gi, 'strokeLinejoin');
-  inner = inner.replace(/fill-rule/gi, 'fillRule');
-  inner = inner.replace(/clip-rule/gi, 'clipRule');
-  return inner.trim();
+function svgToPaths(svg) {
+  const paths = [...svg.matchAll(/<path[^>]*\sd="([^"]+)"[^>]*\/?>/gi)].map((m) => m[1]);
+  if (paths.length === 0) throw new Error('no paths in svg');
+  return paths;
 }
 
-function writeComponent(name, svgRaw) {
+function writeComponent(name, paths) {
   const file = path.join(OUT_DIR, `${pascalToFile(name)}.tsx`);
-  const jsxInner = svgToJsx(svgRaw);
-  const content = `/** Streamline Material Rounded Line (free) — offline, do not fetch at runtime */\nimport { OrbsteraIcon, type OrbsteraIconProps } from '../Icon';\n\nexport function Icon${name}(props: OrbsteraIconProps) {\n  return (\n    <OrbsteraIcon viewBox="0 0 24 24" {...props}>\n${jsxInner}\n    </OrbsteraIcon>\n  );\n}\n`;
+  const pathsJsx = paths
+    .map(
+      (d) =>
+        `    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={${JSON.stringify(d)}} />`,
+    )
+    .join('\n');
+  const content = `/** Streamline Material Rounded Line (free) — offline, do not fetch at runtime */\nimport { OrbsteraIcon, type OrbsteraIconProps } from '../Icon';\n\nexport function Icon${name}(props: OrbsteraIconProps) {\n  return (\n    <OrbsteraIcon viewBox="0 0 24 24" {...props}>\n${pathsJsx}\n    </OrbsteraIcon>\n  );\n}\n`;
   fs.writeFileSync(file, content);
 }
 
@@ -150,8 +148,9 @@ async function main() {
         continue;
       }
       const svg = await downloadSvg(hit.hash, apiKey);
-      writeComponent(name, svg);
-      index.push({ name, hash: hit.hash, query });
+      const paths = svgToPaths(svg);
+      writeComponent(name, paths);
+      index.push({ name, hash: hit.hash, query, paths: paths.length });
       console.log(`OK ${hit.name}`);
       await new Promise((r) => setTimeout(r, 200));
     } catch (e) {

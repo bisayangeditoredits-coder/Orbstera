@@ -4,9 +4,7 @@ import { OrbsteraIcon, type OrbsteraIconProps } from '../Icon';
 export function IconHeart(props: OrbsteraIconProps) {
   return (
     <OrbsteraIcon viewBox="0 0 24 24" {...props}>
-<g id="heart--reward-social-rating-media-heart-it-like-favorite-love">
-    <path id="Subtract" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" d="M0.5 4.90907C0.543629 2.01645 3.8595 -0.666944 7 3.10958c3.1405 -3.776524 6.4564 -1.09331 6.5 1.79932 0 4.30631 -5.25729 7.8411 -6.50001 7.8411C5.75727 12.75 0.5 9.21539 0.5 4.90907Z" strokeWidth={props.strokeWidth || 1.5}></path>
-  </g>
+    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={"M0.5 4.90907C0.543629 2.01645 3.8595 -0.666944 7 3.10958c3.1405 -3.776524 6.4564 -1.09331 6.5 1.79932 0 4.30631 -5.25729 7.8411 -6.50001 7.8411C5.75727 12.75 0.5 9.21539 0.5 4.90907Z"} />
     </OrbsteraIcon>
   );
 }
