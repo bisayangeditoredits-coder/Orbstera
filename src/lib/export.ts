@@ -73,6 +73,24 @@ async function readExportFailureMessage(res: Response): Promise<string> {
  */
 export async function exportToPptx(presentation: PresentationData): Promise<void> {
   const prepared = await preparePresentationForCloudSave(presentation);
+
+  const pendingImages = (prepared.slides || []).some((s) =>
+    (s.elements || []).some((el) => el.type === 'image' && el.aiImagePending && !el.src?.trim()),
+  );
+  if (pendingImages) {
+    throw new Error(
+      'Some images are still generating. Wait for them to finish on the canvas, then export again.',
+    );
+  }
+
+  const hasBlobImages = (prepared.slides || []).some((s) =>
+    (s.elements || []).some((el) => el.type === 'image' && (el.src || '').trim().startsWith('blob:')),
+  );
+  if (hasBlobImages) {
+    throw new Error(
+      'Some images are only stored in this browser session. Save the deck to the cloud, then export again.',
+    );
+  }
   const json = JSON.stringify(prepared);
   const byteLength = new TextEncoder().encode(json).byteLength;
 

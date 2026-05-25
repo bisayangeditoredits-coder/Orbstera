@@ -9,6 +9,7 @@ import {
 import { buildPresentationUpdatesAfterCloudSave } from '@/lib/merge-cloud-prepared';
 import { isCloudDirtySuppressed, suppressCloudDirtyDuring } from '@/lib/cloud-dirty-suppress';
 import { humanizeFetchError, isAbortLikeError } from '@/lib/network-error-message';
+import { enqueueCloudSave } from '@/lib/cloud-save-lock';
 
 const AUTOSAVE_INTERVAL_MS = 60_000;
 const DEBOUNCE_SAVE_MS = 12_000;
@@ -24,17 +25,18 @@ export function usePresentationCloudSync() {
   const dirtyRef = useRef(false);
   const debounceTimerRef = useRef<number | null>(null);
 
-  const runSave = useCallback(async () => {
-    if (savingRef.current) return;
-
+  const runSaveInternal = useCallback(async () => {
     const body = usePresentationStore.getState().presentation;
     if (!body?.id || body.title === 'Generating...' || !body.slides?.length) return;
 
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      setEditorState({
+        cloudSyncStatus: 'error',
+        cloudSyncMessage: 'Offline — changes will sync when you reconnect.',
+      });
       return;
     }
 
-    savingRef.current = true;
     setEditorState({ cloudSyncStatus: 'saving', cloudSyncMessage: undefined });
 
     try {
@@ -106,10 +108,16 @@ export function usePresentationCloudSync() {
         cloudSyncStatus: 'error',
         cloudSyncMessage: msg || 'Sync failed',
       });
-    } finally {
-      savingRef.current = false;
     }
   }, [updatePresentation, setEditorState]);
+
+  const runSave = useCallback(() => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    void enqueueCloudSave(runSaveInternal).finally(() => {
+      savingRef.current = false;
+    });
+  }, [runSaveInternal]);
 
   useEffect(() => {
     return usePresentationStore.subscribe((state, prev) => {
@@ -121,7 +129,7 @@ export function usePresentationCloudSync() {
         }
         debounceTimerRef.current = window.setTimeout(() => {
           debounceTimerRef.current = null;
-          void runSave();
+          runSave();
         }, DEBOUNCE_SAVE_MS);
       }
     });
@@ -139,20 +147,21 @@ export function usePresentationCloudSync() {
   useEffect(() => {
     const id = window.setInterval(() => {
       if (!dirtyRef.current) return;
-      void runSave();
+      runSave();
     }, AUTOSAVE_INTERVAL_MS);
     return () => window.clearInterval(id);
   }, [runSave]);
 
   const flushOnExit = useCallback(() => {
-    if (!dirtyRef.current || savingRef.current) return;
+    if (!dirtyRef.current) return;
     const body = usePresentationStore.getState().presentation;
     if (!body?.id) return;
-    void flushPresentationCloudSaveKeepalive(body).then((ok) => {
-      if (ok) dirtyRef.current = false;
+    void enqueueCloudSave(async () => {
+      await flushPresentationCloudSaveKeepalive(body);
+      await runSaveInternal();
+      dirtyRef.current = false;
     });
-    void runSave();
-  }, [runSave]);
+  }, [runSaveInternal]);
 
   useEffect(() => {
     const onVis = () => {

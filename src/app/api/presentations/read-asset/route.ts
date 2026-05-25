@@ -1,23 +1,8 @@
 import { NextResponse } from 'next/server';
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { requireApiUserWithRateLimit } from '@/lib/auth/require-api-route';
 import { PRIVATE_IMMUTABLE_ASSET } from '@/lib/http/cache-headers';
-
-let s3Client: S3Client | null = null;
-if (
-  process.env.CLOUDFLARE_R2_ENDPOINT &&
-  process.env.CLOUDFLARE_R2_ACCESS_KEY &&
-  process.env.CLOUDFLARE_R2_SECRET_KEY
-) {
-  s3Client = new S3Client({
-    region: 'auto',
-    endpoint: process.env.CLOUDFLARE_R2_ENDPOINT,
-    credentials: {
-      accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY,
-      secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_KEY,
-    },
-  });
-}
+import { getR2BucketName, getR2Client } from '@/lib/server/r2-client';
 
 async function streamToBuffer(stream: AsyncIterable<Uint8Array | Buffer>): Promise<Buffer> {
   const chunks: Buffer[] = [];
@@ -32,7 +17,9 @@ const MAX_BYTES = 40 * 1024 * 1024;
  * Used by the editor so slide images work without a public R2 bucket.
  */
 export async function GET(req: Request) {
-  if (!s3Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) {
+  const s3Client = getR2Client();
+  const bucket = getR2BucketName();
+  if (!s3Client || !bucket) {
     return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
   }
 
@@ -57,8 +44,6 @@ export async function GET(req: Request) {
   if (!key.startsWith(prefix)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
-
-  const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME;
 
   try {
     const obj = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));

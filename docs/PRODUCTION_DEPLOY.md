@@ -24,7 +24,7 @@ Copy from `.env.example`. Required:
 | `CLOUDFLARE_R2_*` | Endpoint, keys, bucket |
 | `NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL` | Large deck image offload |
 | `DODO_PAYMENTS_WEBHOOK_SECRET` | Real secret, not `dev` |
-| `NEXT_PUBLIC_APP_URL` | `https://your-domain.com` |
+| `NEXT_PUBLIC_APP_URL` | `https://your-domain.com` — required for PPTX export when slide images use relative `/api/...` URLs |
 
 **Scale (required for production traffic):**
 

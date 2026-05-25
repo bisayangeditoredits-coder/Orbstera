@@ -16,6 +16,7 @@ import {
   getFreeGenfillStatus,
   isPaidPlan,
 } from '@/lib/billing/free-genfill-redis';
+import { FREE_TIER } from '@/lib/billing/free-tier-limits';
 
 function normalizePlanForFree(plan: unknown): string {
   return normalizePlanTier(plan);
@@ -76,15 +77,23 @@ export async function GET() {
     };
 
     const freeGenfill = !isPaidPlan(plan) ? await getFreeGenfillStatus(user.id) : null;
-    const freeTier = freeGenfill
+    const genfillUsed =
+      freeGenfill?.used ??
+      (typeof profile?.free_generative_fill_uses === 'number' ? profile.free_generative_fill_uses : 0);
+    const magicUsed =
+      typeof profile?.free_magic_edit_uses === 'number' ? profile.free_magic_edit_uses : 0;
+    const monthlyCap = FREE_GENFILL_MONTHLY_LIMIT;
+    const magicCap = FREE_TIER.genfillImageUses;
+
+    const freeTier = !isPaidPlan(plan)
       ? {
-          freeGenFillUsed: freeGenfill.used,
-          freeGenFillLimit: freeGenfill.limit,
-          freeGenFillRemaining: freeGenfill.remaining,
-          generativeFillUsed: freeGenfill.used,
-          generativeFillLimit: FREE_GENFILL_MONTHLY_LIMIT,
-          magicEditUsed: freeGenfill.used,
-          magicEditLimit: FREE_GENFILL_MONTHLY_LIMIT,
+          freeGenFillUsed: genfillUsed,
+          freeGenFillLimit: monthlyCap,
+          freeGenFillRemaining: Math.max(0, monthlyCap - genfillUsed),
+          generativeFillUsed: genfillUsed,
+          generativeFillLimit: monthlyCap,
+          magicEditUsed: magicUsed,
+          magicEditLimit: magicCap,
         }
       : null;
 

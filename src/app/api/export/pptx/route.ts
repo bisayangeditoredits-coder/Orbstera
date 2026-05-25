@@ -7,26 +7,11 @@ import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import { createJobRecord } from '@/lib/jobs/redis-job-queue';
 import { v4 as uuidv4 } from 'uuid';
-import { S3Client, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { isValidDeckStagingKey } from '@/lib/server/deck-staging-key';
 import { asyncExportSlideThreshold } from '@/lib/infra/scaling-flags';
 import { runPptxExport, type PptxExportBody } from '@/lib/export/run-pptx-export';
-
-let exportR2Client: S3Client | null = null;
-if (
-  process.env.CLOUDFLARE_R2_ENDPOINT &&
-  process.env.CLOUDFLARE_R2_ACCESS_KEY &&
-  process.env.CLOUDFLARE_R2_SECRET_KEY
-) {
-  exportR2Client = new S3Client({
-    region: 'auto',
-    endpoint: process.env.CLOUDFLARE_R2_ENDPOINT,
-    credentials: {
-      accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY,
-      secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_KEY,
-    },
-  });
-}
+import { getR2BucketName, getR2Client } from '@/lib/server/r2-client';
 
 async function readS3BodyToBuffer(stream: unknown): Promise<Buffer> {
   const chunks: Buffer[] = [];
@@ -103,10 +88,11 @@ export async function POST(req: Request) {
         if (!isValidDeckStagingKey(stagingUser.id, meta.stagingKey)) {
           return NextResponse.json({ error: 'Invalid staging key' }, { status: 400 });
         }
-        if (!exportR2Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) {
+        const exportR2Client = getR2Client();
+        const bucket = getR2BucketName();
+        if (!exportR2Client || !bucket) {
           return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
         }
-        const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME;
         let stagedBuf: Buffer;
         try {
           const obj = await exportR2Client.send(
@@ -152,20 +138,27 @@ export async function POST(req: Request) {
       url.searchParams.get('async') === '1' &&
       body.slides.length >= asyncExportSlideThreshold()
     ) {
+      const { redis } = await import('@/lib/redis');
+      if (!redis) {
+        return NextResponse.json(
+          { error: 'Export queue unavailable. Try again without async export or configure Redis.' },
+          { status: 503 },
+        );
+      }
       const jobId = uuidv4();
-      await createJobRecord({
+      const record = await createJobRecord({
         id: jobId,
         userId: authedUserId,
         type: 'export_pptx',
         status: 'queued',
       });
-      const { redis } = await import('@/lib/redis');
-      if (redis) {
-        await redis.lpush(
-          'queue:export:v1',
-          JSON.stringify({ jobId, userId: authedUserId, body }),
-        );
+      if (!record) {
+        return NextResponse.json({ error: 'Export job storage unavailable' }, { status: 503 });
       }
+      await redis.lpush(
+        'queue:export:v1',
+        JSON.stringify({ jobId, userId: authedUserId, body }),
+      );
       return NextResponse.json(
         { jobId, status: 'queued', message: 'Export queued. Poll GET /api/jobs/[id].' },
         { status: 202 },

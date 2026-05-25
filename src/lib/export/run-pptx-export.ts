@@ -2,54 +2,16 @@ import PptxGenJS from 'pptxgenjs';
 import { createClient } from '@supabase/supabase-js';
 import { PresentationData, Slide, SlideTransition } from '@/types';
 import { findDeckBackgroundElement, isSlideDeckBackgroundImage } from '@/lib/slide-background';
-import { tryExtractR2ObjectKeyFromPublicUrl } from '@/lib/r2-public-url';
+import { fetchImageAsBase64ForExport } from '@/lib/export/export-image';
+import { combinedShapeTransparency, parseColorForPptx } from '@/lib/export/export-colors';
+import { shapePathToSvgDataUri } from '@/lib/export/export-shape-path';
+import { elementPlacement } from '@/lib/export/export-pptx-placement';
 import { updateJobRecord } from '@/lib/jobs/redis-job-queue';
 import { getServiceSupabase } from '@/lib/billing/supabase-admin';
+import { getR2BucketName, getR2Client, isR2Configured } from '@/lib/server/r2-client';
 import fs from 'fs';
 import path from 'path';
-import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
-
-let exportR2Client: S3Client | null = null;
-if (
-  process.env.CLOUDFLARE_R2_ENDPOINT &&
-  process.env.CLOUDFLARE_R2_ACCESS_KEY &&
-  process.env.CLOUDFLARE_R2_SECRET_KEY
-) {
-  exportR2Client = new S3Client({
-    region: 'auto',
-    endpoint: process.env.CLOUDFLARE_R2_ENDPOINT,
-    credentials: {
-      accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY,
-      secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_KEY,
-    },
-  });
-}
-
-async function readS3BodyToBuffer(stream: unknown): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream as AsyncIterable<Uint8Array | Buffer>) {
-    chunks.push(Buffer.from(chunk));
-  }
-  return Buffer.concat(chunks);
-}
-
-async function r2ObjectToBuffer(key: string): Promise<{ buf: Buffer; mime: string } | null> {
-  if (!exportR2Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) return null;
-  try {
-    const obj = await exportR2Client.send(
-      new GetObjectCommand({ Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME, Key: key }),
-    );
-    const chunks: Buffer[] = [];
-    for await (const chunk of obj.Body as AsyncIterable<Uint8Array | Buffer>) {
-      chunks.push(Buffer.from(chunk));
-    }
-    const buf = Buffer.concat(chunks);
-    const mime = obj.ContentType || 'image/jpeg';
-    return { buf, mime };
-  } catch {
-    return null;
-  }
-}
+import { PutObjectCommand } from '@aws-sdk/client-s3';
 
 // ── Canvas → PPTX coordinate system ──────────────────────────────────────────
 // Canvas: 1280 × 720 px  →  PPTX: 13.333 × 7.5 inches (96 DPI exact match)
@@ -61,11 +23,7 @@ const px = (v: number) => parseFloat((v * SCALE).toFixed(4));
 
 /** Strip # and ensure 6-char uppercase hex (pptxgenjs format) */
 function hex(color?: string): string {
-  if (!color) return 'FFFFFF';
-  const c = color.replace('#', '').toUpperCase();
-  return c.length === 3
-    ? c[0] + c[0] + c[1] + c[1] + c[2] + c[2]
-    : c.substring(0, 6);
+  return parseColorForPptx(color).color;
 }
 
 /** Map web font names → Office-safe equivalents */
@@ -133,30 +91,6 @@ function resolveSlideTransitionExport(
     }
   }
   return legacySlideTransition(animStyle, slide.type);
-}
-
-// ── Fetch a remote image and return it as a base64 data URI ──────────────────
-async function fetchImageAsBase64(url: string): Promise<string | null> {
-  if (!url) return null;
-  if (url.startsWith('data:')) return url;
-
-  const r2Key = tryExtractR2ObjectKeyFromPublicUrl(url);
-  if (r2Key) {
-    const got = await r2ObjectToBuffer(r2Key);
-    if (got) {
-      return `data:${got.mime};base64,${got.buf.toString('base64')}`;
-    }
-  }
-
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
-    if (!res.ok) return null;
-    const buf  = await res.arrayBuffer();
-    const mime = res.headers.get('content-type') || 'image/jpeg';
-    return `data:${mime};base64,${Buffer.from(buf).toString('base64')}`;
-  } catch {
-    return null;
-  }
 }
 
 // ── Build real OOXML entrance animation for a shape by shapeId ────────────────
@@ -245,7 +179,6 @@ async function resolveExportBilling(userId: string): Promise<{ isPaidUser: boole
 
   const useCredit = !isPaidUser && exportCredits > 0;
   if (useCredit) {
-    isPaidUser = true;
     try {
       const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
       const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -253,12 +186,21 @@ async function resolveExportBilling(userId: string): Promise<{ isPaidUser: boole
       await supabaseAdmin.auth.admin.updateUserById(userId, {
         user_metadata: { watermark_free_exports: exportCredits - 1 },
       });
+      isPaidUser = true;
     } catch (err) {
       console.error('[PPTX] Failed to deduct export credit:', err);
     }
   }
 
   return { isPaidUser };
+}
+
+async function failExportJob(jobId: string, message: string): Promise<void> {
+  try {
+    await updateJobRecord(jobId, { status: 'failed', progress: 0, error: message });
+  } catch (e) {
+    console.error('[pptx-export] failed to update job record', e);
+  }
 }
 
 /**
@@ -276,6 +218,13 @@ export async function runPptxExport(params: {
     throw new Error('Invalid presentation: missing or empty slides');
   }
 
+  if (jobId && !isR2Configured()) {
+    const msg = 'Export storage (Cloudflare R2) is not configured';
+    await failExportJob(jobId, msg);
+    throw new Error(msg);
+  }
+
+  try {
   const { isPaidUser } = await resolveExportBilling(userId);
 
   const palette = colorPalette || ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'];
@@ -289,32 +238,35 @@ export async function runPptxExport(params: {
     pptx.defineLayout({ name: 'ORBSTERA_16x9', width: PPTX_W, height: PPTX_H });
     pptx.layout  = 'ORBSTERA_16x9';
 
-    // ── Pre-fetch ALL images in parallel ─────────────────────────────────────
-    // Collect every image URL across all slides first, then fetch concurrently
-    type ImgTask = { slideIdx: number; elIdx: number; url: string; isBg: boolean };
+    // ── Pre-fetch ALL images in parallel (dedupe by URL) ─────────────────────
+    type ImgTask = { slideIdx: number; elementId: string; url: string };
     const imgTasks: ImgTask[] = [];
+    const uniqueUrls = new Set<string>();
 
     slides.forEach((slide, si) => {
-      (slide.elements || []).forEach((el, ei) => {
-        if (el.type === 'image' && el.src) {
-          const isBg = isSlideDeckBackgroundImage(el);
-          imgTasks.push({ slideIdx: si, elIdx: ei, url: el.src, isBg });
-        }
-      });
-    });
-
-    // Fetch all images at once
-    const fetchedImages = await Promise.allSettled(
-      imgTasks.map(t => fetchImageAsBase64(t.url))
-    );
-    // Build a lookup map: "slideIdx-elIdx" → base64
-    const imgMap = new Map<string, string>();
-    imgTasks.forEach((t, i) => {
-      const result = fetchedImages[i];
-      if (result.status === 'fulfilled' && result.value) {
-        imgMap.set(`${t.slideIdx}-${t.elIdx}`, result.value);
+      for (const el of slide.elements || []) {
+        const isRaster =
+          (el.type === 'image' || el.type === 'icon') && typeof el.src === 'string' && el.src.trim();
+        if (!isRaster || el.aiImagePending) continue;
+        const src = el.src!.trim();
+        imgTasks.push({ slideIdx: si, elementId: el.id, url: src });
+        uniqueUrls.add(src);
       }
     });
+
+    const urlToData = new Map<string, string | null>();
+    await Promise.all(
+      [...uniqueUrls].map(async (url) => {
+        const data = await fetchImageAsBase64ForExport(url);
+        urlToData.set(url, data);
+      }),
+    );
+
+    const imgMap = new Map<string, string>();
+    for (const t of imgTasks) {
+      const data = urlToData.get(t.url);
+      if (data) imgMap.set(`${t.slideIdx}:${t.elementId}`, data);
+    }
 
     // ── Build each slide ──────────────────────────────────────────────────────
     for (let si = 0; si < slides.length; si++) {
@@ -328,22 +280,33 @@ export async function runPptxExport(params: {
 
       // ── 3. Hero background image (low opacity, full-slide) ─────────────────
       const bgEl = findDeckBackgroundElement(slide.elements);
-      const bgElIdx = bgEl ? (slide.elements || []).indexOf(bgEl) : -1;
 
-      if (bgEl && bgElIdx !== -1) {
-        const bgData = imgMap.get(`${si}-${bgElIdx}`);
+      if (bgEl?.src) {
+        const bgData = imgMap.get(`${si}:${bgEl.id}`);
         if (bgData) {
+          const bgOpacity = bgEl.opacity ?? 0.18;
           pptSlide.addImage({
-            x: 0, y: 0, w: PPTX_W, h: PPTX_H,
-            data:   bgData,
+            x: 0,
+            y: 0,
+            w: PPTX_W,
+            h: PPTX_H,
+            data: bgData,
             sizing: { type: 'cover', w: PPTX_W, h: PPTX_H },
           } as any);
-          // Overlay to match ~18% image opacity on canvas
-          pptSlide.addShape(pptx.ShapeType.rect, {
-            x: 0, y: 0, w: PPTX_W, h: PPTX_H,
-            fill: { type: 'solid', color: bgColor, transparency: 18 } as any,
-            line: { type: 'none' },
-          });
+          const bgOverlayTransparency = combinedShapeTransparency(
+            undefined,
+            1 - bgOpacity,
+          );
+          if (bgOverlayTransparency !== undefined && bgOverlayTransparency < 100) {
+            pptSlide.addShape(pptx.ShapeType.rect, {
+              x: 0,
+              y: 0,
+              w: PPTX_W,
+              h: PPTX_H,
+              fill: { type: 'solid', color: bgColor, transparency: bgOverlayTransparency } as any,
+              line: { type: 'none' },
+            });
+          }
         }
       }
 
@@ -355,15 +318,9 @@ export async function runPptxExport(params: {
       for (let ei = 0; ei < sorted.length; ei++) {
         const el = sorted[ei];
         if (el.visible === false) continue;
-        // Skip bg image (handled above)
-        if (el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0) continue;
+        if (isSlideDeckBackgroundImage(el)) continue;
 
-        const common = {
-          x: px(el.x),
-          y: px(el.y),
-          w: px(el.width),
-          h: px(el.height),
-        };
+        const common = elementPlacement(el);
 
         // ── TEXT ──────────────────────────────────────────────────────────
         if (el.type === 'text' && el.content) {
@@ -390,44 +347,111 @@ export async function runPptxExport(params: {
           });
         }
 
-        // ── IMAGE ─────────────────────────────────────────────────────────
-        else if (el.type === 'image' && el.src) {
-          // Find original index in unsorted elements to look up pre-fetched image
-          const origIdx = (slide.elements || []).indexOf(el);
-          const imgData = imgMap.get(`${si}-${origIdx}`)
-            || await fetchImageAsBase64(el.src);
+        // ── IMAGE / ICON ──────────────────────────────────────────────────
+        else if (
+          (el.type === 'image' || el.type === 'icon') &&
+          el.src &&
+          !el.aiImagePending
+        ) {
+          const imgData =
+            imgMap.get(`${si}:${el.id}`) || (await fetchImageAsBase64ForExport(el.src));
 
           if (imgData) {
+            const imageTransparency = combinedShapeTransparency(undefined, el.opacity);
             pptSlide.addImage({
               ...common,
-              data:     imgData,
-              sizing:   { type: 'cover', w: common.w, h: common.h },
+              data: imgData,
+              sizing: { type: 'cover', w: common.w, h: common.h },
               rounding: false,
-            });
+              ...(imageTransparency !== undefined
+                ? { transparency: imageTransparency }
+                : {}),
+            } as any);
+          } else {
+            console.warn('[pptx-export] missing image on slide', si + 1, el.id, (el.src || '').slice(0, 80));
           }
+        }
+
+        // ── FREEHAND DRAW ─────────────────────────────────────────────────
+        else if (el.type === 'draw' && el.points && el.points.length >= 4) {
+          const pts = el.points.map((p) => px(p));
+          const strokeParsed = parseColorForPptx(el.shapeStyle?.stroke || el.shapeStyle?.fill || '#38BDF8');
+          pptSlide.addShape(pptx.ShapeType.line, {
+            ...common,
+            line: {
+              color: strokeParsed.color,
+              pt: el.shapeStyle?.strokeWidth || 3,
+              transparency: strokeParsed.transparency,
+            },
+            points: pts,
+          } as any);
         }
 
         // ── SHAPE ─────────────────────────────────────────────────────────
         else if (el.type === 'shape') {
-          const ss   = el.shapeStyle || {};
-          const fill = ss.fill ? { type: 'solid', color: hex(ss.fill) } : { type: 'none' };
-          const line = ss.stroke && ss.strokeWidth
-            ? { color: hex(ss.stroke), pt: ss.strokeWidth }
-            : { type: 'none' };
+          const ss = el.shapeStyle || {};
+
+          if (el.shapeType === 'path') {
+            const pathData = shapePathToSvgDataUri(el);
+            if (pathData) {
+              pptSlide.addImage({
+                ...common,
+                data: pathData,
+                sizing: { type: 'contain', w: common.w, h: common.h },
+              });
+            }
+            continue;
+          }
+
+          const fillParsed = ss.fill ? parseColorForPptx(ss.fill) : null;
+          const strokeParsed =
+            ss.stroke && ss.stroke !== 'transparent' ? parseColorForPptx(ss.stroke) : null;
+          const shapeTransparency = combinedShapeTransparency(
+            fillParsed?.transparency,
+            el.opacity,
+          );
+
+          const fill = fillParsed
+            ? {
+                type: 'solid' as const,
+                color: fillParsed.color,
+                ...(shapeTransparency !== undefined ? { transparency: shapeTransparency } : {}),
+              }
+            : { type: 'none' as const };
+
+          const line =
+            strokeParsed && ss.strokeWidth
+              ? { color: strokeParsed.color, pt: ss.strokeWidth }
+              : { type: 'none' as const };
+
+          if (el.shapeType === 'line' || el.shapeType === 'arrow') {
+            const lineColor = strokeParsed?.color || fillParsed?.color || '000000';
+            pptSlide.addShape(
+              el.shapeType === 'arrow' ? pptx.ShapeType.rightArrow : pptx.ShapeType.line,
+              {
+                ...common,
+                line: { color: lineColor, pt: ss.strokeWidth || 4 },
+                fill: fillParsed ? { type: 'solid', color: fillParsed.color } : undefined,
+              } as any,
+            );
+            continue;
+          }
 
           const shapeType =
-            el.shapeType === 'circle'   ? pptx.ShapeType.ellipse :
-            el.shapeType === 'triangle' ? pptx.ShapeType.triangle :
-            pptx.ShapeType.rect;
+            el.shapeType === 'circle'
+              ? pptx.ShapeType.ellipse
+              : el.shapeType === 'triangle'
+                ? pptx.ShapeType.triangle
+                : el.shapeType === 'star'
+                  ? pptx.ShapeType.star5
+                  : pptx.ShapeType.rect;
 
           pptSlide.addShape(shapeType, {
             ...common,
             fill,
             line,
-            opacity:    el.opacity ?? 1,
-            rectRadius: el.shapeType === 'rect' && ss.cornerRadius
-              ? ss.cornerRadius / 100
-              : undefined,
+            rectRadius:
+              el.shapeType === 'rect' && ss.cornerRadius ? ss.cornerRadius / 100 : undefined,
           } as any);
         }
       }
@@ -511,26 +535,44 @@ export async function runPptxExport(params: {
 
     const finalBuffer = buffer; // Use the safe, unpatched buffer
 
-  if (jobId && exportR2Client && process.env.CLOUDFLARE_R2_BUCKET_NAME) {
+  if (jobId) {
+    const client = getR2Client();
+    const bucket = getR2BucketName();
+    if (!client || !bucket) {
+      throw new Error('Export storage (Cloudflare R2) is not configured');
+    }
     const exportKey = `exports/${userId}/${jobId}.pptx`;
-    await exportR2Client.send(
-      new PutObjectCommand({
-        Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,
-        Key: exportKey,
-        Body: Buffer.from(finalBuffer),
-        ContentType:
-          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      }),
-    );
-    await updateJobRecord(jobId, {
-      status: 'completed',
-      progress: 100,
-      result: { exportKey, fileName: `${safeTitle}.pptx` },
-    });
-    return { mode: 'job', exportKey, fileName: `${safeTitle}.pptx` };
+    try {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: exportKey,
+          Body: Buffer.from(finalBuffer),
+          ContentType:
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        }),
+      );
+      await updateJobRecord(jobId, {
+        status: 'completed',
+        progress: 100,
+        result: { exportKey, fileName: `${safeTitle}.pptx` },
+      });
+      return { mode: 'job', exportKey, fileName: `${safeTitle}.pptx` };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'PPTX upload failed';
+      await failExportJob(jobId, msg);
+      throw e;
+    }
   }
 
   return { mode: 'download', buffer: finalBuffer, fileName: `${safeTitle}.pptx` };
+  } catch (e) {
+    if (jobId) {
+      const msg = e instanceof Error ? e.message : 'PPTX export failed';
+      await failExportJob(jobId, msg);
+    }
+    throw e;
+  }
 }
 
 // ── Post-process: Inject OOXML animations into the pptx buffer ────────────────

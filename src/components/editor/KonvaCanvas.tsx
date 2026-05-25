@@ -885,13 +885,13 @@ export function KonvaCanvas({ scale }: { scale: number }) {
 
   // Expose stage globally so TopBar PDF export can call toDataURL()
   useEffect(() => {
-    if (stageRef.current) {
-      (window as any).__konvaStage = stageRef.current;
-    }
+    if (typeof window === 'undefined') return;
+    const win = window as Window & { __konvaStage?: typeof stageRef.current };
+    win.__konvaStage = stageRef.current;
     return () => {
-      delete (window as any).__konvaStage;
+      delete win.__konvaStage;
     };
-  });
+  }, []);
 
   const slide = usePresentationStore((s) => {
     const p = s.presentation;
@@ -946,23 +946,18 @@ export function KonvaCanvas({ scale }: { scale: number }) {
     setContextMenu({ visible: true, x, y, targetId: id });
   }, [selectElement]);
 
-  // ── Clipboard for copy/paste ──────────────────────────────────────────────
-  const clipboardRef = useRef<import('@/types').SlideElement | null>(null);
-
-  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  // ── Canvas-only keyboard shortcuts (undo/copy/delete live in useKeyboardShortcuts) ──
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const tag = (document.activeElement as HTMLElement)?.tagName;
-      // Don't steal keys from inputs/textareas
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if ((document.activeElement as HTMLElement)?.isContentEditable) return;
 
       const mod = e.ctrlKey || e.metaKey;
       const store = usePresentationStore.getState();
       const sel = store.editor.selectedElementId;
-      const selIds = store.editor.selectedElementIds;
       const currentSlide = store.presentation?.slides[store.currentSlideIndex];
 
-      // Escape → deselect all
       if (e.key === 'Escape') {
         selectElement(null);
         clearMultiSelection();
@@ -970,77 +965,9 @@ export function KonvaCanvas({ scale }: { scale: number }) {
         return;
       }
 
-      // Undo / Redo
-      if (mod && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) {
-          store.redo();
-        } else {
-          store.undo();
-        }
-        return;
-      }
-      if (mod && e.key.toLowerCase() === 'y') {
-        e.preventDefault();
-        store.redo();
-        return;
-      }
-
-      // Delete / Backspace → remove selected element(s)
-      if ((e.key === 'Delete' || e.key === 'Backspace') && currentSlide) {
-        e.preventDefault();
-        const idsToDelete = selIds.length > 1 ? selIds : sel ? [sel] : [];
-        if (idsToDelete.length > 0) {
-          idsToDelete.forEach((id) => removeElement(currentSlide.id, id));
-          clearMultiSelection();
-        }
-        return;
-      }
-
       if (!sel || !currentSlide) return;
       const selectedEl = currentSlide.elements?.find((el) => el.id === sel);
       if (!selectedEl) return;
-
-      // Ctrl+C → copy element
-      if (mod && e.key === 'c') {
-        e.preventDefault();
-        clipboardRef.current = JSON.parse(JSON.stringify(selectedEl));
-        return;
-      }
-
-      // Ctrl+V → paste element
-      if (mod && e.key === 'v') {
-        e.preventDefault();
-        const clip = clipboardRef.current;
-        if (!clip) return;
-        const newId = `el-paste-${Date.now()}`;
-        const newEl: import('@/types').SlideElement = {
-          ...JSON.parse(JSON.stringify(clip)),
-          id: newId,
-          x: Math.min(1280 - clip.width, clip.x + 20),
-          y: Math.min(720 - clip.height, clip.y + 20),
-          zIndex: (currentSlide.elements?.length || 0) + 1,
-        };
-        addElement(currentSlide.id, newEl);
-        selectElement(newId);
-        return;
-      }
-
-      // Ctrl+D → duplicate
-      if (mod && e.key === 'd') {
-        e.preventDefault();
-        const newId = `el-dup-${Date.now()}`;
-        const newEl: import('@/types').SlideElement = {
-          ...JSON.parse(JSON.stringify(selectedEl)),
-          id: newId,
-          x: Math.min(1280 - selectedEl.width, selectedEl.x + 20),
-          y: Math.min(720 - selectedEl.height, selectedEl.y + 20),
-          zIndex: (currentSlide.elements?.length || 0) + 1,
-        };
-        addElement(currentSlide.id, newEl);
-        selectElement(newId);
-        return;
-      }
 
       // Arrow keys → nudge selected element
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
@@ -1075,7 +1002,7 @@ export function KonvaCanvas({ scale }: { scale: number }) {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectElement, clearMultiSelection, updateElement, addElement, removeElement]);
+  }, [selectElement, clearMultiSelection, updateElement]);
 
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (!isSlideBackgroundTarget(e.target)) return;

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { requireAiUser } from '@/lib/auth/require-ai-route';
-import { consumeCreditsForUser } from '@/lib/billing/credits';
+import { consumeCreditsForUser, refundCreditsForUser } from '@/lib/billing/credits';
 
 // remove.bg charges per image — cap payload to prevent abuse
 const MAX_PAYLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -48,11 +48,13 @@ export async function POST(req: Request) {
     }
 
     // ── 4. Deduct credits (5 credits = ~same cost as one image) ───────────
+    const idempotencyKey = `remove-bg:${user.id}:${Date.now()}`;
     const creditResult = await consumeCreditsForUser({
       userId: user.id,
       cost: 5,
       action: 'image_standard',
       meta: { feature: 'remove_bg' },
+      idempotencyKey,
     });
 
     if (!creditResult.ok) {
@@ -87,7 +89,12 @@ export async function POST(req: Request) {
       const errText = await response.text();
       console.error('[remove-bg] API error:', response.status, errText);
       // Refund credits on API failure
-      await consumeCreditsForUser({ userId: user.id, cost: -5, action: 'image_standard', meta: { refund: 'remove_bg_error' } }).catch(() => {});
+      await refundCreditsForUser({
+        userId: user.id,
+        cost: 5,
+        idempotencyKey: `${idempotencyKey}:refund`,
+        reason: 'remove_bg_error',
+      }).catch(() => {});
       return NextResponse.json(
         { error: 'Failed to remove background. Please try again.' },
         { status: response.status === 402 ? 503 : response.status },

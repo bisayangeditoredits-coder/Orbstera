@@ -19,6 +19,7 @@ import {
 import { createClient } from '@/lib/supabase';
 import { postPresentationCloudSave } from '@/lib/presentation-cloud-save';
 import { buildPresentationUpdatesAfterCloudSave } from '@/lib/merge-cloud-prepared';
+import { enqueueCloudSave } from '@/lib/cloud-save-lock';
 import { suppressCloudDirtyDuring } from '@/lib/cloud-dirty-suppress';
 import { humanizeFetchError, isAbortLikeError } from '@/lib/network-error-message';
 import { CreditsHUD } from './CreditsHUD';
@@ -438,72 +439,81 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
     if (!id) return;
     try {
       const res = await fetch(`/api/presentations?id=${encodeURIComponent(id)}`, { cache: 'no-store' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(typeof err.error === 'string' ? err.error : `Reload failed (${res.status})`);
+      }
       const data = await res.json();
-      if (data?.id) {
+      if (data?.id && Array.isArray(data.slides)) {
         setPresentation(data);
         setEditorState({ cloudSyncStatus: 'idle', cloudSyncMessage: undefined });
+      } else {
+        throw new Error('Invalid deck data from server');
       }
-    } catch {
-      setEditorState({ cloudSyncStatus: 'error', cloudSyncMessage: 'Reload failed' });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Reload failed';
+      setEditorState({ cloudSyncStatus: 'error', cloudSyncMessage: msg });
     }
   };
 
   const retrySaveNow = async () => {
     const body = usePresentationStore.getState().presentation;
     if (!body?.id) return;
-    setEditorState({ cloudSyncStatus: 'saving', cloudSyncMessage: undefined });
+    setEditorState({ cloudSyncStatus: 'retrying', cloudSyncMessage: undefined });
     try {
-      const { response: res, prepared } = await postPresentationCloudSave(body);
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 401) {
-        setEditorState({
-          cloudSyncStatus: 'error',
-          cloudSyncMessage: 'Sign in to sync to the cloud.',
-        });
-        return;
-      }
-      if (res.status === 409) {
-        setEditorState({
-          cloudSyncStatus: 'conflict',
-          cloudSyncMessage: 'This deck was saved elsewhere. Reload to get the latest version.',
-        });
-        return;
-      }
-      if (!res.ok) {
-        if (res.status === 413) {
-          throw new Error(
-            'Deck too large to upload in one request. Set NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL for image offload, or reduce embedded images.',
-          );
-        }
-        throw new Error(typeof data.error === 'string' ? data.error : 'Save failed');
-      }
-      if (data.message === 'Placeholder skipped') {
-        setEditorState({ cloudSyncStatus: 'idle', cloudSyncMessage: undefined });
-        return;
-      }
-      if (data.success && typeof data.saveVersion === 'number') {
-        const current = usePresentationStore.getState().presentation;
-        if (current) {
-          suppressCloudDirtyDuring(() => {
-            usePresentationStore.getState().updatePresentation(
-              buildPresentationUpdatesAfterCloudSave(
-                current,
-                body,
-                prepared,
-                data.saveVersion,
-                data.updatedAt || new Date().toISOString(),
-              ),
-            );
+      await enqueueCloudSave(async () => {
+        const { response: res, prepared } = await postPresentationCloudSave(body);
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 401) {
+          setEditorState({
+            cloudSyncStatus: 'error',
+            cloudSyncMessage: 'Sign in to sync to the cloud.',
           });
+          return;
         }
-        setEditorState({ cloudSyncStatus: 'saved' });
-        window.setTimeout(() => {
-          const st = usePresentationStore.getState().editor.cloudSyncStatus;
-          if (st === 'saved') setEditorState({ cloudSyncStatus: 'idle' });
-        }, 1800);
-        return;
-      }
-      setEditorState({ cloudSyncStatus: 'idle', cloudSyncMessage: undefined });
+        if (res.status === 409) {
+          setEditorState({
+            cloudSyncStatus: 'conflict',
+            cloudSyncMessage: 'This deck was saved elsewhere. Reload to get the latest version.',
+          });
+          return;
+        }
+        if (!res.ok) {
+          if (res.status === 413) {
+            throw new Error(
+              'Deck too large to upload in one request. Set NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL for image offload, or reduce embedded images.',
+            );
+          }
+          throw new Error(typeof data.error === 'string' ? data.error : 'Save failed');
+        }
+        if (data.message === 'Placeholder skipped') {
+          setEditorState({ cloudSyncStatus: 'idle', cloudSyncMessage: undefined });
+          return;
+        }
+        if (data.success && typeof data.saveVersion === 'number') {
+          const current = usePresentationStore.getState().presentation;
+          if (current) {
+            suppressCloudDirtyDuring(() => {
+              usePresentationStore.getState().updatePresentation(
+                buildPresentationUpdatesAfterCloudSave(
+                  current,
+                  body,
+                  prepared,
+                  data.saveVersion,
+                  data.updatedAt || new Date().toISOString(),
+                ),
+              );
+            });
+          }
+          setEditorState({ cloudSyncStatus: 'saved' });
+          window.setTimeout(() => {
+            const st = usePresentationStore.getState().editor.cloudSyncStatus;
+            if (st === 'saved') setEditorState({ cloudSyncStatus: 'idle' });
+          }, 1800);
+          return;
+        }
+        setEditorState({ cloudSyncStatus: 'idle', cloudSyncMessage: undefined });
+      });
     } catch (e: unknown) {
       if (isAbortLikeError(e)) {
         setEditorState({ cloudSyncStatus: 'idle', cloudSyncMessage: undefined });

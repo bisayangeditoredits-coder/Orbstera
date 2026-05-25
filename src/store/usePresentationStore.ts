@@ -467,12 +467,14 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     // Progressive images: deck renders first; OpenRouter Flux fills in without blocking the UI thread.
     // Limited concurrency avoids rate spikes while still feeling fast.
     if (imageTasks.length > 0) {
+      const deckIdForImages = deckId;
       const queue = [...imageTasks];
       const concurrency = 2;
       const worker = async () => {
         while (queue.length) {
           const task = queue.shift();
           if (!task) break;
+          if (get().presentation?.id !== deckIdForImages) break;
           try {
             const res = await fetch('/api/generate-image', {
               method: 'POST',
@@ -944,6 +946,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       set({ presentation: { title: "Generating...", theme: "modern-dark", colorPalette: ["#05050A", "#FFFFFF", "#0009fa", "#94A3B8"], fontPairing: { heading: "Space Grotesk", body: "Inter" }, animationStyle: "cinematic-reveal", slides: [] } });
     }
 
+    const pendingImageJobs: Array<() => void> = [];
     const scheduleDeckImage = (work: () => Promise<void>) => {
       const ed = get().editor;
       if (ed.freeTasteActive && (ed.freeTasteImagesRemaining ?? 0) <= 0) return;
@@ -955,7 +958,9 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
           },
         });
       }
-      get().trackDeckGenerationImage(work);
+      pendingImageJobs.push(() => {
+        get().trackDeckGenerationImage(work);
+      });
     };
 
     const currentPres = get().presentation!;
@@ -1102,6 +1107,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       styleMode: currentPres.styleMode,
       defaultSlideTransition: currentPres.defaultSlideTransition,
     });
+    const deckIdAtStream = get().presentation?.id;
     set((state) => {
       if (!state.presentation) return state;
       const slides = [...state.presentation.slides];
@@ -1115,6 +1121,9 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         currentSlideIndex: placeholderIdx >= 0 ? placeholderIdx : slides.length - 1,
       };
     });
+    if (deckIdAtStream && get().presentation?.id === deckIdAtStream) {
+      for (const job of pendingImageJobs) job();
+    }
   },
 
   // ─── Onboarding ────────────────────────────────────────────────────────────

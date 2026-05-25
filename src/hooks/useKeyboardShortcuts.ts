@@ -1,52 +1,39 @@
 'use client';
 
 /**
- * useKeyboardShortcuts
- * --------------------
- * Handles global keyboard shortcuts for the canvas editor.
- * Wires into the existing store actions so no store code needs to change.
- *
- * Shortcuts:
- *   Ctrl/Cmd + Z   → undo
- *   Ctrl/Cmd + Y   → redo
- *   Ctrl/Cmd + Shift + Z → redo (Mac style)
- *   Ctrl/Cmd + C   → copy selected element
- *   Ctrl/Cmd + V   → paste element
- *   Ctrl/Cmd + D   → duplicate selected element
- *   Delete / Backspace → remove selected element
- *   Escape         → deselect
+ * Global canvas keyboard shortcuts (single listener — KonvaCanvas keeps canvas-only keys).
  */
-
 import { useEffect } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
+
+function isTypingInField(): boolean {
+  const active = document.activeElement as HTMLElement | null;
+  if (!active) return false;
+  const tag = active.tagName;
+  return (
+    tag === 'INPUT' ||
+    tag === 'TEXTAREA' ||
+    tag === 'SELECT' ||
+    active.isContentEditable
+  );
+}
 
 export function useKeyboardShortcuts() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Do not intercept when user is typing in an input / textarea / contenteditable
-      const active = document.activeElement as HTMLElement | null;
-      if (!active) return;
-      const tag = active.tagName;
-      if (
-        tag === 'INPUT' ||
-        tag === 'TEXTAREA' ||
-        tag === 'SELECT' ||
-        active.isContentEditable
-      ) {
-        return;
-      }
+      if (isTypingInField()) return;
 
       const ctrl = e.ctrlKey || e.metaKey;
       const store = usePresentationStore.getState();
+      const { presentation, currentSlideIndex, editor } = store;
+      const slide = presentation?.slides?.[currentSlideIndex];
 
-      // ── Undo ──────────────────────────────────────────────────────────────
       if (ctrl && !e.shiftKey && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         store.undo();
         return;
       }
 
-      // ── Redo ──────────────────────────────────────────────────────────────
       if (
         (ctrl && e.key.toLowerCase() === 'y') ||
         (ctrl && e.shiftKey && e.key.toLowerCase() === 'z')
@@ -56,22 +43,19 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // ── Copy ──────────────────────────────────────────────────────────────
       if (ctrl && !e.shiftKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
         store.copyElement();
         return;
       }
 
-      // ── Paste ─────────────────────────────────────────────────────────────
       if (ctrl && !e.shiftKey && e.key.toLowerCase() === 'v') {
+        e.preventDefault();
         store.pasteElement();
         return;
       }
 
-      // ── Duplicate ─────────────────────────────────────────────────────────
       if (ctrl && !e.shiftKey && e.key.toLowerCase() === 'd') {
-        const { presentation, currentSlideIndex, editor } = store;
-        const slide = presentation?.slides?.[currentSlideIndex];
         if (slide && editor.selectedElementId) {
           e.preventDefault();
           store.duplicateElement(slide.id, editor.selectedElementId);
@@ -79,19 +63,25 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // ── Delete selected element ────────────────────────────────────────────
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        const { presentation, currentSlideIndex, editor } = store;
-        const slide = presentation?.slides?.[currentSlideIndex];
-        if (slide && editor.selectedElementId) {
-          store.removeElement(slide.id, editor.selectedElementId);
-        }
+        if (!slide) return;
+        const ids =
+          editor.selectedElementIds.length > 1
+            ? editor.selectedElementIds
+            : editor.selectedElementId
+              ? [editor.selectedElementId]
+              : [];
+        if (ids.length === 0) return;
+        e.preventDefault();
+        ids.forEach((id) => store.removeElement(slide.id, id));
+        if (ids.length > 1) store.clearMultiSelection();
+        else store.selectElement(null);
         return;
       }
 
-      // ── Escape: deselect ──────────────────────────────────────────────────
       if (e.key === 'Escape') {
         store.selectElement(null);
+        store.clearMultiSelection();
         return;
       }
     };
