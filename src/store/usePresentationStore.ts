@@ -595,7 +595,12 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         typeof updates.src === 'string' && updates.src.trim().length > 0
           ? { aiImagePending: false as const }
           : {};
+      const exitBuildReveal =
+        saveHistory && state.editor.generationBuildReveal
+          ? { generationBuildReveal: false as const }
+          : {};
       return {
+        editor: { ...state.editor, ...exitBuildReveal },
         presentation: {
           ...state.presentation,
           slides: state.presentation.slides.map((s) =>
@@ -765,14 +770,25 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     generationGalleryOpen: false,
     cloudSyncStatus: 'idle',
     cloudSyncMessage: undefined,
+    generationBuildReveal: false,
+    generationRevealedSlides: [],
   },
   setEditorState: (updates) =>
     set((state) => ({ editor: { ...state.editor, ...updates } })),
 
   selectElement: (id) =>
     set((state) => {
+      const exitBuildReveal = state.editor.generationBuildReveal
+        ? { generationBuildReveal: false as const }
+        : {};
       const updates: Partial<PresentationStore> = {
-        editor: { ...state.editor, selectedElementId: id, selectedElementIds: id ? [id] : [], isPanningImage: null }
+        editor: {
+          ...state.editor,
+          ...exitBuildReveal,
+          selectedElementId: id,
+          selectedElementIds: id ? [id] : [],
+          isPanningImage: null,
+        },
       };
       // With a selection: open side panel and show Layers (properties / stack).
       if (id !== null) {

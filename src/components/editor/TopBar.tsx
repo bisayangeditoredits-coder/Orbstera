@@ -11,7 +11,7 @@ import {
   ArrowLeft, Play, Download, Share2,
   Loader2, Layers, Wand2, FileText,
   CheckCircle, Pencil, X, Undo2, Redo2,
-  FileDown, PackageCheck, Sparkles,
+  Sparkles,
   Clock, AlignLeft, LayoutTemplate, Palette,
   Upload, AlertCircle, RefreshCw,
   PanelLeft,
@@ -23,270 +23,8 @@ import { enqueueCloudSave } from '@/lib/cloud-save-lock';
 import { suppressCloudDirtyDuring } from '@/lib/cloud-dirty-suppress';
 import { humanizeFetchError, isAbortLikeError } from '@/lib/network-error-message';
 import { CreditsHUD } from './CreditsHUD';
-
-// ── Export Progress Modal ─────────────────────────────────────────────────────
-const EXPORT_STEPS = [
-  { icon: Sparkles,     label: 'Analyzing layout',       detail: 'Mapping slide elements & coordinates'   },
-  { icon: PackageCheck, label: 'Building PPTX',           detail: 'Embedding fonts, shapes & HD images'    },
-  { icon: FileDown,     label: 'Finalizing download',     detail: 'Transferring to your device'             },
-];
-
-function ExportModal({ step, done, error, onClose }: {
-  step: number; done: boolean; error: string | null; onClose: () => void;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[300] flex items-center justify-center p-4 safe-pad-y"
-      style={{ background: 'rgba(10, 10, 14, 0.75)', backdropFilter: 'blur(24px)' }}
-    >
-      <motion.div
-        initial={{ scale: 0.95, y: 30, opacity: 0 }}
-        animate={{ scale: 1, y: 0, opacity: 1 }}
-        exit={{ scale: 0.95, y: 20, opacity: 0 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-        className="relative w-full max-w-[380px] rounded-[32px] overflow-hidden"
-        style={{
-          background: 'linear-gradient(160deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)',
-          boxShadow: '0 40px 100px -20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.5) inset, 0 20px 40px -10px rgba(99,102,241,0.15)',
-        }}
-      >
-        {/* Animated ambient background glows */}
-        <motion.div 
-          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
-          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -top-24 -left-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-[50px]" 
-        />
-        <motion.div 
-          animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.4, 0.2] }}
-          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-          className="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-500/20 rounded-full blur-[50px]" 
-        />
-        
-        {/* Shimmering Top Bar */}
-        <motion.div 
-          className="h-[3px] w-full" 
-          animate={{ backgroundPosition: ['200% center', '-200% center'] }}
-          transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
-          style={{ 
-            background: 'linear-gradient(90deg, #4f46e5, #ec4899, #8b5cf6, #4f46e5)', 
-            backgroundSize: '200% auto' 
-          }} 
-        />
-
-        <div className="p-8 flex flex-col items-center gap-7 relative z-10">
-
-          {done && !error ? (
-            <>
-              <motion.div
-                initial={{ scale: 0, rotate: -20 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: 'spring', damping: 12, stiffness: 180, delay: 0.05 }}
-                className="relative w-24 h-24 flex items-center justify-center"
-              >
-                <motion.div 
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
-                  className="absolute inset-0 rounded-full border-2 border-emerald-400" 
-                />
-                <div className="absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.2) 0%, transparent 70%)' }} />
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center shadow-[0_10px_30px_-10px_rgba(16,185,129,0.5),inset_0_2px_4px_rgba(255,255,255,0.4)] border border-emerald-300">
-                  <CheckCircle size={40} className="text-white" strokeWidth={2.5} />
-                </div>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-                className="text-center"
-              >
-                <h3 className="text-[20px] font-extrabold text-neutral-900 tracking-tight">Ready to present!</h3>
-                <p className="text-[13.5px] text-neutral-500 mt-2 leading-relaxed">Your PPTX is fully editable in PowerPoint,<br/>Keynote & LibreOffice.</p>
-              </motion.div>
-              <motion.button
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                onClick={onClose}
-                className="w-full h-12 rounded-2xl text-white font-bold text-[15px] tracking-tight hover:opacity-90 transition-all active:scale-[0.97] shadow-[0_10px_20px_-10px_rgba(99,102,241,0.5)] border border-white/10"
-                style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
-              >
-                Done
-              </motion.button>
-            </>
-          ) : error ? (
-            <>
-              <div className="relative w-20 h-20 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.2) 0%, transparent 70%)' }} />
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-400 to-red-500 flex items-center justify-center shadow-[0_10px_30px_-10px_rgba(239,68,68,0.5),inset_0_2px_4px_rgba(255,255,255,0.4)] border border-red-300">
-                  <X size={32} className="text-white" strokeWidth={2.5} />
-                </div>
-              </div>
-              <div className="text-center">
-                <h3 className="text-[18px] font-extrabold text-neutral-900 tracking-tight">Export Failed</h3>
-                <p className="text-[13px] text-red-500/90 mt-2.5 max-w-[280px] text-center break-words leading-relaxed">{error}</p>
-              </div>
-              <button
-                onClick={onClose}
-                className="w-full h-12 rounded-2xl bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold text-[15px] transition-all active:scale-[0.97] shadow-[0_10px_20px_-10px_rgba(239,68,68,0.5)]"
-              >
-                Close
-              </button>
-            </>
-          ) : (
-            <>
-              {/* Premium Info Banner */}
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="w-full relative overflow-hidden rounded-2xl p-4 border border-indigo-100/50 bg-indigo-50/40 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-300/20 to-purple-300/20 rounded-full blur-[20px] -mr-10 -mt-10" />
-                <div className="relative z-10 flex gap-3 items-start">
-                  <div className="shrink-0 mt-0.5 w-6 h-6 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center shadow-sm">
-                    <Sparkles size={12} className="text-indigo-600" />
-                  </div>
-                  <p className="text-[11.5px] leading-relaxed text-indigo-900/80 font-medium">
-                    Slide animations are experienced beautifully here in Orbstera, but will not be applied to the exported PPTX.
-                  </p>
-                </div>
-              </motion.div>
-
-              {/* Pulsing Central Icon */}
-              <div className="relative w-28 h-28 flex items-center justify-center my-2">
-                <motion.div 
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: [0.8, 1.4], opacity: [0.6, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
-                  className="absolute inset-0 rounded-full border border-indigo-400" 
-                />
-                <motion.div 
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: [0.8, 1.6], opacity: [0.3, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeOut', delay: 0.5 }}
-                  className="absolute inset-0 rounded-full border border-purple-300" 
-                />
-                
-                <div className="relative w-20 h-20 rounded-[1.25rem] bg-gradient-to-br from-white to-[#f5f7ff] flex items-center justify-center shadow-[0_15px_35px_-10px_rgba(79,70,229,0.3),inset_0_2px_5px_rgba(255,255,255,1)] border border-indigo-100/80 z-10">
-                  <motion.div
-                    animate={{ y: [0, -4, 0], scale: [1, 1.05, 1] }}
-                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                    className="relative"
-                  >
-                    <div className="absolute inset-0 blur-[8px] bg-indigo-500/30 scale-110" />
-                    <FileDown size={32} className="text-indigo-600 relative z-10 drop-shadow-sm" strokeWidth={2} />
-                  </motion.div>
-                </div>
-              </div>
-
-              {/* Steps List */}
-              <div className="w-full space-y-2.5">
-                {EXPORT_STEPS.map((s, i) => {
-                  const Icon   = s.icon;
-                  const active = i === step;
-                  const isDone = i < step;
-                  return (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: active || isDone ? 1 : 0.4, x: 0 }}
-                      transition={{ duration: 0.4, delay: i * 0.1 }}
-                      className={`relative flex items-center gap-3.5 px-4 py-3 rounded-[1.15rem] transition-all overflow-hidden ${
-                        active ? 'shadow-[0_4px_12px_-4px_rgba(99,102,241,0.15)] border border-indigo-200/50 bg-white/60 backdrop-blur-md' : 'bg-transparent border border-transparent'
-                      }`}
-                    >
-                      {active && (
-                        <motion.div 
-                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent skew-x-[-20deg]" 
-                          animate={{ x: ['-200%', '200%'] }}
-                          transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-                        />
-                      )}
-                      
-                      <div className={`relative z-10 w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-500 ${
-                        isDone  ? 'bg-gradient-to-br from-emerald-100 to-emerald-50 text-emerald-600 shadow-[inset_0_1px_2px_rgba(255,255,255,0.8)] border border-emerald-100/50' :
-                        active  ? 'bg-gradient-to-br from-indigo-500 to-purple-500 text-white shadow-[0_4px_10px_-2px_rgba(99,102,241,0.5),inset_0_2px_4px_rgba(255,255,255,0.3)]' : 
-                        'bg-neutral-100 text-neutral-400 border border-neutral-200/50'
-                      }`}>
-                        {isDone ? (
-                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring' }}>
-                            <CheckCircle size={18} strokeWidth={2.5} />
-                          </motion.div>
-                        ) : active ? (
-                          <motion.div animate={{ rotate: [0, 5, -5, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}>
-                            <Icon size={18} strokeWidth={2} />
-                          </motion.div>
-                        ) : (
-                          <Icon size={18} strokeWidth={2} />
-                        )}
-                      </div>
-                      
-                      <div className="min-w-0 flex-1 relative z-10">
-                        <p className={`text-[13.5px] font-bold leading-tight ${
-                          active ? 'text-indigo-950' : isDone ? 'text-neutral-800' : 'text-neutral-400'
-                        }`}>
-                          {s.label}
-                        </p>
-                        {active && (
-                          <motion.p
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            className="text-[11px] font-medium text-indigo-700/70 mt-1 leading-snug"
-                          >
-                            {s.detail}
-                          </motion.p>
-                        )}
-                      </div>
-                      {isDone && (
-                        <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="text-[11px] font-bold text-emerald-500 shrink-0 bg-emerald-50 px-2.5 py-1 rounded-full relative z-10">
-                          Done
-                        </motion.span>
-                      )}
-                    </motion.div>
-                  );
-                })}
-              </div>
-
-              {/* Shimmering Progress Bar */}
-              <div className="w-full mt-2">
-                <div className="relative w-full h-[6px] rounded-full bg-neutral-200/50 overflow-hidden shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)]">
-                  <motion.div
-                    className="absolute top-0 left-0 h-full rounded-full"
-                    style={{ background: 'linear-gradient(90deg, #4f46e5, #a855f7, #ec4899)' }}
-                    initial={{ width: '5%' }}
-                    animate={{ width: `${Math.round(((step + 1) / EXPORT_STEPS.length) * 100)}%` }}
-                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                  >
-                    <motion.div 
-                      className="w-full h-full"
-                      animate={{ backgroundPosition: ['200% center', '-200% center'] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                      style={{ 
-                        backgroundImage: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)',
-                        backgroundSize: '200% 100%'
-                      }}
-                    />
-                  </motion.div>
-                </div>
-                <div className="flex justify-between items-center mt-2.5 px-1">
-                  <p className="text-[11px] text-neutral-400 font-bold uppercase tracking-wider">
-                    Step {step + 1} of {EXPORT_STEPS.length}
-                  </p>
-                  <p className="text-[11px] text-indigo-600 font-bold">
-                    {Math.round(((step + 1) / EXPORT_STEPS.length) * 100)}%
-                  </p>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-}
+import { ShareModal } from './ShareModal';
+import { ExportModal, type ExportFormat } from './ExportModal';
 
 // ── Slide Stats ───────────────────────────────────────────────────────────────
 function SlideStats() {
@@ -451,18 +189,34 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
   const router = useRouter();
   const store       = usePresentationStore();
   const presentation = store.presentation;
-  const { activePanel, setActivePanel, isPanelOpen, setPanelOpen, setEditorState, setPresentation } = store;
+  const { activePanel, setActivePanel, isPanelOpen, setPanelOpen, setEditorState, setPresentation, updatePresentation } = store;
   const cloudSync = store.editor.cloudSyncStatus;
   const cloudMsg  = store.editor.cloudSyncMessage;
 
-  const [exportStep,  setExportStep]  = useState(-1);   // -1 = not exporting
-  const [exportDone,  setExportDone]  = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('pptx');
+  const [exportStep, setExportStep] = useState(-1);
+  const [exportDone, setExportDone] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [showWatermarkModal, setShowWatermarkModal] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
-  const [pdfExporting, setPdfExporting] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [ownerUserId, setOwnerUserId] = useState('');
   const importInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (presentation?.userId) {
+      setOwnerUserId(presentation.userId);
+      return;
+    }
+    createClient()
+      .auth.getUser()
+      .then(({ data: { user } }) => {
+        if (user?.id) setOwnerUserId(user.id);
+      })
+      .catch(() => {});
+  }, [presentation?.userId, presentation?.id]);
 
   const handleImportFile = async (file: File | null) => {
     if (!file) return;
@@ -594,7 +348,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
       if (!presentation) return;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key === 'p') { e.preventDefault(); setEditorState({ isPresenting: true }); }
-      if (mod && e.key === 'e') { e.preventDefault(); handleExportCheck(); }
+      if (mod && e.key === 'e') { e.preventDefault(); openExportModal('pptx'); }
       if (mod && e.key === 'd') { e.preventDefault(); handlePanelToggle('design'); }
     };
     window.addEventListener('keydown', onKey);
@@ -602,9 +356,18 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [presentation]);
 
+  const openExportModal = (format: ExportFormat = 'pptx') => {
+    if (!presentation) return;
+    setExportFormat(format);
+    setExportModalOpen(true);
+    setExportStep(-1);
+    setExportDone(false);
+    setExportError(null);
+  };
+
   const handleExportCheck = async () => {
-    if (!presentation || exportStep >= 0) return;
-    
+    if (!presentation) return;
+
     try {
       const { createClient } = await import('@/lib/supabase');
       const supabase = createClient();
@@ -621,6 +384,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
       }
 
       if (!isPaidUser && credits <= 0) {
+        setExportModalOpen(false);
         setShowWatermarkModal(true);
         return;
       }
@@ -634,6 +398,8 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
 
   const startExport = async () => {
     setShowWatermarkModal(false);
+    setExportModalOpen(true);
+    setExportFormat('pptx');
     setExportStep(0);
     setExportDone(false);
     setExportError(null);
@@ -659,17 +425,25 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
     }
   };
 
-  // ── PDF Export ─────────────────────────────────────────────────────────────
-  const handleExportPdf = async () => {
-    if (!presentation || pdfExporting) return;
-    setPdfExporting(true);
+  const startPdfExport = async () => {
+    if (!presentation) return;
+    setExportModalOpen(true);
+    setExportFormat('pdf');
+    setExportStep(0);
+    setExportDone(false);
+    setExportError(null);
+
     try {
+      await new Promise((r) => setTimeout(r, 400));
+      setExportStep(1);
+
       const { default: jsPDF } = await import('jspdf');
       const slides = presentation.slides;
       const store = usePresentationStore.getState();
       const origIndex = store.currentSlideIndex;
 
-      const W = 1280, H = 720;
+      const W = 1280;
+      const H = 720;
       const doc = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H], compress: true });
 
       for (let i = 0; i < slides.length; i++) {
@@ -677,24 +451,45 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         await new Promise((r) => setTimeout(r, 120));
 
-        const stage = (window as any).__konvaStage;
+        const stage = (window as unknown as { __konvaStage?: { toDataURL: (o: object) => string } })
+          .__konvaStage;
         if (stage) {
-          const dataUrl = stage.toDataURL({ mimeType: 'image/jpeg', quality: 0.92, pixelRatio: 1.5 });
+          const dataUrl = stage.toDataURL({
+            mimeType: 'image/jpeg',
+            quality: 0.92,
+            pixelRatio: 1.5,
+          });
           if (i > 0) doc.addPage([W, H], 'landscape');
           doc.addImage(dataUrl, 'JPEG', 0, 0, W, H, '', 'FAST');
         }
       }
 
       store.setCurrentSlideIndex(origIndex);
+      setExportStep(2);
+      await new Promise((r) => setTimeout(r, 400));
 
-      const safeName = (presentation.title ?? 'Presentation').replace(/[^a-zA-Z0-9\s-_]/g, '').trim() || 'Presentation';
+      const safeName =
+        (presentation.title ?? 'Presentation').replace(/[^a-zA-Z0-9\s-_]/g, '').trim() ||
+        'Presentation';
       doc.save(`${safeName}.pdf`);
+      setExportDone(true);
     } catch (err) {
       console.error('PDF export error:', err);
-      alert('PDF export failed. Please try again.');
-    } finally {
-      setPdfExporting(false);
+      setExportError(
+        err instanceof Error && err.message?.trim()
+          ? err.message.trim()
+          : 'PDF export failed. Please try again.',
+      );
     }
+  };
+
+  const handleStartExportFromModal = async () => {
+    if (!presentation) return;
+    if (exportFormat === 'pdf') {
+      await startPdfExport();
+      return;
+    }
+    await handleExportCheck();
   };
 
   const handleCheckout = async () => {
@@ -712,33 +507,26 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
     }
   };
 
-  const closeModal = () => {
+  const closeExportModal = () => {
+    setExportModalOpen(false);
+    setShowWatermarkModal(false);
     setExportStep(-1);
     setExportDone(false);
     setExportError(null);
   };
 
+  const exportPhase =
+    exportError != null
+      ? 'error'
+      : exportDone
+        ? 'success'
+        : exportStep >= 0
+          ? 'progress'
+          : 'options';
+
   const handlePanelToggle = (panel: typeof activePanel) => {
     if (activePanel === panel && isPanelOpen) setPanelOpen(false);
     else { setActivePanel(panel); setPanelOpen(true); }
-  };
-
-  const [isCopied, setIsCopied] = useState(false);
-
-  const handleShare = async () => {
-    try {
-      if (!presentation?.id) throw new Error('No presentation ID');
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('You must be logged in to share.');
-
-      const publicUrl = `${window.location.origin}/share/${user.id}/${presentation.id}`;
-      await navigator.clipboard.writeText(publicUrl);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy link', err);
-    }
   };
 
   const isExporting = exportStep >= 0 && !exportDone && !exportError;
@@ -750,13 +538,18 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
         {showWatermarkModal && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[400] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 safe-pad-y"
+            className="fixed inset-0 z-[650] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4 safe-pad-y"
+            role="presentation"
+            onClick={() => setShowWatermarkModal(false)}
           >
             <motion.div
               initial={{ scale: 0.9, y: 20, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.9, y: 20, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl border border-black/[0.06] p-6 sm:p-8 w-full max-w-sm max-h-[min(90dvh,640px)] overflow-y-auto flex flex-col items-center gap-6 relative"
+              role="dialog"
+              aria-modal="true"
+              className="bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200 p-6 sm:p-8 w-full max-w-sm max-h-[min(90dvh,640px)] overflow-y-auto flex flex-col items-center gap-6 relative"
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center shrink-0">
                 <Sparkles size={28} className="text-amber-500" />
@@ -786,8 +579,16 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
                 </button>
               </div>
               
-              <button type="button" onClick={() => setShowWatermarkModal(false)} className="absolute top-[max(0.75rem,env(safe-area-inset-top))] right-[max(0.75rem,env(safe-area-inset-right))] p-2 text-gray-400 hover:text-black touch-manipulation">
-                <X size={20} />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowWatermarkModal(false);
+                }}
+                className="absolute top-[max(0.75rem,env(safe-area-inset-top))] right-[max(0.75rem,env(safe-area-inset-right))] p-2 text-slate-400 hover:text-slate-900 touch-manipulation"
+                aria-label="Close"
+              >
+                <X size={20} strokeWidth={1.75} />
               </button>
             </motion.div>
           </motion.div>
@@ -840,16 +641,29 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {exportStep >= 0 && (
-          <ExportModal
-            step={exportStep}
-            done={exportDone}
-            error={exportError}
-            onClose={closeModal}
-          />
-        )}
-      </AnimatePresence>
+      <ExportModal
+        open={exportModalOpen}
+        onClose={closeExportModal}
+        phase={exportPhase}
+        format={exportFormat}
+        onFormatChange={setExportFormat}
+        onStartExport={handleStartExportFromModal}
+        step={Math.max(0, exportStep)}
+        error={exportError}
+      />
+
+      {presentation?.id && ownerUserId && (
+        <ShareModal
+          open={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+          deckId={presentation.id}
+          ownerUserId={ownerUserId}
+          initialShareAccess={presentation.shareAccess ?? 'private'}
+          onShareAccessChange={(access) => updatePresentation({ shareAccess: access })}
+          onExportPptx={() => openExportModal('pptx')}
+          onExportPdf={() => openExportModal('pdf')}
+        />
+      )}
 
       <header className="border-b border-black/[0.06] bg-[#FAFAFA]/95 backdrop-blur-md z-50 shrink-0 shadow-[0_1px_0_rgba(255,255,255,0.8)_inset] pt-[env(safe-area-inset-top,0px)]">
         <div className="flex flex-wrap items-center justify-between gap-y-2 py-2 px-2 sm:px-3 xl:grid xl:grid-cols-[minmax(180px,1fr)_auto_minmax(180px,1fr)] xl:gap-x-3 xl:gap-y-0 xl:py-0 xl:h-[52px] xl:px-4 2xl:gap-x-4 2xl:px-5">
@@ -999,13 +813,23 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
 
           <CreditsHUD />
 
-          <button 
+          <button
             type="button"
-            onClick={handleShare}
-            className="min-h-9 h-9 sm:h-[36px] px-3 sm:px-3.5 text-neutral-800 bg-white border border-black/[0.08] hover:bg-neutral-50 hover:border-black/12 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all flex items-center gap-2 text-[12px] sm:text-[13px] font-semibold active:scale-[0.98] touch-manipulation"
+            disabled={!presentation?.id}
+            onClick={async () => {
+              if (!presentation?.id) return;
+              let uid = ownerUserId || presentation.userId;
+              if (!uid) {
+                const { data: { user } } = await createClient().auth.getUser();
+                uid = user?.id ?? '';
+                if (uid) setOwnerUserId(uid);
+              }
+              if (uid) setShareModalOpen(true);
+            }}
+            className="min-h-9 h-9 sm:h-[36px] px-3 sm:px-3.5 text-neutral-800 bg-white border border-black/[0.08] hover:bg-neutral-50 hover:border-black/12 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all flex items-center gap-2 text-[12px] sm:text-[13px] font-semibold active:scale-[0.98] touch-manipulation disabled:opacity-40"
           >
-            {isCopied ? <CheckCircle size={15} className="text-emerald-600" strokeWidth={1.75} /> : <Share2 size={15} className="text-neutral-500" strokeWidth={1.75} />}
-            <span className="hidden md:inline">{isCopied ? 'Copied' : 'Share'}</span>
+            <Share2 size={15} className="text-neutral-500" strokeWidth={1.75} />
+            <span className="hidden md:inline">Share</span>
           </button>
 
           <button
@@ -1022,7 +846,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
           <button
             id="tour-export"
             type="button"
-            onClick={handleExportCheck}
+            onClick={() => openExportModal('pptx')}
             disabled={!presentation || isExporting}
             className="min-h-9 h-9 sm:h-[36px] px-3.5 sm:px-4 flex items-center shrink-0 whitespace-nowrap gap-2 text-[12px] sm:text-[13px] font-semibold text-white bg-gradient-to-b from-[#5B7CFF] to-primary hover:from-primary hover:to-[#3d5ef0] rounded-full shadow-[0_4px_14px_-4px_rgba(59,130,246,0.55),0_0_0_1px_rgba(255,255,255,0.12)_inset] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none relative overflow-hidden group touch-manipulation"
           >
@@ -1033,16 +857,13 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
           </button>
           <button
             type="button"
-            onClick={handleExportPdf}
-            disabled={!presentation || pdfExporting}
+            onClick={() => openExportModal('pdf')}
+            disabled={!presentation || isExporting}
             title="Export as PDF"
             className="min-h-9 h-9 sm:h-[36px] px-3 sm:px-3.5 flex items-center gap-1.5 text-[12px] sm:text-[13px] font-semibold text-neutral-700 bg-white border border-black/[0.08] hover:bg-neutral-50 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation"
           >
-            {pdfExporting
-              ? <Loader2 size={14} className="animate-spin" />
-              : <FileText size={14} strokeWidth={1.75} />
-            }
-            <span className="hidden sm:inline">{pdfExporting ? 'Exporting…' : 'PDF'}</span>
+            <FileText size={14} strokeWidth={1.75} />
+            <span className="hidden sm:inline">PDF</span>
           </button>
         </div>
         </div>

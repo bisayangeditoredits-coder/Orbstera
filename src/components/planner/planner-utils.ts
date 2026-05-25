@@ -166,8 +166,12 @@ export function getLatestAssistantContent(messages: Message[]): string {
 export function getOutlineProgress(
   slides: OutlineSlide[],
   loading: boolean,
+  targetSlideCount?: number,
 ): { count: number; isStreaming: boolean; target: number } {
-  const target = Math.max(8, slides.length || 8);
+  const target =
+    targetSlideCount && targetSlideCount > 0
+      ? targetSlideCount
+      : Math.max(8, slides.length || 8);
   return {
     count: slides.length,
     isStreaming: loading,

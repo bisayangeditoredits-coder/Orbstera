@@ -42,6 +42,7 @@ import {
   useCanvasSelection,
 } from '@/hooks/canvas';
 import { GuidesOverlay } from './GuidesOverlay';
+import { useGenerationElementReveal } from '@/hooks/useGenerationElementReveal';
 
 export { CANVAS_WIDTH, CANVAS_HEIGHT, STAGE_PADDING };
 
@@ -89,6 +90,8 @@ interface ElementNodeProps {
   onDragMoveSnapping?: (id: string, x: number, y: number, w: number, h: number) => { x: number; y: number } | void;
   onDragEndSnapping?: () => void;
   onMultiDragEnd?: (dx: number, dy: number, sourceId: string) => void;
+  generationRevealActive?: boolean;
+  revealVisible?: boolean;
 }
 
 // ─── Element Node Component ───────────────────────────────────────────────────
@@ -107,6 +110,8 @@ function ElementNode({
   onDragMoveSnapping,
   onDragEndSnapping,
   onMultiDragEnd,
+  generationRevealActive = false,
+  revealVisible = true,
 }: ElementNodeProps) {
   const isPanningImage = usePresentationStore((s) => s.editor.isPanningImage);
   const panStartRef = useRef<{ pointerX: number; pointerY: number; cropX: number; cropY: number } | null>(null);
@@ -162,7 +167,7 @@ function ElementNode({
   }, [isSelected, el.locked]);
 
   useEffect(() => {
-    if (previewElementId !== el.id) return;
+    if (previewElementId !== el.id || generationRevealActive) return;
     const node = shapeRef.current;
     if (!node) return;
     const layer = node.getLayer();
@@ -227,7 +232,42 @@ function ElementNode({
     };
   }, [previewElementId, el.id, el.opacity, el.animation, el.x, el.y, el.width, el.height]);
 
+  const baseOpacity = el.opacity ?? 1;
+  const prevRevealVisibleRef = useRef(revealVisible);
+
+  useEffect(() => {
+    if (!generationRevealActive) return;
+    const node = shapeRef.current;
+    if (!node) return;
+    const layer = node.getLayer();
+    if (!layer) return;
+
+    if (!revealVisible) {
+      node.opacity(0);
+      layer.batchDraw();
+      prevRevealVisibleRef.current = false;
+      return;
+    }
+
+    if (revealVisible && !prevRevealVisibleRef.current) {
+      node.opacity(0);
+      layer.batchDraw();
+      const tween = new Konva.Tween({
+        node,
+        duration: 0.18,
+        opacity: baseOpacity,
+        easing: Konva.Easings.EaseOut,
+        onFinish: () => layer.batchDraw(),
+      });
+      tween.play();
+      return () => tween.destroy();
+    }
+
+    prevRevealVisibleRef.current = revealVisible;
+  }, [generationRevealActive, revealVisible, el.id, baseOpacity]);
+
   if (el.visible === false) return null;
+  if (generationRevealActive && !revealVisible) return null;
 
   const elementListening = activeTool === 'select';
   const elementDraggable = activeTool === 'select' && !el.locked;
@@ -916,6 +956,20 @@ export function KonvaCanvas({ scale }: { scale: number }) {
     })),
   );
   const colorPalette = usePresentationStore((s) => s.presentation?.colorPalette ?? []);
+  const generationBuildReveal = usePresentationStore((s) => s.editor.generationBuildReveal);
+  const isGenerating = usePresentationStore((s) => s.editor.isGenerating);
+  const generationRevealedSlides = usePresentationStore(
+    (s) => s.editor.generationRevealedSlides ?? [],
+  );
+
+  const revealEnabled = Boolean(generationBuildReveal && isGenerating && slide);
+  const slideAlreadyRevealed = slide ? generationRevealedSlides.includes(slide.id) : false;
+  const { isElementVisible } = useGenerationElementReveal({
+    slideId: slide?.id ?? '',
+    elements: slide?.elements ?? [],
+    enabled: revealEnabled,
+    slideAlreadyRevealed,
+  });
 
   const { smartGuides, handleDragMoveSnapping, handleDragEndSnapping } = useSmartGuides({
     slideElements: slide?.elements,
@@ -1131,6 +1185,8 @@ export function KonvaCanvas({ scale }: { scale: number }) {
                   setEditingTextId(el.id);
                 }}
                 previewElementId={previewElementId}
+                generationRevealActive={revealEnabled && !slideAlreadyRevealed}
+                revealVisible={isElementVisible(el.id)}
                 snapToGrid={snapToGrid}
                 gridSize={gridSize}
                 onContextMenu={handleContextMenu}

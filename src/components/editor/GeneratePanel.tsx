@@ -546,17 +546,38 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
       }
 
       // For 'replace' mode, wipe the existing presentation immediately
+      const handoffAtStart = usePresentationStore.getState().editor.plannerHandoff;
+      const effectiveSlideCountAtStart =
+        handoffAtStart?.targetSlideCount && handoffAtStart.targetSlideCount > 0
+          ? handoffAtStart.targetSlideCount
+          : handoffAtStart?.outlineSlideCount && handoffAtStart.outlineSlideCount > 0
+            ? handoffAtStart.outlineSlideCount
+            : slideCount;
+
       if (appendMode === 'replace') {
-        usePresentationStore.getState().initGenerationPlaceholders(slideCount);
+        usePresentationStore.getState().initGenerationPlaceholders(effectiveSlideCountAtStart);
+        if (handoffAtStart?.colorPalette?.length) {
+          const pres = usePresentationStore.getState().presentation;
+          if (pres) {
+            usePresentationStore.getState().setPresentation({
+              ...pres,
+              colorPalette: handoffAtStart.colorPalette,
+              theme: handoffAtStart.themeName || pres.theme,
+            });
+          }
+        }
       }
 
       const nextEpoch = usePresentationStore.getState().editor.generationEpoch + 1;
+      const useBuildReveal = bypassPlanner;
       setEditorState({
         isGenerating: true,
         generationEpoch: nextEpoch,
-        generationBlockingOverlay: true,
+        generationBlockingOverlay: useBuildReveal ? false : true,
+        generationBuildReveal: useBuildReveal,
+        generationRevealedSlides: useBuildReveal ? [] : undefined,
         generationGalleryOpen: true,
-        generationTargetSlides: slideCount,
+        generationTargetSlides: effectiveSlideCountAtStart,
         generationPendingImages: 0,
         generationImageJobsTotal: 0,
         generationImageJobsCompleted: 0,
@@ -581,9 +602,11 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
 
         const handoff = usePresentationStore.getState().editor.plannerHandoff;
         const effectiveSlideCount =
-          handoff?.outlineSlideCount && handoff.outlineSlideCount > 0
-            ? handoff.outlineSlideCount
-            : slideCount;
+          handoff?.targetSlideCount && handoff.targetSlideCount > 0
+            ? handoff.targetSlideCount
+            : handoff?.outlineSlideCount && handoff.outlineSlideCount > 0
+              ? handoff.outlineSlideCount
+              : slideCount;
 
         const res = await fetch('/api/generate', {
           method: 'POST',
@@ -591,10 +614,12 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           body: JSON.stringify({
             prompt: trimmed,
             slideCount: effectiveSlideCount,
-            outlineSlideCount: handoff?.outlineSlideCount,
+            outlineSlideCount: handoff?.targetSlideCount ?? handoff?.outlineSlideCount,
             plannerSessionId: handoff?.sessionId ?? undefined,
             tone: selectedTone.toLowerCase().replace(/ & /g, '_'),
-            theme: selectedTheme,
+            theme: handoff?.themeName || selectedTheme,
+            colorPalette: handoff?.colorPalette,
+            styleMode: handoff?.styleMode,
             language: selectedLanguage,
           }),
           signal: ac.signal,
@@ -668,6 +693,9 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               const existingSlides = usePresentationStore.getState().presentation?.slides || [];
               storeSetPresentation({ ...finalData, slides: [...existingSlides, ...finalData.slides] });
             } else {
+              if (usePresentationStore.getState().editor.generationBuildReveal) {
+                setEditorState({ generationRevealedSlides: [] });
+              }
               storeSetPresentation(finalData);
             }
             createGenerationSucceeded = true;
@@ -869,6 +897,9 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               const existingSlides = usePresentationStore.getState().presentation?.slides || [];
               storeSetPresentation({ ...finalData, slides: [...existingSlides, ...finalData.slides] });
             } else {
+              if (usePresentationStore.getState().editor.generationBuildReveal) {
+                setEditorState({ generationRevealedSlides: [] });
+              }
               storeSetPresentation(finalData);
             }
             const imgJobs = usePresentationStore.getState().editor.generationImageJobsTotal;
@@ -899,6 +930,8 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           setEditorState({
             isGenerating: false,
             generationBlockingOverlay: false,
+            generationBuildReveal: false,
+            generationRevealedSlides: [],
             generationGalleryOpen: false,
             deckGenerationLifecycle: 'idle',
             generationTargetSlides: 0,

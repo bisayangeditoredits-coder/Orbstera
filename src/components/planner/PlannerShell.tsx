@@ -9,15 +9,36 @@ import { PlannerChat } from './PlannerChat';
 import { PlannerOutlinePanel } from './PlannerOutlinePanel';
 import { PlannerComposer } from './PlannerComposer';
 import { PlannerOnboarding } from './PlannerOnboarding';
+import { PlannerSetup } from './PlannerSetup';
 import {
   type OutlineSlide,
   getMergedOutlineSlides,
   formatOutlineForContext,
 } from './planner-utils';
+import {
+  buildPlannerFirstMessage,
+  plannerSetupStorageKey,
+  DEFAULT_PLANNER_THEME,
+  DEFAULT_PLANNER_SLIDE_COUNT,
+  type PlannerSetupPreferences,
+} from '@/lib/presentation-themes';
 import { cn } from '@/lib/cn';
 
 type Message = { role: string; content: string };
 type MobileTab = 'chat' | 'outline';
+
+function loadStoredSetup(topic: string): PlannerSetupPreferences | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(plannerSetupStorageKey(topic));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PlannerSetupPreferences;
+    if (parsed.slideCount && parsed.colorPalette?.length) return parsed;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
 
 export function PlannerShell() {
   const searchParams = useSearchParams();
@@ -34,17 +55,31 @@ export function PlannerShell() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [planTier, setPlanTier] = useState<'free' | 'pro'>('free');
   const [mobileTab, setMobileTab] = useState<MobileTab>('chat');
-
   const [slideNotes, setSlideNotes] = useState<Record<number, string>>({});
+
+  const [setupComplete, setSetupComplete] = useState(false);
+  const [plannerPreferences, setPlannerPreferences] = useState<PlannerSetupPreferences | null>(null);
 
   const initStartedRef = useRef(false);
   const prevSlideCountRef = useRef(0);
+
+  const targetSlideCount = plannerPreferences?.slideCount;
 
   const hasAssistantReply = messages.some((m) => m.role === 'assistant' && m.content.trim());
   const canGenerate = outlineSlides.length > 0 || (hasAssistantReply && !loading);
   const stepIndex = !hasAssistantReply ? 0 : outlineSlides.length > 0 ? 2 : 1;
   const showMobileOutlineBanner =
     outlineSlides.length > 0 && mobileTab === 'chat';
+
+  // Restore setup from sessionStorage when topic is known
+  useEffect(() => {
+    if (!topic) return;
+    const stored = loadStoredSetup(topic);
+    if (stored) {
+      setPlannerPreferences(stored);
+      setSetupComplete(true);
+    }
+  }, [topic]);
 
   // Sticky outline: merge across messages, never flash empty while loading
   useEffect(() => {
@@ -65,13 +100,29 @@ export function PlannerShell() {
   }, [outlineSlides.length]);
 
   const streamResponse = useCallback(
-    async (history: Message[], sId: string | null, topicLabel: string) => {
+    async (
+      history: Message[],
+      sId: string | null,
+      topicLabel: string,
+      prefs: PlannerSetupPreferences | null,
+    ) => {
       setLoading(true);
       try {
         const res = await fetch('/api/planner/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: history, sessionId: sId, topic: topicLabel }),
+          body: JSON.stringify({
+            messages: history,
+            sessionId: sId,
+            topic: topicLabel,
+            preferences: prefs
+              ? {
+                  slideCount: prefs.slideCount,
+                  colorPalette: prefs.colorPalette,
+                  themeName: prefs.themeName,
+                }
+              : undefined,
+          }),
         });
 
         const tier = res.headers.get('X-Planner-Plan');
@@ -144,7 +195,6 @@ export function PlannerShell() {
           }
         }
 
-        // Flush remaining buffer
         if (sseBuffer.startsWith('data: ') && sseBuffer !== 'data: [DONE]') {
           try {
             const data = JSON.parse(sseBuffer.slice(6));
@@ -185,7 +235,7 @@ export function PlannerShell() {
   );
 
   useEffect(() => {
-    if (!topic || initStartedRef.current) return;
+    if (!topic || !setupComplete || !plannerPreferences || initStartedRef.current) return;
     initStartedRef.current = true;
 
     const initChat = async () => {
@@ -201,7 +251,6 @@ export function PlannerShell() {
       let sid: string | null = null;
       if (user) {
         if (sessionIdParam) {
-          // Attempt to resume existing session
           const { data: existingMessages } = await supabase
             .from('chat_messages')
             .select('role, content')
@@ -211,11 +260,19 @@ export function PlannerShell() {
           if (existingMessages && existingMessages.length > 0) {
             setSessionId(sessionIdParam);
             setMessages(existingMessages as Message[]);
-            return; // Exit early, no need to send initial prompt
+            const stored = loadStoredSetup(topic);
+            setPlannerPreferences(
+              stored ?? {
+                slideCount: DEFAULT_PLANNER_SLIDE_COUNT,
+                themeName: DEFAULT_PLANNER_THEME.name,
+                colorPalette: [...DEFAULT_PLANNER_THEME.palette],
+              },
+            );
+            setSetupComplete(true);
+            return;
           }
         }
 
-        // Otherwise create new session
         const { data: session } = await supabase
           .from('chat_sessions')
           .insert({ user_id: user.id, title: topic.substring(0, 50) })
@@ -227,15 +284,15 @@ export function PlannerShell() {
 
       const firstMessage: Message = {
         role: 'user',
-        content: `I want to create a presentation about: "${topic}". Please suggest a slide-by-slide outline.`,
+        content: buildPlannerFirstMessage(topic, plannerPreferences),
       };
 
       setMessages([firstMessage]);
-      await streamResponse([firstMessage], sid, topic);
+      await streamResponse([firstMessage], sid, topic, plannerPreferences);
     };
 
     void initChat();
-  }, [topic, streamResponse]);
+  }, [topic, setupComplete, plannerPreferences, sessionIdParam, streamResponse]);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -246,13 +303,23 @@ export function PlannerShell() {
       const newHistory = [...messages, newMsg];
       setMessages(newHistory);
       setInput('');
-      await streamResponse(newHistory, sessionId, topic);
+      await streamResponse(newHistory, sessionId, topic, plannerPreferences);
     },
-    [loading, messages, sessionId, topic, streamResponse],
+    [loading, messages, sessionId, topic, plannerPreferences, streamResponse],
   );
 
   const handleSend = () => sendMessage(input);
   const handleQuickReply = (text: string) => sendMessage(text);
+
+  const handleSetupContinue = (prefs: PlannerSetupPreferences) => {
+    try {
+      sessionStorage.setItem(plannerSetupStorageKey(topic), JSON.stringify(prefs));
+    } catch {
+      /* ignore */
+    }
+    setPlannerPreferences(prefs);
+    setSetupComplete(true);
+  };
 
   const handleGenerate = () => {
     const chatContext = messages
@@ -260,23 +327,32 @@ export function PlannerShell() {
       .filter((block) => block.split(': ')[1]?.trim())
       .join('\n\n');
 
-    // Add notes to the slides outline block
     const annotatedSlides = outlineSlides.map((s) => ({
       ...s,
       description: slideNotes[s.number]
         ? `${s.description ? s.description + ' | ' : ''}User Notes: ${slideNotes[s.number]}`
         : s.description,
     }));
-    
+
     const outlineBlock = formatOutlineForContext(annotatedSlides);
-    const fullContext = [chatContext, outlineBlock].filter(Boolean).join('\n\n');
+    const prefsBlock = plannerPreferences
+      ? `[USER DECK PREFERENCES]\nSlides: ${plannerPreferences.slideCount}\nTheme: ${plannerPreferences.themeName}\nColors: ${plannerPreferences.colorPalette.join(', ')}`
+      : '';
+    const fullContext = [chatContext, prefsBlock, outlineBlock].filter(Boolean).join('\n\n');
+
+    const slideCountForGen =
+      plannerPreferences?.slideCount ??
+      (outlineSlides.length > 0 ? outlineSlides.length : undefined);
 
     setEditorState({
       copilotContext: fullContext,
       plannerHandoff: {
         topic,
         sessionId,
-        outlineSlideCount: outlineSlides.length > 0 ? outlineSlides.length : undefined,
+        outlineSlideCount: slideCountForGen,
+        targetSlideCount: plannerPreferences?.slideCount,
+        themeName: plannerPreferences?.themeName,
+        colorPalette: plannerPreferences?.colorPalette,
       },
     });
     router.push('/editor?copilot_approved=true');
@@ -284,6 +360,10 @@ export function PlannerShell() {
 
   if (!topic) {
     return <PlannerOnboarding />;
+  }
+
+  if (!setupComplete || !plannerPreferences) {
+    return <PlannerSetup topic={topic} onContinue={handleSetupContinue} />;
   }
 
   return (
@@ -301,7 +381,6 @@ export function PlannerShell() {
         onGenerate={handleGenerate}
       />
 
-      {/* Mobile tabs */}
       <div className="flex shrink-0 border-b border-slate-200 bg-white px-4 py-2 md:hidden">
         <div className="flex w-full rounded-xl border border-slate-200 bg-slate-50 p-1 shadow-sm">
           {(['chat', 'outline'] as const).map((tab) => (
@@ -326,7 +405,6 @@ export function PlannerShell() {
       </div>
 
       <div className="relative mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col px-0 md:flex-row">
-        {/* Chat column — includes composer */}
         <div
           className={cn(
             'flex min-h-0 flex-1 flex-col border-r border-slate-200 bg-white md:max-w-[48%] lg:max-w-[46%]',
@@ -341,8 +419,7 @@ export function PlannerShell() {
               onClick={() => setMobileTab('outline')}
               className="mx-4 mb-2 flex min-h-[40px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-4 text-xs font-bold text-slate-700 md:hidden"
             >
-              {outlineSlides.length} slide{outlineSlides.length === 1 ? '' : 's'} ready - View
-              outline
+              {outlineSlides.length} slide{outlineSlides.length === 1 ? '' : 's'} ready - View outline
             </button>
           )}
 
@@ -356,7 +433,6 @@ export function PlannerShell() {
           />
         </div>
 
-        {/* Outline column */}
         <div
           className={cn(
             'flex min-h-0 flex-1 flex-col overflow-hidden md:min-w-[52%] lg:min-w-[54%]',
@@ -369,6 +445,7 @@ export function PlannerShell() {
             topic={topic}
             canGenerate={canGenerate}
             slideNotes={slideNotes}
+            targetSlideCount={targetSlideCount}
             onGenerate={handleGenerate}
             onReorder={setOutlineSlides}
             onUpdateSlideNotes={(num, notes) => setSlideNotes((p) => ({ ...p, [num]: notes }))}

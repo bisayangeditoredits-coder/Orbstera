@@ -218,6 +218,8 @@ export interface PresentationData {
   importMeta?: PresentationImportMeta;
   /** Set by API when persisting to R2 */
   userId?: string;
+  /** Who can view via public share link */
+  shareAccess?: 'private' | 'public_view';
 }
 
 // ─── Editor State Types ───────────────────────────────────────────────────────
@@ -311,7 +313,15 @@ export interface EditorState {
     topic?: string;
     sessionId?: string | null;
     outlineSlideCount?: number;
+    targetSlideCount?: number;
+    themeName?: string;
+    colorPalette?: string[];
+    styleMode?: string;
   };
+  /** One-shot Gamma-style element build animation during deck generation */
+  generationBuildReveal?: boolean;
+  /** Slide ids that finished the build reveal animation */
+  generationRevealedSlides?: string[];
   hasSeenWelcome?: boolean;
 }
 

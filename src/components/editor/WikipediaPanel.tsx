@@ -3,6 +3,13 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
+import {
+  usePanelStore,
+  type WikiSummaryPersisted,
+  type WikiSearchResultPersisted,
+  type WikiInsertMode,
+  type WikiView,
+} from '@/store/usePanelStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Loader2, X, BookOpen, ImageIcon, FileText,
@@ -12,25 +19,11 @@ import {
   TrendingUp, ChevronRight, Hash, Calendar, AlignJustify, SquareSplitHorizontal, LayoutGrid, ImagePlus
 } from 'lucide-react';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-type WikiSummary = {
-  title: string;
-  extract: string;
-  thumbnail?: { source: string; width: number; height: number };
-  originalimage?: { source: string; width: number; height: number };
-  content_urls?: { desktop?: { page?: string } };
-  lang?: string;
-  timestamp?: string;
-  description?: string;
-  fullText?: string;
-  galleryUrls?: string[];
-};
-type WikiSearchResult = {
-  pageid: number; title: string; snippet: string;
-  wordcount?: number; timestamp?: string;
-};
-type InsertMode = 'rich-detail' | 'split-detail' | 'info-grid' | 'full-slide' | 'title-body' | 'title-only' | 'image-only' | 'photo-collage';
-type View = 'home' | 'results' | 'article';
+// ─── Types (persisted slice lives in usePanelStore) ───────────────────────────
+type WikiSummary = WikiSummaryPersisted;
+type WikiSearchResult = WikiSearchResultPersisted;
+type InsertMode = WikiInsertMode;
+type View = WikiView;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function hdImageUrl(s: WikiSummary): string | undefined {
@@ -142,18 +135,24 @@ const INSERT_MODES: ModeConfig[] = [
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
-  const [query, setQuery]             = useState('');
-  const [lang, setLang]               = useState('en');
-  const [results, setResults]         = useState<WikiSearchResult[]>([]);
+  const {
+    query,
+    lang,
+    results,
+    selected,
+    view,
+    insertMode,
+    showFullArticle,
+    articleTab,
+  } = usePanelStore((s) => s.wikipedia);
+  const patchWikipedia = usePanelStore((s) => s.patchWikipedia);
+
   const [predictions, setPredictions] = useState<string[]>([]);
   const [showPredictions, setShowPredictions] = useState(false);
-  const [selected, setSelected]       = useState<WikiSummary | null>(null);
-  const [view, setView]               = useState<View>('home');
   const [searchLoading, setSearchLoading] = useState(false);
   const [summaryLoading, setSummaryLoading] = useState(false);
-  const [error, setError]             = useState('');
-  const [insertMode, setInsertMode]   = useState<InsertMode>('rich-detail');
-  const [inserted, setInserted]       = useState(false);
+  const [error, setError] = useState('');
+  const [inserted, setInserted] = useState(false);
   const [showLangPicker, setShowLangPicker] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -182,20 +181,30 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
   const search = useCallback(async (q?: string) => {
     const sq = (q ?? query).trim();
     if (!sq) return;
-    setSearchLoading(true); setResults([]); setSelected(null); setError(''); setView('results'); setShowPredictions(false);
+    setSearchLoading(true);
+    patchWikipedia({ results: [], selected: null, view: 'results' });
+    setError('');
+    setShowPredictions(false);
     try {
       const url = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(sq)}&format=json&origin=*&srlimit=10&srprop=snippet|wordcount|timestamp`;
       const data = await (await fetch(url)).json();
       const hits: WikiSearchResult[] = data?.query?.search || [];
-      setResults(hits);
+      patchWikipedia({ results: hits });
       if (!hits.length) setError(`No results found for "${sq}"`);
     } catch { setError('Search failed. Check your connection.'); }
     finally { setSearchLoading(false); }
-  }, [query, lang]);
+  }, [query, lang, patchWikipedia]);
 
   // ── Load article ────────────────────────────────────────────────────────────
   const loadSummary = useCallback(async (title: string) => {
-    setSummaryLoading(true); setSelected(null); setError(''); setView('article');
+    setSummaryLoading(true);
+    patchWikipedia({
+      selected: null,
+      view: 'article',
+      showFullArticle: false,
+      articleTab: 'read',
+    });
+    setError('');
     try {
       const [summaryData, extractData, mediaData] = await Promise.all([
         fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`).then(r => {
@@ -224,10 +233,10 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
       }
       summaryData.galleryUrls = galleryUrls.filter(Boolean);
 
-      setSelected(summaryData);
+      patchWikipedia({ selected: summaryData });
     } catch (err: any) { setError(err.message || 'Failed to load article.'); }
     finally { setSummaryLoading(false); }
-  }, [lang]);
+  }, [lang, patchWikipedia]);
 
   // ── Insert ──────────────────────────────────────────────────────────────────
   const handleInsert = useCallback(() => {
@@ -704,6 +713,9 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
     : insertMode === 'photo-collage' ? hasImage
     : !!selected;
   const currentLang = LANGS.find((l) => l.code === lang) ?? LANGS[0];
+  const activeModeConfig = INSERT_MODES.find((m) => m.id === insertMode) ?? INSERT_MODES[0];
+  const fullArticleText = selected?.fullText?.trim() || '';
+  const hasLongerArticle = fullArticleText.length > (selected?.extract?.length ?? 0) + 80;
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
@@ -742,7 +754,15 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
                   >
                     {LANGS.map((l) => (
                       <button key={l.code}
-                        onClick={() => { setLang(l.code); setShowLangPicker(false); setResults([]); setSelected(null); setView('home'); }}
+                        onClick={() => {
+                          patchWikipedia({
+                            lang: l.code,
+                            results: [],
+                            selected: null,
+                            view: 'home',
+                          });
+                          setShowLangPicker(false);
+                        }}
                         className={`w-full text-left px-3 py-2.5 text-[12px] font-semibold flex items-center gap-2 transition-colors ${
                           lang === l.code ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'
                         }`}
@@ -774,7 +794,7 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
               ref={inputRef}
               type="text"
               value={query}
-              onChange={(e) => { setQuery(e.target.value); fetchPredictions(e.target.value); }}
+              onChange={(e) => { patchWikipedia({ query: e.target.value }); fetchPredictions(e.target.value); }}
               onFocus={() => { if (predictions.length > 0) setShowPredictions(true); }}
               onBlur={() => setTimeout(() => setShowPredictions(false), 200)}
               onKeyDown={(e) => e.key === 'Enter' && search()}
@@ -786,7 +806,7 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
                 {predictions.map((p) => (
                   <button key={p}
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => { setQuery(p); setShowPredictions(false); search(p); }}
+                    onClick={() => { patchWikipedia({ query: p }); setShowPredictions(false); search(p); }}
                     className="w-full text-left px-4 py-2.5 text-[13px] font-semibold text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 border-b border-neutral-100 last:border-0 flex items-center gap-2 transition-colors"
                   >
                     <Search size={11} className="text-neutral-300" />
@@ -809,8 +829,11 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
       </div>
 
       {/* ── Body ─────────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto bg-[#F7F8FA]" style={{ scrollbarWidth: 'none' }}
-        onClick={() => setShowLangPicker(false)}>
+      <div
+        className={`flex-1 min-h-0 bg-[#F7F8FA] ${view === 'article' ? 'flex flex-col' : 'overflow-y-auto'}`}
+        style={{ scrollbarWidth: 'none' }}
+        onClick={() => setShowLangPicker(false)}
+      >
         <AnimatePresence mode="wait">
 
           {/* ── HOME ─────────────────────────────────────────────────────── */}
@@ -828,7 +851,7 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
                     <motion.button key={t.label}
                       initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.035, duration: 0.22 }}
-                      onClick={() => { setQuery(t.label); search(t.label); }}
+                      onClick={() => { patchWikipedia({ query: t.label }); search(t.label); }}
                       className="flex items-center gap-3 w-full text-left px-3.5 py-2.5 rounded-xl bg-white border border-neutral-200/80 hover:border-neutral-300 hover:shadow-sm transition-all group"
                     >
                       <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-neutral-100">
@@ -858,7 +881,10 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
               exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="px-4 pt-4 pb-6">
 
               <div className="flex items-center justify-between mb-4">
-                <button onClick={() => { setView('home'); setResults([]); setQuery(''); setError(''); }}
+                <button onClick={() => {
+                  patchWikipedia({ view: 'home', results: [], query: '' });
+                  setError('');
+                }}
                   className="flex items-center gap-1 text-[12px] font-bold text-neutral-400 hover:text-neutral-800 transition-colors">
                   <ChevronLeft size={14} strokeWidth={2.5} /> Home
                 </button>
@@ -914,246 +940,384 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
 
           {/* ── ARTICLE ──────────────────────────────────────────────────── */}
           {view === 'article' && (
-            <motion.div key="article" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="flex flex-col">
-
-              {/* Sticky nav */}
-              <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-2.5 bg-white/95 backdrop-blur-md border-b border-neutral-100">
-                <button onClick={() => setView('results')}
-                  className="flex items-center gap-1 text-[12px] font-bold text-neutral-400 hover:text-neutral-800 transition-colors">
+            <motion.div
+              key="article"
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="flex flex-col flex-1 min-h-0"
+            >
+              {/* Top nav */}
+              <div className="shrink-0 z-10 flex items-center gap-2 px-4 py-2.5 bg-white border-b border-neutral-100">
+                <button
+                  onClick={() => patchWikipedia({ view: 'results' })}
+                  className="flex items-center gap-1 text-[12px] font-bold text-neutral-500 hover:text-neutral-900 transition-colors"
+                >
                   <ChevronLeft size={14} strokeWidth={2.5} /> Results
                 </button>
                 <div className="flex-1 min-w-0 mx-1">
-                  <p className="text-[11px] font-semibold text-neutral-600 truncate">{selected?.title}</p>
+                  <p className="text-[11px] font-semibold text-neutral-700 truncate">{selected?.title}</p>
                 </div>
                 {selected?.content_urls?.desktop?.page && (
-                  <a href={selected.content_urls.desktop.page} target="_blank" rel="noopener noreferrer"
-                    className="w-6 h-6 rounded-lg flex items-center justify-center text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-all">
-                    <ExternalLink size={12} />
+                  <a
+                    href={selected.content_urls.desktop.page}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-all"
+                    title="Open on Wikipedia"
+                  >
+                    <ExternalLink size={13} />
                   </a>
                 )}
               </div>
 
               {summaryLoading && (
-                <div className="flex flex-col items-center gap-3 py-20">
-                  <div className="w-12 h-12 rounded-2xl bg-neutral-100 border border-neutral-200 flex items-center justify-center">
+                <div className="flex flex-1 flex-col items-center justify-center gap-3 py-20">
+                  <div className="w-12 h-12 rounded-2xl bg-white border border-neutral-200 flex items-center justify-center shadow-sm">
                     <Loader2 size={20} className="animate-spin text-neutral-400" />
                   </div>
-                  <p className="text-[12px] font-medium text-neutral-400">Loading article…</p>
+                  <p className="text-[12px] font-medium text-neutral-500">Loading article…</p>
                 </div>
               )}
+
               {error && !summaryLoading && (
-                <p className="px-4 py-8 text-center text-[12px] text-red-400">{error}</p>
+                <p className="px-4 py-8 text-center text-[12px] text-red-500">{error}</p>
               )}
 
               {selected && !summaryLoading && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
-
-                  {/* ── Hero image — full bleed, cinematic ── */}
-                  {hdImageUrl(selected) ? (
-                    <div className="relative w-full overflow-hidden bg-neutral-900" style={{ aspectRatio: '16/9' }}>
-                      <img
-                        src={hdImageUrl(selected)}
-                        alt={selected.title}
-                        className="w-full h-full object-cover"
-                      />
-                      {/* Layered gradient for depth */}
-                      <div className="absolute inset-0" style={{
-                        background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 50%, transparent 100%)'
-                      }} />
-                      {/* Title overlay on image */}
-                      <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
-                        <h3 className="text-white font-extrabold text-[16px] leading-tight tracking-tight drop-shadow-lg">
-                          {selected.title}
-                        </h3>
-                        {selected.description && (
-                          <p className="text-white/60 text-[11px] mt-1 font-medium leading-snug">{selected.description}</p>
-                        )}
-                      </div>
-                      {/* Wikipedia badge */}
-                      <div className="absolute top-3 right-3 flex items-center gap-1 bg-black/40 backdrop-blur-md px-2 py-1 rounded-lg">
-                        <BookOpen size={9} className="text-white/70" />
-                        <span className="text-[9px] font-bold text-white/70 uppercase tracking-widest">Wikipedia</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="px-4 pt-5 pb-3 border-b border-neutral-100">
-                      <h3 className="text-[18px] font-extrabold text-neutral-900 tracking-tight leading-tight">{selected.title}</h3>
-                      {selected.description && (
-                        <p className="text-[12px] text-neutral-400 mt-1.5 font-medium">{selected.description}</p>
-                      )}
-                    </div>
-                  )}
-
-
-
-                  {/* ── Meta strip ── */}
-                  <div className="flex items-center gap-2 px-4 py-2.5 border-b border-neutral-100 flex-wrap">
-                    <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 bg-neutral-100 text-neutral-500 rounded-md">
-                      <Clock size={9} />~{readingTime(selected.extract)} min read
-                    </span>
-                    <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 bg-neutral-100 text-neutral-500 rounded-md">
-                      <Globe size={9} />{currentLang.label}
-                    </span>
-                    {selected.timestamp && (
-                      <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 bg-neutral-100 text-neutral-500 rounded-md">
-                        <Calendar size={9} />{formatDate(selected.timestamp)}
-                      </span>
-                    )}
-                    {selected.content_urls?.desktop?.page && (
-                      <a href={selected.content_urls.desktop.page} target="_blank" rel="noopener noreferrer"
-                        className="ml-auto flex items-center gap-1 text-[10px] font-bold text-neutral-400 hover:text-neutral-700 transition-colors">
-                        <ExternalLink size={9} /> View on Wikipedia
-                      </a>
-                    )}
+                <>
+                  {/* Read / Layout tabs */}
+                  <div className="shrink-0 flex gap-1 px-4 pt-3 pb-2 bg-[#F7F8FA]">
+                    <button
+                      type="button"
+                      onClick={() => patchWikipedia({ articleTab: 'read' })}
+                      className={`flex-1 min-h-[36px] rounded-lg text-[12px] font-bold transition-all ${
+                        articleTab === 'read'
+                          ? 'bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200'
+                          : 'text-neutral-500 hover:text-neutral-800'
+                      }`}
+                    >
+                      Article
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => patchWikipedia({ articleTab: 'layout' })}
+                      className={`flex-1 min-h-[36px] rounded-lg text-[12px] font-bold transition-all ${
+                        articleTab === 'layout'
+                          ? 'bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200'
+                          : 'text-neutral-500 hover:text-neutral-800'
+                      }`}
+                    >
+                      Slide layout
+                    </button>
                   </div>
 
-                  {/* ── Article body ── */}
-                  <div className="px-4 pt-4 pb-2">
-                    {/* Extract — large, readable */}
-                    <p className="text-[12.5px] leading-[1.9] text-neutral-600 font-[450]">
-                      {selected.extract}
-                    </p>
-                  </div>
-
-                  {/* ── Media Gallery Preview ── */}
-                  {selected.galleryUrls && selected.galleryUrls.length > 0 && (
-                    <div className="px-4 mt-3 mb-2">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-1 h-3.5 bg-neutral-300 rounded-full" />
-                        <span className="text-[9px] font-black text-neutral-400 uppercase tracking-[0.2em]">Media Gallery ({selected.galleryUrls.length})</span>
-                      </div>
-                      <div className="flex gap-2 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
-                        {selected.galleryUrls.map((url, i) => (
-                          <button 
-                            key={i} 
-                            onClick={() => handleInsertGalleryImage(url)}
-                            className="w-28 h-20 shrink-0 rounded-xl overflow-hidden border border-neutral-200 bg-neutral-100 relative group shadow-sm text-left cursor-pointer"
-                          >
-                            <img src={url} alt={`Gallery image ${i+1}`} className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <ImagePlus size={14} className="text-white drop-shadow-md" />
+                  {/* Scrollable content */}
+                  <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+                    {articleTab === 'read' ? (
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pb-4">
+                        {hdImageUrl(selected) && (
+                          <div className="relative w-full overflow-hidden bg-neutral-900 mx-4 mt-1 rounded-xl" style={{ aspectRatio: '16/9', maxHeight: 160 }}>
+                            <img src={hdImageUrl(selected)} alt={selected.title} className="w-full h-full object-cover" />
+                            <div
+                              className="absolute inset-0 rounded-xl"
+                              style={{
+                                background:
+                                  'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.15) 55%, transparent 100%)',
+                              }}
+                            />
+                            <div className="absolute bottom-2 left-3 right-3">
+                              <p className="text-white text-[13px] font-bold leading-tight line-clamp-2">{selected.title}</p>
                             </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ── Key Facts — premium card design ── */}
-                  {(() => {
-                    const facts = extractKeyFacts(selected.fullText || selected.extract, 5);
-                    if (!facts.length) return null;
-                    return (
-                      <div className="mx-4 mt-3 mb-2 border border-neutral-150 bg-neutral-50 rounded-xl overflow-hidden">
-                        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-neutral-200 bg-white">
-                          <div className="w-1 h-3.5 bg-primary rounded-full" />
-                          <span className="text-[9px] font-black text-neutral-500 uppercase tracking-[0.2em]">Key Facts</span>
-                        </div>
-                        <div className="divide-y divide-neutral-100">
-                          {facts.map((f, i) => (
-                            <div key={i} className="flex items-start gap-3 px-3 py-2.5">
-                              <span className="text-[9px] font-black text-neutral-300 mt-0.5 w-4 shrink-0 text-right">{i + 1}</span>
-                              <p className="text-[11.5px] text-neutral-600 leading-relaxed font-[450]">{f}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* ── Sections ── */}
-                  {(() => {
-                    const secs = parseSections(selected.fullText || '').slice(0, 4);
-                    if (!secs.length) return null;
-                    return (
-                      <div className="px-4 mt-3 mb-2 space-y-2">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-1 h-3.5 bg-neutral-300 rounded-full" />
-                          <span className="text-[9px] font-black text-neutral-400 uppercase tracking-[0.2em]">Sections</span>
-                        </div>
-                        {secs.map((s, i) => (
-                          <div key={i} className="border border-neutral-150 bg-white rounded-xl px-3 py-3">
-                            <div className="flex items-center gap-2 mb-1.5">
-                              <span className="text-[9px] font-black text-neutral-300 w-4 shrink-0">{String(i + 1).padStart(2, '0')}</span>
-                              <p className="text-[10px] font-black text-neutral-700 uppercase tracking-wide">{s.heading}</p>
-                            </div>
-                            <p className="text-[11px] text-neutral-500 leading-relaxed line-clamp-3 pl-6">{s.body}</p>
                           </div>
-                        ))}
+                        )}
+
+                        <div className="px-4 pt-4 space-y-4">
+                          {!hdImageUrl(selected) && (
+                            <h3 className="text-[17px] font-extrabold text-neutral-900 leading-tight tracking-tight">
+                              {selected.title}
+                            </h3>
+                          )}
+
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 bg-white text-neutral-500 rounded-md ring-1 ring-neutral-200">
+                              <Clock size={9} />~{readingTime(selected.extract)} min
+                            </span>
+                            <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 bg-white text-neutral-500 rounded-md ring-1 ring-neutral-200">
+                              <Globe size={9} />{currentLang.label}
+                            </span>
+                            {selected.timestamp && (
+                              <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 bg-white text-neutral-500 rounded-md ring-1 ring-neutral-200">
+                                <Calendar size={9} />{formatDate(selected.timestamp)}
+                              </span>
+                            )}
+                          </div>
+
+                          {selected.description && (
+                            <div className="rounded-xl bg-primary/5 border border-primary/15 px-3.5 py-3">
+                              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary mb-1.5">
+                                Description
+                              </p>
+                              <p className="text-[13px] text-neutral-800 leading-relaxed font-medium">
+                                {selected.description}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="rounded-xl bg-white border border-neutral-200 px-3.5 py-3.5 shadow-sm">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-400 mb-2">
+                              Summary
+                            </p>
+                            <p className="text-[13px] leading-[1.85] text-neutral-700">{selected.extract}</p>
+                          </div>
+
+                          {hasLongerArticle && (
+                            <div className="rounded-xl bg-white border border-neutral-200 overflow-hidden shadow-sm">
+                              <button
+                                type="button"
+                                onClick={() => patchWikipedia({ showFullArticle: !showFullArticle })}
+                                className="w-full flex items-center justify-between gap-2 px-3.5 py-3 text-left hover:bg-neutral-50 transition-colors"
+                              >
+                                <span className="text-[11px] font-bold text-neutral-800">Full Wikipedia article</span>
+                                <ChevronRight
+                                  size={14}
+                                  className={`text-neutral-400 shrink-0 transition-transform ${showFullArticle ? 'rotate-90' : ''}`}
+                                />
+                              </button>
+                              <AnimatePresence initial={false}>
+                                {showFullArticle && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden border-t border-neutral-100"
+                                  >
+                                    <div
+                                      className="max-h-[min(42vh,320px)] overflow-y-auto px-3.5 py-3 text-[12.5px] leading-[1.8] text-neutral-600 whitespace-pre-wrap"
+                                      style={{ scrollbarWidth: 'thin' }}
+                                    >
+                                      {fullArticleText}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          )}
+
+                          {(() => {
+                            const facts = extractKeyFacts(selected.fullText || selected.extract, 6);
+                            if (!facts.length) return null;
+                            return (
+                              <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden shadow-sm">
+                                <div className="flex items-center gap-2 px-3 py-2.5 border-b border-neutral-100 bg-neutral-50">
+                                  <div className="w-1 h-3.5 bg-primary rounded-full" />
+                                  <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.16em]">
+                                    Key facts
+                                  </span>
+                                </div>
+                                <div className="divide-y divide-neutral-100">
+                                  {facts.map((f, i) => (
+                                    <p key={i} className="px-3 py-2.5 text-[12px] text-neutral-700 leading-relaxed">
+                                      {f}
+                                    </p>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {(() => {
+                            const secs = parseSections(selected.fullText || '').slice(0, 5);
+                            if (!secs.length) return null;
+                            return (
+                              <div className="space-y-2">
+                                <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.16em] px-0.5">
+                                  Sections
+                                </p>
+                                {secs.map((s, i) => (
+                                  <div
+                                    key={i}
+                                    className="rounded-xl border border-neutral-200 bg-white px-3.5 py-3 shadow-sm"
+                                  >
+                                    <p className="text-[11px] font-bold text-neutral-800 uppercase tracking-wide">
+                                      {s.heading || 'Overview'}
+                                    </p>
+                                    <p className="mt-2 text-[12px] text-neutral-600 leading-relaxed whitespace-pre-wrap">
+                                      {s.body}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
+
+                          {selected.galleryUrls && selected.galleryUrls.length > 0 && (
+                            <div>
+                              <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.16em] mb-2 px-0.5">
+                                Media gallery ({selected.galleryUrls.length})
+                              </p>
+                              <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                                {selected.galleryUrls.map((url, i) => (
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => handleInsertGalleryImage(url)}
+                                    className="w-32 h-24 shrink-0 rounded-xl overflow-hidden border border-neutral-200 bg-neutral-100 relative group shadow-sm"
+                                    title="Insert this image on slide"
+                                  >
+                                    <img src={url} alt={`Gallery ${i + 1}`} className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1">
+                                      <ImagePlus size={16} className="text-white" />
+                                      <span className="text-[9px] font-bold text-white uppercase tracking-wide">
+                                        Insert
+                                      </span>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    ) : (
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-4 pb-4 pt-1 space-y-2">
+                        <p className="text-[11px] text-neutral-500 leading-relaxed">
+                          Choose how this article should appear on your slide, then tap Insert below.
+                        </p>
+                        {INSERT_MODES.map((mode) => {
+                          const Icon = mode.icon;
+                          const needsImg =
+                            mode.id === 'image-only' ||
+                            mode.id === 'split-detail' ||
+                            mode.id === 'photo-collage';
+                          const disabled = needsImg && !hasImage;
+                          const active = insertMode === mode.id;
+                          return (
+                            <button
+                              key={mode.id}
+                              type="button"
+                              disabled={disabled}
+                              onClick={() => patchWikipedia({ insertMode: mode.id })}
+                              className={`flex items-center gap-3 w-full text-left px-3.5 py-3 rounded-xl border transition-all ${
+                                active
+                                  ? 'bg-neutral-900 border-neutral-900 shadow-md'
+                                  : disabled
+                                    ? 'bg-neutral-50 border-neutral-100 opacity-40 cursor-not-allowed'
+                                    : 'bg-white border-neutral-200 hover:border-neutral-300 hover:shadow-sm'
+                              }`}
+                            >
+                              <div
+                                className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                                  active ? 'bg-white/15' : 'bg-neutral-100'
+                                }`}
+                              >
+                                <Icon
+                                  size={16}
+                                  strokeWidth={1.75}
+                                  className={active ? 'text-white' : 'text-neutral-500'}
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className={`text-[13px] font-bold ${active ? 'text-white' : 'text-neutral-800'}`}>
+                                  {mode.label}
+                                </p>
+                                <p className={`text-[11px] mt-0.5 leading-snug ${active ? 'text-white/60' : 'text-neutral-500'}`}>
+                                  {mode.desc}
+                                  {disabled ? ' · Image required' : ''}
+                                </p>
+                              </div>
+                              {active && <CheckCircle2 size={16} className="text-white shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </div>
+
+                  {/* Sticky insert bar — always visible */}
+                  <div className="shrink-0 border-t border-neutral-200 bg-white px-4 pt-3 pb-4 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.12)]">
+                    <div className="flex items-center gap-2 mb-2 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-neutral-100 flex items-center justify-center shrink-0">
+                        <activeModeConfig.icon size={14} className="text-neutral-600" strokeWidth={1.75} />
                       </div>
-                    );
-                  })()}
-
-                  {/* ── Divider ── */}
-                  <div className="mx-4 my-4 h-px bg-neutral-100" />
-
-                  {/* ── Insert Style Picker ── */}
-                  <div className="px-4 pb-3">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Sparkles size={10} className="text-neutral-400" />
-                      <span className="text-[9px] font-black uppercase tracking-[0.2em] text-neutral-400">Insert Style</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-400">
+                          Selected layout
+                        </p>
+                        <p className="text-[12px] font-bold text-neutral-900 truncate">{activeModeConfig.label}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => patchWikipedia({ articleTab: 'layout' })}
+                        className="shrink-0 text-[11px] font-bold text-primary hover:underline"
+                      >
+                        Change
+                      </button>
                     </div>
-                    <div className="space-y-1.5">
+
+                    <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2" style={{ scrollbarWidth: 'none' }}>
                       {INSERT_MODES.map((mode) => {
                         const Icon = mode.icon;
-                        const needsImg = mode.id === 'image-only' || mode.id === 'split-detail';
+                        const needsImg =
+                          mode.id === 'image-only' ||
+                          mode.id === 'split-detail' ||
+                          mode.id === 'photo-collage';
                         const disabled = needsImg && !hasImage;
                         const active = insertMode === mode.id;
                         return (
-                          <button key={mode.id} disabled={disabled} onClick={() => setInsertMode(mode.id)}
-                            className={`flex items-center gap-3 w-full text-left px-3 py-2.5 border transition-all ${
+                          <button
+                            key={mode.id}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => patchWikipedia({ insertMode: mode.id })}
+                            title={mode.label}
+                            className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all ${
                               active
-                                ? 'bg-slate-900 border-slate-900 shadow-sm'
+                                ? 'bg-primary border-primary text-white'
                                 : disabled
-                                  ? 'bg-neutral-50 border-neutral-100 opacity-35 cursor-not-allowed'
-                                  : 'bg-white border-neutral-200 hover:border-neutral-400 hover:shadow-sm'
+                                  ? 'bg-neutral-50 border-neutral-100 text-neutral-300 cursor-not-allowed'
+                                  : 'bg-white border-neutral-200 text-neutral-600 hover:border-neutral-300'
                             }`}
                           >
-                            <div className={`w-7 h-7 flex items-center justify-center shrink-0 ${active ? 'bg-white/10' : 'bg-neutral-100'}`}>
-                              <Icon size={13} strokeWidth={1.75} className={active ? 'text-white' : 'text-neutral-400'} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className={`text-[12px] font-bold leading-none ${active ? 'text-white' : 'text-neutral-700'}`}>{mode.label}</p>
-                              <p className={`text-[10px] mt-0.5 leading-snug ${active ? 'text-white/50' : 'text-neutral-400'}`}>
-                                {mode.desc}{disabled ? ' · No image' : ''}
-                              </p>
-                            </div>
-                            {active && (
-                              <div className="w-4 h-4 border-2 border-white/50 flex items-center justify-center shrink-0">
-                                <div className="w-1.5 h-1.5 bg-white" />
-                              </div>
-                            )}
+                            <Icon size={11} strokeWidth={1.75} />
+                            <span className="whitespace-nowrap">{mode.label}</span>
                           </button>
                         );
                       })}
                     </div>
-                  </div>
 
-                  {/* ── Insert button ── */}
-                  <div className="px-4 pb-6 pt-1">
                     <AnimatePresence mode="wait">
                       {inserted ? (
-                        <motion.div key="done"
-                          initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                          className="h-12 bg-emerald-600 flex items-center justify-center gap-2">
-                          <CheckCircle2 size={15} className="text-white" />
-                          <span className="text-white font-bold text-[13px] tracking-wide">Added to Slide</span>
+                        <motion.div
+                          key="done"
+                          initial={{ opacity: 0, scale: 0.98 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="min-h-[48px] rounded-xl bg-emerald-600 flex items-center justify-center gap-2"
+                        >
+                          <CheckCircle2 size={16} className="text-white" />
+                          <span className="text-white font-bold text-[13px]">Added to slide</span>
                         </motion.div>
                       ) : (
-                        <motion.button key="insert"
-                          initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                          onClick={handleInsert} disabled={!canInsert}
-                          whileHover={{ scale: canInsert ? 1.01 : 1 }} whileTap={{ scale: 0.98 }}
-                          className="w-full h-12 bg-slate-900 text-white font-bold text-[13px] uppercase tracking-[0.1em] hover:bg-primary transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                          <Layers size={14} strokeWidth={2} />
-                          Insert into Slide
+                        <motion.button
+                          key="insert"
+                          type="button"
+                          initial={{ opacity: 0, scale: 0.98 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0 }}
+                          onClick={handleInsert}
+                          disabled={!canInsert}
+                          whileTap={{ scale: canInsert ? 0.98 : 1 }}
+                          className="w-full min-h-[48px] rounded-xl bg-primary text-white font-bold text-[14px] hover:opacity-95 transition-all disabled:opacity-35 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md shadow-primary/20"
+                        >
+                          <Layers size={16} strokeWidth={2} />
+                          Insert into slide
                         </motion.button>
                       )}
                     </AnimatePresence>
                   </div>
-
-                </motion.div>
+                </>
               )}
             </motion.div>
           )}

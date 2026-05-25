@@ -1,5 +1,7 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { Lock } from 'lucide-react';
 import { PublicViewer } from '@/components/viewer/PublicViewer';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +28,56 @@ async function streamToString(stream: any): Promise<string> {
   return Buffer.concat(chunks).toString('utf-8');
 }
 
-export default async function PublicPresentationPage({ params }: { params: { userId: string; id: string } }) {
+function PrivateShareGate() {
+  return (
+    <div className="min-h-screen bg-[#010104] text-white flex flex-col items-center justify-center font-sans px-6">
+      <div className="w-16 h-16 rounded-2xl bg-white/5 ring-1 ring-white/10 flex items-center justify-center mb-6">
+        <Lock size={28} className="text-white/70" strokeWidth={1.75} />
+      </div>
+      <h1 className="text-2xl sm:text-3xl font-bold mb-3 text-center">This presentation is private</h1>
+      <p className="text-white/55 mb-8 max-w-md text-center text-sm leading-relaxed text-balance">
+        The creator has restricted access. Ask them to set sharing to &quot;Anyone with the link&quot; in Orbstera.
+      </p>
+      <div className="flex flex-wrap gap-3 justify-center">
+        <Link
+          href="/login"
+          className="px-6 py-3 bg-primary text-white font-bold rounded-full hover:opacity-90 transition-opacity text-sm"
+        >
+          Sign in
+        </Link>
+        <Link
+          href="/"
+          className="px-6 py-3 bg-white/10 text-white font-semibold rounded-full hover:bg-white/15 transition-colors text-sm ring-1 ring-white/10"
+        >
+          Go to Orbstera
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function NotFoundShare() {
+  return (
+    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center font-sans px-6">
+      <h1 className="text-3xl font-bold mb-4">Presentation not found</h1>
+      <p className="text-white/60 mb-8 max-w-md text-center text-balance text-sm">
+        This link may have expired or the presentation has been deleted by its creator.
+      </p>
+      <Link
+        href="/"
+        className="px-6 py-3 bg-white text-black font-bold rounded-full hover:bg-white/90 transition-colors text-sm"
+      >
+        Create your own with Orbstera
+      </Link>
+    </div>
+  );
+}
+
+export default async function PublicPresentationPage({
+  params,
+}: {
+  params: { userId: string; id: string };
+}) {
   const { userId, id } = params;
 
   if (!userId || !id || !s3Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) {
@@ -41,14 +92,18 @@ export default async function PublicPresentationPage({ params }: { params: { use
       new GetObjectCommand({
         Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,
         Key: deckKey,
-      })
+      }),
     );
 
     const bodyText = await streamToString(response.Body);
     const presentation = JSON.parse(bodyText);
 
     if (!presentation || !presentation.slides) {
-      throw new Error("Invalid presentation format");
+      return <NotFoundShare />;
+    }
+
+    if (presentation.shareAccess !== 'public_view') {
+      return <PrivateShareGate />;
     }
 
     return (
@@ -57,18 +112,10 @@ export default async function PublicPresentationPage({ params }: { params: { use
       </main>
     );
   } catch (error: any) {
+    if (error?.name === 'NoSuchKey') {
+      return <NotFoundShare />;
+    }
     console.error('R2 Get Error:', error);
-    
-    return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center font-sans">
-        <h1 className="text-3xl font-bold mb-4">Presentation Not Found</h1>
-        <p className="text-white/60 mb-8 max-w-md text-center text-balance">
-          This link may have expired or the presentation has been deleted by its creator.
-        </p>
-        <a href="/" className="px-6 py-3 bg-white text-black font-bold rounded-full hover:bg-white/90 transition-colors">
-          Create your own with Orbstera AI
-        </a>
-      </div>
-    );
+    return <NotFoundShare />;
   }
 }

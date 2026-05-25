@@ -12,8 +12,28 @@ export const runtime = 'nodejs';
 /** Streaming planner replies; align with OpenRouter stream timeout budget. */
 export const maxDuration = 120;
 
+type PlannerPreferences = {
+  slideCount?: number;
+  colorPalette?: string[];
+  themeName?: string;
+};
+
 // ── System Prompts ────────────────────────────────────────────────────────────
-function getOutputRules(brandKit?: any) {
+function getOutputRules(brandKit?: { primary_color?: string; font?: string }, preferences?: PlannerPreferences) {
+  if (preferences?.slideCount && preferences.colorPalette?.length) {
+    const colors = preferences.colorPalette.join(', ');
+    return `
+STRICT RULES:
+- Never repeat the same question, sentence, or bullet.
+- [SETUP COMPLETE] The user already chose exactly ${preferences.slideCount} slides, theme "${preferences.themeName || 'Custom'}", and brand colors: ${colors}.
+- DO NOT ask how many slides they want or what brand color to use.
+- On the FIRST reply: output the slide outline immediately (unless the topic is extremely vague — then ask ONE short clarifying question only, then outline in the same or next reply).
+- The outline MUST contain exactly ${preferences.slideCount} slides (Slide 1 through Slide ${preferences.slideCount}).
+- Structure: (1) one short intro line, (2) numbered slides, (3) one closing line telling the user to click "Generate deck".
+- Use this slide format exactly (one per line): Slide 1: Title — one-line key message
+- Keep total reply focused; no filler paragraphs or repeated phrases.`;
+  }
+
   if (brandKit && brandKit.primary_color) {
     return `
 STRICT RULES:
@@ -40,10 +60,14 @@ STRICT RULES:
 - Keep total reply focused; no filler paragraphs or repeated phrases.`;
 }
 
-const getBaseSystemPrompt = (brandKit: any) => `You are the Orbstera Copilot, an expert presentation planner.
+function getOutputRulesForPrompt(brandKit?: { primary_color?: string; font?: string }, preferences?: PlannerPreferences) {
+  return getOutputRules(brandKit, preferences);
+}
+
+const getBaseSystemPrompt = (brandKit: { primary_color?: string; font?: string } | undefined, preferences?: PlannerPreferences) => `You are the Orbstera Copilot, an expert presentation planner.
 The user wants a professional presentation outline.
 
-${getOutputRules(brandKit)}
+${getOutputRulesForPrompt(brandKit, preferences)}
 
 IMPORTANT — understand these shortcut messages immediately:
 - "6 slides" / "10 slides" / "15 slides" → adjust the outline to that exact count
@@ -60,10 +84,10 @@ Slide 3: Solution — Your approach
 
 Use clean markdown only. No JSON.`;
 
-const getStudentProSystemPrompt = (brandKit: any) => `You are the Orbstera Pro Planner — a sharp presentation strategist with the instincts of a top consultant.
+const getStudentProSystemPrompt = (brandKit: { primary_color?: string; font?: string } | undefined, preferences?: PlannerPreferences) => `You are the Orbstera Pro Planner — a sharp presentation strategist with the instincts of a top consultant.
 The user wants a compelling, well-structured deck.
 
-${getOutputRules(brandKit)}
+${getOutputRulesForPrompt(brandKit, preferences)}
 
 For each slide, use proven narrative frameworks (problem-solution, SCQA, hero's journey, or data-driven storytelling).
 Make titles punchy and benefit-led. Max 10 slides unless asked for more.
@@ -74,10 +98,10 @@ Slide 2: Problem — ...
 
 Be sharp, clear, and persuasive. Remind them to click "Generate deck" when the outline is ready.`;
 
-const getCreatorProSystemPrompt = (brandKit: any) => `You are the Orbstera Creator Strategist — a world-class presentation director with the strategic depth of McKinsey and the storytelling of TED.
+const getCreatorProSystemPrompt = (brandKit: { primary_color?: string; font?: string } | undefined, preferences?: PlannerPreferences) => `You are the Orbstera Creator Strategist — a world-class presentation director with the strategic depth of McKinsey and the storytelling of TED.
 The user wants a high-impact, investor-grade or agency-ready deck.
 
-${getOutputRules(brandKit)}
+${getOutputRulesForPrompt(brandKit, preferences)}
 
 Apply the best narrative arc for the context:
 - Investor decks: Problem → Market → Solution → Traction → Team → Ask
@@ -104,7 +128,12 @@ export async function POST(req: Request) {
     const user = auth.user;
     const userId = user.id;
 
-    const { messages, sessionId, topic } = await req.json();
+    const { messages, sessionId, topic, preferences } = await req.json() as {
+      messages?: { role: string; content: string }[];
+      sessionId?: string;
+      topic?: string;
+      preferences?: PlannerPreferences;
+    };
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Messages array is required' }, { status: 400 });
@@ -189,16 +218,19 @@ export async function POST(req: Request) {
     let temperature: number;
     let max_tokens: number;
 
+    const plannerPrefs =
+      preferences?.slideCount && preferences.colorPalette?.length ? preferences : undefined;
+
     if (planTier === 'creator') {
-      systemPrompt = getCreatorProSystemPrompt(brandKit) + topicLine;
+      systemPrompt = getCreatorProSystemPrompt(brandKit, plannerPrefs) + topicLine;
       temperature = 0.55;
       max_tokens = 2500;
     } else if (planTier === 'student') {
-      systemPrompt = getStudentProSystemPrompt(brandKit) + topicLine;
+      systemPrompt = getStudentProSystemPrompt(brandKit, plannerPrefs) + topicLine;
       temperature = 0.6;
       max_tokens = 2000;
     } else {
-      systemPrompt = getBaseSystemPrompt(brandKit) + topicLine;
+      systemPrompt = getBaseSystemPrompt(brandKit, plannerPrefs) + topicLine;
       temperature = 0.7;
       max_tokens = 1500;
     }

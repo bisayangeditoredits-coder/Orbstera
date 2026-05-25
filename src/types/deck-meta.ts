@@ -1,6 +1,9 @@
+export type ShareAccess = 'private' | 'public_view';
+
 export interface DeckMeta {
   id: string;
   title: string;
+  shareAccess?: ShareAccess;
   date: string;
   createdAt?: string;
   slidesCount: number;

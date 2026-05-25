@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { Plus, Trash2, Copy, GripVertical, ChevronUp, ChevronDown, Sparkles, Loader2 } from 'lucide-react';
@@ -226,6 +226,8 @@ type SlideRailItemProps = {
   canRemove: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  buildRevealEntrance?: boolean;
+  buildRevealDelay?: number;
 };
 
 function SlideRailItem({
@@ -235,6 +237,8 @@ function SlideRailItem({
   isActive,
   isHovered,
   isGenerating,
+  buildRevealEntrance = false,
+  buildRevealDelay = 0,
   onSelect,
   onHover,
   onReorderUp,
@@ -248,10 +252,18 @@ function SlideRailItem({
   return (
     <motion.div
       layout="position"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={
+        buildRevealEntrance
+          ? { opacity: 0, scale: 0.92, y: 8 }
+          : { opacity: 0, y: 10 }
+      }
+      animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      transition={{
+        duration: buildRevealEntrance ? 0.38 : 0.3,
+        ease: [0.16, 1, 0.3, 1],
+        delay: buildRevealEntrance ? buildRevealDelay : 0,
+      }}
       className="relative group w-[160px] mx-auto"
       onClick={onSelect}
       onMouseEnter={() => onHover(index)}
@@ -368,10 +380,18 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
   const slides = presentation?.slides || [];
   const colors = presentation?.colorPalette || ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'];
   const isLiveGenerating = editor.isGenerating && editor.deckGenerationLifecycle !== 'idle';
+  const buildRevealActive = Boolean(editor.generationBuildReveal && editor.isGenerating);
   const targetSlides = Math.max(editor.generationTargetSlides || slides.length, slides.length);
   const useVirtualRail = !isLiveGenerating && slides.length > 24;
+  const prevSlideIdsRef = useRef<Set<string>>(new Set());
 
-  const renderSlideRailItem = (slide: Slide, index: number) => (
+  useEffect(() => {
+    prevSlideIdsRef.current = new Set(slides.map((s) => s.id));
+  }, [slides]);
+
+  const renderSlideRailItem = (slide: Slide, index: number) => {
+    const isNewSlide = buildRevealActive && !prevSlideIdsRef.current.has(slide.id);
+    return (
     <SlideRailItem
       key={slide.id}
       slide={slide}
@@ -380,6 +400,8 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
       isActive={index === currentSlideIndex}
       isHovered={hoveredIndex === index && !slide.isGeneratingPlaceholder}
       isGenerating={editor.isGenerating}
+      buildRevealEntrance={isNewSlide}
+      buildRevealDelay={isNewSlide ? index * 0.12 : 0}
       onSelect={() => {
         setCurrentSlideIndex(index);
         onAfterSlideSelect?.();
@@ -396,6 +418,7 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
       canMoveDown={index < slides.length - 1}
     />
   );
+  };
 
   const handleAddSlide = useCallback(() => {
     if (editor.isGenerating) return;

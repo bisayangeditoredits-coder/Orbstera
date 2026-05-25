@@ -194,19 +194,6 @@ export default function EditorClient() {
   const [deckLoadStatus, setDeckLoadStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [deckLoadMessage, setDeckLoadMessage] = useState<string | null>(null);
 
-  // Track which panels have been visited so they stay mounted (preserving state)
-  const [visitedPanels, setVisitedPanels] = useState<Set<string>>(() => new Set(['generate']));
-  useEffect(() => {
-    if (activePanel) {
-      setVisitedPanels((prev) => {
-        if (prev.has(activePanel)) return prev;
-        const next = new Set(prev);
-        next.add(activePanel);
-        return next;
-      });
-    }
-  }, [activePanel]);
-
   const validatePresentationPayload = (data: any): data is PresentationData => {
     return !!data && typeof data === 'object' && typeof data.id === 'string' && Array.isArray((data as any).slides);
   };
@@ -293,7 +280,13 @@ export default function EditorClient() {
     const hasDeepLinkIntent = !!(prompt || mode || fileName || copilotApproved);
     if (hasDeepLinkIntent) {
       if (!st.presentation && !st.editor.isGenerating) {
-        st.setPresentation(createEditorGeneratingShell());
+        const handoff = st.editor.plannerHandoff;
+        st.setPresentation(
+          createEditorGeneratingShell({
+            themeName: handoff?.themeName,
+            colorPalette: handoff?.colorPalette,
+          }),
+        );
       }
       return;
     }
@@ -437,6 +430,8 @@ export default function EditorClient() {
     { enableOnFormTags: false },
     [],
   );
+
+  const closePanel = useCallback(() => setPanelOpen(false), [setPanelOpen]);
 
   // ── Premium loading / error screen ──────────────────────────────────────────
   const requestedId = searchParams.get('id');
@@ -582,18 +577,76 @@ export default function EditorClient() {
     );
   }
 
-  // Helper: render a panel keeping it mounted after first visit, hiding with CSS when not active
-  const panel = (id: string, node: React.ReactNode) => {
-    if (!visitedPanels.has(id)) return null;
-    const isActive = isPanelOpen && (activePanel as string) === id;
+  /** Mount only the active panel — inactive panels unmount to free RAM on low-end devices. */
+  const activePanelContent = (() => {
+    if (!isPanelOpen || !activePanel) return null;
+    const node = (() => {
+      switch (activePanel) {
+        case 'generate':
+          return <GeneratePanel onClose={closePanel} />;
+        case 'layers':
+          return <LayersPanel />;
+        case 'design':
+          return <DesignPanel />;
+        case 'notes':
+          return <NotesPanel />;
+        case 'animations':
+          return <AnimationsPanel />;
+        case 'layouts':
+          return <LayoutsPanel />;
+        case 'photos':
+          return <PhotosPanel onClose={closePanel} />;
+        case 'icons':
+          return <IconsPanel onClose={closePanel} />;
+        case 'giphy':
+          return <GiphyPanel onClose={closePanel} />;
+        case 'qr':
+          return <QRPanel onClose={closePanel} />;
+        case 'charts':
+          return <ChartsPanel onClose={closePanel} />;
+        case 'ai':
+          return <AIPanel onClose={closePanel} />;
+        case 'video':
+          return <VideoPanel onClose={closePanel} />;
+        case 'pollinations':
+          return <PollinationsPanel onClose={closePanel} />;
+        case 'wikipedia':
+          return <WikipediaPanel onClose={closePanel} />;
+        case 'wordsuggester':
+          return <WordSuggesterPanel onClose={closePanel} />;
+        case 'apps':
+          return <AppsPanel onClose={closePanel} />;
+        case 'avatars':
+          return <AvatarsPanel onClose={closePanel} />;
+        case 'flags':
+          return <FlagsPanel onClose={closePanel} />;
+        case 'mockups':
+          return <MockupsPanel onClose={closePanel} />;
+        case 'videos':
+          return <VideosPanel onClose={closePanel} />;
+        case 'shapes':
+          return <ShapesPanel onClose={closePanel} />;
+        case 'timeline':
+          return <TimelinePanel onClose={closePanel} />;
+        case 'svgpattern':
+          return <SVGPatternPanel onClose={closePanel} />;
+        case 'map':
+          return <MapPanel onClose={closePanel} />;
+        case 'grammar':
+          return <GrammarPanel onClose={closePanel} />;
+        case 'mermaid':
+          return <MermaidPanel onClose={closePanel} />;
+        default:
+          return null;
+      }
+    })();
+    if (!node) return null;
     return (
-      <div key={id} style={{ display: isActive ? 'contents' : 'none' }}>
-        <ComponentErrorBoundary region={`${id} Panel`}>
-          {node}
-        </ComponentErrorBoundary>
-      </div>
+      <ComponentErrorBoundary region={`${activePanel} Panel`} key={activePanel}>
+        {node}
+      </ComponentErrorBoundary>
     );
-  };
+  })();
 
   return (
     <>
@@ -688,7 +741,7 @@ export default function EditorClient() {
           {/* Slide notes below canvas */}
         </main>
 
-        {/* Right: context panels — kept mounted after first visit to preserve state */}
+        {/* Right: context panels — only active panel mounted (UI state in usePanelStore) */}
         <aside
           aria-hidden={!isPanelOpen}
           className={cn(
@@ -705,33 +758,7 @@ export default function EditorClient() {
             !isPanelOpen && 'md:w-0 md:opacity-0 md:border-l-0 md:overflow-hidden md:pointer-events-none',
           )}
         >
-          {panel('generate', <GeneratePanel onClose={() => setPanelOpen(false)} />)}
-          {panel('layers', <LayersPanel />)}
-          {panel('design', <DesignPanel />)}
-          {panel('notes', <NotesPanel />)}
-          {panel('animations', <AnimationsPanel />)}
-          {panel('layouts', <LayoutsPanel />)}
-          {panel('photos', <PhotosPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('icons', <IconsPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('giphy', <GiphyPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('qr', <QRPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('charts', <ChartsPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('ai', <AIPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('video', <VideoPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('pollinations', <PollinationsPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('wikipedia', <WikipediaPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('wordsuggester', <WordSuggesterPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('apps', <AppsPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('avatars', <AvatarsPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('flags', <FlagsPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('mockups', <MockupsPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('videos', <VideosPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('shapes', <ShapesPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('timeline', <TimelinePanel onClose={() => setPanelOpen(false)} />)}
-          {panel('svgpattern', <SVGPatternPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('map', <MapPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('grammar', <GrammarPanel onClose={() => setPanelOpen(false)} />)}
-          {panel('mermaid', <MermaidPanel onClose={() => setPanelOpen(false)} />)}
+          {activePanelContent}
         </aside>
       </div>
     </div>

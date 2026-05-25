@@ -9,6 +9,7 @@ import type { SlideTransition } from '@/types';
 import { Palette, Type, Sparkles, Check, RefreshCw } from 'lucide-react';
 import { ColorPicker } from './ColorPicker';
 import { EDITOR_GOOGLE_FONTS } from '@/lib/editor-fonts';
+import { PRESENTATION_THEMES, PALETTE_LABELS } from '@/lib/presentation-themes';
 
 // ── Preset themes ─────────────────────────────────────────────────────────────
 const STYLE_MODES: { id: string; label: string }[] = [
@@ -20,16 +21,7 @@ const STYLE_MODES: { id: string; label: string }[] = [
   { id: 'editorial', label: 'Editorial' },
 ];
 
-const THEMES = [
-  { name: 'Midnight',  palette: ['#05050A', '#FFFFFF', '#38BDF8', '#94A3B8'], preview: ['#05050A', '#38BDF8'] },
-  { name: 'Ocean',     palette: ['#0A1628', '#FFFFFF', '#0009fa', '#93C5FD'], preview: ['#0A1628', '#0009fa'] },
-  { name: 'Ember',     palette: ['#0F0A00', '#FFFFFF', '#F97316', '#FED7AA'], preview: ['#0F0A00', '#F97316'] },
-  { name: 'Forest',    palette: ['#071A0F', '#FFFFFF', '#22C55E', '#BBF7D0'], preview: ['#071A0F', '#22C55E'] },
-  { name: 'Rose',      palette: ['#130A10', '#FFFFFF', '#EC4899', '#FBCFE8'], preview: ['#130A10', '#EC4899'] },
-  { name: 'Slate',     palette: ['#0F172A', '#FFFFFF', '#64748B', '#CBD5E1'], preview: ['#0F172A', '#64748B'] },
-  { name: 'Gold',      palette: ['#0D0900', '#FFFFFF', '#EAB308', '#FEF08A'], preview: ['#0D0900', '#EAB308'] },
-  { name: 'Arctic',    palette: ['#F8FAFC', '#0F172A', '#0EA5E9', '#E0F2FE'], preview: ['#F8FAFC', '#0EA5E9'] },
-];
+const THEMES = PRESENTATION_THEMES;
 
 // Component to dynamically load Google Fonts
 function FontLoader({ fonts }: { fonts: string[] }) {
@@ -52,10 +44,6 @@ function FontLoader({ fonts }: { fonts: string[] }) {
   
   return null;
 }
-
-// ── Color swatch editor ───────────────────────────────────────────────────────
-const PALETTE_LABELS = ['Background', 'Text', 'Accent', 'Secondary'];
-
 
 // ── Main Design Panel ─────────────────────────────────────────────────────────
 export function DesignPanel() {

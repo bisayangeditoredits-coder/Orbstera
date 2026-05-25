@@ -3,30 +3,20 @@
 
 import { useState, useEffect } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
+import { usePanelStore, type UnsplashPhotoPersisted } from '@/store/usePanelStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Image as ImageIcon, Loader2, X, Plus } from 'lucide-react';
 
 const UNSPLASH_ACCESS_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY || '';
 
-type UnsplashPhoto = {
-  id: string;
-  urls: { regular: string; small: string; full: string; };
-  alt_description: string;
-  width: number;
-  height: number;
-  user: { name: string; };
-};
-
 export function PhotosPanel({ onClose }: { onClose?: () => void }) {
-  const [query, setQuery] = useState('');
-  const [lastSearchedQuery, setLastSearchedQuery] = useState('abstract background');
-  const [photos, setPhotos] = useState<UnsplashPhoto[]>([]);
+  const { query, lastSearchedQuery, photos, page, hasMore } = usePanelStore((s) => s.photos);
+  const patchPhotos = usePanelStore((s) => s.patchPhotos);
+
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  
+
   const selectedElementId = usePresentationStore((s) => s.editor.selectedElementId);
   const addElement = usePresentationStore((s) => s.addElement);
   const updateElement = usePresentationStore((s) => s.updateElement);
@@ -36,32 +26,44 @@ export function PhotosPanel({ onClose }: { onClose?: () => void }) {
   const searchPhotos = async (searchQuery: string, pageNum = 1) => {
     if (!UNSPLASH_ACCESS_KEY) { setError('Missing Unsplash API Key.'); return; }
     if (!searchQuery.trim()) return;
-    if (pageNum === 1) { setLoading(true); setPhotos([]); } else { setLoadingMore(true); }
+    if (pageNum === 1) { setLoading(true); patchPhotos({ photos: [] }); } else { setLoadingMore(true); }
     setError('');
-    setLastSearchedQuery(searchQuery);
+    patchPhotos({ lastSearchedQuery: searchQuery });
     try {
       const res = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(searchQuery)}&page=${pageNum}&per_page=30&client_id=${UNSPLASH_ACCESS_KEY}`);
       if (!res.ok) throw new Error('Failed to fetch photos. Check your API key.');
       const data = await res.json();
-      if (pageNum === 1) { setPhotos(data.results || []); } else { setPhotos(prev => [...prev, ...(data.results || [])]); }
-      setHasMore(data.total_pages > pageNum);
-      setPage(pageNum);
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+      const nextPhotos = (data.results || []) as UnsplashPhotoPersisted[];
+      if (pageNum === 1) {
+        patchPhotos({ photos: nextPhotos });
+      } else {
+        const merged = [...usePanelStore.getState().photos, ...nextPhotos];
+        patchPhotos({ photos: merged });
+      }
+      patchPhotos({
+        hasMore: data.total_pages > pageNum,
+        page: pageNum,
+      });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
   };
 
-  useEffect(() => { if (UNSPLASH_ACCESS_KEY) searchPhotos('abstract background'); }, []);
+  useEffect(() => {
+    if (!UNSPLASH_ACCESS_KEY) return;
+    if (photos.length > 0) return;
+    searchPhotos(lastSearchedQuery || 'abstract background');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const handleAddPhoto = (photo: UnsplashPhoto) => {
+  const handleAddPhoto = (photo: UnsplashPhotoPersisted) => {
     if (currentSlideIndex === null || !presentation) return;
     const slideId = presentation.slides[currentSlideIndex]?.id;
     if (!slideId) return;
 
-    // Check if an image is currently selected
     const selectedEl = presentation.slides[currentSlideIndex]?.elements?.find(e => e.id === selectedElementId);
     if (selectedEl && selectedEl.type === 'image') {
       updateElement(slideId, selectedElementId!, { src: photo.urls.full });
@@ -109,7 +111,7 @@ export function PhotosPanel({ onClose }: { onClose?: () => void }) {
             <input
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => patchPhotos({ query: e.target.value })}
               onKeyDown={(e) => e.key === 'Enter' && searchPhotos(query, 1)}
               placeholder="Search photos..."
               className="w-full h-9 bg-neutral-50 border border-neutral-200 rounded-lg pl-8 pr-3 text-[13px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 focus:ring-2 focus:ring-neutral-100 transition-all"

@@ -86,14 +86,12 @@ export function PresentationGrid({
     if (!bulkDeleteIds?.length) return;
     setBulkDeleting(true);
     try {
-      const results = await Promise.all(
-        bulkDeleteIds.map((id) =>
-          fetch(`/api/presentations?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).then(
-            (r) => r.ok,
-          ),
-        ),
+      const combinedIds = bulkDeleteIds.join(',');
+      const res = await fetch(
+        `/api/presentations?ids=${encodeURIComponent(combinedIds)}`,
+        { method: 'DELETE' },
       );
-      if (results.every(Boolean)) {
+      if (res.ok) {
         onBulkDeleted(bulkDeleteIds);
         setBulkDeleteIds(null);
         exitSelection();

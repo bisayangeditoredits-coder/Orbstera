@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { LayoutList, Sparkles, Loader2, CheckCircle2, ArrowRight, GripVertical } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
   closestCenter,
@@ -30,6 +30,7 @@ type PlannerOutlinePanelProps = {
   topic: string;
   canGenerate: boolean;
   slideNotes: Record<number, string>;
+  targetSlideCount?: number;
   onGenerate: () => void;
   onReorder: (slides: OutlineSlide[]) => void;
   onUpdateSlideNotes: (slideNum: number, notes: string) => void;
@@ -62,11 +63,15 @@ function SortableSlideCard({
   isDragging,
   notes,
   onUpdateNotes,
+  entranceDelay,
+  animateEntrance,
 }: {
   slide: OutlineSlide;
   isDragging?: boolean;
   notes?: string;
   onUpdateNotes?: (notes: string) => void;
+  entranceDelay: number;
+  animateEntrance: boolean;
 }) {
   const {
     attributes,
@@ -86,14 +91,16 @@ function SortableSlideCard({
   };
 
   return (
-    <motion.li
-      ref={setNodeRef}
-      style={style}
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: isSelf ? 0.35 : 1, y: 0 }}
-      transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
-    >
-      <article
+    <li ref={setNodeRef} style={style} className="list-none">
+      <motion.article
+        layout={false}
+        initial={animateEntrance ? { opacity: 0, y: 20 } : false}
+        animate={{ opacity: isSelf ? 0.35 : 1, y: 0 }}
+        transition={{
+          duration: 0.35,
+          ease: [0.25, 0.1, 0.25, 1],
+          delay: animateEntrance ? entranceDelay : 0,
+        }}
         onClick={() => !expanded && setExpanded(true)}
         className={cn(
           'group flex min-h-[88px] flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition sm:min-h-[96px] sm:p-5',
@@ -144,9 +151,12 @@ function SortableSlideCard({
               )}
             </div>
             {slide.description && (
-              <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+              <motion.p
+                layout
+                className="mt-1.5 text-xs leading-relaxed text-slate-500"
+              >
                 {slide.description}
-              </p>
+              </motion.p>
             )}
             
             {notes && !expanded && (
@@ -186,8 +196,8 @@ function SortableSlideCard({
             </div>
           </motion.div>
         )}
-      </article>
-    </motion.li>
+      </motion.article>
+    </li>
   );
 }
 
@@ -222,14 +232,16 @@ export function PlannerOutlinePanel({
   topic,
   canGenerate,
   slideNotes,
+  targetSlideCount,
   onGenerate,
   onReorder,
   onUpdateSlideNotes,
 }: PlannerOutlinePanelProps) {
   const hasSlides = slides.length > 0;
-  const { count, isStreaming, target } = getOutlineProgress(slides, loading);
+  const { count, isStreaming, target } = getOutlineProgress(slides, loading, targetSlideCount);
   const progressPct = Math.min(100, Math.round((count / target) * 100));
 
+  const seenSlideNumbersRef = useRef<Set<number>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
   const activeSlide = activeId ? slides.find((s) => String(s.number) === activeId) : null;
 
@@ -326,17 +338,25 @@ export function PlannerOutlinePanel({
               strategy={verticalListSortingStrategy}
             >
               <ul className="space-y-3">
-                {slides.map((slide) => (
-                  <SortableSlideCard
-                    key={slide.number}
-                    slide={slide}
-                    isDragging={activeId === String(slide.number)}
-                    notes={slideNotes[slide.number]}
-                    onUpdateNotes={(n) => onUpdateSlideNotes(slide.number, n)}
-                  />
-                ))}
+                <AnimatePresence initial={false}>
+                  {slides.map((slide) => {
+                    const isNew = !seenSlideNumbersRef.current.has(slide.number);
+                    if (isNew) seenSlideNumbersRef.current.add(slide.number);
+                    return (
+                      <SortableSlideCard
+                        key={slide.number}
+                        slide={slide}
+                        isDragging={activeId === String(slide.number)}
+                        notes={slideNotes[slide.number]}
+                        onUpdateNotes={(n) => onUpdateSlideNotes(slide.number, n)}
+                        animateEntrance={isNew}
+                        entranceDelay={isNew ? (slide.number - 1) * 0.08 : 0}
+                      />
+                    );
+                  })}
+                </AnimatePresence>
                 {loading && (
-                  <li className="pt-1">
+                  <li className="pt-1 list-none">
                     <SlideSkeleton index={slides.length} />
                   </li>
                 )}

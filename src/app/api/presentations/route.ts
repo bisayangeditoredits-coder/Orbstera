@@ -4,10 +4,23 @@ import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, List
 import { runPresentationSaveFromParsed } from '@/lib/server/run-presentation-save';
 import {
   assertTrustedOrigin,
+  getApiUser,
   PRIVATE_API_HEADERS,
   untrustedOriginResponse,
 } from '@/lib/auth/server';
 import { requireApiUserWithRateLimit } from '@/lib/auth/require-api-route';
+import {
+  enforceApiIpRateLimit,
+  requireRateLimitInfrastructure,
+} from '@/lib/rate-limit-server';
+
+const PUBLIC_CACHE_HEADERS = {
+  'Cache-Control': 'public, max-age=60',
+} as const;
+
+function isPublicShareAccess(shareAccess: unknown): boolean {
+  return shareAccess === 'public_view';
+}
 
 let s3Client: S3Client | null = null;
 if (
@@ -65,26 +78,86 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
   }
 
+  const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME;
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  const ownerParam = searchParams.get('owner');
+
+  if (id) {
+    const sessionUser = await getApiUser();
+    const isOwnerRequest = sessionUser && (!ownerParam || ownerParam === sessionUser.id);
+
+    if (isOwnerRequest && sessionUser) {
+      const auth = await requireApiUserWithRateLimit(req, 'default');
+      if ('response' in auth) return auth.response;
+
+      const prefix = `presentations/${auth.user.id}`;
+      try {
+        const response = await s3Client.send(
+          new GetObjectCommand({ Bucket: bucket, Key: `${prefix}/${id}.json` }),
+        );
+        const body = await streamToString(response.Body);
+        return NextResponse.json(JSON.parse(body), { headers: PRIVATE_CACHE_HEADERS });
+      } catch (error: any) {
+        if (error.name === 'NoSuchKey') {
+          return NextResponse.json(null, { headers: PRIVATE_CACHE_HEADERS });
+        }
+        console.error('R2 Get Error:', error);
+        return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 });
+      }
+    }
+
+    const ownerId = ownerParam?.trim();
+    if (!ownerId) {
+      return NextResponse.json(
+        { error: 'Missing owner for public fetch' },
+        { status: 400, headers: PRIVATE_CACHE_HEADERS },
+      );
+    }
+
+    const infra = requireRateLimitInfrastructure();
+    if (infra) return infra;
+
+    const ipLimited = await enforceApiIpRateLimit(req, 'default');
+    if (ipLimited) return ipLimited;
+
+    const prefix = `presentations/${ownerId}`;
+    try {
+      const response = await s3Client.send(
+        new GetObjectCommand({ Bucket: bucket, Key: `${prefix}/${id}.json` }),
+      );
+      const body = await streamToString(response.Body);
+      const deck = JSON.parse(body) as { shareAccess?: string };
+      if (!isPublicShareAccess(deck.shareAccess)) {
+        return NextResponse.json(
+          { error: 'This presentation is private' },
+          { status: 403, headers: PRIVATE_CACHE_HEADERS },
+        );
+      }
+      return NextResponse.json(deck, { headers: PUBLIC_CACHE_HEADERS });
+    } catch (error: any) {
+      if (error.name === 'NoSuchKey') {
+        return NextResponse.json(null, { headers: PRIVATE_CACHE_HEADERS });
+      }
+      console.error('R2 Public Get Error:', error);
+      return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 });
+    }
+  }
+
   const auth = await requireApiUserWithRateLimit(req, 'default');
   if ('response' in auth) return auth.response;
   const user = auth.user;
-
-  const { searchParams } = new URL(req.url);
-  const id     = searchParams.get('id');
   const prefix = `presentations/${user.id}`;
 
   try {
     const response = await s3Client.send(
-      new GetObjectCommand({
-        Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,
-        Key: id ? `${prefix}/${id}.json` : `${prefix}/index.json`,
-      })
+      new GetObjectCommand({ Bucket: bucket, Key: `${prefix}/index.json` }),
     );
     const body = await streamToString(response.Body);
     return NextResponse.json(JSON.parse(body), { headers: PRIVATE_CACHE_HEADERS });
   } catch (error: any) {
     if (error.name === 'NoSuchKey') {
-      return NextResponse.json(id ? null : [], { headers: PRIVATE_CACHE_HEADERS });
+      return NextResponse.json([], { headers: PRIVATE_CACHE_HEADERS });
     }
     console.error('R2 Get Error:', error);
     return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 });
@@ -165,7 +238,7 @@ async function deleteDeckAssetsUnderPrefix(
   }
 }
 
-// ── DELETE /api/presentations?id= — remove a presentation ──────────────────
+// ── DELETE /api/presentations?id= | ?ids=id1,id2 — remove presentation(s) ──
 export async function DELETE(req: Request) {
   if (!assertTrustedOrigin(req)) return untrustedOriginResponse();
   if (!s3Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) {
@@ -177,43 +250,55 @@ export async function DELETE(req: Request) {
   const user = auth.user;
 
   const { searchParams } = new URL(req.url);
-  const id = searchParams.get('id');
-  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+  const idsParam = searchParams.get('ids');
+  const idParam = searchParams.get('id');
+  const ids = idsParam
+    ? idsParam.split(',').map((s) => s.trim()).filter(Boolean)
+    : idParam
+      ? [idParam]
+      : [];
+  if (ids.length === 0) {
+    return NextResponse.json({ error: 'Missing id or ids' }, { status: 400 });
+  }
 
   const prefix = `presentations/${user.id}`;
+  const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME;
+  const idSet = new Set(ids);
 
   try {
-    // Delete the presentation file
-    await s3Client.send(new DeleteObjectCommand({
-      Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,
-      Key:    `${prefix}/${id}.json`,
-    }));
+    for (const id of ids) {
+      await s3Client.send(new DeleteObjectCommand({
+        Bucket: bucket,
+        Key:    `${prefix}/${id}.json`,
+      }));
+    }
 
-    // Remove from index
     let index: any[] = [];
     try {
-      const res  = await s3Client.send(new GetObjectCommand({ Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME, Key: `${prefix}/index.json` }));
+      const res  = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: `${prefix}/index.json` }));
       const body = await streamToString(res.Body);
       index = JSON.parse(body);
     } catch (e: any) { if (e.name !== 'NoSuchKey') throw e; }
 
-    index = index.filter((p: any) => p.id !== id);
+    index = index.filter((p: any) => !idSet.has(p.id));
 
     await s3Client.send(new PutObjectCommand({
-      Bucket:      process.env.CLOUDFLARE_R2_BUCKET_NAME,
+      Bucket:      bucket,
       Key:         `${prefix}/index.json`,
       Body:        JSON.stringify(index),
       ContentType: 'application/json',
     }));
 
-    try {
-      await deleteDeckAssetsUnderPrefix(
-        s3Client,
-        process.env.CLOUDFLARE_R2_BUCKET_NAME,
-        `${prefix}/deck-assets/${id}/`,
-      );
-    } catch (assetErr) {
-      console.error('R2 deck-assets cleanup (non-fatal):', assetErr);
+    for (const id of ids) {
+      try {
+        await deleteDeckAssetsUnderPrefix(
+          s3Client,
+          bucket,
+          `${prefix}/deck-assets/${id}/`,
+        );
+      } catch (assetErr) {
+        console.error('R2 deck-assets cleanup (non-fatal):', assetErr);
+      }
     }
 
     return NextResponse.json({ success: true });
@@ -223,7 +308,7 @@ export async function DELETE(req: Request) {
   }
 }
 
-// ── PATCH /api/presentations — rename a presentation title ──────────────────
+// ── PATCH /api/presentations — update title and/or share access ─────────────
 export async function PATCH(req: Request) {
   if (!assertTrustedOrigin(req)) return untrustedOriginResponse();
   if (!s3Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) {
@@ -239,22 +324,30 @@ export async function PATCH(req: Request) {
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
   const body = await req.json().catch(() => ({}));
-  const newTitle = typeof body.title === 'string' ? body.title.trim() : null;
-  if (!newTitle) return NextResponse.json({ error: 'Missing title' }, { status: 400 });
+  const newTitle =
+    typeof body.title === 'string' && body.title.trim() ? body.title.trim() : null;
+  const shareAccessRaw = body.shareAccess;
+  const shareAccess =
+    shareAccessRaw === 'private' || shareAccessRaw === 'public_view' ? shareAccessRaw : null;
+
+  if (!newTitle && !shareAccess) {
+    return NextResponse.json({ error: 'Missing title or shareAccess' }, { status: 400 });
+  }
 
   const prefix = `presentations/${user.id}`;
   const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME;
   const deckKey = `${prefix}/${id}.json`;
 
   try {
-    // 1. Update deck JSON
     const deckRes = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: deckKey }));
     const deck = JSON.parse(await streamToString(deckRes.Body));
-    deck.title = newTitle;
+
+    if (newTitle) deck.title = newTitle;
+    if (shareAccess) deck.shareAccess = shareAccess;
     deck.updatedAt = new Date().toISOString();
+
     await putJsonWithRetry(s3Client, bucket, deckKey, JSON.stringify(deck));
 
-    // 2. Patch index.json entry
     let index: any[] = [];
     try {
       const idxRes = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: `${prefix}/index.json` }));
@@ -263,16 +356,28 @@ export async function PATCH(req: Request) {
 
     const idx = index.findIndex((p: any) => p.id === id);
     if (idx >= 0) {
-      index[idx] = { ...index[idx], title: newTitle, date: deck.updatedAt };
+      index[idx] = {
+        ...index[idx],
+        ...(newTitle ? { title: newTitle, date: deck.updatedAt } : { date: deck.updatedAt }),
+        ...(shareAccess ? { shareAccess } : {}),
+      };
     }
     await putJsonWithRetry(s3Client, bucket, `${prefix}/index.json`, JSON.stringify(index));
 
-    return NextResponse.json({ success: true, title: newTitle, updatedAt: deck.updatedAt }, { headers: PRIVATE_CACHE_HEADERS });
+    return NextResponse.json(
+      {
+        success: true,
+        ...(newTitle ? { title: newTitle } : {}),
+        ...(shareAccess ? { shareAccess } : {}),
+        updatedAt: deck.updatedAt,
+      },
+      { headers: PRIVATE_CACHE_HEADERS },
+    );
   } catch (error: any) {
     if (error.name === 'NoSuchKey') {
       return NextResponse.json({ error: 'Deck not found' }, { status: 404 });
     }
-    console.error('R2 Rename Error:', error);
-    return NextResponse.json({ error: 'Failed to rename presentation' }, { status: 500 });
+    console.error('R2 PATCH Error:', error);
+    return NextResponse.json({ error: 'Failed to update presentation' }, { status: 500 });
   }
 }

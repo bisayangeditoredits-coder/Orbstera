@@ -3,37 +3,27 @@
 
 import { useState, useEffect } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
+import { usePanelStore, type GiphyGifPersisted } from '@/store/usePanelStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Loader2, X, Plus, Smile } from 'lucide-react';
 
 const GIPHY_API_KEY = process.env.NEXT_PUBLIC_GIPHY_API_KEY || '';
 
-type GiphyGif = {
-  id: string;
-  images: {
-    fixed_height: { url: string; width: string; height: string; };
-    original: { url: string; width: string; height: string; };
-  };
-  title: string;
-};
-
 export function GiphyPanel({ onClose }: { onClose?: () => void }) {
-  const [query, setQuery] = useState('');
-  const [gifs, setGifs] = useState<GiphyGif[]>([]);
+  const { query, gifs, offset, hasMore, mode } = usePanelStore((s) => s.giphy);
+  const patchGiphy = usePanelStore((s) => s.patchGiphy);
+
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
-  const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [mode, setMode] = useState<'gifs' | 'stickers'>('gifs');
-  
+
   const addElement = usePresentationStore((s) => s.addElement);
   const currentSlideIndex = usePresentationStore((s) => s.currentSlideIndex);
   const presentation = usePresentationStore((s) => s.presentation);
 
   const fetchGifs = async (searchQuery: string, newOffset = 0, currentMode = mode) => {
     if (!GIPHY_API_KEY) { setError('Missing Giphy API Key.'); return; }
-    if (newOffset === 0) { setLoading(true); setGifs([]); } else { setLoadingMore(true); }
+    if (newOffset === 0) { setLoading(true); patchGiphy({ gifs: [] }); } else { setLoadingMore(true); }
     setError('');
     try {
       const endpoint = searchQuery.trim() ? 'search' : 'trending';
@@ -43,21 +33,32 @@ export function GiphyPanel({ onClose }: { onClose?: () => void }) {
       if (res.status === 401 || res.status === 403) throw new Error('API_KEY_INVALID');
       if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
       const data = await res.json();
-      if (newOffset === 0) { setGifs(data.data || []); } else { setGifs(prev => [...prev, ...(data.data || [])]); }
-      setHasMore(data.pagination.total_count > newOffset + 20);
-      setOffset(newOffset);
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+      const batch = (data.data || []) as GiphyGifPersisted[];
+      if (newOffset === 0) {
+        patchGiphy({ gifs: batch });
+      } else {
+        const merged = [...usePanelStore.getState().giphy.gifs, ...batch];
+        patchGiphy({ gifs: merged });
+      }
+      patchGiphy({
+        hasMore: data.pagination.total_count > newOffset + 20,
+        offset: newOffset,
+      });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchGifs('', 0, mode); }, [mode]);
+  useEffect(() => {
+    if (gifs.length > 0) return;
+    fetchGifs('', 0, mode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
 
-  const handleAddGif = (gif: GiphyGif) => {
+  const handleAddGif = (gif: GiphyGifPersisted) => {
     if (currentSlideIndex === null || !presentation) return;
     const slideId = presentation.slides[currentSlideIndex]?.id;
     if (!slideId) return;
@@ -98,28 +99,29 @@ export function GiphyPanel({ onClose }: { onClose?: () => void }) {
         </div>
 
         <div className="px-4 pb-4 space-y-2.5">
-          {/* Mode toggle */}
-          <div className="flex bg-neutral-100 p-0.5 rounded-lg">
-            <button
-              onClick={() => setMode('gifs')}
-              className={`flex-1 py-1.5 text-[12px] font-semibold rounded-md transition-all ${mode === 'gifs' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}`}
-            >
-              GIFs
-            </button>
-            <button
-              onClick={() => setMode('stickers')}
-              className={`flex-1 py-1.5 text-[12px] font-semibold rounded-md transition-all ${mode === 'stickers' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'}`}
-            >
-              Stickers
-            </button>
+          <div className="flex gap-1 p-0.5 bg-neutral-100 rounded-lg">
+            {(['gifs', 'stickers'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  patchGiphy({ mode: m, gifs: [], offset: 0, hasMore: true, query: '' });
+                  fetchGifs('', 0, m);
+                }}
+                className={`flex-1 py-1.5 text-[11px] font-semibold rounded-md capitalize transition-all ${
+                  mode === m ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
+                }`}
+              >
+                {m}
+              </button>
+            ))}
           </div>
-
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
             <input
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => patchGiphy({ query: e.target.value })}
               onKeyDown={(e) => e.key === 'Enter' && fetchGifs(query, 0, mode)}
               placeholder={`Search ${mode}...`}
               className="w-full h-9 bg-neutral-50 border border-neutral-200 rounded-lg pl-8 pr-3 text-[13px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 focus:ring-2 focus:ring-neutral-100 transition-all"
@@ -129,25 +131,9 @@ export function GiphyPanel({ onClose }: { onClose?: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-24">
-        {!GIPHY_API_KEY || error === 'API_KEY_INVALID' ? (
-          <div className="flex flex-col items-center justify-center text-center h-full p-4 gap-3">
-            <div className="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center">
-              <Smile size={18} className="text-neutral-400" />
-            </div>
-            <div>
-              <p className="text-[13px] font-semibold text-neutral-700">API Key Required</p>
-              <p className="text-[11px] text-neutral-400 mt-1 max-w-[200px] leading-relaxed">
-                Get a free key from <strong>developers.giphy.com</strong> and add it as <code className="bg-neutral-100 px-1 rounded text-[10px]">NEXT_PUBLIC_GIPHY_API_KEY</code>.
-              </p>
-            </div>
-            <a
-              href="https://developers.giphy.com/dashboard/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white text-[12px] font-semibold rounded-lg transition-colors"
-            >
-              Get Free API Key
-            </a>
+        {!GIPHY_API_KEY ? (
+          <div className="text-[12px] text-neutral-500 text-center p-4">
+            Add <code className="bg-neutral-100 px-1 rounded text-[10px]">NEXT_PUBLIC_GIPHY_API_KEY</code> to .env
           </div>
         ) : loading ? (
           <div className="flex items-center justify-center h-40">
@@ -155,28 +141,27 @@ export function GiphyPanel({ onClose }: { onClose?: () => void }) {
           </div>
         ) : error ? (
           <div className="text-[12px] text-red-500 text-center p-4 bg-red-50 rounded-xl border border-red-100">
-            {error}
+            {error === 'API_KEY_INVALID' ? 'Invalid Giphy API key.' : error}
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            <div className="columns-2 gap-2 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
               <AnimatePresence>
-                {gifs.map((gif, i) => (
+                {gifs.map((gif) => (
                   <motion.div
-                    key={`${gif.id}-${i}`}
+                    key={gif.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="relative group cursor-pointer break-inside-avoid rounded-xl overflow-hidden bg-neutral-100 mb-2 border border-neutral-100 hover:border-neutral-300 hover:shadow-md transition-all duration-200 min-h-[80px] flex items-center justify-center"
+                    className="relative group cursor-pointer rounded-xl overflow-hidden bg-neutral-100 aspect-square border border-neutral-100 hover:border-neutral-300 transition-all"
                     onClick={() => handleAddGif(gif)}
                   >
                     <img
                       src={gif.images.fixed_height.url}
-                      alt={gif.title || 'GIF'}
-                      className="w-full h-auto object-cover"
+                      alt={gif.title}
+                      className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center">
-                      <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-neutral-800 scale-0 group-hover:scale-100 transition-transform duration-200 shadow-sm">
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-all flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center scale-0 group-hover:scale-100 transition-transform shadow-sm">
                         <Plus size={16} strokeWidth={2.5} />
                       </div>
                     </div>
@@ -184,9 +169,9 @@ export function GiphyPanel({ onClose }: { onClose?: () => void }) {
                 ))}
               </AnimatePresence>
             </div>
-
             {gifs.length > 0 && hasMore && (
               <button
+                type="button"
                 onClick={() => fetchGifs(query, offset + 20, mode)}
                 disabled={loadingMore}
                 className="w-full py-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-600 text-[12px] font-medium hover:bg-neutral-100 transition-all flex items-center justify-center gap-2"

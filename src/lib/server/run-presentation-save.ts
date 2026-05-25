@@ -109,6 +109,9 @@ export async function runPresentationSaveFromParsed(
         theme: presentation.theme || 'dark',
         colorPalette: presentation.colorPalette || ['#05050A', '#7B61FF', '#FFFFFF', '#A390FF'],
         subtitle: (slides[0] as { subtitle?: string } | undefined)?.subtitle || '',
+        ...(presentation.shareAccess === 'private' || presentation.shareAccess === 'public_view'
+          ? { shareAccess: presentation.shareAccess }
+          : {}),
         ...thumb,
       };
 

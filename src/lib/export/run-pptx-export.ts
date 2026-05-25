@@ -21,6 +21,58 @@ const SCALE  = 1 / 96; // 1px = 1/96 inch
 
 const px = (v: number) => parseFloat((v * SCALE).toFixed(4));
 
+/** Read PNG dimensions from IHDR for watermark aspect-ratio math */
+function readPngDimensions(buffer: Buffer): { width: number; height: number } | null {
+  if (buffer.length < 24 || buffer.readUInt32BE(0) !== 0x89504e47) return null;
+  const width = buffer.readUInt32BE(16);
+  const height = buffer.readUInt32BE(20);
+  if (width <= 0 || height <= 0) return null;
+  return { width, height };
+}
+
+/** Fit image inside a max box while preserving aspect ratio (inches) */
+function fitImageInBox(
+  imgW: number,
+  imgH: number,
+  maxW: number,
+  maxH: number,
+): { w: number; h: number } {
+  const aspect = imgW / imgH;
+  let w = maxW;
+  let h = w / aspect;
+  if (h > maxH) {
+    h = maxH;
+    w = h * aspect;
+  }
+  return { w: parseFloat(w.toFixed(4)), h: parseFloat(h.toFixed(4)) };
+}
+
+const WATERMARK_LOGO_CANDIDATES = [
+  'public/orbstera-colored-logo.png',
+  'public/@2026-Logos-orbstera/orbstera-colored-logo.png',
+  'public/Main_logo.png',
+  'public/logo.png.png',
+];
+
+function loadWatermarkLogo(): { dataUri: string; width: number; height: number } | null {
+  for (const rel of WATERMARK_LOGO_CANDIDATES) {
+    const logoPath = path.join(process.cwd(), rel);
+    try {
+      const logoBuffer = fs.readFileSync(logoPath);
+      const dims = readPngDimensions(logoBuffer);
+      if (!dims) continue;
+      return {
+        dataUri: `data:image/png;base64,${logoBuffer.toString('base64')}`,
+        width: dims.width,
+        height: dims.height,
+      };
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
+
 /** Strip # and ensure 6-char uppercase hex (pptxgenjs format) */
 function hex(color?: string): string {
   return parseColorForPptx(color).color;
@@ -471,23 +523,26 @@ export async function runPptxExport(params: {
     // ── Watermark: inject on every slide for Free users ──────────────────────
     if (!isPaidUser) {
       try {
-        let logoData: string | undefined;
-        const logoCandidates = [
-          path.join(process.cwd(), 'public', 'logo.png'),
-          path.join(process.cwd(), 'public', 'logo.png.png'),
-          path.join(process.cwd(), 'public', 'PNGs', 'Powerpoint.png'),
-        ];
-        for (const logoPath of logoCandidates) {
-          try {
-            const logoBuffer = fs.readFileSync(logoPath);
-            logoData = `data:image/png;base64,${logoBuffer.toString('base64')}`;
-            break;
-          } catch {
-            /* try next */
-          }
-        }
-        if (!logoData) {
+        const logo = loadWatermarkLogo();
+        if (!logo) {
           console.warn('[export/pptx] No watermark logo found in public/; text-only watermark');
+        }
+
+        const WM_MAX_W = 2.05;
+        const WM_MAX_H = 0.42;
+        const WM_MARGIN_X = 0.14;
+        const WM_MARGIN_Y = 0.1;
+        const TAGLINE_H = 0.12;
+
+        let logoPlacement: { x: number; y: number; w: number; h: number } | null = null;
+        if (logo) {
+          const { w, h } = fitImageInBox(logo.width, logo.height, WM_MAX_W, WM_MAX_H);
+          logoPlacement = {
+            w,
+            h,
+            x: parseFloat((PPTX_W - w - WM_MARGIN_X).toFixed(4)),
+            y: parseFloat((PPTX_H - h - WM_MARGIN_Y - TAGLINE_H).toFixed(4)),
+          };
         }
 
         const internalSlides = (pptx as unknown as { slides?: unknown }).slides;
@@ -498,16 +553,25 @@ export async function runPptxExport(params: {
             addImage?: (o: Record<string, unknown>) => void;
             addText: (t: string, o: Record<string, unknown>) => void;
           };
-          if (logoData && typeof ws.addImage === 'function') {
-            // Place logo at bottom-right corner, width-constrained so aspect ratio is preserved
+          if (logo && logoPlacement && typeof ws.addImage === 'function') {
             ws.addImage({
-              data: logoData,
-              x: 9.0, y: 7.12, w: 1.2, h: 0.2,
-              sizing: { type: 'contain', w: 1.2, h: 0.2 },
+              data: logo.dataUri,
+              x: logoPlacement.x,
+              y: logoPlacement.y,
+              w: logoPlacement.w,
+              h: logoPlacement.h,
             });
           }
+          const taglineW = 2.0;
+          const taglineX = parseFloat((PPTX_W - taglineW - WM_MARGIN_X).toFixed(4));
+          const taglineY = logoPlacement
+            ? parseFloat((logoPlacement.y + logoPlacement.h + 0.03).toFixed(4))
+            : parseFloat((PPTX_H - TAGLINE_H - WM_MARGIN_Y).toFixed(4));
           ws.addText('Made with Orbstera AI', {
-            x: 7.9, y: 7.34, w: 1.9, h: 0.11,
+            x: taglineX,
+            y: taglineY,
+            w: taglineW,
+            h: TAGLINE_H,
             fontSize: 7,
             color: 'BBBBBB',
             align: 'right',

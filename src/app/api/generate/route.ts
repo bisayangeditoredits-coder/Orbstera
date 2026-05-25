@@ -74,6 +74,8 @@ export async function POST(req: Request) {
       tone = 'professional',
       language = 'English',
       styleMode,
+      theme,
+      colorPalette,
     } = body as {
       prompt?: string;
       slideCount?: number;
@@ -82,6 +84,8 @@ export async function POST(req: Request) {
       tone?: string;
       language?: string;
       styleMode?: string;
+      theme?: string;
+      colorPalette?: string[];
     };
 
     const cookieStore = cookies();
@@ -267,6 +271,13 @@ export async function POST(req: Request) {
 - Primary Color: ${brandKit.primary_color} (Must be the dominant color in colorPalette)
 - Font: ${brandKit.font || 'Default'}
 - Brand Name/Company: ${brandKit.name || 'User Company'} (Use this anywhere a company name is needed in the slide titles or content)`;
+          }
+
+          if (Array.isArray(colorPalette) && colorPalette.length >= 3) {
+            finalPrompt += `\n\n[USER COLOR PALETTE]\nUse exactly this colorPalette array in the deck JSON: ${JSON.stringify(colorPalette)}`;
+          }
+          if (typeof theme === 'string' && theme.trim()) {
+            finalPrompt += `\n\n[USER THEME]\nVisual theme name: "${theme.trim()}". Match this aesthetic in theme, colorPalette, and layout choices.`;
           }
 
           const { dossierText, refinedBrief, preflightSummary } = await runOpenRouterOrchestration(

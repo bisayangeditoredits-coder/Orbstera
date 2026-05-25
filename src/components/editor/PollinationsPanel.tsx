@@ -1,8 +1,9 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
+import { usePanelStore } from '@/store/usePanelStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ImagePlus, Loader2, X, RefreshCw, Wand2, Maximize2, Plus } from 'lucide-react';
 
@@ -21,11 +22,10 @@ function buildPollinationsUrl(prompt: string, style: string, seed: number) {
 }
 
 export function PollinationsPanel({ onClose }: { onClose?: () => void }) {
-  const [prompt, setPrompt] = useState('');
-  const [selectedStyle, setSelectedStyle] = useState(STYLES[0]);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const { prompt, selectedStyleValue, imageUrl, seed } = usePanelStore((s) => s.pollinations);
+  const patchPollinations = usePanelStore((s) => s.patchPollinations);
+  const selectedStyle = STYLES.find((s) => s.value === selectedStyleValue) ?? STYLES[0];
   const [loading, setLoading] = useState(false);
-  const [seed, setSeed] = useState(() => Math.floor(Math.random() * 99999));
 
   const addElement = usePresentationStore((s) => s.addElement);
   const currentSlideIndex = usePresentationStore((s) => s.currentSlideIndex);
@@ -35,17 +35,21 @@ export function PollinationsPanel({ onClose }: { onClose?: () => void }) {
   const generate = () => {
     if (!prompt.trim()) return;
     const newSeed = Math.floor(Math.random() * 99999);
-    setSeed(newSeed);
     setLoading(true);
-    setImageUrl(buildPollinationsUrl(prompt, selectedStyle.value, newSeed));
+    patchPollinations({
+      seed: newSeed,
+      imageUrl: buildPollinationsUrl(prompt, selectedStyle.value, newSeed),
+    });
   };
 
   const regenerate = () => {
     if (!imageUrl) return;
     const newSeed = Math.floor(Math.random() * 99999);
-    setSeed(newSeed);
     setLoading(true);
-    setImageUrl(buildPollinationsUrl(prompt, selectedStyle.value, newSeed));
+    patchPollinations({
+      seed: newSeed,
+      imageUrl: buildPollinationsUrl(prompt, selectedStyle.value, newSeed),
+    });
   };
 
   const handleAddAsBackground = () => {
@@ -108,7 +112,7 @@ export function PollinationsPanel({ onClose }: { onClose?: () => void }) {
           <label className="text-[11px] font-bold text-neutral-500 uppercase tracking-widest block mb-2">Describe your image</label>
           <textarea
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+            onChange={(e) => patchPollinations({ prompt: e.target.value })}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); generate(); } }}
             placeholder="e.g. A futuristic city skyline at sunset, cinematic lighting..."
             className="w-full h-24 bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-[13px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 focus:ring-2 focus:ring-neutral-100 transition-all resize-none"
@@ -122,7 +126,7 @@ export function PollinationsPanel({ onClose }: { onClose?: () => void }) {
             {STYLES.map((style) => (
               <button
                 key={style.label}
-                onClick={() => setSelectedStyle(style)}
+                onClick={() => patchPollinations({ selectedStyleValue: style.value })}
                 className={`py-1.5 px-2 text-[11px] font-semibold rounded-lg border transition-all ${
                   selectedStyle.label === style.label
                     ? 'bg-neutral-900 text-white border-neutral-900'
