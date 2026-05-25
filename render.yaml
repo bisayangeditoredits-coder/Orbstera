@@ -1,0 +1,21 @@
+# Render.com — Background Worker alternative to Railway (see docs/WORKER_DEPLOY.md)
+services:
+  - type: worker
+    name: orbstera-workers
+    runtime: docker
+    dockerfilePath: ./Dockerfile.worker
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GENERATE_WORKER_ENABLED
+        value: "true"
+      - key: GENERATE_ASYNC_DEFAULT
+        value: "true"
+      - key: GENERATE_USE_JOB_QUEUE
+        value: "true"
+    # Add remaining secrets in the Render dashboard (sync from Vercel):
+    # REDIS_URL, UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN,
+    # SUPABASE_SERVICE_ROLE_KEY, OPENROUTER_API_KEY, CLOUDFLARE_R2_*,
+    # NEXT_PUBLIC_APP_URL, WORKER_INTERNAL_SECRET, etc.

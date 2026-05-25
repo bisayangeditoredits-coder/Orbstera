@@ -46,6 +46,8 @@ npm run verify:scale-env:strict
 
 ## 3. Background workers
 
+**Step-by-step (Railway / Render):** [WORKER_DEPLOY.md](./WORKER_DEPLOY.md)
+
 Deploy **at least one** always-on container (Fly.io, Railway, ECS, etc.):
 
 ```bash

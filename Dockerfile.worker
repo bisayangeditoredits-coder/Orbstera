@@ -4,5 +4,5 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY . .
 ENV NODE_ENV=production
-# Run BullMQ worker when REDIS_URL is set; otherwise legacy list consumer.
-CMD ["sh", "-c", "if [ -n \"$REDIS_URL\" ]; then npx tsx scripts/run-bullmq-worker.ts & npx tsx scripts/run-export-worker.ts & wait; else node scripts/process-generate-jobs.mjs & node scripts/process-export-jobs.mjs & wait; fi"]
+# BullMQ generate (REDIS_URL TCP) + inline export (Upstash REST). See docs/WORKER_DEPLOY.md
+CMD ["sh", "-c", "if [ -n \"$REDIS_URL\" ]; then npm run worker:generate:bullmq & npm run worker:export:inline & wait; else node scripts/process-generate-jobs.mjs & node scripts/process-export-jobs.mjs & wait; fi"]
