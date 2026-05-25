@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from '@/components/icons/lucide';
 import {
   MousePointer2,
   Type,
@@ -12,8 +12,8 @@ import {
   ArrowRight,
   Sparkles,
   Heart,
-  Grid3X3,
-} from 'lucide-react';
+  Grid3x3,
+} from '@/components/icons/lucide';
 import type { EditorToolId } from '@/types';
 
 export type ToolGroup = 'navigate' | 'ai' | 'type' | 'media' | 'shape' | 'draw' | 'data' | 'frame' | 'view';
@@ -57,7 +57,7 @@ export const TOOL_GROUP_ORDER: ToolGroup[] = [
 
 export const VIEW_TOOL_GRID = {
   id: 'grid' as const,
-  icon: Grid3X3,
+  icon: Grid3x3,
   label: 'Grid',
   shortcut: 'G',
 };

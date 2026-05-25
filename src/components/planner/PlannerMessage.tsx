@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2, Sparkles, Palette } from 'lucide-react';
+import { Loader2, Sparkles, Palette } from '@/components/icons/lucide';
 import { motion } from 'framer-motion';
 import { renderMarkdownLite } from './planner-utils';
 import { useRef } from 'react';

@@ -6,7 +6,7 @@ import { Footer } from '@/components/layout/Footer';
 import { 
   Zap, Users, BarChart3, LayoutDashboard, 
   LineChart, PieChart, Activity, Quote
-} from 'lucide-react';
+} from '@/components/icons/lucide';
 
 export default function FeaturesPage() {
   return (

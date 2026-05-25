@@ -5,7 +5,7 @@ import Link from 'next/link';
 import type { DeckMeta } from '@/types/deck-meta';
 import { cn } from '@/lib/cn';
 import { DeckThumbnail } from './DeckThumbnail';
-import { Pencil, Check, X, Loader2 } from 'lucide-react';
+import { Pencil, Check, X, Loader2 } from '@/components/icons/lucide';
 
 export function DeckCard({
   deck,

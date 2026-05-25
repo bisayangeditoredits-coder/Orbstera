@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { Video as Youtube, X, Link as LinkIcon } from 'lucide-react';
+import { Video as Youtube, X, Link as LinkIcon } from '@/components/icons/lucide';
 import { motion } from 'framer-motion';
 
 function extractYoutubeId(url: string) {

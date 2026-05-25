@@ -1,7 +1,7 @@
 'use client';
 
 
-import { Zap } from 'lucide-react';
+import { Zap } from '@/components/icons/lucide';
 import type { CreditState } from '@/hooks/useCredits';
 import { formatPlanLabel } from './dashboard-utils';
 

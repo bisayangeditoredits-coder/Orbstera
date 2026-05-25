@@ -3,35 +3,35 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { ChevronRight, X, Sparkles, Layout, Layers, Download, Play } from 'lucide-react';
+import { EditorIcons } from '@/components/icons/editor-icons';
 
 const TOUR_STEPS = [
   {
     targetId: 'tour-gallery',
     title: 'Slide Gallery',
     description: 'Manage all your slides here. You can add, reorder, duplicate, or delete slides. Click any slide to jump to it instantly.',
-    icon: Layout,
+    icon: EditorIcons.Layout,
     position: 'right' as const,
   },
   {
     targetId: 'tour-toolbar',
     title: 'Creative Tools',
     description: 'Add text, images, rectangles, circles, triangles, stars, lines, and arrows to your slides. You can also click the Upload button or paste an image directly from your clipboard!',
-    icon: Sparkles,
+    icon: EditorIcons.Sparkles,
     position: 'bottom' as const,
   },
   {
     targetId: 'tour-canvas',
     title: 'Creative Canvas',
     description: 'This is your main editing area. Click any element to select it, then drag to move or pull the handles to resize. Press Delete to remove a selected element.',
-    icon: Layout,
+    icon: EditorIcons.Layout,
     position: 'top' as const,
   },
   {
     targetId: 'tour-panel-tabs',
     title: 'Feature Panels',
     description: 'Switch between AI Generation, Layers, Design Themes, and Speaker Notes using these tabs.',
-    icon: Layers,
+    icon: EditorIcons.Layers,
     position: 'bottom' as const,
   },
   {
@@ -39,28 +39,28 @@ const TOUR_STEPS = [
     title: 'AI Generation',
     description:
       'Type a short brief into “Your Vision”, choose tone and slide count, then click Generate Presentation. The AI streams slides in realtime and auto-fills cinematic backgrounds for you.',
-    icon: Play,
+    icon: EditorIcons.Play,
     position: 'left' as const,
   },
   {
     targetId: 'tour-layers',
     title: 'Layers & Properties',
     description: 'Select any element in the layers list to edit its text, color, opacity, bold, italic, animation effects, and exact position. You can also duplicate, lock, hide, or delete elements here.',
-    icon: Layers,
+    icon: EditorIcons.Layers,
     position: 'left' as const,
   },
   {
     targetId: 'tour-actions',
     title: 'Collaborate & Present',
     description: 'Share your project with teammates or launch a full-screen cinematic presentation mode directly from the editor.',
-    icon: Play,
+    icon: EditorIcons.Play,
     position: 'bottom' as const,
   },
   {
     targetId: 'tour-export',
     title: 'Export to PowerPoint',
     description: 'Export your finished presentation as a fully editable PPTX file with matching backgrounds, fonts, and entrance animations that play in PowerPoint.',
-    icon: Download,
+    icon: EditorIcons.Download,
     position: 'bottom' as const,
   },
 ];
@@ -239,7 +239,7 @@ export function OnboardingTour() {
           onClick={handleFinish}
           className="absolute top-4 right-4 text-black/20 hover:text-black transition-colors"
         >
-          <X size={18} />
+          <EditorIcons.X size={18} />
         </button>
 
         <div className="flex flex-col gap-4 relative">
@@ -293,7 +293,7 @@ export function OnboardingTour() {
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-95 transition-all"
             >
               <span>{isLastStep ? 'Got it!' : 'Next'}</span>
-              {!isLastStep && <ChevronRight size={16} />}
+              {!isLastStep && <EditorIcons.ChevronRight size={16} />}
             </button>
           </div>
         </div>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { Sparkles, Loader2, X, Wand2, Trash2 } from 'lucide-react';
+import { Sparkles, Loader2, X, Wand2, Trash2 } from '@/components/icons/lucide';
 
 function regionToImagePixels(regionW: number, regionH: number) {
   // Preserve the exact aspect ratio of the drawn rectangle.

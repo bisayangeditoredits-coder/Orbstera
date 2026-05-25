@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import { motion } from 'framer-motion';
-import { Loader2, Palette, Type, Building2, Save, Crown, Lock } from 'lucide-react';
+import { Loader2, Palette, Type, Building2, Save, Crown, Lock } from '@/components/icons/lucide';
 import { useCredits } from '@/hooks/useCredits';
 
 export function BrandKitSettings() {

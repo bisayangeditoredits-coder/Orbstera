@@ -4,14 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/cn';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import {
-  Type, Square, ImageIcon, Minus, ChevronDown,
-  Clock, Grid3x3, Map, SpellCheck, GitBranch,
-  LayoutGrid, BookOpen, Smile, Star, Clapperboard,
-  Shapes, Upload, QrCode, BarChart2, Sparkles, Flag,
-  Circle, Triangle, Heart, Diamond, UserCircle2,
-  Layout,
-} from 'lucide-react';
+import { EditorIcons } from '@/components/icons/editor-icons';
 import type { EditorToolId } from '@/types';
 
 // ── Inline quick-shapes for the Shapes dropdown ───────────────────────────────
@@ -41,28 +34,28 @@ const PRIMARY_ITEMS: {
   dividerAfter?: boolean;
   hasDropdown?: 'shapes' | 'image';
 }[] = [
-  { panel: 'layouts',   icon: Layout,       label: 'Layouts', dividerAfter: true },
-  { tool: 'text',  icon: Type,      label: 'Text' },
-  { tool: 'rect',  icon: Square,    label: 'Shape' },
-  { tool: 'image', icon: ImageIcon, label: 'Image', hasDropdown: 'image', dividerAfter: true },
-  { panel: 'photos',    icon: ImageIcon,    label: 'Photos' },
-  { panel: 'icons',     icon: Star,         label: 'Icons' },
-  { panel: 'shapes',    icon: Shapes,       label: 'Shapes', hasDropdown: 'shapes' },
-  { panel: 'giphy',     icon: Smile,        label: 'Giphy' },
-  { panel: 'videos',    icon: Clapperboard, label: 'Video', dividerAfter: true },
-  { panel: 'wikipedia', icon: BookOpen,     label: 'Wiki' },
-  { panel: 'grammar',   icon: SpellCheck,   label: 'Grammar' },
-  { panel: 'ai',        icon: Sparkles,     label: 'AI Image', dividerAfter: true },
-  { tool: 'divider',    icon: Minus,        label: 'Line' },
+  { panel: 'layouts',   icon: EditorIcons.Layout,       label: 'Layouts', dividerAfter: true },
+  { tool: 'text',  icon: EditorIcons.Type,      label: 'Text' },
+  { tool: 'rect',  icon: EditorIcons.Square,    label: 'Shape' },
+  { tool: 'image', icon: EditorIcons.ImageIcon, label: 'Image', hasDropdown: 'image', dividerAfter: true },
+  { panel: 'photos',    icon: EditorIcons.ImageIcon,    label: 'Photos' },
+  { panel: 'icons',     icon: EditorIcons.Star,         label: 'Icons' },
+  { panel: 'shapes',    icon: EditorIcons.Shapes,       label: 'Shapes', hasDropdown: 'shapes' },
+  { panel: 'giphy',     icon: EditorIcons.Smile,        label: 'Giphy' },
+  { panel: 'videos',    icon: EditorIcons.Clapperboard, label: 'Video', dividerAfter: true },
+  { panel: 'wikipedia', icon: EditorIcons.BookOpen,     label: 'Wiki' },
+  { panel: 'grammar',   icon: EditorIcons.SpellCheck,   label: 'Grammar' },
+  { panel: 'ai',        icon: EditorIcons.Sparkles,     label: 'AI Image', dividerAfter: true },
+  { tool: 'divider',    icon: EditorIcons.Minus,        label: 'Line' },
 ];
 
 // ── More-menu items (QR + Map moved to Image dropdown) ───────────────────────
 const MORE_ITEMS: { panel: string; icon: React.ElementType; label: string }[] = [
-  { panel: 'apps',       icon: LayoutGrid, label: 'Apps' },
-  { panel: 'charts',     icon: BarChart2,  label: 'Charts' },
-  { panel: 'timeline',   icon: Clock,      label: 'Timeline' },
-  { panel: 'svgpattern', icon: Grid3x3,    label: 'Patterns' },
-  { panel: 'mermaid',    icon: GitBranch,  label: 'Diagram' },
+  { panel: 'apps',       icon: EditorIcons.LayoutGrid, label: 'Apps' },
+  { panel: 'charts',     icon: EditorIcons.BarChart2,  label: 'Charts' },
+  { panel: 'timeline',   icon: EditorIcons.Clock,      label: 'Timeline' },
+  { panel: 'svgpattern', icon: EditorIcons.Grid3x3,    label: 'Patterns' },
+  { panel: 'mermaid',    icon: EditorIcons.GitBranch,  label: 'Diagram' },
 ];
 
 // ─── ImageDropdown ────────────────────────────────────────────────────────────
@@ -81,19 +74,19 @@ function ImageDropdown({
 
   const items = [
     {
-      icon: Upload,
+      icon: EditorIcons.Upload,
       label: 'Upload from Computer',
       sub: 'JPG, PNG, GIF, SVG, WEBP',
       action: fireFilePicker,
     },
     {
-      icon: Map,
+      icon: EditorIcons.Map,
       label: 'Insert a Map',
       sub: 'OpenStreetMap · Satellite · Terrain',
       action: () => { onOpenPanel('map'); onClose(); },
     },
     {
-      icon: QrCode,
+      icon: EditorIcons.QrCode,
       label: 'Generate QR Code',
       sub: 'URL, text, contact, Wi-Fi…',
       action: () => { onOpenPanel('qr'); onClose(); },
@@ -231,7 +224,7 @@ function ShapesDropdown({
           className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl hover:bg-neutral-100 transition-all text-left group"
         >
           <div className="w-7 h-7 rounded-lg bg-neutral-100 flex items-center justify-center group-hover:bg-neutral-200 transition-colors">
-            <Shapes size={13} className="text-neutral-500" strokeWidth={1.8} />
+            <EditorIcons.Shapes size={13} className="text-neutral-500" strokeWidth={1.8} />
           </div>
           <div>
             <p className="text-[12px] font-bold text-neutral-800">Advanced Shapes</p>
@@ -245,7 +238,7 @@ function ShapesDropdown({
           className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl hover:bg-neutral-100 transition-all text-left group"
         >
           <div className="w-7 h-7 rounded-lg bg-neutral-100 flex items-center justify-center group-hover:bg-neutral-200 transition-colors">
-            <Flag size={13} className="text-neutral-500" strokeWidth={1.8} />
+            <EditorIcons.Flag size={13} className="text-neutral-500" strokeWidth={1.8} />
           </div>
           <div>
             <p className="text-[12px] font-bold text-neutral-800">Country Flags</p>
@@ -259,7 +252,7 @@ function ShapesDropdown({
           className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl hover:bg-neutral-100 transition-all text-left group"
         >
           <div className="w-7 h-7 rounded-lg bg-neutral-100 flex items-center justify-center group-hover:bg-neutral-200 transition-colors">
-            <UserCircle2 size={13} className="text-neutral-500" strokeWidth={1.8} />
+            <EditorIcons.UserCircle2 size={13} className="text-neutral-500" strokeWidth={1.8} />
           </div>
           <div>
             <p className="text-[12px] font-bold text-neutral-800">Avatars</p>
@@ -403,7 +396,7 @@ export function TopInsertBar() {
                 >
                   <Icon size={14} strokeWidth={isActive ? 2 : 1.7} />
                   <span className="hidden sm:inline">Image</span>
-                  <ChevronDown
+                  <EditorIcons.ChevronDown
                     size={11}
                     strokeWidth={2}
                     className="transition-transform duration-150"
@@ -442,7 +435,7 @@ export function TopInsertBar() {
                 >
                   <Icon size={14} strokeWidth={isActive ? 2 : 1.7} />
                   <span className="hidden sm:inline">Shapes</span>
-                  <ChevronDown
+                  <EditorIcons.ChevronDown
                     size={11}
                     strokeWidth={2}
                     className="transition-transform duration-150"
@@ -568,7 +561,7 @@ export function TopInsertBar() {
           }`}
         >
           <span>More</span>
-          <ChevronDown
+          <EditorIcons.ChevronDown
             size={12}
             strokeWidth={2}
             className="transition-transform duration-150"

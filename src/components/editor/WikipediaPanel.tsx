@@ -10,7 +10,10 @@ import {
   LayoutTemplate, AlignLeft, Layers, ArrowRight, CheckCircle2,
   Brain, Rocket, Leaf, Cpu, MapPin, Zap, Landmark, Sun, Waves, Code2,
   TrendingUp, ChevronRight, Hash, Calendar, AlignJustify, SquareSplitHorizontal, LayoutGrid, ImagePlus
-} from 'lucide-react';
+} from '@/components/icons/lucide';
+import type { LucideIcon } from '@/components/icons/lucide';
+import { PanelHeaderIcon, PanelCloseIcon, panelCloseButtonClass } from '@/components/icons/panel-chrome';
+import { iconSize } from '@/components/icons/sizes';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type WikiSummary = {
@@ -106,7 +109,7 @@ function extractKeyFacts(text: string, max = 6): string[] {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const TRENDING: { label: string; icon: React.FC<any>; color: string }[] = [
+const TRENDING: { label: string; icon: LucideIcon; color: string }[] = [
   { label: 'Artificial Intelligence', icon: Brain,    color: '#818cf8' },
   { label: 'Space Exploration',       icon: Rocket,   color: '#38bdf8' },
   { label: 'Climate Change',          icon: Leaf,     color: '#34d399' },
@@ -713,9 +716,7 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
       <div className="shrink-0 bg-white border-b border-neutral-100 px-4 pt-4 pb-3">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-neutral-100 flex items-center justify-center">
-              <BookOpen size={15} className="text-neutral-500" strokeWidth={2} />
-            </div>
+            <PanelHeaderIcon icon={BookOpen} iconClassName="text-neutral-500" />
             <div>
               <h2 className="text-[13px] font-bold text-neutral-900 leading-none tracking-tight">Wikipedia</h2>
               <p className="text-[10px] text-neutral-400 mt-0.5 font-semibold tracking-wide">Rich Knowledge → Slides</p>
@@ -758,9 +759,8 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
             </div>
 
             {onClose && (
-              <button onClick={onClose}
-                className="w-7 h-7 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-all flex items-center justify-center">
-                <X size={14} />
+              <button type="button" onClick={onClose} className={panelCloseButtonClass} aria-label="Close panel">
+                <PanelCloseIcon icon={X} />
               </button>
             )}
           </div>

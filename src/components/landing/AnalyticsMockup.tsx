@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from 'framer-motion';
-import { BarChart3, Users, Clock, ArrowUpRight } from 'lucide-react';
+import { BarChart3, Users, Clock, ArrowUpRight } from '@/components/icons/lucide';
 
 export function AnalyticsMockup() {
   return (

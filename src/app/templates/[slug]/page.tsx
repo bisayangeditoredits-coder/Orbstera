@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import * as Icons from 'lucide-react';
-import { ArrowLeft, Loader2, Wand2, Terminal, Sparkles } from 'lucide-react';
+import * as Icons from '@/components/icons/lucide';
+import { ArrowLeft, Loader2, Wand2, Terminal, Sparkles } from '@/components/icons/lucide';
 import Link from 'next/link';
 
 // Fallback templates in case DB isn't connected yet

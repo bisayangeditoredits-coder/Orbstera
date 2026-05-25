@@ -1,0 +1,16 @@
+/** Streamline Material Rounded Line (free) */
+import { OrbsteraIcon, type OrbsteraIconProps } from '../Icon';
+
+export function IconBriefcase(props: OrbsteraIconProps) {
+  return (
+    <OrbsteraIcon viewBox="0 0 24 24" {...props}>
+    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={"M23.2487 5.353H0.751297v4.6018l1.022603 0.3006v11.4594h20.4522V10.2554l1.0226 -0.3006V5.353Z"} />
+    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={"M23.2487 7.3983H0.751297v2.5565l1.022603 0.3006v2.0453l8.1809 2.4062h0.1503l-0.1503 -0.1504v-4.0904h4.0904v4.0904l-0.1503 0.1503h0.1503l8.1809 -2.4062v-2.0452l1.0226 -0.3006V7.3983Z"} />
+    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={"M16.6017 5.353H7.3983l1.0226 -3.0678h7.1582l1.0226 3.0678Z"} />
+    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={"M12 13.5339v-1.0226"} />
+    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={"M1.7739 10.2554v11.4594h20.4522V10.2554"} />
+    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={"M14.0452 14.5565 12 16.6017l-2.0452 -2.0452v-4.0904h4.0904v4.0904Z"} />
+    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={"m14.0452 12.6616 9.2035 -2.7068V5.353H0.751297v4.6018L9.9548 12.6616"} />
+    </OrbsteraIcon>
+  );
+}

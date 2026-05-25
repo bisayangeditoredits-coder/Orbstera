@@ -2,7 +2,7 @@
 
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { motion } from 'framer-motion';
-import { Layout, Columns, Image as ImageIcon, LayoutGrid, LayoutList, AlignLeft } from 'lucide-react';
+import { Layout, Columns, Image as ImageIcon, LayoutGrid, LayoutList, AlignLeft } from '@/components/icons/lucide';
 
 const CANVAS_W = 1280;
 const CANVAS_H = 720;

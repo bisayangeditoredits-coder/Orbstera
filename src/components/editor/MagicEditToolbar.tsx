@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { Sparkles, Loader2, X, Type, Wand2, Crown, Mic, MicOff } from 'lucide-react';
+import { Sparkles, Loader2, X, Type, Wand2, Crown, Mic, MicOff } from '@/components/icons/lucide';
 import { createClient } from '@/lib/supabase';
 import {
   createEditorSpeechRecognition,

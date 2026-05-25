@@ -23,7 +23,7 @@ import {
   Save, Trash2, Download, AlertCircle, Plus, Mic, MicOff,
   Briefcase, Palette, Zap, Minus, BookOpen, FlaskConical,
   Layers, Image as ImageIcon, Info
-} from 'lucide-react';
+} from '@/components/icons/lucide';
 import { useCredits } from '@/hooks/useCredits';
 import { pollJobUntilDone } from '@/lib/client/poll-job';
 
@@ -1047,7 +1047,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               className="shrink-0 w-9 h-9 rounded-xl border border-black/[0.06] bg-white text-neutral-400 hover:text-neutral-900 hover:bg-neutral-50 hover:border-black/[0.08] transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)] flex items-center justify-center"
               aria-label="Close panel"
             >
-              <X size={17} strokeWidth={1.75} />
+              <X size={16} strokeWidth={1.75} />
             </button>
           )}
         </div>

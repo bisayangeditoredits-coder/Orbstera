@@ -2,22 +2,19 @@ import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import {
-  LayoutTemplate, Sparkles, MousePointer2, Type, Upload,
-  Layers, StickyNote, Wand2, Grid3x3,
-} from 'lucide-react';
+import { EditorIcons } from '@/components/icons/editor-icons';
 import { cn } from '@/lib/cn';
 import type { EditorToolId } from '@/types';
 
 const RAIL_ITEMS = [
-  { id: 'templates',  icon: LayoutTemplate, label: 'Design',   panel: 'generate' as const },
-  { id: 'gen-fill',   icon: Sparkles,       label: 'AI Fill',  tool: 'gen-fill' as EditorToolId },
-  { id: 'select',     icon: MousePointer2,  label: 'Select',   tool: 'select' as EditorToolId },
-  { id: 'text',       icon: Type,           label: 'Text',     tool: 'text' as EditorToolId },
-  { id: 'uploads',    icon: Upload,         label: 'Uploads',  tool: 'image' as EditorToolId },
-  { id: 'layers',     icon: Layers,         label: 'Layers',   panel: 'layers' as const },
-  { id: 'design',     icon: Wand2,          label: 'Style',    panel: 'design' as const },
-  { id: 'notes',      icon: StickyNote,     label: 'Notes',    panel: 'notes' as const },
+  { id: 'templates',  icon: EditorIcons.LayoutTemplate, label: 'Design',   panel: 'generate' as const },
+  { id: 'gen-fill',   icon: EditorIcons.Sparkles,       label: 'AI Fill',  tool: 'gen-fill' as EditorToolId },
+  { id: 'select',     icon: EditorIcons.MousePointer2,  label: 'Select',   tool: 'select' as EditorToolId },
+  { id: 'text',       icon: EditorIcons.Type,           label: 'Text',     tool: 'text' as EditorToolId },
+  { id: 'uploads',    icon: EditorIcons.Upload,         label: 'Uploads',  tool: 'image' as EditorToolId },
+  { id: 'layers',     icon: EditorIcons.Layers,         label: 'Layers',   panel: 'layers' as const },
+  { id: 'design',     icon: EditorIcons.Wand2,          label: 'Style',    panel: 'design' as const },
+  { id: 'notes',      icon: EditorIcons.StickyNote,     label: 'Notes',    panel: 'notes' as const },
 ] as const;
 
 export function LeftIconRail() {
@@ -166,7 +163,7 @@ export function LeftIconRail() {
             showGrid ? 'text-primary bg-primary/10' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100',
           )}
         >
-          <Grid3x3 size={20} strokeWidth={showGrid ? 2 : 1.6} />
+          <EditorIcons.Grid3x3 size={20} strokeWidth={showGrid ? 2 : 1.6} />
           <span className="text-[9.5px] font-semibold tracking-wide leading-none">Grid</span>
         </button>
       </div>

@@ -2,7 +2,7 @@
 
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { PPT_STYLE_ENTRANCE_OPTIONS, PPT_ANIMATION_HINT } from '@/lib/editor/pptAnimationCatalog';
-import { MousePointer2, Play, Info } from 'lucide-react';
+import { MousePointer2, Play, Info } from '@/components/icons/lucide';
 import type { AnimationEntrance } from '@/types';
 
 export function AnimationsPanel() {

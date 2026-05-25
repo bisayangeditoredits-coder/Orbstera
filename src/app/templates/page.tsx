@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import * as Icons from 'lucide-react';
+import * as Icons from '@/components/icons/lucide';
 import { 
   Sparkles, 
   Search, 
@@ -11,7 +11,7 @@ import {
   Lock,
   Terminal,
   Loader2
-} from 'lucide-react';
+} from '@/components/icons/lucide';
 
 const CATEGORIES = ["All", "Frameworks", "Aesthetics", "AI Powers"];
 

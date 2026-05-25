@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, UserCircle2, Loader2, X, Plus, RefreshCw } from 'lucide-react';
+import { Search, UserCircle2, Loader2, X, Plus, RefreshCw } from '@/components/icons/lucide';
+import { PanelHeaderIcon, PanelCloseIcon, panelCloseButtonClass } from '@/components/icons/panel-chrome';
+import { iconSize } from '@/components/icons/sizes';
 
 const STYLES: { id: string; label: string }[] = [
   { id: 'adventurer',  label: 'Adventurer' },
@@ -111,9 +113,7 @@ export function AvatarsPanel({ onClose }: { onClose?: () => void }) {
       <div className="shrink-0 flex flex-col border-b border-neutral-100 sticky top-0 z-20 bg-white">
         <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center shrink-0">
-              <UserCircle2 size={16} className="text-orange-500" strokeWidth={2.5} />
-            </div>
+            <PanelHeaderIcon icon={UserCircle2} className="from-orange-50 to-orange-50/80 border-orange-200/60" iconClassName="text-orange-500" />
             <div>
               <h2 className="text-[14px] font-bold text-neutral-900 leading-tight">Avatars</h2>
               <p className="text-[11px] font-medium text-neutral-400 mt-0.5">Powered by DiceBear</p>
@@ -121,18 +121,16 @@ export function AvatarsPanel({ onClose }: { onClose?: () => void }) {
           </div>
           <div className="flex items-center gap-1">
             <button
+              type="button"
               onClick={randomize}
               title="Randomize"
-              className="w-7 h-7 rounded-lg text-neutral-400 hover:text-orange-500 hover:bg-orange-50 transition-all flex items-center justify-center"
+              className={panelCloseButtonClass}
             >
-              <RefreshCw size={13} />
+              <RefreshCw size={iconSize.panelCompact} strokeWidth={1.75} />
             </button>
             {onClose && (
-              <button
-                onClick={onClose}
-                className="w-7 h-7 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-all flex items-center justify-center"
-              >
-                <X size={15} />
+              <button type="button" onClick={onClose} className={panelCloseButtonClass} aria-label="Close panel">
+                <PanelCloseIcon icon={X} />
               </button>
             )}
           </div>

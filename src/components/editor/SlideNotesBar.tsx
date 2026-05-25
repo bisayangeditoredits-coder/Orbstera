@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2 } from '@/components/icons/lucide';
 
 export function SlideNotesBar() {
   const presentation      = usePresentationStore((s) => s.presentation);

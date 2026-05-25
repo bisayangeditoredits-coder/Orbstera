@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { ArrowRight, Lock, Sparkles, Crown } from 'lucide-react';
+import { ArrowRight, Lock, Sparkles, Crown } from '@/components/icons/lucide';
 
 // Rich visual previews per template slug
 const TEMPLATE_PREVIEWS: Record<string, React.ReactNode> = {

@@ -10,7 +10,7 @@ import {
   Crown,
   Sparkles,
   Zap,
-} from 'lucide-react';
+} from '@/components/icons/lucide';
 import { cn } from '@/lib/cn';
 
 const STEPS = ['Plan', 'Refine', 'Generate'] as const;

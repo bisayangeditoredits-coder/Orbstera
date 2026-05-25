@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
-import { Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Sparkles, ArrowRight, CheckCircle2 } from '@/components/icons/lucide';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export interface LeadModalProps {

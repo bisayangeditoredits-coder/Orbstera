@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from 'framer-motion';
-import { BadgeCheck } from 'lucide-react';
+import { BadgeCheck } from '@/components/icons/lucide';
 import { useEffect, useState } from 'react';
 
 const REVIEWS = [

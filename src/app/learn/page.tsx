@@ -1,4 +1,4 @@
-import { ArrowUpRight, Play } from 'lucide-react';
+import { ArrowUpRight, Play } from '@/components/icons/lucide';
 import Link from 'next/link';
 
 const TUTORIALS = [

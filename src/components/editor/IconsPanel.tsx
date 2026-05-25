@@ -4,7 +4,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Loader2, X, Plus, Sparkles, Grid3X3 } from 'lucide-react';
+import { Search, Loader2, X, Plus, Sparkles, Grid3X3 } from '@/components/icons/lucide';
+import { PanelCloseIcon, panelCloseButtonClass } from '@/components/icons/panel-chrome';
+import { iconSize } from '@/components/icons/sizes';
 
 export function IconsPanel({ onClose }: { onClose?: () => void }) {
   const [query, setQuery] = useState('');
@@ -61,8 +63,8 @@ export function IconsPanel({ onClose }: { onClose?: () => void }) {
       <div className="shrink-0 border-b border-neutral-100 sticky top-0 z-20 bg-white">
         <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shrink-0">
-              <Grid3X3 size={15} className="text-white" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shrink-0 shadow-[0_1px_0_rgba(255,255,255,0.2)_inset]">
+              <Grid3X3 size={iconSize.panelHeader} className="text-white" strokeWidth={1.75} />
             </div>
             <div>
               <h2 className="text-[14px] font-semibold text-neutral-900 leading-tight">Icons</h2>
@@ -72,11 +74,8 @@ export function IconsPanel({ onClose }: { onClose?: () => void }) {
             </div>
           </div>
           {onClose && (
-            <button
-              onClick={onClose}
-              className="w-7 h-7 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-all flex items-center justify-center"
-            >
-              <X size={15} />
+            <button type="button" onClick={onClose} className={panelCloseButtonClass} aria-label="Close panel">
+              <PanelCloseIcon icon={X} />
             </button>
           )}
         </div>

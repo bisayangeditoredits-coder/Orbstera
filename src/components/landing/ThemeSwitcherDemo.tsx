@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { Paintbrush } from 'lucide-react';
+import { Paintbrush } from '@/components/icons/lucide';
 
 const THEMES = [
   {

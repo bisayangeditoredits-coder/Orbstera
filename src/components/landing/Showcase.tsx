@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from 'framer-motion';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight } from '@/components/icons/lucide';
 import Link from 'next/link';
 
 const BENTO_ITEMS = [

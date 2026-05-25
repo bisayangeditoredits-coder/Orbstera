@@ -9,7 +9,7 @@ import {
   AlignLeft, AlignCenter, AlignRight,
   RotateCcw,
   Link, Link2Off,
-} from 'lucide-react';
+} from '@/components/icons/lucide';
 import type { TextStyle, SlideElement } from '@/types';
 import { ColorPicker } from '@/components/editor/ColorPicker';
 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, MessageCircleQuestion } from 'lucide-react';
+import { ChevronDown, MessageCircleQuestion } from '@/components/icons/lucide';
 
 const faqs = [
   {

@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Footer } from '@/components/layout/Footer';
-import { ArrowRight, Calendar, User } from 'lucide-react';
+import { ArrowRight, Calendar, User } from '@/components/icons/lucide';
 
 const FEATURED = {
   title: "The Future of AI in Boardrooms",

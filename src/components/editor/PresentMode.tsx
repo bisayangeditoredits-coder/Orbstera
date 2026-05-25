@@ -23,7 +23,7 @@ import {
   Sparkles,
   Zap,
   ZapOff,
-} from 'lucide-react';
+} from '@/components/icons/lucide';
 import {
   getSlideTransitionVariants,
   inferSlideTransition,

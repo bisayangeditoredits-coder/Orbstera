@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { QrCode, X, Plus, Wifi, Link } from 'lucide-react';
+import { QrCode, X, Plus, Wifi, Link } from '@/components/icons/lucide';
 
 
 export function QRPanel({ onClose }: { onClose?: () => void }) {

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Clock } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Clock } from '@/components/icons/lucide';
 import type { BlogPost } from '@/content/blog-posts';
 import { BLOG_POSTS, formatBlogDate } from '@/content/blog-posts';
 import { BlogImage } from './BlogImage';

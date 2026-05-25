@@ -1,7 +1,8 @@
 'use client';
 
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { Triangle, X, Shapes } from 'lucide-react';
+import { Triangle, X, Shapes } from '@/components/icons/lucide';
+import { PanelHeaderIcon, PanelCloseIcon, panelCloseButtonClass } from '@/components/icons/panel-chrome';
 import type { ShapeStyle } from '@/types';
 
 type ShapeDef = {
@@ -88,20 +89,15 @@ export function ShapesPanel({ onClose }: { onClose?: () => void }) {
       <div className="shrink-0 flex flex-col border-b border-neutral-100 sticky top-0 z-20 bg-white">
         <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center shrink-0">
-              <Shapes size={16} className="text-pink-500" strokeWidth={2.5} />
-            </div>
+            <PanelHeaderIcon icon={Shapes} className="from-pink-50 to-pink-50/80 border-pink-200/60" iconClassName="text-pink-500" />
             <div>
               <h2 className="text-[14px] font-bold text-neutral-900 leading-tight">Advanced Shapes</h2>
               <p className="text-[11px] font-medium text-neutral-400 mt-0.5">Fully customizable SVG paths</p>
             </div>
           </div>
           {onClose && (
-            <button
-              onClick={onClose}
-              className="w-7 h-7 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-all flex items-center justify-center"
-            >
-              <X size={15} />
+            <button type="button" onClick={onClose} className={panelCloseButtonClass} aria-label="Close panel">
+              <PanelCloseIcon icon={X} />
             </button>
           )}
         </div>

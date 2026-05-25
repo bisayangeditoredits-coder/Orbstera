@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Footer } from '@/components/layout/Footer';
-import { Network } from 'lucide-react';
+import { Network } from '@/components/icons/lucide';
 
 const TEAM = [
   { name: "Sophia Carter", role: "Chief Executive Officer", image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80", avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=100&q=80" },

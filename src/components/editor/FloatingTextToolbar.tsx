@@ -10,7 +10,7 @@ import {
   Minus, Plus,
   Image as ImageIcon,
   Lock, Unlock,
-} from 'lucide-react';
+} from '@/components/icons/lucide';
 import type { TextStyle, SlideElement } from '@/types';
 import { ColorPicker } from '@/components/editor/ColorPicker';
 

@@ -3,7 +3,7 @@
 
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { VirtualRow } from '@/components/ui/VirtualRow';
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { EditorIcons } from '@/components/icons/editor-icons';
 import { findDeckBackgroundElement } from '@/lib/slide-background';
 import { editorImageFetchUrl } from '@/lib/r2-public-url';
 import type { Slide } from '@/types';
@@ -142,7 +142,7 @@ export function BottomSlideStrip() {
         className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-20"
         style={{ color: '#6b7280', background: '#f3f4f6' }}
       >
-        <ChevronLeft size={15} />
+        <EditorIcons.ChevronLeft size={15} />
       </button>
 
       {/* Scrollable thumbnails — virtualized when many slides */}
@@ -175,7 +175,7 @@ export function BottomSlideStrip() {
             color: '#9ca3af',
           }}
         >
-          <Plus size={15} />
+          <EditorIcons.Plus size={15} />
         </button>
       </div>
 
@@ -191,7 +191,7 @@ export function BottomSlideStrip() {
           className="w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-20"
           style={{ color: '#6b7280', background: '#f3f4f6' }}
         >
-          <ChevronRight size={15} />
+          <EditorIcons.ChevronRight size={15} />
         </button>
       </div>
     </div>

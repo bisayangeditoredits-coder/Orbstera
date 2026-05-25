@@ -3,7 +3,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowRight, CheckCircle2, GitBranch, Loader2, AlertCircle } from 'lucide-react';
+import { X, ArrowRight, CheckCircle2, GitBranch, Loader2, AlertCircle } from '@/components/icons/lucide';
+import { PanelHeaderIcon, PanelCloseIcon, panelCloseButtonClass } from '@/components/icons/panel-chrome';
 
 // ─── Starter templates ────────────────────────────────────────────────────────
 const TEMPLATES: { id: string; label: string; emoji: string; code: string }[] = [
@@ -161,17 +162,15 @@ export function MermaidPanel({ onClose }: { onClose?: () => void }) {
       <div className="shrink-0 bg-white border-b border-neutral-100 px-4 pt-4 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-neutral-100 flex items-center justify-center">
-              <GitBranch size={15} className="text-neutral-500" strokeWidth={2} />
-            </div>
+            <PanelHeaderIcon icon={GitBranch} iconClassName="text-neutral-500" />
             <div>
               <h2 className="text-[13px] font-bold text-neutral-900 leading-none">Diagram Builder</h2>
               <p className="text-[10px] text-neutral-400 mt-0.5 font-semibold">Mermaid.js · Free</p>
             </div>
           </div>
           {onClose && (
-            <button onClick={onClose} className="w-7 h-7 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 flex items-center justify-center transition-all">
-              <X size={14} />
+            <button type="button" onClick={onClose} className={panelCloseButtonClass} aria-label="Close panel">
+              <PanelCloseIcon icon={X} />
             </button>
           )}
         </div>

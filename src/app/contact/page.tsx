@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Footer } from '@/components/layout/Footer';
-import { Mail, MapPin, Phone, ArrowRight, Clock } from 'lucide-react';
+import { Mail, MapPin, Phone, ArrowRight, Clock } from '@/components/icons/lucide';
 import { motion } from 'framer-motion';
 
 const OFFICES = [

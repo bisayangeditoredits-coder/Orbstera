@@ -4,7 +4,7 @@ import {
   Send, Loader2, FileText, Copy, Layers, Sparkles, 
   Palette, BarChart3, Briefcase, GraduationCap, 
   Scissors, Rocket, Pin 
-} from 'lucide-react';
+} from '@/components/icons/lucide';
 
 type PlannerComposerProps = {
   input: string;

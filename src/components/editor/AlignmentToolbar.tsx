@@ -13,7 +13,7 @@ import {
   AlignEndVertical,
   AlignHorizontalDistributeCenter,
   AlignVerticalDistributeCenter,
-} from 'lucide-react';
+} from '@/components/icons/lucide';
 
 interface AlignBtnProps {
   title: string;

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Search, Menu, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Search, Menu, AlertTriangle, ArrowLeft } from '@/components/icons/lucide';
 import type { DashboardSection } from './dashboard-types';
 
 const SECTION_TITLES: Record<DashboardSection, string> = {
