@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight } from '@/components/icons/lucide';
+import { ArrowRight } from 'lucide-react';
 
 export function CTA() {
   return (

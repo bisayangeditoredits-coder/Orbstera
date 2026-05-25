@@ -4,7 +4,7 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { Plus, Trash2, Copy, GripVertical, ChevronUp, ChevronDown, Sparkles, Loader2 } from '@/components/icons/lucide';
+import { Plus, Trash2, Copy, GripVertical, ChevronUp, ChevronDown, Sparkles, Loader2 } from 'lucide-react';
 import { Slide } from '@/types';
 import { findDeckBackgroundElement } from '@/lib/slide-background';
 import { editorImageFetchUrl } from '@/lib/r2-public-url';

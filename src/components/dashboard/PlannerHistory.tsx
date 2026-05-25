@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
-import { Search, MoreHorizontal, Trash2, MessageSquareText } from '@/components/icons/lucide';
+import { Search, MoreHorizontal, Trash2, MessageSquareText } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 

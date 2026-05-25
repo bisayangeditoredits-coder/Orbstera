@@ -11,7 +11,7 @@ import {
   Crown,
   Loader2,
   Sparkles,
-} from '@/components/icons/lucide';
+} from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import type { CreditState } from '@/hooks/useCredits';
 import { formatPlanLabel } from './dashboard-utils';

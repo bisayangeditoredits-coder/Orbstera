@@ -7,8 +7,7 @@ import {
   X, Plus, Trash2, ChevronUp, ChevronDown, ArrowRight,
   AlignHorizontalJustifyCenter, AlignVerticalJustifyCenter,
   CheckCircle2, Clock,
-} from '@/components/icons/lucide';
-import { PanelHeaderIcon, PanelCloseIcon, panelCloseButtonClass } from '@/components/icons/panel-chrome';
+} from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type TimelineEvent = {
@@ -163,15 +162,17 @@ export function TimelinePanel({ onClose }: { onClose?: () => void }) {
       <div className="shrink-0 bg-white border-b border-neutral-100 px-4 pt-4 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <PanelHeaderIcon icon={Clock} iconClassName="text-neutral-500" />
+            <div className="w-8 h-8 rounded-xl bg-neutral-100 flex items-center justify-center">
+              <Clock size={15} className="text-neutral-500" strokeWidth={2} />
+            </div>
             <div>
               <h2 className="text-[13px] font-bold text-neutral-900 leading-none">Timeline Builder</h2>
               <p className="text-[10px] text-neutral-400 mt-0.5 font-semibold">Build & insert timelines</p>
             </div>
           </div>
           {onClose && (
-            <button type="button" onClick={onClose} className={panelCloseButtonClass} aria-label="Close panel">
-              <PanelCloseIcon icon={X} />
+            <button onClick={onClose} className="w-7 h-7 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 flex items-center justify-center transition-all">
+              <X size={14} />
             </button>
           )}
         </div>

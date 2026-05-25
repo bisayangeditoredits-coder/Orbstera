@@ -6,7 +6,7 @@ import {
   Image as ImageIcon, Star, Smile, Video as YoutubeIcon, BarChart3, QrCode,
   ImagePlus, BookOpen, SpellCheck, X, Grid3x3, LayoutTemplate,
   UserCircle2, Flag, Clapperboard, Smartphone
-} from '@/components/icons/lucide';
+} from 'lucide-react';
 
 const APPS = [
   { id: 'photos',         icon: ImageIcon,        label: 'Photos',     color: '#0ea5e9', bg: '#e0f2fe' },

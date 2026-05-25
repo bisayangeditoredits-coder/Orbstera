@@ -11,7 +11,7 @@ import {
   Eye,
   FlipHorizontal2, FlipVertical2,
   Move,
-} from '@/components/icons/lucide';
+} from 'lucide-react';
 import type { SlideElement } from '@/types';
 import { ColorPicker } from './ColorPicker';
 

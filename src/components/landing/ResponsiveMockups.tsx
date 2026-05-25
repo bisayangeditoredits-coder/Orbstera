@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from 'framer-motion';
-import { Monitor, Smartphone, Tablet } from '@/components/icons/lucide';
+import { Monitor, Smartphone, Tablet } from 'lucide-react';
 
 export function ResponsiveMockups() {
   return (

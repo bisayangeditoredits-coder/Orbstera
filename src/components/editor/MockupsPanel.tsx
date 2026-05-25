@@ -1,8 +1,7 @@
 'use client';
 
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { Smartphone, Laptop, Tablet, X, LayoutGrid } from '@/components/icons/lucide';
-import { PanelHeaderIcon, PanelCloseIcon, panelCloseButtonClass } from '@/components/icons/panel-chrome';
+import { Smartphone, Laptop, Tablet, X, LayoutGrid } from 'lucide-react';
 
 const MOCKUPS = [
   {
@@ -98,15 +97,20 @@ export function MockupsPanel({ onClose }: { onClose?: () => void }) {
       <div className="shrink-0 flex flex-col border-b border-neutral-100 sticky top-0 z-20 bg-white">
         <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-4">
           <div className="flex items-center gap-3">
-            <PanelHeaderIcon icon={LayoutGrid} className="from-indigo-50 to-indigo-50/80 border-indigo-200/60" iconClassName="text-indigo-600" />
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
+              <LayoutGrid size={16} className="text-indigo-600" strokeWidth={2.5} />
+            </div>
             <div>
               <h2 className="text-[14px] font-bold text-neutral-900 leading-tight">Device Mockups</h2>
               <p className="text-[11px] font-medium text-neutral-400 mt-0.5">Vector SVG Frames</p>
             </div>
           </div>
           {onClose && (
-            <button type="button" onClick={onClose} className={panelCloseButtonClass} aria-label="Close panel">
-              <PanelCloseIcon icon={X} />
+            <button
+              onClick={onClose}
+              className="w-7 h-7 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-all flex items-center justify-center"
+            >
+              <X size={15} />
             </button>
           )}
         </div>

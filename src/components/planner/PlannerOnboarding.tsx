@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, ArrowRight } from '@/components/icons/lucide';
+import { Sparkles, ArrowRight } from 'lucide-react';
 
 export function PlannerOnboarding() {
   const router = useRouter();

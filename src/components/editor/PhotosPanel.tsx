@@ -4,9 +4,7 @@
 import { useState, useEffect } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Image as ImageIcon, Loader2, X, Plus } from '@/components/icons/lucide';
-import { PanelHeaderIcon, PanelCloseIcon, panelCloseButtonClass } from '@/components/icons/panel-chrome';
-import { iconSize } from '@/components/icons/sizes';
+import { Search, Image as ImageIcon, Loader2, X, Plus } from 'lucide-react';
 
 const UNSPLASH_ACCESS_KEY = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY || '';
 
@@ -87,22 +85,27 @@ export function PhotosPanel({ onClose }: { onClose?: () => void }) {
       <div className="shrink-0 flex flex-col border-b border-neutral-100 sticky top-0 z-20 bg-white">
         <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-4">
           <div className="flex items-center gap-3">
-            <PanelHeaderIcon icon={ImageIcon} iconClassName="text-neutral-600" />
+            <div className="w-8 h-8 rounded-lg bg-neutral-100 flex items-center justify-center shrink-0">
+              <ImageIcon size={16} className="text-neutral-600" />
+            </div>
             <div>
               <h2 className="text-[14px] font-semibold text-neutral-900 leading-tight">Photos</h2>
               <p className="text-[11px] text-neutral-400 mt-0.5">Powered by Unsplash · Free</p>
             </div>
           </div>
           {onClose && (
-            <button type="button" onClick={onClose} className={panelCloseButtonClass} aria-label="Close panel">
-              <PanelCloseIcon icon={X} />
+            <button
+              onClick={onClose}
+              className="w-7 h-7 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-all flex items-center justify-center"
+            >
+              <X size={15} />
             </button>
           )}
         </div>
 
         <div className="px-4 pb-4">
           <div className="relative">
-            <Search size={iconSize.panelCompact} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
             <input
               type="text"
               value={query}

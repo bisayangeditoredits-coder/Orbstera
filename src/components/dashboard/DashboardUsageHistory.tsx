@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { History } from '@/components/icons/lucide';
+import { History } from 'lucide-react';
 
 type LedgerEntry = {
   delta: number;

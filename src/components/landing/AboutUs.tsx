@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Sparkles, ArrowRight } from '@/components/icons/lucide';
+import { Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 const STATS = [

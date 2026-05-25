@@ -1,6 +1,6 @@
 'use client';
 
-import { Sparkles, LayoutTemplate, ArrowRight } from '@/components/icons/lucide';
+import { Sparkles, LayoutTemplate, ArrowRight } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 

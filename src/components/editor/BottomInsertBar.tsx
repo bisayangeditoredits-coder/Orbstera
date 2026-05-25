@@ -6,7 +6,7 @@ import { usePresentationStore } from '@/store/usePresentationStore';
 import {
   Type, Square, ImageIcon,
   Minus, ChevronUp,
-} from '@/components/icons/lucide';
+} from 'lucide-react';
 import type { EditorToolId } from '@/types';
 
 // ── Real insert items ─────────────────────────────────────────────────────────

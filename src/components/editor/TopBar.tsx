@@ -7,7 +7,15 @@ import { usePresentationStore } from '@/store/usePresentationStore';
 import { exportToPptx } from '@/lib/export';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { EditorIcons } from '@/components/icons/editor-icons';
+import {
+  ArrowLeft, Play, Download, Share2,
+  Loader2, Layers, Wand2, FileText,
+  CheckCircle, Pencil, X, Undo2, Redo2,
+  FileDown, PackageCheck, Sparkles,
+  Clock, AlignLeft, LayoutTemplate, Palette,
+  Upload, AlertCircle, RefreshCw,
+  PanelLeft,
+} from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { postPresentationCloudSave } from '@/lib/presentation-cloud-save';
 import { buildPresentationUpdatesAfterCloudSave } from '@/lib/merge-cloud-prepared';
@@ -18,9 +26,9 @@ import { CreditsHUD } from './CreditsHUD';
 
 // ── Export Progress Modal ─────────────────────────────────────────────────────
 const EXPORT_STEPS = [
-  { icon: EditorIcons.Sparkles,     label: 'Analyzing layout',       detail: 'Mapping slide elements & coordinates'   },
-  { icon: EditorIcons.PackageCheck, label: 'Building PPTX',           detail: 'Embedding fonts, shapes & HD images'    },
-  { icon: EditorIcons.FileDown,     label: 'Finalizing download',     detail: 'Transferring to your device'             },
+  { icon: Sparkles,     label: 'Analyzing layout',       detail: 'Mapping slide elements & coordinates'   },
+  { icon: PackageCheck, label: 'Building PPTX',           detail: 'Embedding fonts, shapes & HD images'    },
+  { icon: FileDown,     label: 'Finalizing download',     detail: 'Transferring to your device'             },
 ];
 
 function ExportModal({ step, done, error, onClose }: {
@@ -60,7 +68,7 @@ function ExportModal({ step, done, error, onClose }: {
               >
                 <div className="absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 70%)' }} />
                 <div className="w-20 h-20 rounded-full bg-emerald-50 flex items-center justify-center border-2 border-emerald-100">
-                  <EditorIcons.CheckCircle size={38} className="text-emerald-500" strokeWidth={1.75} />
+                  <CheckCircle size={38} className="text-emerald-500" strokeWidth={1.75} />
                 </div>
               </motion.div>
               <motion.div
@@ -86,7 +94,7 @@ function ExportModal({ step, done, error, onClose }: {
           ) : error ? (
             <>
               <div className="w-18 h-18 rounded-full bg-red-50 border-2 border-red-100 flex items-center justify-center" style={{ width: 72, height: 72 }}>
-                <EditorIcons.X size={32} className="text-red-500" strokeWidth={1.75} />
+                <X size={32} className="text-red-500" strokeWidth={1.75} />
               </div>
               <div className="text-center">
                 <h3 className="text-[17px] font-bold text-neutral-900">Export Failed</h3>
@@ -121,7 +129,7 @@ function ExportModal({ step, done, error, onClose }: {
                     animate={{ y: [0, -3, 0] }}
                     transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
                   >
-                    <EditorIcons.FileDown size={22} className="text-indigo-600" strokeWidth={1.75} />
+                    <FileDown size={22} className="text-indigo-600" strokeWidth={1.75} />
                   </motion.div>
                 </div>
               </div>
@@ -160,7 +168,7 @@ function ExportModal({ step, done, error, onClose }: {
                             animate={{ scale: 1 }}
                             transition={{ type: 'spring', damping: 12 }}
                           >
-                            <EditorIcons.CheckCircle size={15} className="text-emerald-500" strokeWidth={2} />
+                            <CheckCircle size={15} className="text-emerald-500" strokeWidth={2} />
                           </motion.div>
                         ) : active ? (
                           <motion.div
@@ -236,11 +244,11 @@ function SlideStats() {
 
   return (
     <div className="hidden shrink-0 items-center gap-2.5 rounded-full border border-black/[0.05] bg-neutral-100/80 px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] xl:flex">
-      <Stat icon={EditorIcons.LayoutTemplate} value={slides.length} label="slides" />
+      <Stat icon={LayoutTemplate} value={slides.length} label="slides" />
       <div className="w-px h-3.5 bg-black/[0.08]" />
-      <Stat icon={EditorIcons.AlignLeft}      value={wordCount}     label="words"  />
+      <Stat icon={AlignLeft}      value={wordCount}     label="words"  />
       <div className="w-px h-3.5 bg-black/[0.08]" />
-      <Stat icon={EditorIcons.Clock}          value={`${readMin}m`} label="read"   />
+      <Stat icon={Clock}          value={`${readMin}m`} label="read"   />
     </div>
   );
 }
@@ -326,7 +334,7 @@ function EditableTitle() {
           <span className="font-semibold text-[13px] leading-tight truncate max-w-[min(200px,calc(100vw-10rem))] sm:max-w-[200px] text-neutral-800">
             {presentation.title || 'Untitled Presentation'}
           </span>
-          <EditorIcons.Pencil size={12} strokeWidth={1.75} className="text-neutral-300 opacity-0 group-hover/btn:opacity-100 transition-opacity shrink-0" />
+          <Pencil size={12} strokeWidth={1.75} className="text-neutral-300 opacity-0 group-hover/btn:opacity-100 transition-opacity shrink-0" />
         </button>
       )}
     </div>
@@ -348,7 +356,7 @@ function UndoRedo() {
         title="Undo (Ctrl+Z)"
         className="w-8 h-8 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-900 hover:bg-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
       >
-        <EditorIcons.Undo2 size={14} strokeWidth={1.75} />
+        <Undo2 size={14} strokeWidth={1.75} />
       </button>
       <button
         type="button"
@@ -357,7 +365,7 @@ function UndoRedo() {
         title="Redo (Ctrl+Y)"
         className="w-8 h-8 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-900 hover:bg-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
       >
-        <EditorIcons.Redo2 size={14} strokeWidth={1.75} />
+        <Redo2 size={14} strokeWidth={1.75} />
       </button>
     </div>
   );
@@ -365,10 +373,10 @@ function UndoRedo() {
 
 // ── Panel buttons config ──────────────────────────────────────────────────────
 const PANEL_BUTTONS = [
-  { id: 'generate', icon: EditorIcons.Wand2,    label: 'Generate' },
-  { id: 'layers',   icon: EditorIcons.Layers,   label: 'Layers'   },
-  { id: 'design',   icon: EditorIcons.Palette,  label: 'Design'   },
-  { id: 'notes',    icon: EditorIcons.FileText, label: 'Notes'    },
+  { id: 'generate', icon: Wand2,    label: 'Generate' },
+  { id: 'layers',   icon: Layers,   label: 'Layers'   },
+  { id: 'design',   icon: Palette,  label: 'Design'   },
+  { id: 'notes',    icon: FileText, label: 'Notes'    },
 ] as const;
 
 // ── Main TopBar ───────────────────────────────────────────────────────────────
@@ -690,7 +698,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
               className="bg-white rounded-3xl shadow-2xl border border-black/[0.06] p-6 sm:p-8 w-full max-w-sm max-h-[min(90dvh,640px)] overflow-y-auto flex flex-col items-center gap-6 relative"
             >
               <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center shrink-0">
-                <EditorIcons.Sparkles size={28} className="text-amber-500" />
+                <Sparkles size={28} className="text-amber-500" />
               </div>
               <div className="text-center min-w-0">
                 <h3 className="text-xl font-bold text-black text-balance">Remove Watermark</h3>
@@ -718,7 +726,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
               </div>
               
               <button type="button" onClick={() => setShowWatermarkModal(false)} className="absolute top-[max(0.75rem,env(safe-area-inset-top))] right-[max(0.75rem,env(safe-area-inset-right))] p-2 text-gray-400 hover:text-black touch-manipulation">
-                <EditorIcons.X size={20} />
+                <X size={20} />
               </button>
             </motion.div>
           </motion.div>
@@ -735,7 +743,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
             className="fixed inset-0 z-[350] flex items-center justify-center bg-black/35 backdrop-blur-sm"
           >
             <div className="bg-white rounded-2xl border border-black/[0.08] px-8 py-6 flex flex-col items-center gap-4 shadow-xl max-w-sm mx-4">
-              <EditorIcons.Loader2 className="animate-spin text-primary" size={28} />
+              <Loader2 className="animate-spin text-primary" size={28} />
               <p className="text-sm font-bold text-black text-center">Importing presentation…</p>
               <p className="text-[11px] text-black/45 text-center">Parsing slides, text, and images. Large files may take a moment.</p>
             </div>
@@ -753,7 +761,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
           >
             <div className="bg-white rounded-2xl border border-red-100 px-6 py-5 shadow-xl max-w-sm mx-4">
               <div className="flex items-start gap-3">
-                <EditorIcons.AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
+                <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
                 <div>
                   <p className="text-sm font-bold text-black">Import failed</p>
                   <p className="text-xs text-red-600/90 mt-1">{importError}</p>
@@ -793,7 +801,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
               className="md:hidden shrink-0 text-neutral-500 hover:text-neutral-900 hover:bg-white border border-transparent hover:border-black/[0.06] transition-all p-2 rounded-xl touch-manipulation"
               aria-label="Open slide gallery"
             >
-              <EditorIcons.PanelLeft size={18} strokeWidth={1.75} />
+              <PanelLeft size={18} strokeWidth={1.75} />
             </button>
           )}
           <Link
@@ -801,7 +809,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
             className="shrink-0 w-8 h-8 flex items-center justify-center text-neutral-500 hover:text-neutral-900 hover:bg-white border border-black/[0.06] bg-white/60 rounded-xl transition-all touch-manipulation shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
             aria-label="Back to my presentations"
           >
-            <EditorIcons.ArrowLeft size={16} strokeWidth={1.75} />
+            <ArrowLeft size={16} strokeWidth={1.75} />
           </Link>
           <Link href="/" className="hidden sm:flex shrink-0 items-center min-w-0 rounded-lg hover:opacity-90 transition-opacity">
             <img src="/logo.png.png" alt="Orbstera" className="h-[1.35rem] w-auto max-h-7 object-contain" />
@@ -829,18 +837,18 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
                 className="flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1.5 min-h-9 sm:min-h-0 rounded-full border border-black/[0.08] bg-white text-neutral-600 hover:text-neutral-900 hover:border-black/12 hover:bg-neutral-50 transition-all disabled:opacity-40 touch-manipulation shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
                 title="Import .pptx (legacy .ppt: save as .pptx in PowerPoint, or wait for server conversion)"
               >
-                <EditorIcons.Upload size={12} strokeWidth={1.75} className="text-neutral-500" />
+                <Upload size={12} strokeWidth={1.75} className="text-neutral-500" />
                 <span className="hidden sm:inline">Import</span>
               </button>
               {cloudSync === 'saving' && (
                 <div className="flex items-center gap-1 text-amber-700 text-[10px] font-semibold px-2 py-1 rounded-full bg-amber-50/90 border border-amber-200/60">
-                  <EditorIcons.Loader2 size={11} className="animate-spin shrink-0" strokeWidth={1.75} />
+                  <Loader2 size={11} className="animate-spin shrink-0" strokeWidth={1.75} />
                   <span className="hidden sm:inline">Saving…</span>
                 </div>
               )}
               {cloudSync === 'saved' && (
                 <div className="flex items-center gap-1 text-emerald-700 text-[10px] font-semibold px-2 py-1 rounded-full bg-emerald-50/90 border border-emerald-200/60">
-                  <EditorIcons.CheckCircle size={11} strokeWidth={1.75} />
+                  <CheckCircle size={11} strokeWidth={1.75} />
                   <span className="hidden sm:inline">Saved</span>
                 </div>
               )}
@@ -851,17 +859,17 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
               )}
               {cloudSync === 'error' && (
                 <div className="flex items-center gap-1 text-red-700 text-[10px] font-semibold px-2 py-1 rounded-full bg-red-50 border border-red-100 max-w-[min(100%,260px)]">
-                  <EditorIcons.AlertCircle size={11} className="shrink-0" strokeWidth={1.75} />
+                  <AlertCircle size={11} className="shrink-0" strokeWidth={1.75} />
                   <span className="min-w-0 line-clamp-2 whitespace-normal leading-snug" title={cloudMsg}>{cloudMsg || 'Sync error'}</span>
                   <button type="button" onClick={retrySaveNow} className="shrink-0 p-1 rounded-full hover:bg-red-100/80" title="Retry save">
-                    <EditorIcons.RefreshCw size={11} strokeWidth={1.75} />
+                    <RefreshCw size={11} strokeWidth={1.75} />
                   </button>
                 </div>
               )}
               {cloudSync === 'conflict' && (
                 <div className="flex min-w-[12rem] max-w-[14rem] shrink-0 flex-col gap-1.5 rounded-xl border border-black/[0.08] bg-white px-2.5 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
                   <div className="flex items-start gap-1.5 min-w-0 text-neutral-700 text-[10px] font-medium leading-snug">
-                    <EditorIcons.AlertCircle size={11} className="shrink-0 text-amber-600 mt-0.5" strokeWidth={1.75} />
+                    <AlertCircle size={11} className="shrink-0 text-amber-600 mt-0.5" strokeWidth={1.75} />
                     <span title={cloudMsg || 'This deck was updated in the cloud (e.g. another tab). Reload to load that version.'}>
                       Newer version in cloud — reload to avoid overwriting it.
                     </span>
@@ -877,7 +885,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
               )}
               {cloudSync === 'retrying' && (
                 <div className="flex items-center gap-1 text-amber-800 text-[10px] font-semibold px-2 py-1 rounded-full bg-amber-50 border border-amber-100">
-                  <EditorIcons.Loader2 size={11} className="animate-spin" strokeWidth={1.75} />
+                  <Loader2 size={11} className="animate-spin" strokeWidth={1.75} />
                   <span>Retry…</span>
                 </div>
               )}
@@ -935,7 +943,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
             onClick={handleShare}
             className="min-h-9 h-9 sm:h-[36px] px-3 sm:px-3.5 text-neutral-800 bg-white border border-black/[0.08] hover:bg-neutral-50 hover:border-black/12 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all flex items-center gap-2 text-[12px] sm:text-[13px] font-semibold active:scale-[0.98] touch-manipulation"
           >
-            {isCopied ? <EditorIcons.CheckCircle size={15} className="text-emerald-600" strokeWidth={1.75} /> : <EditorIcons.Share2 size={15} className="text-neutral-500" strokeWidth={1.75} />}
+            {isCopied ? <CheckCircle size={15} className="text-emerald-600" strokeWidth={1.75} /> : <Share2 size={15} className="text-neutral-500" strokeWidth={1.75} />}
             <span className="hidden md:inline">{isCopied ? 'Copied' : 'Share'}</span>
           </button>
 
@@ -944,7 +952,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
             onClick={() => setEditorState({ isPresenting: true })}
             className="min-h-9 h-9 sm:h-[36px] px-3 sm:px-3.5 text-neutral-800 bg-white border border-black/[0.08] hover:bg-neutral-50 hover:border-black/12 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all flex items-center gap-2 text-[12px] sm:text-[13px] font-semibold active:scale-[0.98] touch-manipulation"
           >
-            <EditorIcons.Play size={15} className="text-primary fill-primary/15" strokeWidth={1.75} />
+            <Play size={15} className="text-primary fill-primary/15" strokeWidth={1.75} />
             <span className="hidden md:inline">Present</span>
           </button>
 
@@ -958,7 +966,7 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
             className="min-h-9 h-9 sm:h-[36px] px-3.5 sm:px-4 flex items-center shrink-0 whitespace-nowrap gap-2 text-[12px] sm:text-[13px] font-semibold text-white bg-gradient-to-b from-[#5B7CFF] to-primary hover:from-primary hover:to-[#3d5ef0] rounded-full shadow-[0_4px_14px_-4px_rgba(59,130,246,0.55),0_0_0_1px_rgba(255,255,255,0.12)_inset] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none relative overflow-hidden group touch-manipulation"
           >
             <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/18 to-transparent opacity-0 group-hover:opacity-100 group-hover:translate-x-full transition-all duration-700 translate-x-[-100%]" />
-            <EditorIcons.Download size={15} className="shrink-0 relative" strokeWidth={1.75} />
+            <Download size={15} className="shrink-0 relative" strokeWidth={1.75} />
             <span className="hidden xs:inline relative whitespace-nowrap">Export .pptx</span>
             <span className="xs:hidden relative whitespace-nowrap">PPTX</span>
           </button>
@@ -970,8 +978,8 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
             className="min-h-9 h-9 sm:h-[36px] px-3 sm:px-3.5 flex items-center gap-1.5 text-[12px] sm:text-[13px] font-semibold text-neutral-700 bg-white border border-black/[0.08] hover:bg-neutral-50 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation"
           >
             {pdfExporting
-              ? <EditorIcons.Loader2 size={14} className="animate-spin" />
-              : <EditorIcons.FileText size={14} strokeWidth={1.75} />
+              ? <Loader2 size={14} className="animate-spin" />
+              : <FileText size={14} strokeWidth={1.75} />
             }
             <span className="hidden sm:inline">{pdfExporting ? 'Exporting…' : 'PDF'}</span>
           </button>

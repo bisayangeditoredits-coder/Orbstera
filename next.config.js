@@ -38,7 +38,7 @@ const nextConfig = {
     // Prevent canvas native module from being bundled server-side
     serverComponentsExternalPackages: ['canvas'],
     // Tree-shake icon barrel imports on the client
-    optimizePackageImports: ['framer-motion'],
+    optimizePackageImports: ['lucide-react', 'framer-motion'],
   },
 
   webpack: (config, { isServer }) => {

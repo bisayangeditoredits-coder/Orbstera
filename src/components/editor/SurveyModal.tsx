@@ -7,7 +7,7 @@ import {
   GraduationCap, Briefcase, Rocket, Palette, 
   Users, Sparkles, CheckCircle2, ArrowRight,
   Target, Zap, Globe, Heart
-} from '@/components/icons/lucide';
+} from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 
 interface SurveyModalProps {

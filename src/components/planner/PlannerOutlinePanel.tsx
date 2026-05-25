@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LayoutList, Sparkles, Loader2, CheckCircle2, ArrowRight, GripVertical } from '@/components/icons/lucide';
+import { LayoutList, Sparkles, Loader2, CheckCircle2, ArrowRight, GripVertical } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
   DndContext,

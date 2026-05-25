@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, RefreshCw, Sparkles, ChevronDown, Layers, Image as ImageIcon, Wand2, Info, CheckCircle2, Layout, ScanIcon } from '@/components/icons/lucide';
+import { Zap, RefreshCw, Sparkles, ChevronDown, Layers, Image as ImageIcon, Wand2, Info, CheckCircle2, Layout, ScanIcon } from 'lucide-react';
 import { useCredits } from '@/hooks/useCredits';
 import Link from 'next/link';
 
@@ -38,9 +38,10 @@ export function CreditsHUD() {
         }`}
       >
         <div className="relative flex items-center justify-center">
-          <Zap
-            size={15}
-            className={`${isLow ? 'text-amber-600' : 'text-primary'} ${loading ? 'opacity-20' : 'animate-pulse'}`}
+          <Zap 
+            size={15} 
+            className={`${isLow ? 'text-amber-600' : 'text-primary'} ${loading ? 'opacity-20' : 'animate-pulse'}`} 
+            fill="currentColor" 
             style={{ filter: isLow ? 'none' : 'drop-shadow(0 0 4px rgba(56,189,248,0.4))' }}
           />
           {loading && (

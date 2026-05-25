@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Copy, Check, Pipette, X } from '@/components/icons/lucide';
+import { Copy, Check, Pipette, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import {
   clamp,

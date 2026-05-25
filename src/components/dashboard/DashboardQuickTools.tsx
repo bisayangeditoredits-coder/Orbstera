@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 
-import { Plus, Wand2, LayoutTemplate, Zap, Home, Map, Upload } from '@/components/icons/lucide';
+import { Plus, Wand2, LayoutTemplate, Zap, Home, Map, Upload } from 'lucide-react';
 
 type DashboardQuickToolsProps = {
   onNewDeck: () => void;

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Download, Monitor } from "@/components/icons/lucide";
+import { Download, Monitor } from "lucide-react";
 
 const INSTALLER_URL = process.env.NEXT_PUBLIC_WINDOWS_DESKTOP_INSTALLER_URL?.trim() ?? "";
 

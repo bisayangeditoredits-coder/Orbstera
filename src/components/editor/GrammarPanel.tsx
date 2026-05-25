@@ -6,8 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, SpellCheck, Loader2, CheckCircle2, AlertTriangle,
   ChevronDown, ChevronRight, RefreshCw,
-} from '@/components/icons/lucide';
-import { PanelHeaderIcon, PanelCloseIcon, panelCloseButtonClass } from '@/components/icons/panel-chrome';
+} from 'lucide-react';
 
 type LTMatch = {
   message: string;
@@ -100,15 +99,17 @@ export function GrammarPanel({ onClose }: { onClose?: () => void }) {
       <div className="shrink-0 bg-white border-b border-neutral-100 px-4 pt-4 pb-3">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2.5">
-            <PanelHeaderIcon icon={SpellCheck} iconClassName="text-neutral-500" />
+            <div className="w-8 h-8 rounded-xl bg-neutral-100 flex items-center justify-center">
+              <SpellCheck size={15} className="text-neutral-500" strokeWidth={2} />
+            </div>
             <div>
               <h2 className="text-[13px] font-bold text-neutral-900 leading-none">Grammar Check</h2>
               <p className="text-[10px] text-neutral-400 mt-0.5 font-semibold">LanguageTool · Free</p>
             </div>
           </div>
           {onClose && (
-            <button type="button" onClick={onClose} className={panelCloseButtonClass} aria-label="Close panel">
-              <PanelCloseIcon icon={X} />
+            <button onClick={onClose} className="w-7 h-7 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 flex items-center justify-center transition-all">
+              <X size={14} />
             </button>
           )}
         </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from '@/components/icons/lucide';
+import { X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 export interface ModalProps {

@@ -4,7 +4,7 @@
 import { useState, useMemo } from 'react';
 import type { SlideElement } from '@/types';
 import { editorImageFetchUrl } from '@/lib/r2-public-url';
-import { Type, ImageIcon, Square, Sparkles } from '@/components/icons/lucide';
+import { Type, ImageIcon, Square, Sparkles } from 'lucide-react';
 
 const FRAME = 44;
 

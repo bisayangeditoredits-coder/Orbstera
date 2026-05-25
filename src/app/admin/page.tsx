@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 // Navbar removed
-import { Users, Crown, Shield, Activity, Search, ArrowUpRight, ArrowDownRight, Sparkles } from '@/components/icons/lucide';
+import { Users, Crown, Shield, Activity, Search, ArrowUpRight, ArrowDownRight, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';

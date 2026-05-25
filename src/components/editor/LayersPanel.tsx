@@ -12,7 +12,7 @@ import {
   Upload, Copy, GripVertical, Layers, Sparkles, Play,
   Type, Move, Palette, Zap, ChevronDown, RotateCcw,
   Strikethrough, Underline, Loader2, Wand2, Search
-} from '@/components/icons/lucide';
+} from 'lucide-react';
 import { SlideElement } from '@/types';
 import { editorImageFetchUrl } from '@/lib/r2-public-url';
 import { ColorPicker } from './ColorPicker';
@@ -52,7 +52,7 @@ function AITextActions({ text, onUpdate }: { text: string; onUpdate: (newText: s
   return (
     <div className="space-y-2 mt-4 p-2 bg-neutral-50 rounded-lg border border-neutral-200/60">
       <div className="text-[10px] font-bold text-neutral-900 uppercase tracking-wider flex items-center gap-1.5">
-        <Sparkles size={12} className="text-neutral-500 shrink-0" strokeWidth={1.75} />
+        <Sparkles className="w-3 h-3 text-neutral-500" />
         AI Magic Edit
       </div>
       <div className="grid grid-cols-2 gap-1.5">

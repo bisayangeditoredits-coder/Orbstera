@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, Sparkles } from '@/components/icons/lucide';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { BLOG_POSTS } from '@/content/blog-posts';
 import { BlogFeaturedCard, BlogCard } from './BlogCard';
 

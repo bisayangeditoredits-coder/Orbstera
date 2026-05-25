@@ -10,7 +10,7 @@ import {
   Copy, X, BrainCircuit, Target, TrendingUp, Smile,
   BookOpen, Zap, Volume2, AlignLeft, Globe, Stars,
   MessageSquare, ArrowRight, Layers, RotateCcw, Type,
-} from '@/components/icons/lucide';
+} from 'lucide-react';
 
 // ─── API helper ───────────────────────────────────────────────────────────────
 async function callMagicEdit(

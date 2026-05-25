@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { X, Loader2, ArrowRight, Check } from '@/components/icons/lucide';
+import { X, Loader2, ArrowRight, Check } from 'lucide-react';
 
 const THEMES = [
   {

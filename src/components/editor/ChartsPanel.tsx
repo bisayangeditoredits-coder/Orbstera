@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { BarChart3, X, Plus } from '@/components/icons/lucide';
-import { PanelHeaderIcon, PanelCloseIcon, panelCloseButtonClass } from '@/components/icons/panel-chrome';
+import { BarChart3, X, Plus } from 'lucide-react';
 
 export function ChartsPanel({ onClose }: { onClose?: () => void }) {
   const [chartType, setChartType] = useState('bar');
@@ -58,11 +57,9 @@ export function ChartsPanel({ onClose }: { onClose?: () => void }) {
       <div className="shrink-0 flex flex-col border-b border-black/[0.06] bg-white/80 backdrop-blur-xl sticky top-0 z-20">
         <div className="flex items-start justify-between gap-3 px-4 sm:px-5 pt-4 pb-4">
           <div className="flex items-start gap-3.5">
-            <PanelHeaderIcon
-              icon={BarChart3}
-              className="from-emerald-500/10 to-emerald-500/5 border-emerald-500/10"
-              iconClassName="text-emerald-500"
-            />
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/10 flex items-center justify-center shrink-0">
+              <BarChart3 size={19} className="text-emerald-500" strokeWidth={1.75} />
+            </div>
             <div className="pt-0.5">
               <h2 className="text-[16px] font-semibold text-neutral-900 tracking-tight leading-tight">Charts</h2>
               <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-[0.14em] mt-1 leading-snug">
@@ -71,8 +68,11 @@ export function ChartsPanel({ onClose }: { onClose?: () => void }) {
             </div>
           </div>
           {onClose && (
-            <button type="button" onClick={onClose} className={panelCloseButtonClass} aria-label="Close panel">
-              <PanelCloseIcon icon={X} />
+            <button
+              onClick={onClose}
+              className="shrink-0 w-9 h-9 rounded-xl border border-black/[0.06] bg-white text-neutral-400 hover:text-neutral-900 hover:bg-neutral-50 hover:border-black/[0.08] transition-all flex items-center justify-center shadow-sm"
+            >
+              <X size={17} />
             </button>
           )}
         </div>

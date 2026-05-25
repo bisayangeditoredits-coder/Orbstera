@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Search, Check, Type } from '@/components/icons/lucide';
+import { ChevronDown, Search, Check, Type } from 'lucide-react';
 
 const GOOGLE_FONTS = [
   'Inter', 'Roboto', 'Open Sans', 'Montserrat', 'Lato', 

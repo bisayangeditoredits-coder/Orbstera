@@ -8,7 +8,7 @@ import {
   ChevronDown,
   X,
   History,
-} from '@/components/icons/lucide';
+} from 'lucide-react';
 import type { DeckMeta } from '@/types/deck-meta';
 import { cn } from '@/lib/cn';
 import { formatPlanLabel } from './dashboard-utils';

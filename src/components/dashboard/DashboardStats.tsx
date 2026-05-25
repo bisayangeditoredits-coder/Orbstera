@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Zap, TrendingUp, FileText, Clock, ArrowRight } from '@/components/icons/lucide';
+import { Plus, Zap, TrendingUp, FileText, Clock, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import type { DeckMeta } from '@/types/deck-meta';
 import type { CreditState } from '@/hooks/useCredits';

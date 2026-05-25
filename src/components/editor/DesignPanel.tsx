@@ -6,7 +6,7 @@ import { usePresentationStore } from '@/store/usePresentationStore';
 import { useShallow } from 'zustand/react/shallow';
 import { SLIDE_TRANSITION_OPTIONS } from '@/lib/presentationMotion';
 import type { SlideTransition } from '@/types';
-import { Palette, Type, Sparkles, Check, RefreshCw } from '@/components/icons/lucide';
+import { Palette, Type, Sparkles, Check, RefreshCw } from 'lucide-react';
 import { ColorPicker } from './ColorPicker';
 import { EDITOR_GOOGLE_FONTS } from '@/lib/editor-fonts';
 

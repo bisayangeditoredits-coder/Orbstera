@@ -21,7 +21,7 @@ import {
   PackageCheck,
   FileDown,
   Loader2,
-} from '@/components/icons/lucide';
+} from 'lucide-react';
 import {
   getSlideTransitionVariants,
   inferSlideTransition,

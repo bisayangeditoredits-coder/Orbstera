@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Share2, Globe } from '@/components/icons/lucide';
+import { Share2, Globe } from 'lucide-react';
 
 const TEAM = [
   {

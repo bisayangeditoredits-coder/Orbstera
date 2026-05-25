@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { LogOut, Menu, X, LayoutGrid, ChevronRight } from '@/components/icons/lucide';
+import { LogOut, Menu, X, LayoutGrid, ChevronRight } from 'lucide-react';
 import { useEffect, useState, useRef, Fragment } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter, usePathname } from 'next/navigation';

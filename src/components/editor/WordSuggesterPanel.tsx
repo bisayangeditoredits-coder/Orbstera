@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SpellCheck, Loader2, X, RefreshCw, Type, ArrowRight } from '@/components/icons/lucide';
-import { PanelHeaderIcon, PanelCloseIcon, panelCloseButtonClass } from '@/components/icons/panel-chrome';
+import { SpellCheck, Loader2, X, RefreshCw, Type, ArrowRight } from 'lucide-react';
 
 type DatamuseWord = {
   word: string;
@@ -98,15 +97,17 @@ export function WordSuggesterPanel({ onClose }: { onClose?: () => void }) {
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between gap-3 px-4 pt-4 pb-4 border-b border-neutral-100">
         <div className="flex items-center gap-3">
-          <PanelHeaderIcon icon={SpellCheck} iconClassName="text-neutral-700" />
+          <div className="w-8 h-8 rounded-lg bg-neutral-100 flex items-center justify-center shrink-0">
+            <SpellCheck size={16} className="text-neutral-700" />
+          </div>
           <div>
             <h2 className="text-[14px] font-semibold text-neutral-900 leading-tight">Word Suggester</h2>
             <p className="text-[11px] text-neutral-400 mt-0.5">Synonyms & words · 100% Free</p>
           </div>
         </div>
         {onClose && (
-          <button type="button" onClick={onClose} className={panelCloseButtonClass} aria-label="Close panel">
-            <PanelCloseIcon icon={X} />
+          <button onClick={onClose} className="w-7 h-7 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-all flex items-center justify-center">
+            <X size={15} />
           </button>
         )}
       </div>

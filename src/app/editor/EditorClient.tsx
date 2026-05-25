@@ -25,7 +25,7 @@ import { isSlideDeckBackgroundImage } from '@/lib/slide-background';
 import { createStarterPresentation } from '@/lib/editor-starter-deck';
 import { createEditorGeneratingShell } from '@/lib/editor-generating-shell';
 import { ComponentErrorBoundary } from '@/components/editor/ComponentErrorBoundary';
-import { Monitor } from '@/components/icons/lucide';
+import { Monitor } from 'lucide-react';
 
 const EditorCanvasLoading = () => (
   <div className="flex-1 min-h-0 flex items-center justify-center bg-neutral-50/50">

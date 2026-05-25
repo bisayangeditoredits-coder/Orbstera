@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef } from 'react';
-import { Sparkles } from '@/components/icons/lucide';
+import { Sparkles } from 'lucide-react';
 import { PlannerMessage } from './PlannerMessage';
 
 type Message = { role: string; content: string };

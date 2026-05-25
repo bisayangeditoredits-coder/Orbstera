@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff, ShieldCheck, Zap, Clock3, Star, Lock, ChevronDown } from '@/components/icons/lucide';
+import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff, ShieldCheck, Zap, Clock3, Star, Lock, ChevronDown } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
