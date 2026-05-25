@@ -103,6 +103,8 @@ export function PresentationGrid({
     }
   };
 
+  if (decks.length === 0) return null;
+
   return (
     <section id="decks" className="scroll-mt-6 space-y-6">
       {bulkDeleteIds && bulkDeleteIds.length > 0 && (

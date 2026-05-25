@@ -174,128 +174,142 @@ function GenerationLoader() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-neutral-100 via-neutral-50 to-neutral-100/95"
+      className="absolute inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-[#f0f2f5]"
     >
-      <div className="relative z-10 flex h-full w-full max-w-4xl flex-col items-center justify-center px-6">
-        {/* Single Lottie: raw JSON only — SVG renderer avoids canvas + blur edge banding; no overlays / second mascot */}
-        <div className="relative mb-5 flex w-full max-w-[min(400px,88vw)] items-center justify-center sm:mb-7 md:max-w-[min(440px,80vw)]">
-          <div
-            className="relative w-full overflow-visible"
-            style={{
-              aspectRatio: `${FLOW1_LOTTIE_W} / ${FLOW1_LOTTIE_H}`,
-              maxHeight: 'min(48dvh, 420px)',
-            }}
+      {/* ── Shimmering Skeleton Grid Background ── */}
+      <div className="absolute inset-0 z-0 flex flex-wrap content-start justify-center gap-8 p-12 overflow-hidden opacity-60">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: i * 0.05, duration: 0.6 }}
+            className="relative w-[320px] shrink-0 aspect-[16/9] bg-white rounded-2xl shadow-[0_4px_20px_-5px_rgba(0,0,0,0.05)] border border-slate-200/50 p-6 flex flex-col gap-4 overflow-hidden"
           >
-            {/* @ts-expect-error custom element */}
-            <lottie-player
-              className="block h-full w-full"
-              src={GENERATION_ORB_LOTTIE_SRC}
-              background="transparent"
-              speed={reduceMotion ? '0.4' : '1'}
-              loop
-              autoplay
-              renderer="svg"
+            {/* Shimmer Effect */}
+            <motion.div 
+              className="absolute inset-0 z-10 bg-gradient-to-r from-transparent via-white/70 to-transparent skew-x-[-20deg]"
+              animate={{ x: ['-200%', '200%'] }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'linear', delay: i * 0.1 }}
             />
-          </div>
+            <div className="h-4 w-2/3 bg-slate-100 rounded-md" />
+            <div className="space-y-2 mt-2">
+              <div className="h-2.5 w-full bg-slate-100 rounded-sm" />
+              <div className="h-2.5 w-5/6 bg-slate-100 rounded-sm" />
+              <div className="h-2.5 w-4/6 bg-slate-100 rounded-sm" />
+            </div>
+            <div className="mt-auto h-16 w-full bg-slate-100/50 rounded-lg" />
+          </motion.div>
+        ))}
+      </div>
 
-          <div className="pointer-events-none absolute inset-x-0 bottom-1 z-20 flex justify-center px-2">
+      {/* ── Premium Glass Overlay Panel ── */}
+      <div className="relative z-10 w-full max-w-2xl px-6">
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 200, delay: 0.2 }}
+          className="bg-white/80 backdrop-blur-2xl border border-white shadow-[0_30px_60px_-15px_rgba(99,102,241,0.2)] rounded-[2.5rem] p-8 sm:p-12 w-full text-center"
+        >
+          {/* Animated Percentage Badge */}
+          <div className="flex justify-center mb-6">
             <motion.div
-              initial={{ y: 16, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className="inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-neutral-950 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-lg shadow-black/20 sm:text-xs sm:tracking-[0.24em]"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="inline-flex items-center gap-2.5 rounded-full border border-indigo-100 bg-indigo-50/50 px-5 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700 shadow-sm sm:text-xs"
             >
-              <span className="h-2 w-2 shrink-0 rounded-full bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.85)]" aria-hidden />
+              <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)] animate-pulse" aria-hidden />
               <span className="tabular-nums text-center">{Math.round(pct)}% complete</span>
             </motion.div>
           </div>
-        </div>
 
-        {/* 3. Narrative Progress Architecture */}
-        <div className="w-full max-w-xl text-center space-y-6">
-           <div className="space-y-2">
-              <motion.div 
-                animate={{ opacity: [0.4, 0.8, 0.4] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="text-[10px] font-bold text-primary/60 uppercase tracking-[0.4em]"
+          <div className="space-y-2 mb-8">
+            <motion.div 
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="text-[10.5px] font-extrabold text-indigo-500 uppercase tracking-[0.3em]"
+            >
+              Orchestrating Narrative
+            </motion.div>
+            <h2 className="text-[clamp(1.5rem,5vw,2.5rem)] font-extrabold text-slate-900 tracking-tight leading-[1.1] text-balance px-1">
+              {label}
+            </h2>
+          </div>
+
+          {/* Stepper Progress Bar */}
+          <div className="relative w-full h-[3px] bg-slate-200/50 rounded-full mb-10">
+            <motion.div 
+              className="absolute h-full rounded-full" 
+              style={{ background: 'linear-gradient(90deg, #4f46e5, #a855f7, #ec4899)' }}
+              initial={{ width: "0%" }}
+              animate={{ width: `${(currentStepIndex + 1) * (100 / steps.length)}%` }}
+              transition={{ duration: 0.8, ease: "circOut" }}
+            />
+            <div className="absolute top-1/2 left-0 w-full flex justify-between -translate-y-1/2 px-0">
+                {steps.map((_, i) => (
+                  <div 
+                    key={i} 
+                    className={`w-2 h-2 rounded-full border-2 transition-all duration-500 ${
+                      i <= currentStepIndex ? 'bg-white border-purple-500 scale-125 shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'bg-slate-100 border-transparent'
+                    }`} 
+                  />
+                ))}
+            </div>
+          </div>
+
+          <div className="min-h-[50px] flex flex-col items-center justify-center mb-8">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={editor.reasoning ? 'real' : 'fake'}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="flex flex-col items-center max-w-lg"
               >
-                Orchestrating Narrative
-              </motion.div>
-              <h2 className="text-[clamp(1.35rem,5vw,2.25rem)] font-semibold text-black tracking-[-0.04em] leading-[1.15] text-balance px-1">
-                {label}
-              </h2>
-           </div>
-
-           <div className="relative w-full h-[1px] bg-black/[0.05] mt-6 mb-12">
-              <motion.div 
-                className="absolute h-full bg-primary shadow-[0_0_10px_rgba(59,130,246,0.4)]" 
-                initial={{ width: "0%" }}
-                animate={{ width: `${(currentStepIndex + 1) * (100 / steps.length)}%` }}
-                transition={{ duration: 0.8, ease: "circOut" }}
-              />
-              <div className="absolute top-1/2 left-0 w-full flex justify-between -translate-y-1/2 px-1">
-                 {steps.map((_, i) => (
-                   <div 
-                     key={i} 
-                     className={`w-1.5 h-1.5 rounded-full border transition-all duration-500 ${
-                       i <= currentStepIndex ? 'bg-primary border-primary scale-110' : 'bg-white border-black/10'
-                     }`} 
-                   />
-                 ))}
-              </div>
-           </div>
-
-           <div className="min-h-[60px] flex flex-col items-center justify-center">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={editor.reasoning ? 'real' : 'fake'}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  className="flex flex-col items-center max-w-lg"
-                >
-                  {vizLine && (
-                    <p className="text-[11px] font-semibold text-primary/85 tracking-tight mb-2">
-                      {vizLine}
-                    </p>
-                  )}
-                  <p className="text-[12px] font-medium text-black/40 italic tracking-tight leading-relaxed text-center">
-                    {editor.reasoning 
-                      ? editor.reasoning.slice(-120) 
-                      : reasoningSteps[currentStepIndex]
-                    }
-                    <span className="inline-block w-[1.5px] h-[12px] bg-primary ml-1 translate-y-[2px] animate-blink" />
+                {vizLine && (
+                  <p className="text-[12px] font-bold text-indigo-600 tracking-tight mb-2 bg-indigo-50 px-3 py-1 rounded-full">
+                    {vizLine}
                   </p>
-                </motion.div>
-              </AnimatePresence>
-           </div>
+                )}
+                <p className="text-[13px] font-medium text-slate-500 italic tracking-tight leading-relaxed text-center">
+                  {editor.reasoning 
+                    ? editor.reasoning.slice(-120) 
+                    : reasoningSteps[currentStepIndex]
+                  }
+                  <span className="inline-block w-[2px] h-[14px] bg-indigo-500 ml-1.5 translate-y-[2px] animate-blink" />
+                </p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
 
-           <div className="grid grid-cols-1 xs:grid-cols-3 gap-4 xs:gap-8 pt-6 border-t border-black/[0.03] w-full max-w-xl mx-auto">
-              {[
-                { label: 'Progress', value: `${Math.round(pct)}%` },
-                {
-                  label: 'Engine',
-                  value: editor.orchestrationPhase
-                    ? String(editor.orchestrationPhase)
-                        .replace(/_/g, ' ')
-                        .replace(/^\w/, (c) => c.toUpperCase())
-                    : 'Orbstera',
-                },
-                { label: 'Status', value: 'ACTIVE', color: 'text-emerald-500' },
-              ].map((stat, i) => (
-                <div key={i} className="flex flex-col gap-1">
-                   <span className="text-[8px] font-bold text-black/25 uppercase tracking-widest">{stat.label}</span>
-                   <span className={`text-[14px] font-black tracking-tight ${stat.color || 'text-black'}`}>{stat.value}</span>
-                </div>
-              ))}
-           </div>
-        </div>
+          <div className="grid grid-cols-1 xs:grid-cols-3 gap-4 xs:gap-8 pt-6 border-t border-slate-200/50 w-full mx-auto">
+            {[
+              { label: 'Progress', value: `${Math.round(pct)}%` },
+              {
+                label: 'Engine',
+                value: editor.orchestrationPhase
+                  ? String(editor.orchestrationPhase)
+                      .replace(/_/g, ' ')
+                      .replace(/^\w/, (c) => c.toUpperCase())
+                  : 'Orbstera AI',
+              },
+              { label: 'Status', value: 'ACTIVE', color: 'text-emerald-500' },
+            ].map((stat, i) => (
+              <div key={i} className="flex flex-col gap-1">
+                  <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">{stat.label}</span>
+                  <span className={`text-[15px] font-black tracking-tight ${stat.color || 'text-slate-800'}`}>{stat.value}</span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      </div>
 
-        {/* Brand Credit - Anchored to bottom to avoid clipping */}
-        <div className="absolute bottom-[max(3rem,env(safe-area-inset-bottom))] left-0 right-0 flex justify-center opacity-20 px-4">
-          <span className="text-[8px] sm:text-[9px] font-black tracking-[0.2em] sm:tracking-[0.6em] text-black uppercase text-center">
-            Orbstera presentation engine
-          </span>
-        </div>
+      {/* Brand Credit */}
+      <div className="absolute bottom-[max(2rem,env(safe-area-inset-bottom))] left-0 right-0 flex justify-center opacity-40 px-4">
+        <span className="text-[10px] font-extrabold tracking-[0.4em] text-slate-500 uppercase text-center flex items-center gap-2">
+          <Sparkles size={12} className="text-indigo-400" />
+          Orbstera Presentation Engine
+        </span>
       </div>
     </motion.div>
   );

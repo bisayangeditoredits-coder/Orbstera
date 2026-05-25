@@ -991,27 +991,95 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
         {showUpgradeModal && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[999] flex items-center justify-center p-4"
+            style={{ background: 'rgba(10, 10, 14, 0.85)', backdropFilter: 'blur(30px)' }}
           >
             <motion.div 
-              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="bg-[#0A0A0A] border border-white/10 p-8 rounded-3xl w-full max-w-md shadow-2xl relative overflow-hidden text-center text-white"
+              initial={{ scale: 0.95, y: 30, opacity: 0, rotateX: 5 }} 
+              animate={{ scale: 1, y: 0, opacity: 1, rotateX: 0 }} 
+              exit={{ scale: 0.95, y: 20, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className="relative w-full max-w-[440px] rounded-[32px] overflow-hidden"
+              style={{
+                background: 'linear-gradient(160deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)',
+                boxShadow: '0 40px 100px -20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.5) inset, 0 20px 40px -10px rgba(99,102,241,0.15)',
+              }}
             >
-              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-500 via-amber-500 to-primary" />
-              <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <AlertCircle size={32} className="text-red-500" />
-              </div>
-              <h2 className="text-2xl font-black font-space-grotesk mb-2">Limit Reached</h2>
-              <p className="text-white/60 text-sm mb-8 leading-relaxed">
-                You&apos;ve used all 3 free AI presentations (lifetime limit on the Free plan). Upgrade to keep generating full cinematic decks.
-              </p>
-              <div className="flex flex-col gap-3">
-                <a href="/pricing" className="w-full py-3.5 bg-amber-500 text-black font-bold rounded-xl hover:bg-amber-400 transition-colors flex items-center justify-center gap-2">
-                  <Crown size={18} /> Upgrade to Pro
-                </a>
-                <button onClick={() => setShowUpgradeModal(false)} className="w-full py-3.5 bg-white/5 text-white/50 hover:bg-white/10 font-bold rounded-xl transition-colors">
-                  Maybe Later
-                </button>
+              {/* Background Glows */}
+              <motion.div 
+                animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                className="absolute -top-32 -left-32 w-64 h-64 bg-amber-500/20 rounded-full blur-[60px]" 
+              />
+              <motion.div 
+                animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.4, 0.2] }}
+                transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+                className="absolute -bottom-32 -right-32 w-64 h-64 bg-purple-500/20 rounded-full blur-[60px]" 
+              />
+
+              <div className="p-10 relative z-10 flex flex-col items-center">
+                <div className="relative w-20 h-20 flex items-center justify-center mb-6">
+                  <motion.div 
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: [0.8, 1.4], opacity: [0.6, 0] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
+                    className="absolute inset-0 rounded-full border-2 border-amber-400" 
+                  />
+                  <div className="absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.2) 0%, transparent 70%)' }} />
+                  <div className="w-16 h-16 rounded-[1.25rem] bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center shadow-[0_15px_30px_-10px_rgba(245,158,11,0.5),inset_0_2px_4px_rgba(255,255,255,0.4)] border border-amber-300 relative z-10">
+                    <Crown size={32} className="text-white" strokeWidth={2.5} />
+                  </div>
+                </div>
+
+                <h2 className="text-[26px] font-extrabold text-slate-900 tracking-tight text-center leading-tight mb-2">
+                  Unlock the full power of AI
+                </h2>
+                <p className="text-[14.5px] text-slate-500 text-center leading-relaxed mb-8 max-w-sm">
+                  You've reached your free plan limit. Upgrade now to keep generating cinematic presentations instantly.
+                </p>
+
+                <div className="w-full space-y-3 mb-10">
+                  {[
+                    'Generate unlimited presentations',
+                    'Advanced AI models (Gemini 2.5 Pro & GPT-4o)',
+                    'Export to PowerPoint (PPTX)',
+                    'Custom branding & fonts'
+                  ].map((feature, i) => (
+                    <motion.div 
+                      key={i}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 + i * 0.1 }}
+                      className="flex items-center gap-3"
+                    >
+                      <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center border border-indigo-100 shrink-0">
+                        <Sparkles size={12} className="text-indigo-600" />
+                      </div>
+                      <span className="text-[14px] font-semibold text-slate-700">{feature}</span>
+                    </motion.div>
+                  ))}
+                </div>
+
+                <div className="w-full flex flex-col gap-3">
+                  <a 
+                    href="/pricing" 
+                    className="relative overflow-hidden w-full h-14 rounded-2xl text-white font-bold text-[16px] flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-[0_15px_30px_-10px_rgba(245,158,11,0.5)] transition-all active:scale-[0.97] border border-white/10"
+                    style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+                  >
+                    <motion.div 
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-20deg]" 
+                      animate={{ x: ['-200%', '200%'] }}
+                      transition={{ duration: 2.5, repeat: Infinity, ease: 'linear' }}
+                    />
+                    Upgrade to Pro
+                  </a>
+                  <button 
+                    onClick={() => setShowUpgradeModal(false)} 
+                    className="w-full h-12 rounded-xl text-[14.5px] font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors"
+                  >
+                    Continue with Free
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

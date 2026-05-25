@@ -40,23 +40,43 @@ function ExportModal({ step, done, error, onClose }: {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[300] flex items-center justify-center p-4 safe-pad-y"
-      style={{ background: 'rgba(15,15,20,0.65)', backdropFilter: 'blur(16px)' }}
+      style={{ background: 'rgba(10, 10, 14, 0.75)', backdropFilter: 'blur(24px)' }}
     >
       <motion.div
-        initial={{ scale: 0.92, y: 24, opacity: 0 }}
+        initial={{ scale: 0.95, y: 30, opacity: 0 }}
         animate={{ scale: 1, y: 0, opacity: 1 }}
-        exit={{ scale: 0.92, y: 24, opacity: 0 }}
-        transition={{ type: 'spring', damping: 22, stiffness: 320 }}
-        className="relative w-full max-w-[360px] rounded-[28px] overflow-hidden"
+        exit={{ scale: 0.95, y: 20, opacity: 0 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+        className="relative w-full max-w-[380px] rounded-[32px] overflow-hidden"
         style={{
-          background: 'linear-gradient(145deg, #ffffff 0%, #f8faff 100%)',
-          boxShadow: '0 32px 80px -12px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.15) inset',
+          background: 'linear-gradient(160deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%)',
+          boxShadow: '0 40px 100px -20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.5) inset, 0 20px 40px -10px rgba(99,102,241,0.15)',
         }}
       >
-        {/* Top gradient accent bar */}
-        <div className="h-[3px] w-full" style={{ background: 'linear-gradient(90deg, #3b5bdb, #6366f1, #8b5cf6)' }} />
+        {/* Animated ambient background glows */}
+        <motion.div 
+          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute -top-24 -left-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-[50px]" 
+        />
+        <motion.div 
+          animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.4, 0.2] }}
+          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+          className="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-500/20 rounded-full blur-[50px]" 
+        />
+        
+        {/* Shimmering Top Bar */}
+        <motion.div 
+          className="h-[3px] w-full" 
+          animate={{ backgroundPosition: ['200% center', '-200% center'] }}
+          transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
+          style={{ 
+            background: 'linear-gradient(90deg, #4f46e5, #ec4899, #8b5cf6, #4f46e5)', 
+            backgroundSize: '200% auto' 
+          }} 
+        />
 
-        <div className="p-7 flex flex-col items-center gap-6">
+        <div className="p-8 flex flex-col items-center gap-7 relative z-10">
 
           {done && !error ? (
             <>
@@ -64,78 +84,106 @@ function ExportModal({ step, done, error, onClose }: {
                 initial={{ scale: 0, rotate: -20 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: 'spring', damping: 12, stiffness: 180, delay: 0.05 }}
-                className="relative w-20 h-20 flex items-center justify-center"
+                className="relative w-24 h-24 flex items-center justify-center"
               >
-                <div className="absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 70%)' }} />
-                <div className="w-20 h-20 rounded-full bg-emerald-50 flex items-center justify-center border-2 border-emerald-100">
-                  <CheckCircle size={38} className="text-emerald-500" strokeWidth={1.75} />
+                <motion.div 
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
+                  className="absolute inset-0 rounded-full border-2 border-emerald-400" 
+                />
+                <div className="absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.2) 0%, transparent 70%)' }} />
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center shadow-[0_10px_30px_-10px_rgba(16,185,129,0.5),inset_0_2px_4px_rgba(255,255,255,0.4)] border border-emerald-300">
+                  <CheckCircle size={40} className="text-white" strokeWidth={2.5} />
                 </div>
               </motion.div>
               <motion.div
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
                 className="text-center"
               >
-                <h3 className="text-[18px] font-bold text-neutral-900 tracking-tight">Ready to present!</h3>
-                <p className="text-[13px] text-neutral-500 mt-1.5 leading-snug">Your PPTX is fully editable in PowerPoint,<br/>Keynote & LibreOffice.</p>
+                <h3 className="text-[20px] font-extrabold text-neutral-900 tracking-tight">Ready to present!</h3>
+                <p className="text-[13.5px] text-neutral-500 mt-2 leading-relaxed">Your PPTX is fully editable in PowerPoint,<br/>Keynote & LibreOffice.</p>
               </motion.div>
               <motion.button
-                initial={{ opacity: 0, y: 6 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
                 onClick={onClose}
-                className="w-full h-11 rounded-2xl text-white font-bold text-[14px] tracking-tight hover:opacity-90 transition-all active:scale-[0.97] shadow-lg"
-                style={{ background: 'linear-gradient(135deg, #3b5bdb, #6366f1)' }}
+                className="w-full h-12 rounded-2xl text-white font-bold text-[15px] tracking-tight hover:opacity-90 transition-all active:scale-[0.97] shadow-[0_10px_20px_-10px_rgba(99,102,241,0.5)] border border-white/10"
+                style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
               >
                 Done
               </motion.button>
             </>
           ) : error ? (
             <>
-              <div className="w-18 h-18 rounded-full bg-red-50 border-2 border-red-100 flex items-center justify-center" style={{ width: 72, height: 72 }}>
-                <X size={32} className="text-red-500" strokeWidth={1.75} />
+              <div className="relative w-20 h-20 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full" style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.2) 0%, transparent 70%)' }} />
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-400 to-red-500 flex items-center justify-center shadow-[0_10px_30px_-10px_rgba(239,68,68,0.5),inset_0_2px_4px_rgba(255,255,255,0.4)] border border-red-300">
+                  <X size={32} className="text-white" strokeWidth={2.5} />
+                </div>
               </div>
               <div className="text-center">
-                <h3 className="text-[17px] font-bold text-neutral-900">Export Failed</h3>
-                <p className="text-[12px] text-red-500/90 mt-2 max-w-[280px] text-center break-words leading-snug">{error}</p>
+                <h3 className="text-[18px] font-extrabold text-neutral-900 tracking-tight">Export Failed</h3>
+                <p className="text-[13px] text-red-500/90 mt-2.5 max-w-[280px] text-center break-words leading-relaxed">{error}</p>
               </div>
               <button
                 onClick={onClose}
-                className="w-full h-11 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-bold text-[14px] transition-all active:scale-[0.97]"
+                className="w-full h-12 rounded-2xl bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold text-[15px] transition-all active:scale-[0.97] shadow-[0_10px_20px_-10px_rgba(239,68,68,0.5)]"
               >
                 Close
               </button>
             </>
           ) : (
             <>
-              <p className="w-full text-[11px] leading-relaxed text-indigo-700/90 bg-indigo-50/90 border border-indigo-100 rounded-xl px-3.5 py-2.5 text-center text-pretty">
-                Note: Slide animations and transitions will not be applied to the exported Microsoft PowerPoint file. Animations are exclusively experienced beautifully here in Orbstera.
-              </p>
-              {/* Animated export icon */}
-              <div className="relative w-20 h-20 flex items-center justify-center">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 3.5, repeat: Infinity, ease: 'linear' }}
-                  className="absolute inset-0 rounded-full"
-                  style={{
-                    background: 'conic-gradient(from 0deg, transparent 60%, rgba(99,102,241,0.5) 100%)',
-                    borderRadius: '50%',
-                  }}
+              {/* Premium Info Banner */}
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="w-full relative overflow-hidden rounded-2xl p-4 border border-indigo-100/50 bg-indigo-50/40 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-300/20 to-purple-300/20 rounded-full blur-[20px] -mr-10 -mt-10" />
+                <div className="relative z-10 flex gap-3 items-start">
+                  <div className="shrink-0 mt-0.5 w-6 h-6 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center shadow-sm">
+                    <Sparkles size={12} className="text-indigo-600" />
+                  </div>
+                  <p className="text-[11.5px] leading-relaxed text-indigo-900/80 font-medium">
+                    Slide animations are experienced beautifully here in Orbstera, but will not be applied to the exported PPTX.
+                  </p>
+                </div>
+              </motion.div>
+
+              {/* Pulsing Central Icon */}
+              <div className="relative w-28 h-28 flex items-center justify-center my-2">
+                <motion.div 
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: [0.8, 1.4], opacity: [0.6, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
+                  className="absolute inset-0 rounded-full border border-indigo-400" 
                 />
-                <div className="absolute inset-[3px] rounded-full bg-white" />
-                <div className="relative w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)' }}>
+                <motion.div 
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: [0.8, 1.6], opacity: [0.3, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'easeOut', delay: 0.5 }}
+                  className="absolute inset-0 rounded-full border border-purple-300" 
+                />
+                
+                <div className="relative w-20 h-20 rounded-[1.25rem] bg-gradient-to-br from-white to-[#f5f7ff] flex items-center justify-center shadow-[0_15px_35px_-10px_rgba(79,70,229,0.3),inset_0_2px_5px_rgba(255,255,255,1)] border border-indigo-100/80 z-10">
                   <motion.div
-                    animate={{ y: [0, -3, 0] }}
-                    transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                    animate={{ y: [0, -4, 0], scale: [1, 1.05, 1] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                    className="relative"
                   >
-                    <FileDown size={22} className="text-indigo-600" strokeWidth={1.75} />
+                    <div className="absolute inset-0 blur-[8px] bg-indigo-500/30 scale-110" />
+                    <FileDown size={32} className="text-indigo-600 relative z-10 drop-shadow-sm" strokeWidth={2} />
                   </motion.div>
                 </div>
               </div>
 
-              {/* Steps */}
-              <div className="w-full space-y-2">
+              {/* Steps List */}
+              <div className="w-full space-y-2.5">
                 {EXPORT_STEPS.map((s, i) => {
                   const Icon   = s.icon;
                   const active = i === step;
@@ -143,82 +191,95 @@ function ExportModal({ step, done, error, onClose }: {
                   return (
                     <motion.div
                       key={i}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: active || isDone ? 1 : 0.35, x: 0 }}
-                      transition={{ duration: 0.3, delay: i * 0.06 }}
-                      className={`flex items-center gap-3 px-3.5 py-2.5 rounded-2xl transition-all ${
-                        active
-                          ? 'border'
-                          : isDone
-                          ? 'bg-transparent'
-                          : 'bg-transparent'
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: active || isDone ? 1 : 0.4, x: 0 }}
+                      transition={{ duration: 0.4, delay: i * 0.1 }}
+                      className={`relative flex items-center gap-3.5 px-4 py-3 rounded-[1.15rem] transition-all overflow-hidden ${
+                        active ? 'shadow-[0_4px_12px_-4px_rgba(99,102,241,0.15)] border border-indigo-200/50 bg-white/60 backdrop-blur-md' : 'bg-transparent border border-transparent'
                       }`}
-                      style={active ? {
-                        background: 'linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.04))',
-                        borderColor: 'rgba(99,102,241,0.18)',
-                      } : {}}
                     >
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all ${
-                        isDone  ? 'bg-emerald-50'   :
-                        active  ? 'bg-indigo-50'    : 'bg-neutral-100'
+                      {active && (
+                        <motion.div 
+                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent skew-x-[-20deg]" 
+                          animate={{ x: ['-200%', '200%'] }}
+                          transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+                        />
+                      )}
+                      
+                      <div className={`relative z-10 w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-500 ${
+                        isDone  ? 'bg-gradient-to-br from-emerald-100 to-emerald-50 text-emerald-600 shadow-[inset_0_1px_2px_rgba(255,255,255,0.8)] border border-emerald-100/50' :
+                        active  ? 'bg-gradient-to-br from-indigo-500 to-purple-500 text-white shadow-[0_4px_10px_-2px_rgba(99,102,241,0.5),inset_0_2px_4px_rgba(255,255,255,0.3)]' : 
+                        'bg-neutral-100 text-neutral-400 border border-neutral-200/50'
                       }`}>
                         {isDone ? (
-                          <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ type: 'spring', damping: 12 }}
-                          >
-                            <CheckCircle size={15} className="text-emerald-500" strokeWidth={2} />
+                          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring' }}>
+                            <CheckCircle size={18} strokeWidth={2.5} />
                           </motion.div>
                         ) : active ? (
-                          <motion.div
-                            animate={{ scale: [1, 1.18, 1] }}
-                            transition={{ duration: 0.85, repeat: Infinity, ease: 'easeInOut' }}
-                          >
-                            <Icon size={15} className="text-indigo-600" strokeWidth={1.75} />
+                          <motion.div animate={{ rotate: [0, 5, -5, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}>
+                            <Icon size={18} strokeWidth={2} />
                           </motion.div>
                         ) : (
-                          <Icon size={15} className="text-neutral-300" strokeWidth={1.75} />
+                          <Icon size={18} strokeWidth={2} />
                         )}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-[13px] font-semibold leading-tight ${
-                          active ? 'text-indigo-700' : isDone ? 'text-neutral-800' : 'text-neutral-300'
+                      
+                      <div className="min-w-0 flex-1 relative z-10">
+                        <p className={`text-[13.5px] font-bold leading-tight ${
+                          active ? 'text-indigo-950' : isDone ? 'text-neutral-800' : 'text-neutral-400'
                         }`}>
                           {s.label}
                         </p>
                         {active && (
                           <motion.p
-                            initial={{ opacity: 0, y: 2 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="text-[10px] text-neutral-400 mt-0.5"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="text-[11px] font-medium text-indigo-700/70 mt-1 leading-snug"
                           >
                             {s.detail}
                           </motion.p>
                         )}
                       </div>
                       {isDone && (
-                        <span className="text-[10px] font-semibold text-emerald-500 shrink-0">Done</span>
+                        <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="text-[11px] font-bold text-emerald-500 shrink-0 bg-emerald-50 px-2.5 py-1 rounded-full relative z-10">
+                          Done
+                        </motion.span>
                       )}
                     </motion.div>
                   );
                 })}
               </div>
 
-              {/* Animated progress bar */}
-              <div className="w-full h-[3px] rounded-full bg-neutral-100 overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{ background: 'linear-gradient(90deg, #3b5bdb, #6366f1, #8b5cf6)' }}
-                  initial={{ width: '5%' }}
-                  animate={{ width: `${Math.round(((step + 1) / EXPORT_STEPS.length) * 100)}%` }}
-                  transition={{ duration: 0.6, ease: 'easeOut' }}
-                />
+              {/* Shimmering Progress Bar */}
+              <div className="w-full mt-2">
+                <div className="relative w-full h-[6px] rounded-full bg-neutral-200/50 overflow-hidden shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)]">
+                  <motion.div
+                    className="absolute top-0 left-0 h-full rounded-full"
+                    style={{ background: 'linear-gradient(90deg, #4f46e5, #a855f7, #ec4899)' }}
+                    initial={{ width: '5%' }}
+                    animate={{ width: `${Math.round(((step + 1) / EXPORT_STEPS.length) * 100)}%` }}
+                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <motion.div 
+                      className="w-full h-full"
+                      animate={{ backgroundPosition: ['200% center', '-200% center'] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                      style={{ 
+                        backgroundImage: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)',
+                        backgroundSize: '200% 100%'
+                      }}
+                    />
+                  </motion.div>
+                </div>
+                <div className="flex justify-between items-center mt-2.5 px-1">
+                  <p className="text-[11px] text-neutral-400 font-bold uppercase tracking-wider">
+                    Step {step + 1} of {EXPORT_STEPS.length}
+                  </p>
+                  <p className="text-[11px] text-indigo-600 font-bold">
+                    {Math.round(((step + 1) / EXPORT_STEPS.length) * 100)}%
+                  </p>
+                </div>
               </div>
-
-              <p className="text-[11px] text-neutral-400 font-medium -mt-2">
-                Step {step + 1} of {EXPORT_STEPS.length}
-              </p>
             </>
           )}
         </div>
