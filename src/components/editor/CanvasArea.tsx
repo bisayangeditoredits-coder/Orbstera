@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ImageIcon } from 'lucide-react';
+import { ImageIcon, Sparkles } from 'lucide-react';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import type { DeckGenerationLifecycle } from '@/types';
 import { KonvaCanvas, CANVAS_WIDTH, CANVAS_HEIGHT } from './KonvaCanvas';
