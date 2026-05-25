@@ -250,7 +250,13 @@ export async function POST(req: Request) {
     }
 
     if (!response) {
-      throw new Error(`All AI models failed to respond. Errors: ${allErrors.join(' | ')}`);
+      const errorString = allErrors.join(' | ');
+      if (errorString.includes('402') || errorString.includes('Insufficient credits') || errorString.includes('payment required')) {
+        throw new Error('Insufficient OpenRouter credits. Please add funds to your OpenRouter account to continue.');
+      } else if (errorString.includes('429') || errorString.includes('rate-limited') || errorString.includes('rate limit')) {
+        throw new Error('The AI models are currently too busy (Rate Limited). Please wait a few moments and try again, or add credits to your OpenRouter account to prioritize your requests.');
+      }
+      throw new Error(`The AI models failed to respond correctly. Please try again. (Debug: ${allErrors[0]?.substring(0, 50)}...)`);
     }
 
     // ── Stream back to client while saving full response to DB ───────────────
