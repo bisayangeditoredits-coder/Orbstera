@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Search, Menu, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Search, Menu, AlertTriangle, ArrowLeft, Sparkles } from 'lucide-react';
 import type { DashboardSection } from './dashboard-types';
 
 const SECTION_TITLES: Record<DashboardSection, string> = {
@@ -33,6 +33,7 @@ export function DashboardHeader({
   section,
   query,
   onQueryChange,
+  onNewDeck,
   onOpenMenu,
   onOpenSettings,
   onBackToWorkspace,
@@ -97,8 +98,18 @@ export function DashboardHeader({
           </div>
         )}
 
-        {/* Right: credits warning */}
+        {/* Right: Actions */}
         <div className="flex items-center gap-2 shrink-0">
+          {section !== 'settings' && (
+            <button
+              type="button"
+              onClick={onNewDeck}
+              className="inline-flex items-center gap-1.5 h-8 px-4 rounded-md bg-primary text-white text-[12px] font-bold hover:bg-primaryHover transition-colors shadow-sm"
+            >
+              <Sparkles size={13} strokeWidth={2.5} /> Create AI Deck
+            </button>
+          )}
+
           {creditsWarning && (
             <button
               type="button"

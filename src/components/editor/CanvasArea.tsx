@@ -209,7 +209,7 @@ function GenerationLoader() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: 'spring', damping: 25, stiffness: 200, delay: 0.2 }}
-          className="bg-white/80 backdrop-blur-2xl border border-white shadow-[0_30px_60px_-15px_rgba(99,102,241,0.2)] rounded-[2.5rem] p-8 sm:p-12 w-full text-center"
+          className="bg-white/95 backdrop-blur-md border border-white shadow-[0_30px_60px_-15px_rgba(99,102,241,0.2)] rounded-[2.5rem] p-8 sm:p-12 w-full text-center"
         >
           {/* Animated Percentage Badge */}
           <div className="flex justify-center mb-6">

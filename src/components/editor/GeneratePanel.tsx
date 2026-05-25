@@ -992,7 +992,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[999] flex items-center justify-center p-4"
-            style={{ background: 'rgba(10, 10, 14, 0.85)', backdropFilter: 'blur(30px)' }}
+            style={{ background: 'rgba(10, 10, 14, 0.95)', backdropFilter: 'blur(8px)' }}
           >
             <motion.div 
               initial={{ scale: 0.95, y: 30, opacity: 0, rotateX: 5 }} 

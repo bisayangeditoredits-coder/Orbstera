@@ -82,13 +82,13 @@ export function DeckCard({
   return (
     <article
       className={cn(
-        'group flex flex-col border bg-white transition',
-        isDashboard && 'overflow-hidden rounded-2xl border-white/80 shadow-sm hover:-translate-y-0.5 hover:shadow-lg',
+        'group flex flex-col border bg-white transition-all',
+        isDashboard && 'overflow-hidden rounded-xl shadow-sm hover:shadow-md hover:border-indigo-200',
         selected
-          ? 'border-neutral-900 ring-1 ring-neutral-900'
+          ? 'border-indigo-600 ring-1 ring-indigo-600'
           : isDashboard
-            ? 'border-slate-200/80 hover:border-primary/30'
-            : 'border-neutral-200 hover:border-neutral-400',
+            ? 'border-slate-200'
+            : 'border-slate-200 hover:border-indigo-300',
       )}
     >
       <div className="relative">

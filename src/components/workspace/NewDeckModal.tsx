@@ -204,20 +204,7 @@ export function NewDeckModal({ open, onClose }: Props) {
                     onKeyDown={(e) => { if (e.key === 'Enter' && title.trim()) handleCreate(); }}
                     disabled={creating}
                     placeholder="e.g. Q3 Marketing Strategy"
-                    className="w-full text-[14px] font-medium text-neutral-900 placeholder:text-neutral-300 bg-white outline-none transition-all"
-                    style={{
-                      border: '1.5px solid #e5e7eb',
-                      borderRadius: 10,
-                      padding: '11px 14px',
-                    }}
-                    onFocus={e => {
-                      e.currentTarget.style.borderColor = selected.accent;
-                      e.currentTarget.style.boxShadow = `0 0 0 3px ${selected.accent}18`;
-                    }}
-                    onBlur={e => {
-                      e.currentTarget.style.borderColor = '#e5e7eb';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
+                    className="w-full text-[14px] font-medium text-slate-900 placeholder:text-slate-400 bg-white outline-none transition-all border border-slate-200 rounded-lg px-3.5 py-2.5 focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
                   />
                 </div>
 
@@ -235,11 +222,9 @@ export function NewDeckModal({ open, onClose }: Props) {
                           type="button"
                           disabled={creating}
                           onClick={() => setThemeId(t.id)}
-                          className="relative group text-left p-2 rounded-xl transition-all duration-150 outline-none"
-                          style={{
-                            border: `1.5px solid ${active ? t.accent : '#e5e7eb'}`,
-                            background: active ? `${t.accent}09` : '#fff',
-                          }}
+                          className={`relative group text-left p-2 rounded-xl transition-all duration-150 outline-none border ${
+                            active ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-slate-200 bg-white hover:border-slate-300'
+                          }`}
                         >
                           {/* Mini slide — exact colors */}
                           <div
@@ -266,10 +251,9 @@ export function NewDeckModal({ open, onClose }: Props) {
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
                                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                                className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
-                                style={{ background: t.accent }}
+                                className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 bg-primary"
                               >
-                                <Check size={9} className="text-white" strokeWidth={3} />
+                                <Check size={10} className="text-white" strokeWidth={3} />
                               </motion.div>
                             )}
                           </div>
@@ -300,12 +284,7 @@ export function NewDeckModal({ open, onClose }: Props) {
                   type="button"
                   onClick={handleCreate}
                   disabled={creating || !title.trim()}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-all disabled:opacity-35 disabled:cursor-not-allowed active:scale-[0.98]"
-                  style={{
-                    background: `linear-gradient(135deg, ${selected.accent}f0, ${selected.accent})`,
-                    boxShadow: `0 2px 12px ${selected.accent}40`,
-                    transition: 'background 0.3s, box-shadow 0.3s',
-                  }}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-[13px] font-semibold text-white transition-all disabled:opacity-35 disabled:cursor-not-allowed active:scale-[0.98] bg-primary hover:bg-primaryHover shadow-sm"
                 >
                   {creating ? (
                     <Loader2 size={13} className="animate-spin" />
@@ -318,15 +297,11 @@ export function NewDeckModal({ open, onClose }: Props) {
 
             {/* ─── Right Column: Live Preview ────────── */}
             <div
-              className="w-[220px] shrink-0 flex flex-col items-center justify-center gap-6 p-7"
-              style={{
-                background: 'linear-gradient(160deg, #f8faff 0%, #f1f4f9 100%)',
-                borderLeft: '1px solid #e5e7eb',
-              }}
+              className="w-[220px] shrink-0 flex flex-col items-center justify-center gap-6 p-7 bg-slate-50 border-l border-slate-100"
             >
               {/* Large accurate slide preview */}
               <div className="w-full">
-                <p className="text-[10px] font-semibold tracking-widest uppercase text-neutral-400 mb-3 text-center">
+                <p className="text-[10px] font-semibold tracking-widest uppercase text-slate-400 mb-3 text-center">
                   Preview
                 </p>
                 <motion.div
@@ -334,11 +309,10 @@ export function NewDeckModal({ open, onClose }: Props) {
                   initial={{ opacity: 0, scale: 0.94 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.2, ease: 'easeOut' }}
-                  className="w-full rounded-xl overflow-hidden relative"
+                  className="w-full rounded-xl overflow-hidden relative shadow-sm border border-slate-200"
                   style={{
                     aspectRatio: '16/9',
                     background: selected.bg,
-                    boxShadow: `0 8px 32px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.07), 0 0 24px ${selected.accent}20`,
                   }}
                 >
                   {/* Accurate gradient overlay */}

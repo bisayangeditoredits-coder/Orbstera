@@ -4,7 +4,7 @@ import { Footer } from '@/components/layout/Footer';
 
 const SocialProof = dynamic(() => import('@/components/landing/SocialProof').then((m) => ({ default: m.SocialProof })));
 
-const ResponsiveMockups = dynamic(() => import('@/components/landing/ResponsiveMockups').then((m) => ({ default: m.ResponsiveMockups })));
+const FeatureDemos = dynamic(() => import('@/components/landing/FeatureDemos').then((m) => ({ default: m.FeatureDemos })));
 const AnalyticsMockup = dynamic(() => import('@/components/landing/AnalyticsMockup').then((m) => ({ default: m.AnalyticsMockup })));
 const Features = dynamic(() => import('@/components/landing/Features').then((m) => ({ default: m.Features })));
 const Showcase = dynamic(() => import('@/components/landing/Showcase').then((m) => ({ default: m.Showcase })));
@@ -21,7 +21,7 @@ export default function Home() {
       <HeroSection />
       <SocialProof />
 
-      <ResponsiveMockups />
+      <FeatureDemos />
       <AnalyticsMockup />
       <Showcase />
       <Features />

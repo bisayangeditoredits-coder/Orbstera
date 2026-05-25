@@ -20,11 +20,12 @@ const NAV: {
   icon: typeof LayoutDashboard;
   external?: boolean;
   href?: string;
+  badge?: string;
 }[] = [
   { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'decks', label: 'My Documents', icon: Layers },
   { id: 'planner-history', label: 'Chat History', icon: History },
-  { id: 'templates', label: 'Templates', icon: LayoutTemplate, external: true, href: '/#templates' },
+  { id: 'templates', label: 'Templates', icon: LayoutTemplate, badge: 'Soon' },
 ];
 
 type DashboardSidebarProps = {
@@ -71,22 +72,42 @@ export function DashboardSidebar({
             />
           </div>
         </Link>
-        <nav className="-mx-3 space-y-1" aria-label="Dashboard">
-          <p className="mb-3 px-3 text-[11px] font-semibold tracking-[0.15em] text-slate-500">Main</p>
-          {NAV.map(({ id, label, icon: Icon, external, href }) => {
+        <nav className="-mx-2 space-y-0.5" aria-label="Dashboard">
+          {NAV.map(({ id, label, icon: Icon, external, href, badge }) => {
             const active = !external && isNavActive(section, id);
+            const isComingSoon = badge === 'Soon';
             const baseClass = cn(
-              'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all text-left',
+              'group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors text-left',
               active
-                ? 'bg-primary/10 text-primary ring-1 ring-primary/20'
-                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900',
+                ? 'bg-slate-50 text-indigo-700 font-semibold'
+                : isComingSoon 
+                  ? 'text-slate-400 cursor-not-allowed'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+            );
+
+            const content = (
+              <>
+                <Icon
+                  size={16}
+                  strokeWidth={2.25}
+                  className={active ? 'text-indigo-600' : isComingSoon ? 'text-slate-300' : 'text-slate-400 group-hover:text-slate-600'}
+                />
+                <span className="flex-1">{label}</span>
+                {badge && (
+                  <span className={cn(
+                    "text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md",
+                    badge === 'Soon' ? "bg-slate-100 text-slate-400" : "bg-indigo-50 text-indigo-500"
+                  )}>
+                    {badge}
+                  </span>
+                )}
+              </>
             );
 
             if (external && href) {
               return (
                 <Link key={id} href={href} onClick={onMobileClose} className={baseClass}>
-                  <Icon size={18} strokeWidth={2} className="text-slate-500 group-hover:text-slate-700" />
-                  {label}
+                  {content}
                 </Link>
               );
             }
@@ -95,43 +116,40 @@ export function DashboardSidebar({
               <button
                 key={id}
                 type="button"
+                disabled={isComingSoon}
                 onClick={() => {
+                  if (isComingSoon) return;
                   onNavigate(id as DashboardSection);
                   onMobileClose?.();
                 }}
                 className={baseClass}
               >
-                <Icon
-                  size={18}
-                  strokeWidth={2}
-                  className={active ? 'text-primary' : 'text-slate-500 group-hover:text-slate-700'}
-                />
-                {label}
+                {content}
               </button>
             );
           })}
         </nav>
         {recentDecks.length > 0 && (
-          <div className="mt-10 -mx-3">
-            <p className="mb-3 px-3 text-[11px] font-semibold tracking-[0.15em] text-slate-500">
+          <div className="mt-8 -mx-2">
+            <p className="mb-2 px-3 text-[11px] font-bold tracking-widest text-slate-400 uppercase">
               Recent Projects
             </p>
-            <ul className="space-y-1">
-              {recentDecks.slice(0, 4).map((deck, i) => (
+            <ul className="space-y-0.5">
+              {recentDecks.slice(0, 4).map((deck) => (
                 <li key={deck.id}>
                   <Link
                     href={`/editor?id=${deck.id}`}
                     onClick={onMobileClose}
-                    className="group flex items-center gap-3.5 rounded-xl px-3 py-2.5 transition-all hover:bg-slate-100 hover:shadow-sm"
+                    className="group flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-slate-50"
                   >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white shadow-sm transition-all group-hover:scale-105 group-hover:bg-slate-50 group-hover:border-slate-300">
-                      <LayoutTemplate size={16} strokeWidth={2} className="text-slate-400 group-hover:text-slate-700 transition-colors" />
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200/60 bg-white group-hover:border-slate-300">
+                      <LayoutTemplate size={14} strokeWidth={2} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
                     </div>
                     <div className="flex flex-col min-w-0">
-                      <span className="truncate text-[13px] font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
+                      <span className="truncate text-[13px] font-medium text-slate-600 group-hover:text-slate-900 transition-colors">
                         {deck.title || 'Untitled'}
                       </span>
-                      <span className="truncate text-[11px] text-slate-500 font-medium">
+                      <span className="truncate text-[10px] text-slate-400">
                         {deck.date ? new Date(deck.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recently edited'}
                       </span>
                     </div>
@@ -142,7 +160,7 @@ export function DashboardSidebar({
           </div>
         )}
       </div>
-      <div className="mt-auto border-t border-slate-200 p-4 lg:p-6">
+      <div className="mt-auto border-t border-slate-100 p-4 lg:p-6">
         <button
           type="button"
           onClick={() => {
@@ -150,29 +168,29 @@ export function DashboardSidebar({
             onMobileClose?.();
           }}
           className={cn(
-            'flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors',
+            'flex w-full items-center gap-3 rounded-lg p-2.5 text-left transition-colors',
             section === 'settings'
-              ? 'bg-slate-100 ring-1 ring-slate-200'
-              : 'hover:bg-slate-100',
+              ? 'bg-slate-50'
+              : 'hover:bg-slate-50',
           )}
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 ring-slate-200 bg-slate-100">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 ring-slate-200/50 bg-slate-100">
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
             ) : (
-              <span className="font-montserrat text-sm font-medium text-slate-700">
+              <span className="font-montserrat text-xs font-bold text-slate-600">
                 {userName.charAt(0).toUpperCase()}
               </span>
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-slate-900">{userName}</p>
-            <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-slate-500 mt-0.5">
+            <p className="truncate text-[13px] font-semibold text-slate-700">{userName}</p>
+            <p className="text-[10px] font-medium text-slate-400 mt-0.5 capitalize">
               {formatPlanLabel(plan)}
             </p>
           </div>
-          <ChevronDown size={16} className="shrink-0 text-slate-500" strokeWidth={1.75} />
+          <ChevronDown size={14} className="shrink-0 text-slate-400" strokeWidth={2} />
         </button>
       </div>
     </>
@@ -182,7 +200,7 @@ export function DashboardSidebar({
     <>
       <aside
         className={cn(
-          'hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex lg:sticky lg:top-0 lg:h-dvh',
+          'hidden w-64 shrink-0 flex-col border-r border-slate-100 bg-white lg:flex lg:sticky lg:top-0 lg:h-dvh',
           className,
         )}
       >

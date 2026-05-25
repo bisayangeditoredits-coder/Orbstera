@@ -51,30 +51,33 @@ export function PlannerHeader({
           />
         </Link>
 
-        <div className="min-w-0 border-l border-slate-200 pl-3 sm:pl-4">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-primary/5 text-primary">
-              <Sparkles size={18} strokeWidth={1.75} className="text-primary" />
+        <div className="min-w-0 border-l border-slate-200/60 pl-4 sm:pl-5 flex items-center">
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* Premium App Icon */}
+            <div className="relative flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-[14px] bg-indigo-50/80 border border-indigo-100/80 shadow-[0_2px_10px_-3px_rgba(99,102,241,0.2)] overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/60 to-transparent pointer-events-none" />
+              <Sparkles size={20} strokeWidth={2.5} className="text-indigo-600 relative z-10 transition-transform group-hover:scale-110" />
             </div>
-            <div className="min-w-0">
-              <h1 className="text-[14px] sm:text-[15px] font-semibold leading-tight tracking-tight text-slate-900 truncate">
+            
+            <div className="min-w-0 flex flex-col justify-center">
+              <h1 className="text-[15px] sm:text-[17px] font-extrabold leading-none tracking-tight text-slate-900 truncate mb-1">
                 Presentation Copilot
               </h1>
-              <div className="mt-1 flex items-center gap-1.5 sm:gap-2 overflow-hidden">
+              <div className="flex items-center gap-2 overflow-hidden">
                 {planTier === 'pro' ? (
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-500/20">
-                    <Crown size={9} strokeWidth={2.5} /> PRO
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-500/20 shadow-sm">
+                    <Crown size={10} strokeWidth={2.5} /> PRO
                   </span>
                 ) : (
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-600 ring-1 ring-inset ring-slate-200">
-                    <Zap size={9} strokeWidth={2.5} /> FREE
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 ring-1 ring-inset ring-slate-200 shadow-sm">
+                    <Zap size={10} strokeWidth={2.5} /> FREE
                   </span>
                 )}
                 {topic && (
                   <>
                     <span className="h-3 w-px shrink-0 bg-slate-200" aria-hidden="true" />
                     <span
-                      className="truncate text-[10px] sm:text-[11px] font-medium text-slate-500 max-w-[80px] sm:max-w-[150px] md:max-w-[250px] lg:max-w-[340px]"
+                      className="truncate text-[11px] sm:text-[12px] font-medium text-slate-500 max-w-[100px] sm:max-w-[180px] md:max-w-[280px] lg:max-w-[400px]"
                       title={topic}
                     >
                       {topic}

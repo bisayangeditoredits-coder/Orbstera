@@ -7,6 +7,7 @@ import type { DeckMeta } from '@/types/deck-meta';
 import { useCredits } from '@/hooks/useCredits';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import { Loader2 } from 'lucide-react';
 
 const NewDeckModal = dynamic(
   () => import('@/components/workspace/NewDeckModal').then((m) => m.NewDeckModal),
@@ -263,30 +264,16 @@ export function DashboardShell() {
           </Modal>
 
           {loading ? (
-            <div className="space-y-6 pt-2">
-              {/* Skeleton header row */}
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <div className="h-6 w-44 bg-neutral-200/70 rounded-lg animate-pulse" />
-                  <div className="h-4 w-56 bg-neutral-200/50 rounded animate-pulse" />
-                </div>
-                <div className="flex gap-2">
-                  <div className="h-9 w-28 bg-neutral-200/60 rounded-full animate-pulse" />
-                  <div className="h-9 w-24 bg-neutral-200/70 rounded-full animate-pulse" />
-                </div>
+            <div className="flex flex-col items-center justify-center min-h-[400px] w-full animate-in fade-in duration-500">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 border border-indigo-100/50 mb-4">
+                <Loader2 size={24} className="text-indigo-600 animate-spin" strokeWidth={2.5} />
               </div>
-              {/* Skeleton grid */}
-              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                  <div key={i} className="rounded-xl border border-neutral-100 bg-white p-3 flex flex-col gap-3">
-                    <div className="aspect-[16/9] w-full rounded-lg bg-neutral-100 animate-pulse" />
-                    <div className="space-y-1.5 px-0.5">
-                      <div className="h-3.5 w-3/4 bg-neutral-100 rounded animate-pulse" />
-                      <div className="h-3 w-1/2 bg-neutral-100 rounded animate-pulse" />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <h3 className="text-sm font-semibold text-slate-800 mb-1">
+                Loading workspace
+              </h3>
+              <p className="text-[12px] text-slate-500">
+                Just a moment while we fetch your documents...
+              </p>
             </div>
           ) : section === 'planner-history' ? (
             <PlannerHistory />
@@ -294,7 +281,7 @@ export function DashboardShell() {
             <DashboardSettings credits={credits} />
           ) : (
             <div className="space-y-6">
-              {section === 'overview' && (
+              {(section === 'overview' || (section === 'decks' && presentations.length === 0)) && (
                 <DashboardStats
                   decks={presentations}
                   userName={userName}
