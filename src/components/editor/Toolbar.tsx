@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
@@ -238,7 +238,7 @@ function ToolButton({ tool, isActive, onClick }: ToolButtonProps) {
     <button
       type="button"
       onClick={onClick}
-      title={tool.shortcut ? `${tool.label}  ·  ${tool.shortcut}` : tool.label}
+      title={tool.shortcut ? `${tool.label}  Â·  ${tool.shortcut}` : tool.label}
       className={cn(
         'relative flex items-center justify-center rounded-lg transition-all duration-[120ms] touch-manipulation select-none group',
         'h-9 w-9',

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { motion } from 'framer-motion';
 import { Sparkles, Wand2, LayoutTemplate } from 'lucide-react';
@@ -56,7 +56,7 @@ export function FeatureDemos() {
                   <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 border border-indigo-100/50 mb-6">
                     <feature.icon size={20} className="text-indigo-600" strokeWidth={2.5} />
                   </div>
-                  <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mb-5 leading-tight">
+                  <h2 className="text-3xl sm:text-4xl font-semibold text-slate-900 tracking-tight mb-5 leading-tight">
                     {feature.title}
                   </h2>
                   <p className="text-lg text-slate-500 leading-relaxed font-medium mb-8">

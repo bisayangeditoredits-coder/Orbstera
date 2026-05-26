@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+﻿import { Suspense } from 'react';
 import EditorClient from './EditorClient';
 
 // This server component wraps the client editor in a Suspense boundary,

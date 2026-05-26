@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import * as Sentry from '@sentry/nextjs';

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -60,7 +60,7 @@ export function PlannerHeader({
             </div>
             
             <div className="min-w-0 flex flex-col justify-center">
-              <h1 className="text-[15px] sm:text-[17px] font-extrabold leading-none tracking-tight text-slate-900 truncate mb-1">
+              <h1 className="text-[15px] sm:text-[17px] font-semibold leading-none tracking-tight text-slate-900 truncate mb-1">
                 Presentation Copilot
               </h1>
               <div className="flex items-center gap-2 overflow-hidden">

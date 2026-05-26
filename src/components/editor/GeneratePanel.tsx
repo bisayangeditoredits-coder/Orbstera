@@ -1,6 +1,7 @@
-'use client';
+﻿'use client';
 
-import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useCallback, memo, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { SurveyModal } from './SurveyModal';
@@ -22,7 +23,7 @@ import {
   Crown, Globe, ArrowRight,
   Save, Trash2, Download, AlertCircle, Plus, Mic, MicOff,
   Briefcase, Palette, Zap, Minus, BookOpen, FlaskConical,
-  Layers, Image as ImageIcon, Info
+  Layers, Image as ImageIcon, Info, Maximize2, Minimize2
 } from 'lucide-react';
 import { useCredits } from '@/hooks/useCredits';
 import { pollJobUntilDone } from '@/lib/client/poll-job';
@@ -44,12 +45,12 @@ async function waitForPendingDeckImages(epoch: number, timeoutMs = 120_000): Pro
 }
 
 const EXAMPLE_PROMPTS = [
-  { emoji: '🚀', label: 'Startup Pitch',   prompt: 'Create a 10-slide Series A pitch deck for an AI startup. Include problem, solution, market size, traction, and ask.' },
-  { emoji: '📊', label: 'Business Review', prompt: 'Build a quarterly business review deck with KPIs, revenue metrics, team wins, and Q3 roadmap.' },
-  { emoji: '🎓', label: 'Education',       prompt: 'Design an engaging 8-slide lesson on climate change for high school students with facts and visuals.' },
-  { emoji: '🎨', label: 'Creative Agency', prompt: 'Create a portfolio presentation for a creative design agency — bold, vibrant, and visually stunning.' },
-  { emoji: '📈', label: 'Sales Deck',      prompt: 'Build a sales deck for an enterprise SaaS product targeting HR teams. Focus on pain points and ROI.' },
-  { emoji: '🔬', label: 'Research',        prompt: 'Create a 12-slide research presentation on the future of quantum computing for a tech conference.' },
+  { emoji: 'ðŸš€', label: 'Startup Pitch',   prompt: 'Create a 10-slide Series A pitch deck for an AI startup. Include problem, solution, market size, traction, and ask.' },
+  { emoji: 'ðŸ“Š', label: 'Business Review', prompt: 'Build a quarterly business review deck with KPIs, revenue metrics, team wins, and Q3 roadmap.' },
+  { emoji: 'ðŸŽ“', label: 'Education',       prompt: 'Design an engaging 8-slide lesson on climate change for high school students with facts and visuals.' },
+  { emoji: 'ðŸŽ¨', label: 'Creative Agency', prompt: 'Create a portfolio presentation for a creative design agency — bold, vibrant, and visually stunning.' },
+  { emoji: 'ðŸ“ˆ', label: 'Sales Deck',      prompt: 'Build a sales deck for an enterprise SaaS product targeting HR teams. Focus on pain points and ROI.' },
+  { emoji: 'ðŸ”¬', label: 'Research',        prompt: 'Create a 12-slide research presentation on the future of quantum computing for a tech conference.' },
 ];
 
 const SLIDE_COUNTS = [2, 5, 10, 15, 20, 25, 30, 35, 40];
@@ -73,14 +74,14 @@ const THEME_OPTIONS = [
 ];
 
 const LANGUAGE_OPTIONS = [
-  { code: 'en', label: 'English',    flag: '🇺🇸' },
-  { code: 'es', label: 'Spanish',   flag: '🇪🇸' },
-  { code: 'fr', label: 'French',    flag: '🇫🇷' },
-  { code: 'de', label: 'German',    flag: '🇩🇪' },
-  { code: 'pt', label: 'Portuguese', flag: '🇧🇷' },
-  { code: 'zh', label: 'Chinese',   flag: '🇨🇳' },
-  { code: 'ja', label: 'Japanese',  flag: '🇯🇵' },
-  { code: 'ar', label: 'Arabic',    flag: '🇸🇦' },
+  { code: 'en', label: 'English',    flag: 'ðŸ‡ºðŸ‡¸' },
+  { code: 'es', label: 'Spanish',   flag: 'ðŸ‡ªðŸ‡¸' },
+  { code: 'fr', label: 'French',    flag: 'ðŸ‡«ðŸ‡·' },
+  { code: 'de', label: 'German',    flag: 'ðŸ‡©ðŸ‡ª' },
+  { code: 'pt', label: 'Portuguese', flag: 'ðŸ‡§ðŸ‡·' },
+  { code: 'zh', label: 'Chinese',   flag: 'ðŸ‡¨ðŸ‡³' },
+  { code: 'ja', label: 'Japanese',  flag: 'ðŸ‡¯ðŸ‡µ' },
+  { code: 'ar', label: 'Arabic',    flag: 'ðŸ‡¸ðŸ‡¦' },
 ];
 
 function CollapsibleSection({
@@ -156,7 +157,7 @@ function CreditsTracker({ onGenerated }: { onGenerated?: boolean }) {
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="flex items-center gap-1.5">
-            <span className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-neutral-400">
+            <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
               AI Credits Ledger
             </span>
             <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded">
@@ -164,7 +165,7 @@ function CreditsTracker({ onGenerated }: { onGenerated?: boolean }) {
             </span>
           </div>
           <div className="flex items-baseline gap-1 mt-1">
-            <span className={`text-[18px] font-black tracking-tight ${isEmpty ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-neutral-900'}`}>
+            <span className={`text-[18px] font-bold tracking-tight ${isEmpty ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-neutral-900'}`}>
               {remaining.toLocaleString()}
             </span>
             <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
@@ -197,7 +198,7 @@ function CreditsTracker({ onGenerated }: { onGenerated?: boolean }) {
 
       {/* Precise Action Costs List */}
       <div className="pt-1.5 border-t border-black/[0.04] space-y-1.5">
-        <div className="text-[8px] font-extrabold uppercase tracking-[0.16em] text-neutral-400 flex items-center justify-between">
+        <div className="text-[8px] font-semibold uppercase tracking-[0.16em] text-neutral-400 flex items-center justify-between">
           <span>AI Engine Action</span>
           <span>Cost (Credits)</span>
         </div>
@@ -229,7 +230,7 @@ function CreditsTracker({ onGenerated }: { onGenerated?: boolean }) {
   );
 }
 
-export function GeneratePanel({ onClose }: GeneratePanelProps) {
+function GeneratePanelInner({ onClose }: GeneratePanelProps) {
   type InterviewSummary = {
     detectedIntent?: string;
     presentationType?: string;
@@ -277,6 +278,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const voiceStartBusyRef = useRef(false);
 
   const [activeTab, setActiveTab] = useState<'create' | 'enhance'>('create');
+  const [isPromptExpanded, setIsPromptExpanded] = useState(false);
   const [expandDensity, setExpandDensity] = useState(true);
   const [selectedTone, setSelectedTone] = useState('Professional');
   const [expandTone, setExpandTone] = useState(false);
@@ -292,7 +294,11 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasAutoTriggered = useRef(false);
 
-  const { presentation, setPresentation, setActivePanel, setEditorState, editor } = usePresentationStore();
+  const presentation = usePresentationStore(s => s.presentation);
+  const setPresentation = usePresentationStore(s => s.setPresentation);
+  const setActivePanel = usePresentationStore(s => s.setActivePanel);
+  const setEditorState = usePresentationStore(s => s.setEditorState);
+  const editor = usePresentationStore(s => s.editor);
   const isLoading = editor.isGenerating;
 
   const [isProfileLoading, setIsProfileLoading] = useState(true);
@@ -1064,7 +1070,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                   </div>
                 </div>
 
-                <h2 className="text-[26px] font-extrabold text-slate-900 tracking-tight text-center leading-tight mb-2">
+                <h2 className="text-[26px] font-semibold text-slate-900 tracking-tight text-center leading-tight mb-2">
                   Unlock the full power of AI
                 </h2>
                 <p className="text-[14.5px] text-slate-500 text-center leading-relaxed mb-8 max-w-sm">
@@ -1118,6 +1124,107 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
           </motion.div>
         )}
       </AnimatePresence>
+        
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {isPromptExpanded && (
+            <motion.div
+              key="expanded-prompt-overlay"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6"
+              style={{ background: 'rgba(10, 10, 14, 0.4)', backdropFilter: 'blur(4px)', perspective: '1200px' }}
+            >
+            <motion.div
+              initial={{ scale: 0.05, opacity: 0, y: "45vh", x: "-35vw", rotateX: 65, rotateZ: -10 }}
+              animate={{ scale: 1, opacity: 1, y: 0, x: 0, rotateX: 0, rotateZ: 0 }}
+              exit={{ scale: 0.05, opacity: 0, y: "45vh", x: "-35vw", rotateX: 65, rotateZ: -10 }}
+              transition={{ type: "spring", damping: 22, stiffness: 260, mass: 0.8 }}
+              className="bg-white w-full max-w-2xl h-[70vh] rounded-[32px] shadow-premium flex flex-col overflow-hidden relative border border-black/[0.08]"
+              style={{
+                transformOrigin: "bottom left",
+                boxShadow: '0 40px 100px -20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.5) inset',
+              }}
+            >
+              <div className="flex items-center justify-between p-5 border-b border-black/[0.06] bg-neutral-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/10">
+                    <Maximize2 size={18} className="text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-[16px] font-bold text-neutral-900">Your Vision</h3>
+                    <p className="text-[11px] text-neutral-500 font-medium">Describe your presentation in detail</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsPromptExpanded(false)}
+                  className="w-9 h-9 rounded-full bg-neutral-200/60 hover:bg-neutral-200 flex items-center justify-center text-neutral-600 transition-colors"
+                >
+                  <Minimize2 size={16} />
+                </button>
+              </div>
+              <div className="flex-1 p-6 relative flex flex-col bg-white">
+                <VoiceOrb isListening={isListening} transcript={voiceTranscript} onStop={toggleVoice} />
+                <textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={isListening ? 'ðŸŽ¤ Listening... speak your vision' : 'Describe your presentation topic in detail...'}
+                  className="w-full flex-1 bg-transparent text-[18px] text-neutral-900 placeholder:text-neutral-300 resize-none focus:outline-none font-medium leading-relaxed"
+                  autoFocus
+                />
+              </div>
+              <div className="p-5 border-t border-black/[0.06] bg-neutral-50/50 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-10 h-10 rounded-xl bg-white border border-black/[0.07] flex items-center justify-center text-neutral-500 hover:text-primary hover:bg-primary/[0.06] hover:border-primary/25 transition-all shadow-sm group"
+                    title="Attach reference"
+                  >
+                    <Plus size={17} strokeWidth={1.75} className="group-hover:rotate-90 transition-transform duration-200" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={toggleVoice}
+                    title={isListening ? 'Stop listening' : 'Voice input'}
+                    className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all shadow-sm ${
+                      isListening
+                        ? 'bg-red-50 border-red-200/80 text-red-600 ring-2 ring-red-100'
+                        : 'bg-white border-black/[0.07] text-neutral-500 hover:text-primary hover:bg-primary/[0.06] hover:border-primary/25'
+                    }`}
+                  >
+                    {isListening ? <MicOff size={17} strokeWidth={1.75} /> : <Mic size={17} strokeWidth={1.75} />}
+                  </button>
+                  {selectedFile && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100 shadow-sm"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-tight truncate max-w-[200px]">
+                        {selectedFile.name}
+                      </span>
+                      <button onClick={() => setSelectedFile(null)} className="p-1 hover:bg-emerald-200/50 rounded-md transition-colors ml-1">
+                        <X size={12} className="text-emerald-700" />
+                      </button>
+                    </motion.div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setIsPromptExpanded(false)}
+                  className="px-6 py-2.5 rounded-xl bg-primary text-white text-[14px] font-bold shadow-[0_4px_12px_rgba(59,130,246,0.3)] hover:bg-primary/90 transition-all active:scale-[0.98]"
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       <div id="tour-generate" className="flex flex-col h-full min-h-0 min-w-0 bg-[#FAFAFA] text-black overflow-hidden relative">
         {/* Global Hidden Input for Technical Attachments */}
@@ -1195,68 +1302,88 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
                 </span>
               </div>
               <div className="animated-border shadow-[0_24px_48px_-20px_rgba(59,130,246,0.22)]">
-                <div className="bg-white p-4 flex flex-col min-h-[112px] transition-all rounded-[22px] relative overflow-hidden">
-                  {/* ✨ Voice Orb overlay — replaces textarea while listening */}
-                  <VoiceOrb
-                    isListening={isListening}
-                    transcript={voiceTranscript}
-                    onStop={toggleVoice}
-                  />
-                  <textarea
-                    ref={textareaRef}
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={isListening ? '🎤 Listening... speak your vision' : 'Describe your presentation topic...'}
-                    className="w-full flex-1 bg-transparent text-[16px] text-neutral-900 placeholder:text-neutral-300 resize-none focus:outline-none font-medium leading-relaxed min-h-[4.5rem]"
-                  />
-
-                  <div className="mt-3 flex items-center justify-between pt-3 border-t border-black/[0.05]">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-10 h-10 rounded-xl bg-neutral-50 border border-black/[0.07] flex items-center justify-center text-neutral-500 hover:text-primary hover:bg-primary/[0.06] hover:border-primary/25 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)] group"
-                        title="Attach reference"
-                      >
-                        <Plus size={17} strokeWidth={1.75} className="group-hover:rotate-90 transition-transform duration-200" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={toggleVoice}
-                        title={isListening ? 'Stop listening' : 'Voice input'}
-                        className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
-                          isListening
-                            ? 'bg-red-50 border-red-200/80 text-red-600 ring-2 ring-red-100'
-                            : 'bg-neutral-50 border-black/[0.07] text-neutral-500 hover:text-primary hover:bg-primary/[0.06] hover:border-primary/25'
-                        }`}
-                      >
-                        {isListening ? <MicOff size={17} strokeWidth={1.75} /> : <Mic size={17} strokeWidth={1.75} />}
-                      </button>
-
-                      {selectedFile && (
-                        <motion.div
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100 shadow-sm group"
-                        >
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-tight truncate max-w-[120px]">
-                            {selectedFile.name}
-                          </span>
-                          <button onClick={() => setSelectedFile(null)} className="p-1 hover:bg-emerald-200/50 rounded-md transition-colors">
-                            <X size={10} className="text-emerald-700" />
-                          </button>
-                        </motion.div>
-                      )}
-                    </div>
-
-                    <div className="text-[9px] font-semibold text-neutral-300 uppercase tracking-[0.18em]">
-                      Orbstera AI
-                    </div>
+                {isPromptExpanded ? (
+                  <div className="bg-white/40 p-4 min-h-[112px] rounded-[22px] border border-black/[0.05] flex items-center justify-center">
+                    <span className="text-[11px] font-medium text-neutral-400">Editing in expanded view...</span>
                   </div>
-                </div>
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="bg-white p-4 flex flex-col min-h-[112px] transition-all rounded-[22px] relative overflow-hidden"
+                  >
+                    {/* âœ¨ Voice Orb overlay — replaces textarea while listening */}
+                    <VoiceOrb
+                      isListening={isListening}
+                      transcript={voiceTranscript}
+                      onStop={toggleVoice}
+                    />
+                    <textarea
+                      ref={textareaRef}
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder={isListening ? 'ðŸŽ¤ Listening... speak your vision' : 'Describe your presentation topic...'}
+                      className="w-full flex-1 bg-transparent text-[16px] text-neutral-900 placeholder:text-neutral-300 resize-none focus:outline-none font-medium leading-relaxed min-h-[4.5rem]"
+                    />
+
+                    <div className="mt-3 flex items-center justify-between pt-3 border-t border-black/[0.05]">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-10 h-10 rounded-xl bg-neutral-50 border border-black/[0.07] flex items-center justify-center text-neutral-500 hover:text-primary hover:bg-primary/[0.06] hover:border-primary/25 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)] group"
+                          title="Attach reference"
+                        >
+                          <Plus size={17} strokeWidth={1.75} className="group-hover:rotate-90 transition-transform duration-200" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={toggleVoice}
+                          title={isListening ? 'Stop listening' : 'Voice input'}
+                          className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
+                            isListening
+                              ? 'bg-red-50 border-red-200/80 text-red-600 ring-2 ring-red-100'
+                              : 'bg-neutral-50 border-black/[0.07] text-neutral-500 hover:text-primary hover:bg-primary/[0.06] hover:border-primary/25'
+                          }`}
+                        >
+                          {isListening ? <MicOff size={17} strokeWidth={1.75} /> : <Mic size={17} strokeWidth={1.75} />}
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => setIsPromptExpanded(true)}
+                          className="w-10 h-10 rounded-xl bg-neutral-50 border border-black/[0.07] flex items-center justify-center text-neutral-500 hover:text-primary hover:bg-primary/[0.06] hover:border-primary/25 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                          title="Expand"
+                        >
+                          <Maximize2 size={17} strokeWidth={1.75} />
+                        </button>
+
+                        {selectedFile && (
+                          <motion.div
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100 shadow-sm group"
+                          >
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-tight truncate max-w-[120px]">
+                              {selectedFile.name}
+                            </span>
+                            <button onClick={() => setSelectedFile(null)} className="p-1 hover:bg-emerald-200/50 rounded-md transition-colors">
+                              <X size={10} className="text-emerald-700" />
+                            </button>
+                          </motion.div>
+                        )}
+                      </div>
+
+                      <div className="text-[9px] font-semibold text-neutral-300 uppercase tracking-[0.18em]">
+                        Orbstera AI
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </div>
             </div>
 
@@ -1266,7 +1393,7 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
               title="Density (Slides)"
               summary={
                 `${slideCount} slide${slideCount !== 1 ? 's' : ''}` +
-                (!isPaid ? ' · Free max 5' : ` · max ${maxSlidesForPlan}`)
+                (!isPaid ? ' Â· Free max 5' : ` Â· max ${maxSlidesForPlan}`)
               }
               expanded={expandDensity}
               onToggle={() => setExpandDensity((v) => !v)}
@@ -1457,3 +1584,5 @@ export function GeneratePanel({ onClose }: GeneratePanelProps) {
     </>
   );
 }
+
+export const GeneratePanel = memo(GeneratePanelInner);

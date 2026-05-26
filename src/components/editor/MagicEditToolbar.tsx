@@ -81,9 +81,10 @@ export function MagicEditToolbar() {
 
   // Fetch plan + free Gen-Fill allowance once on mount
   useEffect(() => {
+    const controller = new AbortController();
     const checkPlan = async () => {
       try {
-        const res = await fetch('/api/credits/summary', { credentials: 'include' });
+        const res = await fetch('/api/credits/summary', { credentials: 'include', signal: controller.signal });
         if (res.ok) {
           const json = await res.json();
           if (json.freeTier) {
@@ -116,10 +117,13 @@ export function MagicEditToolbar() {
             }
           }
         }
-      } catch (_) {}
+      } catch (e: unknown) {
+        if (e instanceof Error && e.name === 'AbortError') return;
+      }
       setPlanChecked(true);
     };
     checkPlan();
+    return () => controller.abort();
   }, []);
 
   const freeImageTarget = !selectedElementId || targetElement?.type === 'image';
@@ -314,7 +318,7 @@ export function MagicEditToolbar() {
                 disabled={isLoading || freeImageAtLimit}
                 placeholder={
                   isListening
-                    ? '🎤 Listening...'
+                    ? 'ðŸŽ¤ Listening...'
                     : isPro
                       ? !selectedElementId
                         ? `Generate AI Background... e.g. "cyberpunk city"`

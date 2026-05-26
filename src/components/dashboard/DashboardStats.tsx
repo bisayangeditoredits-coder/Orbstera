@@ -1,6 +1,7 @@
-'use client';
+﻿'use client';
 
-import { Plus, Zap, TrendingUp, FileText, Clock, ArrowRight, Sparkles, BookOpen, Briefcase } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Zap, TrendingUp, FileText, Clock, ArrowRight, Sparkles, BookOpen, Briefcase, Play, X } from 'lucide-react';
 import Link from 'next/link';
 import type { DeckMeta } from '@/types/deck-meta';
 import type { CreditState } from '@/hooks/useCredits';
@@ -21,6 +22,7 @@ function getGreeting() {
 }
 
 export function DashboardStats({ decks, userName, credits, onNewDeck, onOpenSettings }: Props) {
+  const [showDemoBanner, setShowDemoBanner] = useState(true);
   const firstName = userName.split(' ')[0] || 'Creator';
   const isFree = credits.plan === 'free' || !credits.plan;
   const usagePct = credits.usagePct ?? 0;
@@ -35,13 +37,13 @@ export function DashboardStats({ decks, userName, credits, onNewDeck, onOpenSett
       {/* ── Hero greeting row ── */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
             {getGreeting()}
           </p>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-[1.1]">
+          <h1 className="text-3xl sm:text-4xl font-semibold text-slate-900 tracking-tight leading-[1.1]">
             {firstName}
           </h1>
-          <p className="text-sm text-slate-400 mt-2 font-medium">
+          <p className="text-sm text-slate-500 mt-2 font-medium">
             {decks.length === 0
               ? 'Ready to create your first presentation?'
               : `${decks.length} presentation${decks.length === 1 ? '' : 's'} in your workspace`}
@@ -81,70 +83,97 @@ export function DashboardStats({ decks, userName, credits, onNewDeck, onOpenSett
         </div>
       </div>
 
+      {/* ── Demo Banner ── */}
+      {showDemoBanner && (
+        <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-r from-[#F4F7FF] via-[#F8FAFC] to-[#F1F5F9] border border-[#E2E8F0] shadow-[0_4px_20px_rgba(0,0,0,0.03)] mt-2">
+          <button 
+            onClick={() => setShowDemoBanner(false)}
+            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 rounded-full transition-colors z-10"
+          >
+            <X size={18} />
+          </button>
+          
+          <div className="flex flex-col md:flex-row gap-8 p-3 sm:p-3 items-stretch">
+            {/* Video Embed */}
+            <div className="relative w-full md:w-[480px] shrink-0 aspect-video rounded-[14px] overflow-hidden bg-black flex items-center justify-center">
+              <iframe width="100%" height="100%" src="https://www.youtube.com/embed/q_rhPocHIOQ?si=Am17HQewFPyjSFwx&rel=0&modestbranding=1" title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen></iframe>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 flex flex-col justify-center py-6 pr-10 px-4 md:px-0">
+              <h2 className="text-[28px] sm:text-[34px] font-semibold text-slate-900 tracking-tight mb-4 leading-tight">Welcome to Orbstera!</h2>
+              <p className="text-[15px] sm:text-[16px] text-slate-600 leading-relaxed max-w-xl mb-8 font-medium">
+                See a quick tour of Orbstera so you can get started and create your first AI-generated presentation. Watch the video to learn more!
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Stats row ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {/* Total Decks */}
-        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-default">
+        <div className="bg-slate-100 border border-slate-200/60 rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-default">
           <div className="flex items-center justify-between mb-3">
-            <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100">
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-slate-200/50">
               <FileText size={15} className="text-slate-400" strokeWidth={1.75} />
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Total</span>
+            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">Total</span>
           </div>
-          <p className="text-2xl font-extrabold text-slate-900 tracking-tight">{decks.length}</p>
-          <p className="text-[11px] text-slate-400 font-medium mt-0.5">Presentations</p>
+          <p className="text-3xl font-semibold text-slate-900 tracking-tight">{decks.length}</p>
+          <p className="text-[13px] text-slate-500 font-medium mt-0.5">Presentations</p>
         </div>
 
         {/* Credits */}
         <button
           type="button"
           onClick={onOpenSettings}
-          className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-left"
+          className="bg-slate-100 border border-slate-200/60 rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-left"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100">
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-slate-200/50">
               <Zap size={15} className="text-slate-400" strokeWidth={1.75} />
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
               {usagePct.toFixed(0)}% used
             </span>
           </div>
-          <p className={`text-2xl font-extrabold tracking-tight ${usagePct >= 90 ? 'text-amber-500' : 'text-slate-900'}`}>
+          <p className={`text-3xl font-semibold tracking-tight ${usagePct >= 90 ? 'text-amber-500' : 'text-slate-900'}`}>
             {credits.loading ? '—' : credits.remaining ?? 0}
           </p>
-          <p className="text-[11px] text-slate-400 font-medium mt-0.5">Credits left</p>
+          <p className="text-[13px] text-slate-500 font-medium mt-0.5">Credits left</p>
         </button>
 
         {/* Plan */}
         <button
           type="button"
           onClick={onOpenSettings}
-          className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-left"
+          className="bg-slate-100 border border-slate-200/60 rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-left"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100">
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-slate-200/50">
               <TrendingUp size={15} className="text-slate-400" strokeWidth={1.75} />
             </div>
             <ArrowRight size={12} className="text-slate-300" strokeWidth={1.75} />
           </div>
-          <p className="text-2xl font-extrabold text-slate-900 tracking-tight capitalize">
+          <p className="text-3xl font-semibold text-slate-900 tracking-tight capitalize">
             {credits.plan || 'Free'}
           </p>
-          <p className="text-[11px] text-slate-400 font-medium mt-0.5">Current plan</p>
+          <p className="text-[13px] text-slate-500 font-medium mt-0.5">Current plan</p>
         </button>
 
         {/* Last edited */}
-        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-default">
+        <div className="bg-slate-100 border border-slate-200/60 rounded-xl p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-default">
           <div className="flex items-center justify-between mb-3">
-            <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100">
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-slate-200/50">
               <Clock size={15} className="text-slate-400" strokeWidth={1.75} />
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Recent</span>
+            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">Recent</span>
           </div>
-          <p className="text-sm font-bold text-slate-900 tracking-tight truncate leading-snug">
+          <p className="text-base font-semibold text-slate-900 tracking-tight truncate leading-snug">
             {lastEdited ? lastEdited.title || 'Untitled' : '—'}
           </p>
-          <p className="text-[11px] text-slate-400 font-medium mt-0.5">Last edited</p>
+          <p className="text-[13px] text-slate-500 font-medium mt-0.5">Last edited</p>
         </div>
       </div>
 

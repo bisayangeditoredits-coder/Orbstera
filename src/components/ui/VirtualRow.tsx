@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useRef, type ReactNode } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';

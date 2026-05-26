@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { motion } from 'framer-motion';
 import { BarChart3, Users, Clock, ArrowUpRight } from 'lucide-react';
@@ -17,7 +17,7 @@ export function AnalyticsMockup() {
               Built-in Analytics
             </div>
             
-            <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900 mb-6 leading-[1.1]">
+            <h2 className="text-4xl sm:text-5xl font-semibold tracking-tight text-slate-900 mb-6 leading-[1.1]">
               Share with a link. <br className="hidden lg:block" />
               Measure engagement.
             </h2>
@@ -67,7 +67,7 @@ export function AnalyticsMockup() {
                   <div className="flex items-center gap-2 text-slate-500 text-sm font-semibold mb-2">
                     <Users size={16} /> Total Views
                   </div>
-                  <div className="text-3xl font-extrabold text-slate-900">1,248</div>
+                  <div className="text-3xl font-semibold text-slate-900">1,248</div>
                   <div className="flex items-center gap-1 text-indigo-600 text-xs font-bold mt-2">
                     <ArrowUpRight size={14} /> +12% this week
                   </div>
@@ -83,7 +83,7 @@ export function AnalyticsMockup() {
                   <div className="flex items-center gap-2 text-slate-500 text-sm font-semibold mb-2">
                     <Clock size={16} /> Avg. Completion
                   </div>
-                  <div className="text-3xl font-extrabold text-slate-900">84%</div>
+                  <div className="text-3xl font-semibold text-slate-900">84%</div>
                   <div className="flex items-center gap-1 text-indigo-600 text-xs font-bold mt-2">
                     <ArrowUpRight size={14} /> Top performing
                   </div>

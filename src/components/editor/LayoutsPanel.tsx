@@ -1,4 +1,6 @@
-'use client';
+﻿'use client';
+
+import { memo } from 'react';
 
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { motion } from 'framer-motion';
@@ -326,7 +328,7 @@ const LAYOUTS = [
     ),
     generate: (uid: () => string, palette: string[], headingFont: string, bodyFont: string) => {
       const z = 100;
-      const panelW = Math.round(CANVAS_W / 1.618); // φ minor ≈ 791
+      const panelW = Math.round(CANVAS_W / 1.618); // Ï† minor â‰ˆ 791
       const imgX = panelW - 48;
       const imgW = CANVAS_W - imgX - 48;
       const imgH = Math.round((CANVAS_H - 112) * 0.618) + 112;
@@ -644,7 +646,7 @@ const LAYOUTS = [
       const cardY = 240;
       const metrics = [
         { value: '$12M', label: 'ARR', desc: 'Annual recurring revenue at scale.' },
-        { value: '3.2×', label: 'LTV / CAC', desc: 'Efficient growth economics.' },
+        { value: '3.2Ã—', label: 'LTV / CAC', desc: 'Efficient growth economics.' },
         { value: '98%', label: 'NPS', desc: 'Customer love score.' },
       ];
       return [
@@ -732,8 +734,11 @@ const LAYOUTS = [
   },
 ];
 
-export function LayoutsPanel() {
-  const { presentation, currentSlideIndex, updateSlide, selectElement } = usePresentationStore();
+function LayoutsPanelInner() {
+  const presentation = usePresentationStore(s => s.presentation);
+  const currentSlideIndex = usePresentationStore(s => s.currentSlideIndex);
+  const updateSlide = usePresentationStore(s => s.updateSlide);
+  const selectElement = usePresentationStore(s => s.selectElement);
 
   const handleInsert = (layout: typeof LAYOUTS[0]) => {
     if (!presentation) return;
@@ -792,3 +797,5 @@ export function LayoutsPanel() {
     </div>
   );
 }
+
+export const LayoutsPanel = memo(LayoutsPanelInner);

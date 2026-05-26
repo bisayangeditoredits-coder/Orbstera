@@ -137,9 +137,9 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
       aria-label="Account settings"
     >
       <div>
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Your workspace</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Your workspace</p>
         <h2
-          className="mt-1 font-montserrat text-2xl font-bold text-slate-900 sm:text-3xl"
+          className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl"
           style={{ fontFamily: 'var(--font-space-grotesk), ui-sans-serif, system-ui' }}
         >
           Account

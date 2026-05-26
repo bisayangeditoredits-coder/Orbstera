@@ -1,7 +1,8 @@
-/* eslint-disable @next/next/no-img-element */
+﻿/* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   GraduationCap, Briefcase, Rocket, Palette, 
@@ -33,7 +34,12 @@ const PURPOSES = [
 ];
 
 export function SurveyModal({ onComplete }: SurveyModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState(1);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [selectedRole, setSelectedRole] = useState('');
   const [selectedPurpose, setSelectedPurpose] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -76,7 +82,9 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
     }
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-4 safe-pad-y overflow-y-auto overscroll-contain">
       {/* Backdrop */}
       <motion.div 
@@ -113,9 +121,9 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-primary">
                     <Sparkles size={18} />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Personalization Protocol</span>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Personalization Protocol</span>
                   </div>
-                  <h2 className="text-[clamp(1.35rem,4.5vw,1.875rem)] font-black text-slate-900 leading-tight text-balance">
+                  <h2 className="text-[clamp(1.35rem,4.5vw,1.875rem)] font-bold text-slate-900 leading-tight text-balance">
                     Who are you <br className="hidden xs:block" />
                     <span className="text-primary italic">creating for today?</span>
                   </h2>
@@ -158,7 +166,7 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
                 <button
                   disabled={!selectedRole}
                   onClick={() => setStep(2)}
-                  className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all hover:bg-primary active:scale-[0.98] disabled:opacity-30"
+                  className="w-full h-14 bg-slate-900 text-white rounded-2xl font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all hover:bg-primary active:scale-[0.98] disabled:opacity-30"
                 >
                   Next Step
                   <ArrowRight size={18} />
@@ -176,7 +184,7 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
               >
                 <div className="space-y-2">
                   <button onClick={() => setStep(1)} className="text-[10px] font-bold text-slate-400 hover:text-primary transition-colors">← GO BACK</button>
-                  <h2 className="text-3xl font-black text-slate-900 leading-tight">
+                  <h2 className="text-3xl font-bold text-slate-900 leading-tight">
                     What is your <br />
                     <span className="text-primary italic">primary goal?</span>
                   </h2>
@@ -211,7 +219,7 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
                 <button
                   disabled={!selectedPurpose || isSubmitting}
                   onClick={handleFinish}
-                  className="w-full h-14 bg-primary text-white rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-primary/30 transition-all hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50"
+                  className="w-full h-14 bg-primary text-white rounded-2xl font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-primary/30 transition-all hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50"
                 >
                   {isSubmitting ? 'Optimizing AI...' : 'Complete Setup'}
                   {!isSubmitting && <Sparkles size={18} />}
@@ -227,6 +235,7 @@ export function SurveyModal({ onComplete }: SurveyModalProps) {
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Architectural Intelligence v4.2</span>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 }

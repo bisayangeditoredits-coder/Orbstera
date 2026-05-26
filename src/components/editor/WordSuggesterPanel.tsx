@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
@@ -102,7 +102,7 @@ export function WordSuggesterPanel({ onClose }: { onClose?: () => void }) {
           </div>
           <div>
             <h2 className="text-[14px] font-semibold text-neutral-900 leading-tight">Word Suggester</h2>
-            <p className="text-[11px] text-neutral-400 mt-0.5">Synonyms & words · 100% Free</p>
+            <p className="text-[11px] text-neutral-400 mt-0.5">Synonyms & words Â· 100% Free</p>
           </div>
         </div>
         {onClose && (

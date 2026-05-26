@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Sparkles, LayoutTemplate, ArrowRight } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';

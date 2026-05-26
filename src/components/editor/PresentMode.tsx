@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import 'animate.css';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -328,7 +328,7 @@ export function PresentMode() {
                 animate={{ rotate: 360 }}
                 transition={{ duration: 0.9, repeat: Infinity, ease: 'linear' }}
               />
-              <p className="mt-6 text-[10px] font-black tracking-[0.45em] uppercase text-white/35">
+              <p className="mt-6 text-[10px] font-bold tracking-[0.45em] uppercase text-white/35">
                 Present
               </p>
             </motion.div>
@@ -400,7 +400,7 @@ export function PresentMode() {
               transition={{ duration: 0.35 }}
               className="absolute bottom-[108px] left-1/2 -translate-x-1/2 z-[205] w-[min(92vw,560px)] max-h-[22vh] overflow-y-auto rounded-2xl border border-white/10 bg-black/55 backdrop-blur-2xl px-5 py-4 text-left pointer-events-auto shadow-2xl"
             >
-              <p className="text-[8px] font-black tracking-[0.35em] uppercase text-white/30 mb-2">Speaker</p>
+              <p className="text-[8px] font-bold tracking-[0.35em] uppercase text-white/30 mb-2">Speaker</p>
               <p className="text-[13px] leading-relaxed text-white/85 whitespace-pre-wrap">{notes}</p>
             </motion.aside>
           )}
@@ -426,7 +426,7 @@ export function PresentMode() {
                   background: `linear-gradient(135deg, ${palette[0]} 0%, ${palette[2]}33 100%)`,
                 }}
               >
-                <span className="absolute bottom-1 right-1 text-[8px] font-black text-white/50 tabular-nums">
+                <span className="absolute bottom-1 right-1 text-[8px] font-bold text-white/50 tabular-nums">
                   {i + 1}
                 </span>
               </motion.button>
@@ -524,7 +524,7 @@ export function PresentMode() {
               />
 
               <div className="absolute bottom-7 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-auto">
-                <div className="text-white/25 text-[9px] font-black tracking-[0.45em] uppercase">
+                <div className="text-white/25 text-[9px] font-bold tracking-[0.45em] uppercase">
                   {currentIndex + 1} — {slides.length}
                 </div>
 

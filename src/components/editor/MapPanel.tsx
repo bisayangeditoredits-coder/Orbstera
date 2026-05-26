@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
@@ -148,9 +148,9 @@ L.circleMarker([${lat},${lon}],{radius:8,color:'#fff',weight:3,fillColor:'#4f46e
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
 const MAP_STYLES = [
-  { id: 'standard',  label: 'Standard',  thumb: '🗺️' },
-  { id: 'satellite', label: 'Satellite', thumb: '🛰️' },
-  { id: 'terrain',   label: 'Terrain',   thumb: '🏔️' },
+  { id: 'standard',  label: 'Standard',  thumb: 'ðŸ—ºï¸' },
+  { id: 'satellite', label: 'Satellite', thumb: 'ðŸ›°ï¸' },
+  { id: 'terrain',   label: 'Terrain',   thumb: 'ðŸ”ï¸' },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -238,7 +238,7 @@ export function MapPanel({ onClose }: { onClose?: () => void }) {
 
     setInserting(true);
     try {
-      // Render 1100×600 map as data URL by stitching tiles on canvas
+      // Render 1100Ã—600 map as data URL by stitching tiles on canvas
       const dataUrl = await renderMapToDataUrl(result.lat, result.lon, zoom, mapStyle, 1100, 600);
 
       addElement(slide.id, {
@@ -256,7 +256,7 @@ export function MapPanel({ onClose }: { onClose?: () => void }) {
         type: 'text',
         x: 90, y: 672,
         width: 1100, height: 34,
-        content: `📍  ${result.name.split(',').slice(0, 3).join(', ')}`,
+        content: `ðŸ“  ${result.name.split(',').slice(0, 3).join(', ')}`,
         textStyle: {
           fontSize: 13, fontWeight: 'normal', color: '#6B7280',
           textAlign: 'left', lineHeight: 1.4, fontFamily: 'Inter',
@@ -285,7 +285,7 @@ export function MapPanel({ onClose }: { onClose?: () => void }) {
             </div>
             <div>
               <h2 className="text-[13px] font-bold text-neutral-900 leading-none">Map Inserter</h2>
-              <p className="text-[10px] text-neutral-400 mt-0.5 font-semibold">OpenStreetMap · Free</p>
+              <p className="text-[10px] text-neutral-400 mt-0.5 font-semibold">OpenStreetMap Â· Free</p>
             </div>
           </div>
           {onClose && (
@@ -422,7 +422,7 @@ export function MapPanel({ onClose }: { onClose?: () => void }) {
                 </div>
 
                 <p className="text-[10px] text-neutral-400 text-center mb-3">
-                  Preview · Map will be stitched as image when inserted
+                  Preview Â· Map will be stitched as image when inserted
                 </p>
 
                 {/* Insert button */}

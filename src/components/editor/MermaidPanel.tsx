@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
@@ -8,7 +8,7 @@ import { X, ArrowRight, CheckCircle2, GitBranch, Loader2, AlertCircle } from 'lu
 // ─── Starter templates ────────────────────────────────────────────────────────
 const TEMPLATES: { id: string; label: string; emoji: string; code: string }[] = [
   {
-    id: 'flowchart', label: 'Flowchart', emoji: '🔀',
+    id: 'flowchart', label: 'Flowchart', emoji: 'ðŸ”€',
     code: `flowchart TD
     A([Start]) --> B{Decision?}
     B -- Yes --> C[Do This]
@@ -17,7 +17,7 @@ const TEMPLATES: { id: string; label: string; emoji: string; code: string }[] = 
     D --> E`,
   },
   {
-    id: 'sequence', label: 'Sequence', emoji: '💬',
+    id: 'sequence', label: 'Sequence', emoji: 'ðŸ’¬',
     code: `sequenceDiagram
     Alice->>Bob: Hello Bob!
     Bob-->>Alice: Hi Alice!
@@ -25,7 +25,7 @@ const TEMPLATES: { id: string; label: string; emoji: string; code: string }[] = 
     Bob-->>Alice: Great, thanks!`,
   },
   {
-    id: 'pie', label: 'Pie Chart', emoji: '🥧',
+    id: 'pie', label: 'Pie Chart', emoji: 'ðŸ¥§',
     code: `pie title Sales by Region
     "North" : 40
     "South" : 25
@@ -33,7 +33,7 @@ const TEMPLATES: { id: string; label: string; emoji: string; code: string }[] = 
     "West" : 15`,
   },
   {
-    id: 'gantt', label: 'Gantt', emoji: '📅',
+    id: 'gantt', label: 'Gantt', emoji: 'ðŸ“…',
     code: `gantt
     title Project Timeline
     dateFormat YYYY-MM-DD
@@ -45,7 +45,7 @@ const TEMPLATES: { id: string; label: string; emoji: string; code: string }[] = 
     Testing    :b2, after b1, 14d`,
   },
   {
-    id: 'mindmap', label: 'Mind Map', emoji: '🧠',
+    id: 'mindmap', label: 'Mind Map', emoji: 'ðŸ§ ',
     code: `mindmap
   root((Main Topic))
     Topic A
@@ -56,7 +56,7 @@ const TEMPLATES: { id: string; label: string; emoji: string; code: string }[] = 
     Topic C`,
   },
   {
-    id: 'er', label: 'ER Diagram', emoji: '🗃️',
+    id: 'er', label: 'ER Diagram', emoji: 'ðŸ—ƒï¸',
     code: `erDiagram
     CUSTOMER ||--o{ ORDER : places
     ORDER ||--|{ LINE-ITEM : contains
@@ -166,7 +166,7 @@ export function MermaidPanel({ onClose }: { onClose?: () => void }) {
             </div>
             <div>
               <h2 className="text-[13px] font-bold text-neutral-900 leading-none">Diagram Builder</h2>
-              <p className="text-[10px] text-neutral-400 mt-0.5 font-semibold">Mermaid.js · Free</p>
+              <p className="text-[10px] text-neutral-400 mt-0.5 font-semibold">Mermaid.js Â· Free</p>
             </div>
           </div>
           {onClose && (

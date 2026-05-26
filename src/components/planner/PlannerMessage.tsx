@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Loader2, Sparkles, Palette } from 'lucide-react';
 import { motion } from 'framer-motion';

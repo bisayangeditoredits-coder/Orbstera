@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { ArrowRight, Check, Presentation, SwatchBook } from 'lucide-react';

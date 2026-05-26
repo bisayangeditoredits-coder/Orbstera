@@ -1,3 +1,7 @@
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
+
 const { withSentryConfig } = require('@sentry/nextjs');
 
 /** @type {import('next').NextConfig} */
@@ -21,6 +25,13 @@ const nextConfig = {
         source: '/:path*',
         headers: securityHeaders,
       },
+    ];
+  },
+
+  async redirects() {
+    return [
+      { source: '/account', destination: '/my-presentations', permanent: true },
+      { source: '/settings', destination: '/my-presentations#settings', permanent: true },
     ];
   },
 

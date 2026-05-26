@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { LogOut, Menu, X, LayoutGrid, ChevronRight } from 'lucide-react';

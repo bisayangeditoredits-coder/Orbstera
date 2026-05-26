@@ -268,7 +268,7 @@ export async function POST(req: Request) {
         const bgKey = process.env.REMOVE_BG_API_KEY?.trim();
         if (bgKey) {
           try {
-            console.log('[Image] Transparent flag enabled, removing background...');
+            // transparent mode enabled
             const formData = new FormData();
             formData.append('image_file_b64', Buffer.from(arrayBuffer).toString('base64'));
             formData.append('size', 'auto');
@@ -280,7 +280,7 @@ export async function POST(req: Request) {
             if (bgRes.ok) {
               arrayBuffer = await bgRes.arrayBuffer();
               contentType = 'image/png';
-              console.log('[Image] Background removed successfully.');
+              // background removal complete
             } else {
               console.warn('[Image] Remove.bg failed:', await bgRes.text());
             }

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useRef, useMemo, useCallback, memo, useState, useEffect, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -420,7 +420,7 @@ function PropertyInspector({ element, slideId }: { element: SlideElement; slideI
         </div>
         {element.rotation !== undefined && element.rotation !== 0 && (
           <div className="flex items-center gap-2">
-            <Slider label="Rotation" value={element.rotation || 0} min={-180} max={180} unit="°"
+            <Slider label="Rotation" value={element.rotation || 0} min={-180} max={180} unit="Â°"
               onChange={(v) => upd({ rotation: v })} />
             <button
               type="button"
@@ -835,7 +835,7 @@ const SortableLayerRow = memo(function SortableLayerRow({
           </p>
           <div className="flex items-center gap-1 mt-0.5">
             <span className="text-[9.5px] font-medium text-neutral-400 tabular-nums">
-              {Math.round(el.width)}×{Math.round(el.height)}
+              {Math.round(el.width)}Ã—{Math.round(el.height)}
             </span>
             {isLocked && (
               <span className="rounded bg-amber-50 px-1 text-[8px] font-bold text-amber-500">LOCK</span>

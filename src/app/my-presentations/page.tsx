@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 

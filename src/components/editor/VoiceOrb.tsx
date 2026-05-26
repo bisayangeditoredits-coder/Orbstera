@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef, useId } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -245,8 +245,8 @@ export function VoiceOrb({ isListening, transcript, onStop }: VoiceOrbProps) {
                   : 'Voice Protocol — describe your deck naturally'}
               </p>
             </div>
-            <span className="text-[9px] text-black/35 font-black uppercase tracking-[0.25em]">
-              Tap anywhere to stop · hands-free drafting
+            <span className="text-[9px] text-black/35 font-bold uppercase tracking-[0.25em]">
+              Tap anywhere to stop Â· hands-free drafting
             </span>
           </div>
         </motion.div>

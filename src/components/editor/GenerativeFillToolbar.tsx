@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -220,7 +220,7 @@ export function GenerativeFillToolbar() {
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-bold text-slate-800 tracking-tight">Generative fill</p>
               <p className="text-[10px] text-slate-500 truncate">
-                Region {Math.round(el.width)}×{Math.round(el.height)} · describe what belongs here
+                Region {Math.round(el.width)}Ã—{Math.round(el.height)} Â· describe what belongs here
               </p>
             </div>
             <button

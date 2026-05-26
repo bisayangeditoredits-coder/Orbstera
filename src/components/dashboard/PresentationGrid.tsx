@@ -117,10 +117,10 @@ export function PresentationGrid({
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="font-montserrat text-[10px] font-bold uppercase tracking-[0.2em] text-primary/80">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-primary/80">
               Confirm delete
             </p>
-            <h2 className="mt-2 font-montserrat text-xl font-bold text-neutral-950">
+            <h2 className="mt-2 text-xl font-semibold text-neutral-950">
               Remove {bulkDeleteIds.length} presentation{bulkDeleteIds.length === 1 ? '' : 's'}?
             </h2>
             <p className="mt-3 text-sm text-neutral-600">This cannot be undone.</p>
@@ -129,7 +129,7 @@ export function PresentationGrid({
                 type="button"
                 disabled={bulkDeleting}
                 onClick={() => setBulkDeleteIds(null)}
-                className="flex-1 rounded-md border border-neutral-200 py-3 text-sm font-bold disabled:opacity-50"
+                className="flex-1 rounded-md border border-neutral-200 py-3 text-[14px] font-medium disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -137,7 +137,7 @@ export function PresentationGrid({
                 type="button"
                 disabled={bulkDeleting}
                 onClick={handleBulkDelete}
-                className="flex-1 rounded-md bg-red-600 py-3 text-sm font-bold text-white disabled:opacity-50"
+                className="flex-1 rounded-md bg-red-600 py-3 text-[14px] font-medium text-white disabled:opacity-50"
               >
                 {bulkDeleting ? 'Deleting…' : 'Delete all'}
               </button>
@@ -148,14 +148,14 @@ export function PresentationGrid({
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Recently edited</p>
-          <h2 className="mt-1 font-montserrat text-2xl font-bold text-slate-900">Your presentations</h2>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Recently edited</p>
+          <h2 className="text-2xl font-semibold text-slate-900 tracking-tight">Your presentations</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortMode)}
-            className="min-h-[44px] rounded-md border border-white/80 bg-white/90 px-3 text-xs font-bold text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-primary/20"
+            className="min-h-[44px] rounded-md border border-white/80 bg-white/90 px-3 text-[13px] font-medium text-slate-700 shadow-sm outline-none focus:ring-2 focus:ring-primary/20"
             aria-label="Sort presentations"
           >
             <option value="recent">Most recent</option>
@@ -166,7 +166,7 @@ export function PresentationGrid({
               type="button"
               onClick={() => setView('grid')}
               className={cn(
-                'min-h-[40px] rounded-lg px-3 py-2 text-xs font-bold transition',
+                'min-h-[40px] rounded-lg px-3 py-2 text-[13px] font-medium transition',
                 view === 'grid' ? 'bg-primary text-white' : 'text-slate-600',
               )}
             >
@@ -176,7 +176,7 @@ export function PresentationGrid({
               type="button"
               onClick={() => setView('list')}
               className={cn(
-                'min-h-[40px] rounded-lg px-3 py-2 text-xs font-bold transition',
+                'min-h-[40px] rounded-lg px-3 py-2 text-[13px] font-medium transition',
                 view === 'list' ? 'bg-primary text-white' : 'text-slate-600',
               )}
             >
@@ -190,7 +190,7 @@ export function PresentationGrid({
                 if (selectionMode) exitSelection();
                 else setSelectionMode(true);
               }}
-              className="min-h-[44px] rounded-md border border-white/80 bg-white/90 px-4 text-xs font-bold text-slate-700 shadow-sm hover:bg-white"
+              className="min-h-[44px] rounded-md border border-white/80 bg-white/90 px-4 text-[13px] font-medium text-slate-700 shadow-sm hover:bg-white"
             >
               {selectionMode ? 'Done' : 'Select'}
             </button>
@@ -200,7 +200,7 @@ export function PresentationGrid({
               <button
                 type="button"
                 onClick={toggleSelectAll}
-                className="text-xs font-bold text-primary underline-offset-4 hover:underline"
+                className="text-[13px] font-medium text-primary underline-offset-4 hover:underline"
               >
                 {allSelected ? 'Clear' : 'All'}
               </button>
@@ -208,7 +208,7 @@ export function PresentationGrid({
                 type="button"
                 disabled={selectedCount === 0}
                 onClick={() => selectedCount && setBulkDeleteIds(Array.from(selectedIds))}
-                className="min-h-[44px] rounded-md border border-red-200 bg-red-50 px-4 text-xs font-bold text-red-800 disabled:opacity-40"
+                className="min-h-[44px] rounded-md border border-red-200 bg-red-50 px-4 text-[13px] font-medium text-red-800 disabled:opacity-40"
               >
                 Delete ({selectedCount})
               </button>
@@ -225,7 +225,7 @@ export function PresentationGrid({
             alt=""
             className="mx-auto mb-6 h-24 w-24 object-contain opacity-90"
           />
-          <h2 className="font-montserrat text-lg font-bold text-slate-900">
+          <h2 className="text-lg font-semibold text-slate-900 tracking-tight">
             {query.trim() ? 'No matches' : 'No presentations yet'}
           </h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
@@ -236,7 +236,7 @@ export function PresentationGrid({
           <button
             type="button"
             onClick={onNewDeck}
-            className="mt-8 inline-flex min-h-[44px] items-center rounded-md bg-primary px-8 py-3 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:bg-primaryHover"
+            className="mt-8 inline-flex min-h-[44px] items-center rounded-md bg-primary px-8 py-3 text-[14px] font-medium text-white shadow-lg shadow-primary/25 hover:bg-primaryHover"
           >
             Create presentation
           </button>
@@ -291,7 +291,7 @@ export function PresentationGrid({
                   </Link>
                   <p className="mt-1 text-xs text-slate-500">{deck.slidesCount} slides</p>
                 </div>
-                <div className="flex flex-wrap gap-4 text-xs font-bold">
+                <div className="flex flex-wrap gap-4 text-[13px] font-medium">
                   <Link href={`/editor?id=${deck.id}`} className="text-primary hover:underline">
                     Open
                   </Link>

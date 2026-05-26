@@ -1,4 +1,4 @@
-import Link from 'next/link';
+﻿import Link from 'next/link';
 import { ArrowLeft, ArrowRight, Clock } from 'lucide-react';
 import type { BlogPost } from '@/content/blog-posts';
 import { BLOG_POSTS, formatBlogDate } from '@/content/blog-posts';

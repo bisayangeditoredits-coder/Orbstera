@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 
@@ -510,7 +510,7 @@ export default function EditorClient() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
-            className="text-[26px] leading-tight font-black mb-3 text-neutral-900 tracking-tight"
+            className="text-[26px] leading-tight font-bold mb-3 text-neutral-900 tracking-tight"
           >
             {isError ? "Connection Failed" : 'Opening Deck'}
           </motion.h1>
@@ -655,7 +655,7 @@ export default function EditorClient() {
         <div className="h-16 w-16 mb-4 rounded-2xl bg-indigo-100 flex items-center justify-center">
           <Monitor size={28} className="text-indigo-600" />
         </div>
-        <h2 className="text-xl font-black text-neutral-900 mb-2">Desktop Only</h2>
+        <h2 className="text-xl font-bold text-neutral-900 mb-2">Desktop Only</h2>
         <p className="text-[13px] font-medium text-neutral-500 leading-relaxed max-w-[260px]">
           The presentation editor is designed for larger screens. Please open this on your desktop or laptop to edit.
         </p>

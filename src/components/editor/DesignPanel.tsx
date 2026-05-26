@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
@@ -133,7 +133,7 @@ export function DesignPanel() {
       <div className="shrink-0 px-6 pt-6 pb-4 border-b border-black/[0.06]">
         <div className="flex items-center gap-2 mb-1">
           <Sparkles size={14} className="text-primary" />
-          <span className="text-[10px] font-black text-black/30 uppercase tracking-[0.3em]">Design Studio</span>
+          <span className="text-[10px] font-bold text-black/30 uppercase tracking-[0.3em]">Design Studio</span>
         </div>
         <h2 className="text-[18px] font-bold text-black tracking-tight">Appearance</h2>
       </div>
@@ -182,7 +182,7 @@ export function DesignPanel() {
             <div className="pt-4 mt-2 border-t border-black/[0.06] space-y-3">
               <p className="text-[10px] font-bold text-black/30 uppercase tracking-widest">Motion</p>
               <div>
-                <label className="text-[8px] font-black text-black/25 uppercase tracking-widest block mb-1">
+                <label className="text-[8px] font-bold text-black/25 uppercase tracking-widest block mb-1">
                   Deck default transition
                 </label>
                 <select
@@ -203,7 +203,7 @@ export function DesignPanel() {
               </div>
               {currentSlide && (
                 <div>
-                  <label className="text-[8px] font-black text-black/25 uppercase tracking-widest block mb-1">
+                  <label className="text-[8px] font-bold text-black/25 uppercase tracking-widest block mb-1">
                     This slide
                   </label>
                   <select
@@ -222,7 +222,7 @@ export function DesignPanel() {
                   ))}
                 </select>
                 <div className="mt-2">
-                  <label className="text-[8px] font-black text-black/25 uppercase tracking-widest block mb-1">
+                  <label className="text-[8px] font-bold text-black/25 uppercase tracking-widest block mb-1">
                     Transition duration (ms)
                   </label>
                   <div className="flex items-center gap-2">

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 
@@ -50,7 +50,7 @@ export function DashboardUsageHistory({ freeTier }: DashboardUsageHistoryProps) 
     >
       <div className="flex items-center gap-2">
         <History size={18} className="text-slate-400" strokeWidth={1.75} />
-        <h2 className="font-montserrat text-lg font-bold text-slate-900">Recent credit activity</h2>
+        <h2 className="text-lg font-bold text-slate-900">Recent credit activity</h2>
       </div>
 
       {freeTier && (

@@ -1,4 +1,4 @@
-// Navbar removed
+﻿// Navbar removed
 import { Pricing } from '@/components/landing/Pricing';
 
 export const metadata = {

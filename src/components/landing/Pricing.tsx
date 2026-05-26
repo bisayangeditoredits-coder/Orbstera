@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -142,7 +142,7 @@ export function Pricing({ isStandalone = false }: PricingProps) {
       <div className="max-w-[1400px] mx-auto relative z-10 w-full">
         {!isStandalone && (
            <div className="text-center mb-16 sm:mb-20">
-             <h2 className="text-4xl sm:text-5xl font-extrabold mb-4 tracking-tight text-[#0F2B5B]">Flexible plans for everyone</h2>
+             <h2 className="text-4xl sm:text-5xl font-semibold mb-4 tracking-tight text-[#0F2B5B]">Flexible plans for everyone</h2>
              <p className="text-slate-500 text-lg font-medium">Choose the plan that fits your vision.</p>
            </div>
         )}
@@ -177,7 +177,7 @@ export function Pricing({ isStandalone = false }: PricingProps) {
                     </div>
                   )}
 
-                  <h3 className="text-[28px] font-black text-[#0A2540] tracking-tight mb-2 mt-1">
+                  <h3 className="text-[28px] font-bold text-[#0A2540] tracking-tight mb-2 mt-1">
                     {tier.name}
                   </h3>
                   <p className="text-[13px] leading-relaxed text-slate-500 h-10 pr-4">
@@ -187,7 +187,7 @@ export function Pricing({ isStandalone = false }: PricingProps) {
 
                 {/* Price */}
                 <div className="mb-6 h-[70px]">
-                  <div className="flex items-baseline font-black text-[#0A2540]">
+                  <div className="flex items-baseline font-bold text-[#0A2540]">
                     <span className="text-[44px] tracking-tighter leading-none">{tier.price}</span>
                     {tier.period && (
                       <span className="text-[11px] text-slate-500 font-medium ml-1 tracking-normal">{tier.period}</span>

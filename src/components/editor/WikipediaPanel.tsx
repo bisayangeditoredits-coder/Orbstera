@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+﻿/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
@@ -113,12 +113,12 @@ const TRENDING: { label: string; icon: React.FC<any>; color: string }[] = [
 ];
 
 const LANGS = [
-  { code: 'en', label: 'English',  short: 'EN', flag: '🇺🇸' },
-  { code: 'tl', label: 'Filipino', short: 'TL', flag: '🇵🇭' },
-  { code: 'es', label: 'Español',  short: 'ES', flag: '🇪🇸' },
-  { code: 'fr', label: 'Français', short: 'FR', flag: '🇫🇷' },
-  { code: 'de', label: 'Deutsch',  short: 'DE', flag: '🇩🇪' },
-  { code: 'ja', label: '日本語',   short: 'JA', flag: '🇯🇵' },
+  { code: 'en', label: 'English',  short: 'EN', flag: 'ðŸ‡ºðŸ‡¸' },
+  { code: 'tl', label: 'Filipino', short: 'TL', flag: 'ðŸ‡µðŸ‡­' },
+  { code: 'es', label: 'EspaÃ±ol',  short: 'ES', flag: 'ðŸ‡ªðŸ‡¸' },
+  { code: 'fr', label: 'FranÃ§ais', short: 'FR', flag: 'ðŸ‡«ðŸ‡·' },
+  { code: 'de', label: 'Deutsch',  short: 'DE', flag: 'ðŸ‡©ðŸ‡ª' },
+  { code: 'ja', label: 'æ—¥æœ¬èªž',   short: 'JA', flag: 'ðŸ‡¯ðŸ‡µ' },
 ];
 
 type ModeConfig = { id: InsertMode; icon: any; label: string; desc: string };
@@ -1035,7 +1035,7 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
 
                         <div className="px-4 pt-4 space-y-4">
                           {!hdImageUrl(selected) && (
-                            <h3 className="text-[17px] font-extrabold text-neutral-900 leading-tight tracking-tight">
+                            <h3 className="text-[17px] font-semibold text-neutral-900 leading-tight tracking-tight">
                               {selected.title}
                             </h3>
                           )}
@@ -1224,7 +1224,7 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
                                 </p>
                                 <p className={`text-[11px] mt-0.5 leading-snug ${active ? 'text-white/60' : 'text-neutral-500'}`}>
                                   {mode.desc}
-                                  {disabled ? ' · Image required' : ''}
+                                  {disabled ? ' Â· Image required' : ''}
                                 </p>
                               </div>
                               {active && <CheckCircle2 size={16} className="text-white shrink-0" />}

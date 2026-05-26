@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -105,10 +105,10 @@ function GenerationAssetsBanner() {
     >
       <ImageIcon size={14} strokeWidth={1.85} className="shrink-0 text-primary" aria-hidden />
       <div className="flex flex-col gap-0.5 min-w-0">
-        <span className="text-[10px] font-black uppercase tracking-widest text-black/55">Live AI visuals</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-black/55">Live AI visuals</span>
         <span className="text-[12px] font-semibold tracking-tight whitespace-nowrap">
           {done}/{total} rendered
-          {failed > 0 ? ` · ${failed} failed` : ''} · streaming to canvas ({pct}%)
+          {failed > 0 ? ` Â· ${failed} failed` : ''} Â· streaming to canvas ({pct}%)
         </span>
       </div>
       <span className="relative h-1.5 w-24 overflow-hidden rounded-full bg-black/[0.07] shrink-0">
@@ -227,11 +227,11 @@ function GenerationLoader() {
             <motion.div 
               animate={{ opacity: [0.5, 1, 0.5] }}
               transition={{ duration: 2, repeat: Infinity }}
-              className="text-[10.5px] font-extrabold text-indigo-500 uppercase tracking-[0.3em]"
+              className="text-[10.5px] font-semibold text-indigo-500 uppercase tracking-[0.3em]"
             >
               Orchestrating Narrative
             </motion.div>
-            <h2 className="text-[clamp(1.5rem,5vw,2.5rem)] font-extrabold text-slate-900 tracking-tight leading-[1.1] text-balance px-1">
+            <h2 className="text-[clamp(1.5rem,5vw,2.5rem)] font-semibold text-slate-900 tracking-tight leading-[1.1] text-balance px-1">
               {label}
             </h2>
           </div>
@@ -296,8 +296,8 @@ function GenerationLoader() {
               { label: 'Status', value: 'ACTIVE', color: 'text-emerald-500' },
             ].map((stat, i) => (
               <div key={i} className="flex flex-col gap-1">
-                  <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">{stat.label}</span>
-                  <span className={`text-[15px] font-black tracking-tight ${stat.color || 'text-slate-800'}`}>{stat.value}</span>
+                  <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest">{stat.label}</span>
+                  <span className={`text-[15px] font-bold tracking-tight ${stat.color || 'text-slate-800'}`}>{stat.value}</span>
               </div>
             ))}
           </div>
@@ -306,7 +306,7 @@ function GenerationLoader() {
 
       {/* Brand Credit */}
       <div className="absolute bottom-[max(2rem,env(safe-area-inset-bottom))] left-0 right-0 flex justify-center opacity-40 px-4">
-        <span className="text-[10px] font-extrabold tracking-[0.4em] text-slate-500 uppercase text-center flex items-center gap-2">
+        <span className="text-[10px] font-semibold tracking-[0.4em] text-slate-500 uppercase text-center flex items-center gap-2">
           <Sparkles size={12} className="text-indigo-400" />
           Orbstera Presentation Engine
         </span>
@@ -632,7 +632,7 @@ export function CanvasArea() {
 
       <div className="absolute bottom-3 left-3 right-3 z-50 flex items-end justify-between gap-3 pointer-events-none">
         <p className="hidden sm:block text-[10px] font-medium text-neutral-600/90 bg-white/90 border border-neutral-200/80 rounded-md px-2.5 py-1 shadow-sm">
-          Space + drag to pan · Ctrl + scroll to zoom · Shift constrains shapes
+          Space + drag to pan Â· Ctrl + scroll to zoom Â· Shift constrains shapes
         </p>
       </div>
 

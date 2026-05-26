@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -132,7 +132,7 @@ export function ExportModal({
                 </p>
                 <h2
                   id="export-modal-title"
-                  className="mt-1 font-montserrat text-xl font-bold text-slate-900"
+                  className="mt-1 text-xl font-bold text-slate-900"
                 >
                   {phase === 'options' && 'Export presentation'}
                   {phase === 'progress' && 'Exporting…'}
@@ -320,7 +320,7 @@ export function ExportModal({
                       <CheckCircle2 size={32} strokeWidth={1.75} />
                     </div>
                     <div>
-                      <h3 className="font-montserrat text-lg font-bold text-slate-900">
+                      <h3 className="text-lg font-bold text-slate-900">
                         Ready to go
                       </h3>
                       <p className="mt-2 max-w-sm text-sm text-slate-600">
@@ -352,7 +352,7 @@ export function ExportModal({
                       <X size={28} strokeWidth={1.75} />
                     </div>
                     <div>
-                      <h3 className="font-montserrat text-lg font-bold text-slate-900">
+                      <h3 className="text-lg font-bold text-slate-900">
                         Something went wrong
                       </h3>
                       <p className="mt-2 max-w-sm break-words text-sm text-red-600/90">

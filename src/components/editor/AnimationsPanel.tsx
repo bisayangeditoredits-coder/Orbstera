@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { PPT_STYLE_ENTRANCE_OPTIONS, PPT_ANIMATION_HINT } from '@/lib/editor/pptAnimationCatalog';

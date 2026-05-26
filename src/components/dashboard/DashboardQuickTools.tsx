@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 
@@ -91,8 +91,8 @@ export function DashboardQuickTools({
     <section aria-label="Quick actions" className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Tools</p>
-          <h2 className="mt-1 font-montserrat text-lg font-bold text-slate-900">Quick actions</h2>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Tools</p>
+          <h2 className="mt-1 text-lg font-bold text-slate-900">Quick actions</h2>
         </div>
         {isFreePlan && (
           <button

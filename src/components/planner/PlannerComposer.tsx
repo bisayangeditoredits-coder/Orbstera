@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { 
   Send, Loader2, FileText, Copy, Layers, Sparkles, 

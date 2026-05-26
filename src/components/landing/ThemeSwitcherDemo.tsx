@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
@@ -67,7 +67,7 @@ export function ThemeSwitcherDemo() {
               One-Click Restyle
             </div>
             
-            <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900 mb-6 leading-[1.1]">
+            <h2 className="text-4xl sm:text-5xl font-semibold tracking-tight text-slate-900 mb-6 leading-[1.1]">
               Stop formatting. <br className="hidden lg:block" />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1755E6] to-[#8B5CF6]">Start creating.</span>
             </h2>

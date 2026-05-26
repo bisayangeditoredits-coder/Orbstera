@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import { motion } from 'framer-motion';
@@ -75,7 +75,7 @@ export default function BlogPage() {
               <div className="w-1.5 h-1.5 bg-[#0009fa] rounded-full" />
               Orbstera Journal
             </div>
-            <h1 className="text-5xl md:text-6xl font-extrabold tracking-tighter text-[#1E293B]">
+            <h1 className="text-5xl md:text-6xl font-semibold tracking-tighter text-[#1E293B]">
               Insights &amp; Resources
             </h1>
           </div>
@@ -102,7 +102,7 @@ export default function BlogPage() {
               <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />{FEATURED.date}</span>
               <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5" />{FEATURED.author}</span>
             </div>
-            <h2 className="text-3xl md:text-5xl font-extrabold text-white tracking-tighter max-w-3xl mb-6 leading-tight">
+            <h2 className="text-3xl md:text-5xl font-semibold text-white tracking-tighter max-w-3xl mb-6 leading-tight">
               {FEATURED.title}
             </h2>
             <p className="text-white/70 max-w-xl text-sm leading-relaxed mb-8">{FEATURED.excerpt}</p>
@@ -180,7 +180,7 @@ export default function BlogPage() {
       <section className="bg-gradient-to-br from-blue-600 to-blue-700 py-24">
         <div className="max-w-4xl mx-auto px-6 sm:px-12 text-center">
           <p className="text-blue-200 text-xs font-bold uppercase tracking-[0.25em] mb-4">Stay Informed</p>
-          <h2 className="text-4xl md:text-5xl font-extrabold text-white tracking-tighter mb-6">
+          <h2 className="text-4xl md:text-5xl font-semibold text-white tracking-tighter mb-6">
             Join 12,000+ professionals<br/>reading Orbstera Journal
           </h2>
           <p className="text-blue-100/70 mb-10 max-w-md mx-auto">

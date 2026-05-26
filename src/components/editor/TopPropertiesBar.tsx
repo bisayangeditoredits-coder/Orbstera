@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -251,7 +251,7 @@ export function TopPropertiesBar() {
                 min={-360}
                 max={360}
                 step={1}
-                unit="°"
+                unit="Â°"
                 width="w-14"
                 onChange={(v) => update({ rotation: v })}
                 onCommit={(v) => commitUpdate({ rotation: v })}

@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import type { DeckMeta } from '@/types/deck-meta';
 import { useCredits } from '@/hooks/useCredits';
@@ -28,6 +29,7 @@ import {
 
 
 export function DashboardShell() {
+  const router = useRouter();
   const [presentations, setPresentations] = useState<DeckMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -214,6 +216,7 @@ export function DashboardShell() {
           query={query}
           onQueryChange={setQuery}
           onNewDeck={() => setNewDeckOpen(true)}
+          onCreateAIDeck={() => router.push('/editor?mode=ai')}
           onOpenMenu={() => setMobileMenuOpen(true)}
           creditsWarning={creditsWarning}
           onOpenSettings={() => navigateSection('settings')}
@@ -231,10 +234,10 @@ export function DashboardShell() {
             closeDisabled={deleting}
             panelClassName="p-8"
           >
-            <p className="font-montserrat text-[10px] font-bold uppercase tracking-[0.2em] text-primary/80">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/80">
               Confirm delete
             </p>
-            <h2 className="mt-2 font-montserrat text-xl font-bold tracking-tight text-neutral-950">
+            <h2 className="mt-2 text-xl font-bold tracking-tight text-neutral-950">
               Remove presentation?
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-neutral-600">

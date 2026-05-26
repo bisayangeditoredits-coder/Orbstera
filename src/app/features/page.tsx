@@ -169,31 +169,12 @@ export default function FeaturesPage() {
         </div>
       </section>
 
-      {/* ── TRUSTED BY MARQUEE ── */}
-      <section className="py-20 border-y border-slate-100 overflow-hidden bg-slate-50">
-        <div className="max-w-7xl mx-auto px-6 sm:px-12 mb-10 text-center">
-          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Trusted by teams at world-class companies</p>
-        </div>
-        <div className="relative flex overflow-x-hidden">
-          <div className="flex gap-16 animate-marquee whitespace-nowrap items-center py-4">
-            {["Google", "Microsoft", "Stripe", "Shopify", "Airbnb", "Figma", "Notion", "Vercel", "Atlassian", "HubSpot"].map((name, i) => (
-              <span key={i} className="text-2xl font-extrabold text-slate-200 tracking-tighter shrink-0 hover:text-slate-400 transition-colors cursor-default">{name}</span>
-            ))}
-          </div>
-          <div className="flex gap-16 animate-marquee2 whitespace-nowrap items-center py-4 absolute top-0" aria-hidden>
-            {["Google", "Microsoft", "Stripe", "Shopify", "Airbnb", "Figma", "Notion", "Vercel", "Atlassian", "HubSpot"].map((name, i) => (
-              <span key={i} className="text-2xl font-extrabold text-slate-200 tracking-tighter shrink-0">{name}</span>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── TESTIMONIALS ── */}
       <section className="max-w-7xl mx-auto px-6 sm:px-12 py-24">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#0009fa] mb-4">Social Proof</p>
-            <h2 className="text-4xl md:text-5xl font-extrabold text-[#1E293B] tracking-tighter">What our users say</h2>
+            <h2 className="text-4xl md:text-5xl font-semibold text-[#1E293B] tracking-tighter">What our users say</h2>
           </div>
           <p className="text-slate-400 text-sm max-w-xs">Join thousands of professionals who have already transformed how they present.</p>
         </div>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
@@ -1350,7 +1350,7 @@ export function KonvaCanvas({ scale }: { scale: number }) {
               className={`w-full text-left px-4 py-2 transition-colors flex items-center justify-between ${ctxEl?.locked ? 'hover:bg-amber-50 text-amber-700' : 'hover:bg-neutral-100'}`}
               onClick={(e) => { e.stopPropagation(); updateElement(slide.id, contextMenu.targetId!, { locked: !ctxEl?.locked }, true); setContextMenu(prev => ({ ...prev, visible: false })); }}
             >
-              {ctxEl?.locked ? 'Unlock' : 'Lock'} <span className="text-neutral-400 text-xs">{ctxEl?.locked ? '🔓' : '🔒'}</span>
+              {ctxEl?.locked ? 'Unlock' : 'Lock'} <span className="text-neutral-400 text-xs">{ctxEl?.locked ? 'ðŸ”“' : 'ðŸ”’'}</span>
             </button>
             <div className="h-px bg-neutral-100 my-1" />
             <button

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -379,7 +379,7 @@ export function NewDeckModal({ open, onClose }: Props) {
                 style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)' }}
               >
                 <p className="text-[10px] font-medium text-neutral-500">Standard 16:9</p>
-                <p className="text-[11px] font-semibold text-neutral-700 mt-0.5">1280 × 720 px</p>
+                <p className="text-[11px] font-semibold text-neutral-700 mt-0.5">1280 Ã— 720 px</p>
               </div>
             </div>
           </motion.div>

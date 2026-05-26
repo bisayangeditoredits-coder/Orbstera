@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -54,7 +54,7 @@ export function FAQ() {
              <MessageCircleQuestion size={14} />
              Help Center
            </div>
-           <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight">Frequently Asked Questions</h2>
+           <h2 className="text-4xl md:text-5xl font-semibold text-slate-900 tracking-tight">Frequently Asked Questions</h2>
         </div>
         
         <div className="space-y-4">

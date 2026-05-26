@@ -400,7 +400,7 @@ export async function POST(req: Request) {
               if (value) controller.enqueue(value);
             }
             ok = true;
-            console.log('[Generate] stream completed via', modelUsed);
+            // stream complete
           } catch (streamErr) {
             console.error('[Generate] stream cascade failed:', streamErr);
             sendOrb({

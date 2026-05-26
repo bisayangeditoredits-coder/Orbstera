@@ -1,4 +1,4 @@
-import Link from 'next/link';
+﻿import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 
 export function CTA() {
@@ -10,7 +10,7 @@ export function CTA() {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000002_1px,transparent_1px),linear-gradient(to_bottom,#00000002_1px,transparent_1px)] bg-[size:32px_32px]" />
 
       <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center text-center">
-        <h2 className="text-5xl md:text-7xl font-extrabold mb-6 tracking-tighter leading-[1.05]">
+        <h2 className="text-5xl md:text-7xl font-semibold mb-6 tracking-tighter leading-[1.05]">
           A new medium for presenting ideas.
         </h2>
         

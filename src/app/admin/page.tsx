@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 // Navbar removed
@@ -96,7 +96,7 @@ export default function AdminDashboard() {
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-500">Live Production Server</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-space-grotesk font-black tracking-tight flex items-center gap-4">
+            <h1 className="text-4xl md:text-5xl font-space-grotesk font-bold tracking-tight flex items-center gap-4">
               SaaS Command Center
               <Shield className="text-primary opacity-50" size={32} />
             </h1>
@@ -111,7 +111,7 @@ export default function AdminDashboard() {
             </div>
             <div>
               <p className="text-xs text-white/50 uppercase tracking-wider font-bold mb-1">Monthly MRR</p>
-              <p className="text-2xl font-black text-white">${totalRevenue}<span className="text-white/30 text-sm">/mo</span></p>
+              <p className="text-2xl font-bold text-white">${totalRevenue}<span className="text-white/30 text-sm">/mo</span></p>
             </div>
           </div>
         </div>
@@ -252,7 +252,7 @@ function StatCard({ title, value, icon: Icon, color, bg, trend }: any) {
         </span>
       </div>
       <div className="relative z-10">
-        <p className="text-5xl font-space-grotesk font-black text-white mb-2">{value}</p>
+        <p className="text-5xl font-space-grotesk font-bold text-white mb-2">{value}</p>
         <p className="text-sm font-semibold text-white/40 tracking-wide">{title}</p>
       </div>
     </div>

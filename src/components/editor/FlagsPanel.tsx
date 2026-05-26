@@ -15,13 +15,15 @@ export function FlagsPanel({ onClose }: { onClose?: () => void }) {
   const presentation = usePresentationStore((s) => s.presentation);
 
   useEffect(() => {
-    fetch('https://flagcdn.com/en/codes.json')
+    const controller = new AbortController();
+    fetch('https://flagcdn.com/en/codes.json', { signal: controller.signal })
       .then(res => res.json())
       .then(data => {
         setCountries(data);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((e) => { if (e.name !== 'AbortError') setLoading(false); });
+    return () => controller.abort();
   }, []);
 
   const filteredCountries = useMemo(() => {

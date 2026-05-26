@@ -174,7 +174,7 @@ export default function TemplateViewPage({ params }: { params: { slug: string } 
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
-              className="text-4xl font-extrabold text-neutral-900 tracking-tighter leading-tight mb-4"
+              className="text-4xl font-semibold text-neutral-900 tracking-tighter leading-tight mb-4"
             >
               {template.title}
             </motion.h1>

@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+﻿/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
@@ -45,7 +45,7 @@ function SectionHeading({ icon: Icon, iconUrl, title, subtitle }: {
         </div>
       ) : null}
       <div>
-        <p className="text-[12px] font-black text-neutral-800 leading-tight">{title}</p>
+        <p className="text-[12px] font-bold text-neutral-800 leading-tight">{title}</p>
         {subtitle && <p className="text-[10px] text-neutral-400 mt-0.5 leading-snug">{subtitle}</p>}
       </div>
     </div>
@@ -57,7 +57,7 @@ function Divider({ label }: { label?: string }) {
   return (
     <div className="flex items-center gap-2 my-4">
       <div className="flex-1 h-px bg-neutral-100" />
-      {label && <span className="text-[9px] font-black uppercase tracking-widest text-neutral-300">{label}</span>}
+      {label && <span className="text-[9px] font-bold uppercase tracking-widest text-neutral-300">{label}</span>}
       <div className="flex-1 h-px bg-neutral-100" />
     </div>
   );
@@ -82,7 +82,7 @@ function ResultCard({ text, onApply, onDiscard }: {
       <div className="h-[3px]" style={{ background: 'linear-gradient(90deg,#6366F1,#8B5CF6,#A855F7)' }} />
       <div className="p-3 space-y-2.5">
         <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-indigo-500">
+          <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-indigo-500">
             <Stars size={9} /> AI Result
           </span>
           <button onClick={onDiscard} className="h-5 w-5 flex items-center justify-center rounded-md text-indigo-300 hover:text-indigo-600 hover:bg-indigo-100 transition-all">
@@ -262,16 +262,16 @@ const REWRITE_PRESETS = [
 ] as const;
 
 const TRANSLATE_LANGS = [
-  { code: 'es', flag: '🇪🇸', label: 'Spanish'    },
-  { code: 'fr', flag: '🇫🇷', label: 'French'     },
-  { code: 'de', flag: '🇩🇪', label: 'German'     },
-  { code: 'ja', flag: '🇯🇵', label: 'Japanese'   },
-  { code: 'zh', flag: '🇨🇳', label: 'Chinese'    },
-  { code: 'ko', flag: '🇰🇷', label: 'Korean'     },
-  { code: 'pt', flag: '🇧🇷', label: 'Portuguese' },
-  { code: 'ar', flag: '🇸🇦', label: 'Arabic'     },
-  { code: 'it', flag: '🇮🇹', label: 'Italian'    },
-  { code: 'ru', flag: '🇷🇺', label: 'Russian'    },
+  { code: 'es', flag: 'ðŸ‡ªðŸ‡¸', label: 'Spanish'    },
+  { code: 'fr', flag: 'ðŸ‡«ðŸ‡·', label: 'French'     },
+  { code: 'de', flag: 'ðŸ‡©ðŸ‡ª', label: 'German'     },
+  { code: 'ja', flag: 'ðŸ‡¯ðŸ‡µ', label: 'Japanese'   },
+  { code: 'zh', flag: 'ðŸ‡¨ðŸ‡³', label: 'Chinese'    },
+  { code: 'ko', flag: 'ðŸ‡°ðŸ‡·', label: 'Korean'     },
+  { code: 'pt', flag: 'ðŸ‡§ðŸ‡·', label: 'Portuguese' },
+  { code: 'ar', flag: 'ðŸ‡¸ðŸ‡¦', label: 'Arabic'     },
+  { code: 'it', flag: 'ðŸ‡®ðŸ‡¹', label: 'Italian'    },
+  { code: 'ru', flag: 'ðŸ‡·ðŸ‡º', label: 'Russian'    },
 ];
 
 function TextRewriteSection() {
@@ -318,7 +318,7 @@ function TextRewriteSection() {
 
       {/* Original text preview */}
       <div className="rounded-xl border border-neutral-100 bg-white px-3 py-2.5 mb-3">
-        <p className="text-[9px] font-black uppercase tracking-widest text-neutral-400 mb-1">Selected Text</p>
+        <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 mb-1">Selected Text</p>
         <p className="text-[11.5px] text-neutral-700 leading-relaxed line-clamp-2">{textContent || '(empty)'}</p>
       </div>
 
@@ -486,7 +486,7 @@ function AIChatSection() {
                 {msg.role === 'ai' ? (
                   <img src="/ui-icons/ai-brain.png" alt="AI" className="h-6 w-6 rounded-lg shrink-0 object-cover shadow-sm" />
                 ) : (
-                  <div className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0 text-[9px] font-black bg-neutral-200 text-neutral-500">
+                  <div className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0 text-[9px] font-bold bg-neutral-200 text-neutral-500">
                     You
                   </div>
                 )}
@@ -561,7 +561,7 @@ function ModelsBadge() {
     <div className="flex items-center justify-center gap-3 rounded-xl border border-neutral-100 bg-white px-3 py-2.5">
       <img src="/ui-icons/ai-brain.png" alt="AI" className="h-4 w-4 rounded-md object-cover opacity-60" />
       <p className="text-[9.5px] font-semibold text-neutral-400">
-        Powered by <span className="text-neutral-600 font-black">GPT-5.5</span> · <span className="text-neutral-600 font-black">Claude Opus 4</span> · <span className="text-neutral-600 font-black">FLUX Kontext</span>
+        Powered by <span className="text-neutral-600 font-bold">GPT-5.5</span> Â· <span className="text-neutral-600 font-bold">Claude Opus 4</span> Â· <span className="text-neutral-600 font-bold">FLUX Kontext</span>
       </p>
     </div>
   );
@@ -587,8 +587,8 @@ export function AIToolsPanel() {
             <img src="/ui-icons/sparkles.png" alt="AI Tools" className="relative h-8 w-8 rounded-xl object-cover shadow-sm ring-1 ring-black/5" />
           </div>
           <div className="flex-1">
-            <h3 className="text-[13px] font-black text-neutral-900 leading-tight">AI Tools</h3>
-            <p className="text-[9.5px] text-neutral-400 font-semibold">GPT-5.5 · Claude Opus 4 · FLUX</p>
+            <h3 className="text-[13px] font-bold text-neutral-900 leading-tight">AI Tools</h3>
+            <p className="text-[9.5px] text-neutral-400 font-semibold">GPT-5.5 Â· Claude Opus 4 Â· FLUX</p>
           </div>
           {/* Context indicator */}
           <div className={`flex items-center gap-1 rounded-full px-2 py-1 text-[9px] font-bold border ${

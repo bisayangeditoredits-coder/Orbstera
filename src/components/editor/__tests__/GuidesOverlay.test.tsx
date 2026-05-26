@@ -3,7 +3,7 @@ import { render } from '@testing-library/react';
 import { GuidesOverlay } from '../GuidesOverlay';
 
 // Mock react-konva since it requires a real canvas environment
-jest.mock('react-konva', () => {
+vi.mock('react-konva', () => {
   return {
     Group: 'Group',
     Line: 'Line',

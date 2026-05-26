@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { motion } from 'framer-motion';
 import { BadgeCheck } from 'lucide-react';
@@ -201,7 +201,7 @@ export function Testimonials() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.1 }}
-          className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-6"
+          className="text-4xl md:text-5xl font-semibold text-slate-900 tracking-tight mb-6"
         >
           Don&apos;t just take our word for it.
         </motion.h2>

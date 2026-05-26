@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -355,22 +355,6 @@ export function HeroSection() {
       recognitionRef.current = null;
     };
   }, []);
-
-  const heroParticles = useMemo(
-    () =>
-      Array.from({ length: 12 }, (_, i) => {
-        const s = (i + 1) * 0.618033988749895;
-        return {
-          id: i,
-          x: `${((Math.sin(s) + 1) / 2) * 100}%`,
-          y: `${((Math.cos(s * 1.7) + 1) / 2) * 100}%`,
-          duration: 4 + (i % 5),
-          delay: ((i * 3) % 10) * 0.35,
-          baseOpacity: 0.25 + (i % 4) * 0.1,
-        };
-      }),
-    []
-  );
 
 
 
@@ -742,17 +726,8 @@ export function HeroSection() {
           />
         </div>
 
-        {/* Particles */}
-        {heroParticles.map((p) => (
-          <motion.div
-            key={p.id}
-            initial={{ x: p.x, y: p.y, opacity: p.baseOpacity }}
-            animate={{ y: [null, "-40px", "40px"], opacity: [0.2, 0.65, 0.2], scale: [1, 1.45, 1] }}
-            transition={{ duration: p.duration, repeat: Infinity, ease: "easeInOut", delay: p.delay }}
-            className="absolute w-1.5 h-1.5 rounded-full will-change-transform hidden md:block"
-            style={{ background: 'radial-gradient(circle, rgba(0,9,250,0.8) 0%, transparent 80%)' }}
-          />
-        ))}
+        {/* Ambient Overlay Blur */}
+        <div className="absolute inset-0 bg-white/20 backdrop-blur-[100px] z-[2]" />
       </div>
 
       <div className="relative z-10 flex flex-col items-center text-center max-w-7xl w-full min-w-0 px-3 sm:px-6">
@@ -902,7 +877,7 @@ export function HeroSection() {
                       ) : (
                         <p className="text-xs text-slate-400 italic text-center">
                           {isListening ? (
-                            <span className="text-primary animate-pulse">● Listening... speak now</span>
+                            <span className="text-primary animate-pulse">â— Listening... speak now</span>
                           ) : 'Tap the orb to start speaking'}
                         </p>
                       )}

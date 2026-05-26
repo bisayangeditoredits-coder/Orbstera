@@ -115,7 +115,7 @@ const TEMPLATE_PREVIEWS: Record<string, React.ReactNode> = {
         </div>
       </div>
       <div className="flex-1 flex items-center">
-        <div className="text-[32px] font-black text-neutral-900/10 leading-none tracking-tighter select-none">THINK</div>
+        <div className="text-[32px] font-bold text-neutral-900/10 leading-none tracking-tighter select-none">THINK</div>
       </div>
       <div className="flex items-center justify-between">
         <div className="h-px flex-1 bg-neutral-200" />
@@ -127,7 +127,7 @@ const TEMPLATE_PREVIEWS: Record<string, React.ReactNode> = {
   'yc-demo': (
     <div className="w-full h-full flex flex-col justify-between p-5" style={{ background: 'linear-gradient(135deg, #ea580c 0%, #dc2626 100%)' }}>
       <div className="flex items-center justify-between">
-        <div className="text-[8px] font-black text-white/60 tracking-widest">DEMO DAY</div>
+        <div className="text-[8px] font-bold text-white/60 tracking-widest">DEMO DAY</div>
         <div className="flex gap-1">
           {[1,2,3,4,5].map(n => (
             <div key={n} className="w-1.5 h-1.5 rounded-full bg-white/40" />
@@ -135,9 +135,9 @@ const TEMPLATE_PREVIEWS: Record<string, React.ReactNode> = {
         </div>
       </div>
       <div className="flex-1 flex flex-col items-center justify-center py-3">
-        <div className="text-[9px] font-black text-orange-200 tracking-widest mb-2">TRACTION</div>
-        <div className="text-[28px] font-black text-white leading-none mb-1">$10K</div>
-        <div className="text-[8px] text-white/60 font-bold">MRR · 3 months</div>
+        <div className="text-[9px] font-bold text-orange-200 tracking-widest mb-2">TRACTION</div>
+        <div className="text-[28px] font-bold text-white leading-none mb-1">$10K</div>
+        <div className="text-[8px] text-white/60 font-bold">MRR Â· 3 months</div>
       </div>
       <div className="bg-white/15 rounded-xl p-2.5 flex items-center gap-2">
         <div className="w-6 h-6 rounded-lg bg-white/20" />
@@ -160,20 +160,12 @@ export function Templates() {
   const [templates, setTemplates] = useState<any[]>(FALLBACK_TEMPLATES);
 
   useEffect(() => {
-    async function fetchTemplates() {
-      try {
-        const res = await fetch('/api/templates');
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.length > 0) {
-            setTemplates(data.slice(0, 3));
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch templates:", err);
-      }
-    }
-    fetchTemplates();
+    const controller = new AbortController();
+    fetch('/api/templates', { signal: controller.signal })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data && data.length > 0) setTemplates(data.slice(0, 3)); })
+      .catch(e => { if (e.name !== 'AbortError') { /* ignore, fallback templates shown */ } });
+    return () => controller.abort();
   }, []);
 
   return (
@@ -187,7 +179,7 @@ export function Templates() {
               <Sparkles className="w-3.5 h-3.5 text-primary" />
               <span className="text-[10px] font-bold tracking-widest uppercase text-neutral-600">Starting Points</span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-4 text-neutral-900 tracking-tighter">
+            <h2 className="text-4xl md:text-5xl font-semibold mb-4 text-neutral-900 tracking-tighter">
               The Prompt <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-600">Library</span>
             </h2>
             <p className="text-neutral-500 text-lg max-w-xl tracking-tight font-medium">
@@ -220,7 +212,7 @@ export function Templates() {
                       <div className="w-full h-full">{preview}</div>
                     ) : (
                       <div className={`w-full h-full bg-gradient-to-br ${tpl.color_gradient || 'from-gray-200 to-gray-300'} flex items-center justify-center`}>
-                        <div className="text-white/30 text-4xl font-black tracking-tighter">{tpl.title?.[0]}</div>
+                        <div className="text-white/30 text-4xl font-bold tracking-tighter">{tpl.title?.[0]}</div>
                       </div>
                     )}
 

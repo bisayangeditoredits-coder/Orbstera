@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+﻿/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -17,9 +17,9 @@ function statusLabel(status?: Slide['generationStatus'], isPlaceholder?: boolean
   if (!isPlaceholder) return '';
   switch (status) {
     case 'composing':
-      return 'Composingâ€¦';
+      return 'Composing…';
     case 'visuals':
-      return 'Rendering visualsâ€¦';
+      return 'Rendering visuals…';
     case 'ready':
       return 'Ready';
     default:
@@ -71,7 +71,7 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
           transition={{ duration: 0.5 }}
         />
         <div
-          className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-primary/90 text-[7px] font-black uppercase tracking-wider text-white"
+          className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-primary/90 text-[7px] font-bold uppercase tracking-wider text-white"
         >
           Live
         </div>
@@ -198,7 +198,7 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
         })}
       </div>
       {slide.generationStatus === 'visuals' && (
-        <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-sky-500/90 text-[7px] font-black uppercase tracking-wider text-white flex items-center gap-1">
+        <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-sky-500/90 text-[7px] font-bold uppercase tracking-wider text-white flex items-center gap-1">
           <Loader2 size={8} className="animate-spin" />
           Visuals
         </div>
@@ -463,7 +463,7 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
               animate={{ opacity: 1, y: 0 }}
             >
               {editor.activeModelLabel
-                ? `${editor.activeModelLabel} Â· `
+                ? `${editor.activeModelLabel} Ã‚Â· `
                 : ''}
               {editor.orchestrationMessage ||
                 `Live ${slides.filter((s) => !s.isGeneratingPlaceholder).length} / ${targetSlides}`}
@@ -471,7 +471,7 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
           )}
           {editor.freeTasteActive && isLiveGenerating && (
             <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600/90">
-              Premium preview Â· {editor.freeTasteImagesRemaining ?? 0} HD visuals left
+              Premium preview Ã‚Â· {editor.freeTasteImagesRemaining ?? 0} HD visuals left
             </p>
           )}
         </motion.div>

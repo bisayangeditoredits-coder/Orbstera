@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
@@ -429,7 +429,7 @@ export function PublicViewer({ presentation }: { presentation: PresentationData 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.18, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-neutral-900 tracking-tight leading-[1.12] max-w-3xl text-balance"
+            className="text-3xl sm:text-5xl lg:text-6xl font-semibold text-neutral-900 tracking-tight leading-[1.12] max-w-3xl text-balance"
           >
             {title}
           </motion.h1>
@@ -487,7 +487,7 @@ export function PublicViewer({ presentation }: { presentation: PresentationData 
             transition={{ delay: 0.55 }}
             className="text-neutral-400 text-xs font-medium"
           >
-            Use ← → arrow keys to navigate · F for fullscreen
+            Use ← → arrow keys to navigate Â· F for fullscreen
           </motion.p>
         </div>
 

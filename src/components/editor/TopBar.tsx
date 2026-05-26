@@ -1,11 +1,11 @@
-/* eslint-disable @next/next/no-img-element */
+﻿/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { exportToPptx } from '@/lib/export';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback , memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Play, Download, Share2,
@@ -64,7 +64,9 @@ function Stat({ icon: Icon, value, label }: { icon: any; value: string | number;
 
 // ── Editable Title ────────────────────────────────────────────────────────────
 function EditableTitle() {
-  const { presentation, updatePresentation, setEditorState } = usePresentationStore();
+  const presentation = usePresentationStore(s => s.presentation);
+  const updatePresentation = usePresentationStore(s => s.updatePresentation);
+  const setEditorState = usePresentationStore(s => s.setEditorState);
   const [editing, setEditing] = useState(false);
   const [draft,   setDraft]   = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -185,7 +187,7 @@ interface TopBarProps {
   onOpenMobileGallery?: () => void;
 }
 
-export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileGallery }: TopBarProps) {
+function TopBarInner({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileGallery }: TopBarProps) {
   const router = useRouter();
   const store       = usePresentationStore();
   const presentation = store.presentation;
@@ -871,3 +873,5 @@ export function TopBar({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileG
     </>
   );
 }
+
+export const TopBar = memo(TopBarInner);

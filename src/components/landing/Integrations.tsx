@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { motion } from 'framer-motion';
 import Image from 'next/image';
@@ -39,7 +39,7 @@ export function Integrations() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-neutral-900 tracking-tighter mb-6"
+            className="text-4xl md:text-5xl lg:text-6xl font-semibold text-neutral-900 tracking-tighter mb-6"
           >
             Fits right into your <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-600">existing workflow</span>

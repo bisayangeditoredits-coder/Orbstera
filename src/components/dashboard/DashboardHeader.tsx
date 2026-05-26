@@ -34,11 +34,12 @@ export function DashboardHeader({
   query,
   onQueryChange,
   onNewDeck,
+  onCreateAIDeck,
   onOpenMenu,
   onOpenSettings,
   onBackToWorkspace,
   creditsWarning,
-}: DashboardHeaderProps) {
+}: DashboardHeaderProps & { onCreateAIDeck?: () => void }) {
   const showSearch = section !== 'settings';
 
   return (
@@ -68,7 +69,7 @@ export function DashboardHeader({
                   Back
                 </button>
               )}
-              <h1 className="text-[15px] font-bold text-slate-900 tracking-tight truncate">
+              <h1 className="text-[15px] font-semibold text-slate-900 tracking-tight truncate">
                 {SECTION_TITLES[section]}
               </h1>
             </div>
@@ -76,7 +77,7 @@ export function DashboardHeader({
           </div>
 
           <div className="min-w-0 lg:hidden">
-            <h1 className="text-base font-bold text-slate-900 tracking-tight">{SECTION_TITLES[section]}</h1>
+            <h1 className="text-base font-semibold text-slate-900 tracking-tight">{SECTION_TITLES[section]}</h1>
           </div>
         </div>
 
@@ -103,8 +104,8 @@ export function DashboardHeader({
           {section !== 'settings' && (
             <button
               type="button"
-              onClick={onNewDeck}
-              className="inline-flex items-center gap-1.5 h-8 px-4 rounded-md bg-primary text-white text-[12px] font-bold hover:bg-primaryHover transition-colors shadow-sm"
+              onClick={onCreateAIDeck || onNewDeck}
+              className="inline-flex items-center gap-1.5 h-8 px-4 rounded-md bg-primary text-white text-[13px] font-medium hover:bg-primaryHover transition-colors shadow-sm"
             >
               <Sparkles size={13} strokeWidth={2.5} /> Create AI Deck
             </button>
@@ -114,7 +115,7 @@ export function DashboardHeader({
             <button
               type="button"
               onClick={onOpenSettings}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-amber-200 bg-amber-50 text-[11px] font-bold text-amber-700 hover:bg-amber-100 transition-all"
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-amber-200 bg-amber-50 text-[12px] font-semibold text-amber-700 hover:bg-amber-100 transition-all"
             >
               <AlertTriangle size={12} strokeWidth={2.5} />
               <span className="hidden sm:inline">Low credits</span>

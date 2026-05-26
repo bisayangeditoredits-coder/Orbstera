@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { motion } from 'framer-motion';

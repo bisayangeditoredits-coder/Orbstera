@@ -78,12 +78,12 @@ const TUTORIALS = [
 
 export default function LearnPage() {
   return (
-    <main className="min-h-screen w-full bg-gradient-to-b from-[#EBF4FF] via-[#F4F9FF] to-white pb-24 pt-12">
+    <main className="min-h-screen w-full bg-gradient-to-b from-[#EBF4FF] via-[#F4F9FF] to-white pb-24 pt-32 lg:pt-40">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         
         {/* Header */}
         <div className="mb-12 max-w-3xl">
-          <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
+          <h1 className="text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
             Learn Orbstera
           </h1>
           <p className="mt-4 text-lg text-slate-600">
@@ -94,46 +94,53 @@ export default function LearnPage() {
         {/* Video Grid */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {TUTORIALS.map((tut, i) => (
-            <div 
+            <Link 
               key={i} 
-              className="group flex flex-col rounded-2xl bg-white p-5 shadow-[0_2px_12px_rgb(0,0,0,0.04)] ring-1 ring-slate-200/60 transition-all hover:-translate-y-1 hover:shadow-[0_8px_24px_rgb(0,0,0,0.08)]"
+              href="#"
+              className="group flex flex-col overflow-hidden rounded-2xl bg-white border border-slate-200/60 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-slate-300/80 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
             >
-              <div className="mb-3 flex">
-                <span className={`inline-flex items-center rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${tut.badgeColor}`}>
-                  {tut.badge}
-                </span>
-              </div>
-              
-              <h3 className="mb-2 text-[15px] font-bold leading-tight text-slate-900 line-clamp-2">
-                {tut.title}
-              </h3>
-              
-              <p className="mb-5 text-[13px] leading-relaxed text-slate-500 line-clamp-3 flex-grow">
-                {tut.desc}
-              </p>
-
-              {/* Vimeo Placeholder */}
-              <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-slate-900 transition-transform group-hover:scale-[1.02]">
+              {/* Full Bleed Video Thumbnail */}
+              <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-900 shrink-0">
                 {/* Simulated video background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 via-purple-900/40 to-slate-900/80" />
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop')] bg-cover bg-center opacity-30 mix-blend-overlay" />
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/60 via-slate-900/40 to-slate-900/80 z-0 transition-opacity duration-300 group-hover:opacity-80" />
+                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop')] bg-cover bg-center opacity-40 mix-blend-overlay transition-transform duration-700 ease-out group-hover:scale-105" />
                 
+                {/* Floating Badge (Glassmorphism) */}
+                <div className="absolute top-3 left-3 z-10">
+                  <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest backdrop-blur-md bg-white/10 text-white border border-white/20 shadow-sm">
+                    {tut.badge}
+                  </span>
+                </div>
+
                 {/* Play Button */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-md transition-transform group-hover:scale-110">
-                    <Play className="ml-1 h-5 w-5 fill-white text-white" />
+                <div className="absolute inset-0 z-10 flex items-center justify-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/20 backdrop-blur-md border border-white/30 transition-all duration-300 group-hover:scale-110 group-hover:bg-white/30 group-hover:shadow-lg">
+                    <Play className="ml-1 h-6 w-6 fill-white text-white" />
                   </div>
                 </div>
+                
+                {/* Duration Tag */}
+                <div className="absolute bottom-3 right-3 z-10">
+                  <span className="rounded bg-black/60 px-1.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm">
+                    {Math.floor(Math.random() * 5 + 2)}:{String(Math.floor(Math.random() * 60)).padStart(2, '0')}
+                  </span>
+                </div>
               </div>
-
-              {/* Action Link */}
-              <div className="mt-5 flex justify-end">
-                <Link href="#" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-blue-600 hover:text-blue-700 transition-colors">
-                  How to use
-                  <ArrowUpRight className="h-4 w-4" />
-                </Link>
+              
+              {/* Content Area */}
+              <div className="flex flex-col flex-grow p-5 sm:p-6">
+                <h3 className="mb-2 text-[16px] font-semibold leading-snug text-slate-900 group-hover:text-primary transition-colors line-clamp-2">
+                  {tut.title}
+                </h3>
+                <p className="mb-4 text-[13px] leading-relaxed text-slate-500 line-clamp-2 flex-grow">
+                  {tut.desc}
+                </p>
+                <div className="mt-auto flex items-center gap-1.5 text-[13px] font-semibold text-blue-600 transition-colors">
+                  Watch tutorial
+                  <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
 

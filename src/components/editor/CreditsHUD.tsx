@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -53,7 +53,7 @@ export function CreditsHUD() {
           <span className="font-bold tabular-nums tracking-tighter text-[14px]">
             {loading ? '--' : remaining.toLocaleString()}
           </span>
-          <span className="text-[10px] uppercase font-black text-neutral-400 tracking-widest opacity-70">
+          <span className="text-[10px] uppercase font-bold text-neutral-400 tracking-widest opacity-70">
             CR
           </span>
         </div>
@@ -94,12 +94,12 @@ export function CreditsHUD() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="text-[14px] font-black text-neutral-900 tracking-tight">
+                        <h4 className="text-[14px] font-bold text-neutral-900 tracking-tight">
                           {planNameDisplay}
                         </h4>
                         <div className="flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-600 rounded-full border border-green-100">
                           <CheckCircle2 size={8} />
-                          <span className="text-[9px] font-black uppercase tracking-tighter">Active</span>
+                          <span className="text-[9px] font-bold uppercase tracking-tighter">Active</span>
                         </div>
                       </div>
                       <p className="text-[11px] text-neutral-500 font-medium tracking-tight">
@@ -124,11 +124,11 @@ export function CreditsHUD() {
                 <div className="bg-neutral-50/50 rounded-2xl p-4 border border-black/[0.03]">
                   <div className="flex justify-between items-end mb-2.5">
                     <div className="space-y-0.5">
-                      <span className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">
+                      <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
                         Credits Available
                       </span>
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-3xl font-black tracking-tighter text-neutral-900 tabular-nums">
+                        <span className="text-3xl font-bold tracking-tighter text-neutral-900 tabular-nums">
                           {remaining.toLocaleString()}
                         </span>
                         <span className="text-[12px] font-bold text-neutral-400">CR</span>
@@ -157,7 +157,7 @@ export function CreditsHUD() {
                   </div>
                   <div className="flex justify-between items-center mt-2">
                     <span className="text-[10px] text-neutral-400 font-bold tracking-tight">Tier limit: {monthlyLimit.toLocaleString()} CR</span>
-                    <span className="text-[10px] text-primary font-black uppercase">{usagePct}% consumed</span>
+                    <span className="text-[10px] text-primary font-bold uppercase">{usagePct}% consumed</span>
                   </div>
                 </div>
 
@@ -165,7 +165,7 @@ export function CreditsHUD() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 px-1 mb-1">
                     <div className="h-px flex-1 bg-black/[0.04]" />
-                    <span className="text-[10px] font-black text-neutral-300 uppercase tracking-widest shrink-0">Engine Action Costs</span>
+                    <span className="text-[10px] font-bold text-neutral-300 uppercase tracking-widest shrink-0">Engine Action Costs</span>
                     <div className="h-px flex-1 bg-black/[0.04]" />
                   </div>
 
@@ -220,8 +220,8 @@ function CostCard({ icon, label, cost }: { icon: React.ReactNode, label: string,
         <span className="text-[11px] font-bold text-neutral-600 truncate tracking-tight">{label}</span>
       </div>
       <div className="flex items-center gap-1 pl-2">
-        <span className="text-[12px] font-black text-neutral-900 tabular-nums">{cost}</span>
-        <span className="text-[8px] font-black text-neutral-300 uppercase">CR</span>
+        <span className="text-[12px] font-bold text-neutral-900 tabular-nums">{cost}</span>
+        <span className="text-[8px] font-bold text-neutral-300 uppercase">CR</span>
       </div>
     </div>
   );

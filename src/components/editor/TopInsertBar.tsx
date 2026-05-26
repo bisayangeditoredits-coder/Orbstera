@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -89,7 +89,7 @@ function ImageDropdown({
     {
       icon: Map,
       label: 'Insert a Map',
-      sub: 'OpenStreetMap · Satellite · Terrain',
+      sub: 'OpenStreetMap Â· Satellite Â· Terrain',
       action: () => { onOpenPanel('map'); onClose(); },
     },
     {
@@ -117,7 +117,7 @@ function ImageDropdown({
         transform: 'translateX(-50%)',
       }}
     >
-      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-neutral-400 px-4 pt-3 pb-2">
+      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-400 px-4 pt-3 pb-2">
         Insert Image
       </p>
       <div className="px-2 pb-2 space-y-0.5">
@@ -196,7 +196,7 @@ function ShapesDropdown({
     >
       {/* Quick shapes grid */}
       <div className="p-3">
-        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-neutral-400 mb-2 px-1">
+        <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-400 mb-2 px-1">
           Quick Insert
         </p>
         <div className="grid grid-cols-3 gap-1.5">

@@ -3,6 +3,7 @@ import { HeroSection } from '@/components/landing/HeroSection';
 import { Footer } from '@/components/layout/Footer';
 
 const SocialProof = dynamic(() => import('@/components/landing/SocialProof').then((m) => ({ default: m.SocialProof })));
+const HowItWorks = dynamic(() => import('@/components/landing/HowItWorks').then((m) => ({ default: m.HowItWorks })));
 
 const FeatureDemos = dynamic(() => import('@/components/landing/FeatureDemos').then((m) => ({ default: m.FeatureDemos })));
 const AnalyticsMockup = dynamic(() => import('@/components/landing/AnalyticsMockup').then((m) => ({ default: m.AnalyticsMockup })));
@@ -20,6 +21,7 @@ export default function Home() {
     <main className="flex min-h-screen w-full max-w-[100vw] flex-col items-center justify-between overflow-x-clip">
       <HeroSection />
       <SocialProof />
+      <HowItWorks />
 
       <FeatureDemos />
       <AnalyticsMockup />

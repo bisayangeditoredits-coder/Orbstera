@@ -1,11 +1,11 @@
-'use client';
+﻿'use client';
 
 import { motion } from 'framer-motion';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 const STATS = [
-  { value: '10×', label: 'Faster than traditional tools' },
+  { value: '10Ã—', label: 'Faster than traditional tools' },
   { value: '50K+', label: 'Decks created worldwide' },
   { value: '98%', label: 'Would recommend Orbstera' },
 ];
@@ -59,7 +59,7 @@ export function AboutUs() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-80px' }}
               transition={{ duration: 0.6, delay: 0.05 }}
-              className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl lg:text-[2.75rem] lg:leading-[1.08]"
+              className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl lg:text-[2.75rem] lg:leading-[1.08]"
             >
               Presentations shouldn&apos;t take{' '}
               <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
@@ -108,7 +108,7 @@ export function AboutUs() {
                   transition={{ delay: 0.25 + i * 0.06 }}
                   className="rounded-2xl border border-white/60 bg-white/70 p-4 shadow-sm ring-1 ring-black/[0.04] backdrop-blur-md"
                 >
-                  <p className="text-2xl font-extrabold tracking-tight text-slate-900">{stat.value}</p>
+                  <p className="text-2xl font-semibold tracking-tight text-slate-900">{stat.value}</p>
                   <p className="mt-1 text-[11px] font-semibold leading-snug text-slate-500">{stat.label}</p>
                 </motion.div>
               ))}

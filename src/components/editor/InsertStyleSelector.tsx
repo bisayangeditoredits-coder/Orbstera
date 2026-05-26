@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 /**
  * InsertStyleSelector
@@ -35,13 +35,13 @@ const STYLE_OPTIONS: StyleOption[] = [
   {
     id: 'textBox',
     label: 'Text Box',
-    icon: '📝',
+    icon: 'ðŸ“',
     description: 'Plain text block on the slide',
   },
   {
     id: 'imageCard',
     label: 'Image Card',
-    icon: '🖼️',
+    icon: 'ðŸ–¼ï¸',
     description: 'Image with caption overlay',
   },
   {
@@ -53,19 +53,19 @@ const STYLE_OPTIONS: StyleOption[] = [
   {
     id: 'fullBleed',
     label: 'Full Bleed',
-    icon: '🌅',
+    icon: 'ðŸŒ…',
     description: 'Full-canvas background image',
   },
   {
     id: 'quote',
     label: 'Quote',
-    icon: '❝',
+    icon: 'â',
     description: 'Centered pull-quote style',
   },
   {
     id: 'list',
     label: 'Bullet List',
-    icon: '📋',
+    icon: 'ðŸ“‹',
     description: 'Bulleted content list',
   },
 ];

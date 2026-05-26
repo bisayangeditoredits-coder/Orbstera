@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useReducedMotion } from 'framer-motion';
 import { usePathname } from 'next/navigation';

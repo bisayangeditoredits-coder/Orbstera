@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
@@ -38,7 +38,7 @@ export function Showcase() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl"
           >
             Create beautiful presentations, documents, and websites.
           </motion.h2>

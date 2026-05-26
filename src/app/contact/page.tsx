@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -7,9 +7,9 @@ import { Mail, MapPin, Phone, ArrowRight, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const OFFICES = [
-  { city: "San Francisco", address: "101 Mission Street, Suite 2400", flag: "🇺🇸" },
-  { city: "London", address: "22 Bishopsgate, EC2N 4BQ", flag: "🇬🇧" },
-  { city: "Singapore", address: "Marina Bay Financial Centre", flag: "🇸🇬" },
+  { city: "San Francisco", address: "101 Mission Street, Suite 2400", flag: "ðŸ‡ºðŸ‡¸" },
+  { city: "London", address: "22 Bishopsgate, EC2N 4BQ", flag: "ðŸ‡¬ðŸ‡§" },
+  { city: "Singapore", address: "Marina Bay Financial Centre", flag: "ðŸ‡¸ðŸ‡¬" },
 ];
 
 export default function ContactPage() {
@@ -43,7 +43,7 @@ export default function ContactPage() {
             <div className="w-1.5 h-1.5 bg-white rounded-full" />
             Contact Orbstera
           </div>
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter text-white leading-[1] mb-6 max-w-3xl">
+          <h1 className="text-5xl md:text-7xl font-semibold tracking-tighter text-white leading-[1] mb-6 max-w-3xl">
             Let&apos;s build something <span className="text-blue-200">extraordinary.</span>
           </h1>
           <p className="text-white/60 text-lg max-w-xl leading-relaxed">

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -229,7 +229,7 @@ export function ShareModal({
                 </p>
                 <h2
                   id="share-modal-title"
-                  className="mt-2 font-montserrat text-lg font-bold text-slate-900"
+                  className="mt-2 text-lg font-bold text-slate-900"
                 >
                   Share deck
                 </h2>
@@ -277,14 +277,14 @@ export function ShareModal({
                   <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
                     Share
                   </p>
-                  <h2 className="mt-1 font-montserrat text-lg font-bold text-slate-900">
+                  <h2 className="mt-1 text-lg font-bold text-slate-900">
                     Share deck
                   </h2>
                 </div>
                 <div className="hidden min-w-0 flex-1 sm:block">
                   {activeTab === 'access' && (
                     <>
-                      <h3 className="font-montserrat text-xl font-bold text-slate-900">
+                      <h3 className="text-xl font-bold text-slate-900">
                         Share this presentation
                       </h3>
                       <p className="mt-1 text-sm text-slate-600">
@@ -294,7 +294,7 @@ export function ShareModal({
                   )}
                   {activeTab === 'export' && (
                     <>
-                      <h3 className="font-montserrat text-xl font-bold text-slate-900">Export</h3>
+                      <h3 className="text-xl font-bold text-slate-900">Export</h3>
                       <p className="mt-1 text-sm text-slate-600">
                         Download your presentation in popular formats.
                       </p>
@@ -302,7 +302,7 @@ export function ShareModal({
                   )}
                   {activeTab === 'embed' && (
                     <>
-                      <h3 className="font-montserrat text-xl font-bold text-slate-900">Embed</h3>
+                      <h3 className="text-xl font-bold text-slate-900">Embed</h3>
                       <p className="mt-1 text-sm text-slate-600">
                         Paste this code into your website or Notion page.
                       </p>
@@ -331,7 +331,7 @@ export function ShareModal({
                       className="space-y-6"
                     >
                       <div className="sm:hidden">
-                        <h3 className="font-montserrat text-lg font-bold text-slate-900">
+                        <h3 className="text-lg font-bold text-slate-900">
                           Share this presentation
                         </h3>
                         <p className="mt-1 text-sm text-slate-600">
@@ -457,7 +457,7 @@ export function ShareModal({
                       className="space-y-6"
                     >
                       <div className="sm:hidden">
-                        <h3 className="font-montserrat text-lg font-bold text-slate-900">Export</h3>
+                        <h3 className="text-lg font-bold text-slate-900">Export</h3>
                         <p className="mt-1 text-sm text-slate-600">
                           Download your presentation in popular formats.
                         </p>
@@ -513,7 +513,7 @@ export function ShareModal({
                       className="space-y-6"
                     >
                       <div className="sm:hidden">
-                        <h3 className="font-montserrat text-lg font-bold text-slate-900">Embed</h3>
+                        <h3 className="text-lg font-bold text-slate-900">Embed</h3>
                         <p className="mt-1 text-sm text-slate-600">
                           Paste this code into your website or Notion page.
                         </p>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import 'animate.css';
 import { memo, useMemo } from 'react';

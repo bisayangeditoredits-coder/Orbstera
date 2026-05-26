@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
+import { apiLog, captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import { getServiceSupabase } from '@/lib/billing/supabase-admin';
 import {
   applySubscriptionUpgrade,
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     const data = payload.data;
     const eventId = String(payload.id || payload.event_id || `${eventType}:${data?.id || ''}`);
 
-    console.log(`[Dodo Webhook] Received event: ${eventType}`);
+    apiLog('dodo-webhook', 'info', `Received event: ${eventType}`, { requestId });
 
     if (
       eventType === 'subscription.active' ||
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     ) {
       const shouldProcess = await markWebhookEventProcessed(supabaseAdmin, eventId);
       if (!shouldProcess) {
-        console.log(`[Dodo Webhook] Duplicate event ${eventId}, skipping`);
+        apiLog('dodo-webhook', 'info', 'Duplicate event, skipping', { requestId });
         return NextResponse.json({ received: true, duplicate: true });
       }
 

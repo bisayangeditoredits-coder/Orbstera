@@ -210,7 +210,7 @@ export async function POST(req: Request) {
       try {
         const cachedResult = await redis.get(cacheKey);
         if (cachedResult && typeof cachedResult === 'object' && !Array.isArray(cachedResult)) {
-          console.log('Serving ENHANCED PPT from Redis cache:', cacheKey);
+          // cache hit - served from Redis
           const base = { ...(cachedResult as Record<string, unknown>) };
           return NextResponse.json(fileUrl ? { ...base, originalFileUrl: fileUrl } : base);
         }
@@ -304,7 +304,7 @@ export async function POST(req: Request) {
     if (redis) {
       try {
         await redis.set(cacheKey, parsedJson, { ex: 86400 }); // Cache for 24 hours
-        console.log('Saved ENHANCED PPT to Redis cache:', cacheKey);
+        // saved to Redis cache
       } catch (cacheSetError) {
         console.error('Redis cache set error:', cacheSetError);
       }

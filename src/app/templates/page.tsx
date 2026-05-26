@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -110,7 +110,7 @@ export default function TemplatesPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-5xl md:text-6xl font-extrabold text-neutral-900 tracking-tighter mb-6"
+            className="text-5xl md:text-6xl font-semibold text-neutral-900 tracking-tighter mb-6"
           >
             What do you want to <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-600">build today?</span>
           </motion.h1>
