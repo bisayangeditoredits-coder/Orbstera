@@ -33,6 +33,7 @@ export function Footer() {
               <Link href="/templates" className="hover:text-slate-900 transition-colors">Templates</Link>
               <Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link>
               <Link href="/learn" className="hover:text-slate-900 transition-colors">How to Use</Link>
+              <Link href="/use-cases" className="hover:text-slate-900 transition-colors">Use Cases</Link>
             </div>
           </div>
           <div className="space-y-6 min-w-[120px]">
@@ -40,6 +41,7 @@ export function Footer() {
             <div className="flex flex-col gap-4 text-[14px] font-medium">
               <Link href="/about" className="hover:text-slate-900 transition-colors">About</Link>
               <Link href="/changelog" className="hover:text-slate-900 transition-colors">Changelog</Link>
+              <Link href="/roadmap" className="hover:text-slate-900 transition-colors">Roadmap</Link>
               <Link href="/blog" className="hover:text-slate-900 transition-colors">Blog</Link>
               <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
             </div>
@@ -49,6 +51,7 @@ export function Footer() {
             <div className="flex flex-col gap-4 text-[14px] font-medium">
               <Link href="/faq" className="hover:text-slate-900 transition-colors">FAQ</Link>
               <Link href="/contact" className="hover:text-slate-900 transition-colors">Help Center</Link>
+              <Link href="/status" className="hover:text-slate-900 transition-colors">Status</Link>
             </div>
           </div>
         </div>

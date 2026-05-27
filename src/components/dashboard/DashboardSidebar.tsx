@@ -89,7 +89,7 @@ export function DashboardSidebar({
               <>
                 <Icon
                   size={18}
-                  strokeWidth={2}
+                  strokeWidth={1.5}
                   className={active ? 'text-slate-900' : isComingSoon ? 'text-slate-300' : 'text-slate-600 group-hover:text-slate-800'}
                 />
                 <span className="flex-1">{label}</span>
@@ -143,7 +143,7 @@ export function DashboardSidebar({
                     className="group flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-slate-200/70"
                   >
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200/60 bg-white group-hover:border-slate-300">
-                      <LayoutTemplate size={16} strokeWidth={2} className="text-slate-600 group-hover:text-slate-800 transition-colors" />
+                      <LayoutTemplate size={16} strokeWidth={1.5} className="text-slate-600 group-hover:text-slate-800 transition-colors" />
                     </div>
                     <div className="flex flex-col min-w-0">
                       <span className="truncate text-[14px] font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
@@ -190,7 +190,7 @@ export function DashboardSidebar({
               {formatPlanLabel(plan)}
             </div>
           </div>
-          <ChevronDown size={14} className="shrink-0 text-slate-400" strokeWidth={2} />
+          <ChevronDown size={14} className="shrink-0 text-slate-400" strokeWidth={1.5} />
         </button>
       </div>
     </>
@@ -228,7 +228,7 @@ export function DashboardSidebar({
             className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"
             aria-label="Close sidebar"
           >
-            <X size={22} strokeWidth={1.75} />
+            <X size={22} strokeWidth={1.5} />
           </button>
         </div>
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{inner}</div>

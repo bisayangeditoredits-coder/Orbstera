@@ -18,7 +18,7 @@ const TUTORIALS = [
 
 export default function LearnPage() {
   return (
-    <main className="min-h-screen w-full bg-gradient-to-b from-[#EBF4FF] via-[#F4F9FF] to-white pb-24 pt-32 lg:pt-40">
+    <main className="min-h-screen w-full bg-gradient-to-b from-[#EBF4FF] via-[#F4F9FF] to-white pb-24 pt-10 sm:pt-14 lg:pt-16">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         
         {/* Header */}

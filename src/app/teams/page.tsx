@@ -18,7 +18,7 @@ export default function TeamsPage() {
   const bottomTeam = TEAM.slice(2);
 
   return (
-    <main className="min-h-screen w-full bg-white pt-24 font-sans text-slate-900 overflow-x-hidden">
+    <main className="min-h-screen w-full bg-white pt-8 sm:pt-12 font-sans text-slate-900 overflow-x-hidden">
       
       {/* 1. HERO HEADER */}
       <section className="max-w-6xl mx-auto px-6 sm:px-12 py-16">

@@ -56,6 +56,7 @@ function SlideCountDropdown({
         <ChevronDown
           size={14}
           className={`text-textMuted transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          strokeWidth={1.5}
         />
       </button>
 
@@ -128,7 +129,7 @@ function SlideCountDropdown({
             exit={{ opacity: 0 }}
             className="absolute left-0 top-full mt-1.5 z-[60] flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] font-semibold text-amber-800 shadow-lg whitespace-nowrap"
           >
-            <Lock size={11} />
+            <Lock size={11} strokeWidth={1.5} />
             <Link href="/pricing" className="underline underline-offset-2">Upgrade to Pro</Link> for more slides
           </motion.div>
         )}
@@ -693,7 +694,7 @@ export function HeroSection() {
   };
 
   return (
-    <section className="relative w-full min-h-screen flex flex-col items-center pt-[max(6.25rem,calc(env(safe-area-inset-top)+5rem))] sm:pt-24 md:pt-28 pb-8 sm:pb-12 overflow-x-clip bg-gradient-to-b from-[#e6e8ff] via-white to-white">
+    <section className="relative w-full min-h-screen flex flex-col items-center pt-8 sm:pt-12 md:pt-14 pb-8 sm:pb-12 overflow-x-clip bg-gradient-to-b from-[#e6e8ff] via-white to-white">
       {/* Hidden File Input */}
       <input
         type="file"
@@ -745,7 +746,11 @@ export function HeroSection() {
           <span className="text-[10px] sm:text-[11px] font-bold text-textMain/80 uppercase tracking-[0.08em] leading-tight text-center">
             Cinematic Engine Unleashed
           </span>
-          <ArrowRight size={12} className="text-textMuted group-hover:translate-x-1 transition-transform hidden xs:block shrink-0" />
+          <ArrowRight
+            size={12}
+            strokeWidth={1.5}
+            className="text-textMuted group-hover:translate-x-1 transition-transform hidden xs:block shrink-0"
+          />
           <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         </motion.div>
 
@@ -781,25 +786,25 @@ export function HeroSection() {
             <button
               type="button"
               onClick={() => { stopVoiceSession(); setActiveMode('create'); }}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'create' ? 'bg-primary text-white shadow-lg' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-medium uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'create' ? 'bg-primary text-white shadow-lg' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
             >
-              <Wand2 size={14} />
+              <Wand2 size={14} strokeWidth={1.5} />
               <span>Create New</span>
             </button>
             <button
               type="button"
               onClick={() => { stopVoiceSession(); setActiveMode('enhance'); }}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'enhance' ? 'bg-primary text-white shadow-lg' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-medium uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'enhance' ? 'bg-primary text-white shadow-lg' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
             >
-              <Upload size={14} />
+              <Upload size={14} strokeWidth={1.5} />
               <span>Enhance PPT</span>
             </button>
             <button
               type="button"
               onClick={() => { stopVoiceSession(); setActiveMode('voice'); setPrompt(''); setInterimTranscript(''); interimLiveRef.current = ''; accumulatedTextRef.current = ''; }}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'voice' ? 'bg-primary text-white shadow-[0_0_20px_rgba(0,9,250,0.4)]' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-medium uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'voice' ? 'bg-primary text-white shadow-[0_0_20px_rgba(0,9,250,0.4)]' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
             >
-              <Mic size={14} />
+              <Mic size={14} strokeWidth={1.5} />
               <span>Voice Protocol</span>
             </button>
           </div>
@@ -860,7 +865,7 @@ export function HeroSection() {
                         {!isListening && (
                           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <div className="w-12 h-12 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-white/20">
-                              <Mic size={24} className="text-primary" />
+                              <Mic size={24} strokeWidth={1.5} className="text-primary" />
                             </div>
                           </div>
                         )}
@@ -905,7 +910,11 @@ export function HeroSection() {
                       className="w-full flex-1 min-h-[7rem] sm:min-h-0 bg-transparent border-none focus:ring-0 focus:outline-none text-base sm:text-lg md:text-xl text-textMain placeholder:text-textMuted resize-none font-medium pr-11 sm:pr-10 pb-2"
                     />
                     <button onClick={toggleListening} className={`absolute right-0 top-0 p-2 rounded-lg transition-all ${isListening ? 'text-primary bg-primary/10' : 'text-textMuted hover:bg-panel'}`}>
-                      {isListening ? <Mic size={20} className="animate-pulse" /> : <MicOff size={20} className="opacity-40" />}
+                      {isListening ? (
+                        <Mic size={20} strokeWidth={1.5} className="animate-pulse" />
+                      ) : (
+                        <MicOff size={20} strokeWidth={1.5} className="opacity-40" />
+                      )}
                     </button>
                   </div>
                 ) : (
@@ -913,7 +922,7 @@ export function HeroSection() {
                     {!selectedFile ? (
                       <div onClick={() => fileInputRef.current?.click()} className="w-full h-full border-2 border-dashed border-panel rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-primary/[0.02] transition-all group">
                         <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                          <Upload size={20} />
+                          <Upload size={20} strokeWidth={1.5} />
                         </div>
                         <div className="text-center">
                           <p className="text-sm font-bold text-textMain">Upload PPTX</p>
@@ -922,10 +931,10 @@ export function HeroSection() {
                       </div>
                     ) : (
                       <div className="w-full h-full bg-primary/[0.03] rounded-2xl border border-primary/10 border-dashed flex flex-col items-center justify-center gap-2 relative">
-                        <CheckCircle size={24} className="text-primary animate-pulse" />
+                        <CheckCircle size={24} strokeWidth={1.5} className="text-primary animate-pulse" />
                         <p className="text-sm font-bold text-textMain">{selectedFile.name}</p>
                         <button onClick={() => setSelectedFile(null)} className="absolute top-4 right-4 p-2 text-textMuted hover:text-red-500 transition-colors">
-                          <X size={16} />
+                          <X size={16} strokeWidth={1.5} />
                         </button>
                       </div>
                     )}
@@ -939,7 +948,7 @@ export function HeroSection() {
                   <button
                     onClick={handleGenerate}
                     disabled={(!prompt.trim() && !interimTranscript.trim()) || isPending}
-                    className="group relative h-11 sm:h-12 px-8 sm:px-10 bg-primary text-white rounded-full text-[12px] sm:text-[13px] font-bold shadow-xl hover:bg-primaryHover hover:scale-[1.02] transition-all active:scale-95 flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none"
+                    className="group relative h-11 sm:h-12 px-8 sm:px-10 bg-primary text-white rounded-full text-[12px] sm:text-[13px] font-medium shadow-xl hover:bg-primaryHover hover:scale-[1.02] transition-all active:scale-95 flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none"
                   >
                     <motion.div
                       animate={{ x: ['-100%', '100%'] }}
@@ -949,10 +958,18 @@ export function HeroSection() {
                     {isPending ? (
                       <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin relative z-10" />
                     ) : (
-                      <Sparkles size={16} className="relative z-10 group-hover:rotate-12 transition-transform" />
+                      <Sparkles
+                        size={16}
+                        strokeWidth={1.5}
+                        className="relative z-10 group-hover:rotate-12 transition-transform"
+                      />
                     )}
                     <span className="relative z-10">{isPending ? 'Starting...' : 'Generate Presentation'}</span>
-                    <ArrowRight size={16} className="relative z-10 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight
+                      size={16}
+                      strokeWidth={1.5}
+                      className="relative z-10 group-hover:translate-x-1 transition-transform"
+                    />
                   </button>
                 </div>
               )}
@@ -964,13 +981,20 @@ export function HeroSection() {
                       type="button"
                       onClick={handleEnhancePrompt}
                       disabled={isEnhancing}
-                      className="group relative overflow-hidden flex items-center justify-center gap-1.5 px-5 sm:px-6 min-h-11 rounded-full text-[11px] sm:text-[12px] font-bold text-primary bg-gradient-to-b from-primary/5 to-primary/10 hover:from-primary/10 hover:to-primary/20 border border-primary/20 hover:border-primary/40 shadow-[0_2px_10px_rgba(0,9,250,0.05)] hover:shadow-[0_4px_20px_rgba(0,9,250,0.15)] transition-all duration-300 disabled:opacity-50 shrink-0 w-full sm:w-auto sm:mr-auto active:scale-[0.97]"
+                      className="group relative overflow-hidden flex items-center justify-center gap-1.5 px-5 sm:px-6 min-h-11 rounded-full text-[11px] sm:text-[12px] font-medium text-primary bg-gradient-to-b from-primary/5 to-primary/10 hover:from-primary/10 hover:to-primary/20 border border-primary/20 hover:border-primary/40 shadow-[0_2px_10px_rgba(0,9,250,0.05)] hover:shadow-[0_4px_20px_rgba(0,9,250,0.15)] transition-all duration-300 disabled:opacity-50 shrink-0 w-full sm:w-auto sm:mr-auto active:scale-[0.97]"
                     >
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent skew-x-[-20deg] translate-x-[-150%] group-hover:translate-x-[150%] transition-transform duration-700 ease-out" />
                       {isEnhancing ? (
                         <span className="relative z-10 animate-pulse">Enhancing...</span>
                       ) : (
-                        <><Sparkles size={14} className="relative z-10 group-hover:rotate-12 transition-transform" /> <span className="relative z-10">Enhance Prompt</span></>
+                        <>
+                          <Sparkles
+                            size={14}
+                            strokeWidth={1.5}
+                            className="relative z-10 group-hover:rotate-12 transition-transform"
+                          />{' '}
+                          <span className="relative z-10">Enhance Prompt</span>
+                        </>
                       )}
                     </button>
                   ) : null}
@@ -978,7 +1002,7 @@ export function HeroSection() {
                     type="button"
                     onClick={handleGenerate}
                     disabled={(activeMode === 'create' ? !prompt.trim() : !selectedFile) || isPending}
-                    className="group relative w-full sm:w-auto min-h-11 px-5 sm:px-8 justify-center bg-primary text-white rounded-full text-[11px] sm:text-[12px] font-bold shadow-xl hover:bg-primaryHover hover:scale-[1.01] sm:hover:scale-[1.02] transition-all active:scale-[0.98] flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none shrink-0"
+                      className="group relative w-full sm:w-auto min-h-11 px-5 sm:px-8 justify-center bg-primary text-white rounded-full text-[11px] sm:text-[12px] font-medium shadow-xl hover:bg-primaryHover hover:scale-[1.01] sm:hover:scale-[1.02] transition-all active:scale-[0.98] flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none shrink-0"
                   >
                     <motion.div
                       animate={{ x: ['-100%', '100%'] }}
@@ -991,7 +1015,11 @@ export function HeroSection() {
                     <span className="relative z-10 truncate max-w-[16rem] sm:max-w-none">
                       {isPending ? 'Starting...' : activeMode === 'enhance' ? 'Enhance PPT' : 'Generate Presentation'}
                     </span>
-                    <ArrowRight size={16} className="relative z-10 shrink-0 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight
+                      size={16}
+                      strokeWidth={1.5}
+                      className="relative z-10 shrink-0 group-hover:translate-x-1 transition-transform"
+                    />
                   </button>
                 </div>
               )}
@@ -1036,7 +1064,7 @@ export function HeroSection() {
               <div className="hidden md:flex items-center absolute left-1/2 -translate-x-1/2">
                 <div className="inline-flex items-center gap-0.5 rounded-2xl border border-black/[0.06] bg-neutral-100/85 p-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]">
                   <div className="flex items-center gap-2 px-3.5 h-[34px] rounded-[10px] text-[12px] font-semibold bg-white text-neutral-900 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)]">
-                    <Wand2 size={14} className="text-primary" strokeWidth={2} />
+                    <Wand2 size={14} className="text-primary" strokeWidth={1.5} />
                     <span>Generate</span>
                   </div>
                   <div className="flex items-center gap-2 px-3.5 h-[34px] rounded-[10px] text-[12px] font-semibold text-neutral-500">

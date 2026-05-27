@@ -14,7 +14,7 @@ const TEAM = [
 
 export default function AboutPage() {
   return (
-    <main className="min-h-screen w-full bg-white pt-32 font-sans text-slate-900 overflow-x-hidden">
+    <main className="min-h-screen w-full bg-white pt-10 sm:pt-14 font-sans text-slate-900 overflow-x-hidden">
       
       {/* 1. HERO SECTION (Premium Centered) */}
       <section className="max-w-7xl mx-auto px-6 sm:px-12 pb-24 text-center relative">

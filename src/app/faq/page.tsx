@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Metadata } from 'next';
 
@@ -34,9 +33,7 @@ const faqs = [
 export default function FAQPage() {
   return (
     <div className="min-h-screen bg-white selection:bg-primary/20 selection:text-primary flex flex-col">
-      <Navbar />
-
-      <main className="flex-1 pt-32 pb-24 px-6 relative z-10">
+      <main className="flex-1 pt-10 sm:pt-14 pb-24 px-6 relative z-10">
         <div className="max-w-3xl mx-auto">
           
           <div className="mb-16 text-center space-y-4">

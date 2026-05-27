@@ -65,7 +65,7 @@ export default function BlogPage() {
   const filtered = active === "All" ? POSTS : POSTS.filter(p => p.category === active);
 
   return (
-    <main className="min-h-screen w-full bg-white pt-24 font-sans text-slate-900 overflow-x-hidden">
+    <main className="min-h-screen w-full bg-white pt-8 sm:pt-12 font-sans text-slate-900 overflow-x-hidden">
 
       {/* ── 1. EDITORIAL HERO ── */}
       <section className="max-w-7xl mx-auto px-6 sm:px-12 pt-12 pb-0">

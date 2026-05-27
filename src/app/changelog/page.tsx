@@ -1,4 +1,3 @@
-import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Metadata } from 'next';
 import { Sparkles, Zap, Bug, Palette } from 'lucide-react';
@@ -45,9 +44,7 @@ const updates = [
 export default function ChangelogPage() {
   return (
     <div className="min-h-screen bg-white selection:bg-primary/20 selection:text-primary flex flex-col">
-      <Navbar />
-
-      <main className="flex-1 pt-32 pb-24 px-6 relative z-10">
+      <main className="flex-1 pt-10 sm:pt-14 pb-24 px-6 relative z-10">
         <div className="max-w-3xl mx-auto">
           
           <div className="mb-20 space-y-4">

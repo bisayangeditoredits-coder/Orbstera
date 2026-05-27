@@ -30,7 +30,7 @@ export function CreditWarningBanner({ credits }: CreditWarningBannerProps) {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-2.5 min-w-0">
           <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-amber-200/80 bg-white/80">
-            <Zap size={14} className="text-amber-600" strokeWidth={2} />
+            <Zap size={14} className="text-amber-600" strokeWidth={1.5} />
           </div>
           <div className="min-w-0">
             <p className="text-[13px] font-semibold text-amber-900 leading-snug">

@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { Navbar } from './Navbar';
+import { AnnouncementBanner } from './AnnouncementBanner';
 
 export function GlobalNavbar() {
   const pathname = usePathname();
@@ -22,5 +23,12 @@ export function GlobalNavbar() {
 
   if (isHidden) return null;
 
-  return <Navbar />;
+  return (
+    <div className="sticky top-0 z-[100] w-full bg-[#FDFCF9]">
+      <AnnouncementBanner />
+      <div className="px-4 pt-4 pb-3">
+        <Navbar />
+      </div>
+    </div>
+  );
 }

@@ -86,7 +86,7 @@ export default function TemplatesPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#FAFAFA] pt-32 pb-24 selection:bg-primary/20 selection:text-primary">
+    <main className="min-h-screen bg-[#FAFAFA] pt-10 sm:pt-14 pb-24 selection:bg-primary/20 selection:text-primary">
       {/* Background Decor */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]" />

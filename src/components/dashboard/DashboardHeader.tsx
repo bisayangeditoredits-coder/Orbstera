@@ -55,7 +55,7 @@ export function DashboardHeader({
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 transition lg:hidden"
             aria-label="Open menu"
           >
-            <Menu size={18} strokeWidth={1.75} />
+            <Menu size={18} strokeWidth={1.5} />
           </button>
 
           <div className="min-w-0 hidden lg:block">
@@ -66,7 +66,7 @@ export function DashboardHeader({
                   onClick={onBackToWorkspace}
                   className="flex items-center gap-1.5 text-[12px] font-semibold text-slate-400 hover:text-slate-700 transition-colors mr-1"
                 >
-                  <ArrowLeft size={13} />
+                  <ArrowLeft size={13} strokeWidth={1.5} />
                   Back
                 </button>
               )}
@@ -87,7 +87,7 @@ export function DashboardHeader({
           <div className="relative hidden flex-1 max-w-sm group sm:flex items-center mx-4">
             <Search
               size={15}
-              strokeWidth={2}
+              strokeWidth={1.5}
               className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-primary"
             />
             <input
@@ -108,7 +108,7 @@ export function DashboardHeader({
               onClick={onCreateAIDeck || onNewDeck}
               className="inline-flex items-center gap-1.5 h-8 px-4 rounded-md bg-primary text-white text-[13px] font-medium hover:bg-primaryHover transition-colors shadow-sm"
             >
-              <Sparkles size={13} strokeWidth={2.5} /> Create AI Deck
+              <Sparkles size={13} strokeWidth={1.5} /> Create AI Deck
             </button>
           )}
 
@@ -118,7 +118,7 @@ export function DashboardHeader({
               onClick={onOpenSettings}
               className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-amber-200 bg-amber-50 text-[12px] font-semibold text-amber-700 hover:bg-amber-100 transition-all"
             >
-              <AlertTriangle size={12} strokeWidth={2.5} />
+              <AlertTriangle size={12} strokeWidth={1.5} />
               <span className="hidden sm:inline">Low credits</span>
             </button>
           )}
@@ -140,7 +140,7 @@ export function DashboardHeader({
         <div className="relative px-4 pb-3 group sm:hidden">
           <Search
             size={15}
-            strokeWidth={2}
+            strokeWidth={1.5}
             className="pointer-events-none absolute left-7.5 top-1/2 -translate-y-1/2 text-slate-400"
           />
           <input

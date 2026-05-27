@@ -10,7 +10,7 @@ import {
 
 export default function FeaturesPage() {
   return (
-    <main className="min-h-screen w-full bg-white pt-24 font-sans text-slate-900 overflow-x-hidden">
+    <main className="min-h-screen w-full bg-white pt-8 sm:pt-12 font-sans text-slate-900 overflow-x-hidden">
       
       {/* 1. HERO SECTION: All the Essentials */}
       <section className="max-w-7xl mx-auto px-6 sm:px-12 py-16 text-center relative">
@@ -170,7 +170,7 @@ export default function FeaturesPage() {
       <section className="max-w-7xl mx-auto px-6 sm:px-12 py-24">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-4">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#0009fa] mb-4">Social Proof</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.25em] text-[#0009fa] mb-4">Social Proof</p>
             <h2 className="text-4xl md:text-5xl font-semibold text-[#1E293B] tracking-tighter">What our users say</h2>
           </div>
           <p className="text-slate-400 text-sm max-w-xs">Join thousands of professionals who have already transformed how they present.</p>
@@ -195,7 +195,7 @@ export default function FeaturesPage() {
               <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
                 <img src={t.avatar} alt={t.name} className="w-10 h-10 object-cover shrink-0" />
                 <div>
-                  <p className="font-bold text-[#1E293B] text-sm">{t.name}</p>
+                  <p className="font-medium text-[#1E293B] text-sm">{t.name}</p>
                   <p className="text-slate-400 text-xs">{t.role}</p>
                 </div>
               </div>
@@ -217,7 +217,7 @@ export default function FeaturesPage() {
            <p className="text-blue-100 mb-10 relative z-10">
              Start your free trial today and see the difference with Orbstera.
            </p>
-           <button onClick={() => window.dispatchEvent(new Event('open-lead-modal'))} className="bg-blue-500 text-white font-bold px-8 py-4 rounded-full hover:bg-blue-600 transition-colors shadow-lg relative z-10">
+           <button onClick={() => window.dispatchEvent(new Event('open-lead-modal'))} className="bg-blue-500 text-white font-medium px-8 py-4 rounded-full hover:bg-blue-600 transition-colors shadow-lg relative z-10">
              Get Started
            </button>
         </div>

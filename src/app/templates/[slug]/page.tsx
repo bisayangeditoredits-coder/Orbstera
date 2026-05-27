@@ -142,7 +142,7 @@ export default function TemplateViewPage({ params }: { params: { slug: string } 
   const IconComponent = (Icons as any)[template.icon_name] || Icons.Layout;
 
   return (
-    <main className="min-h-screen bg-[#FAFAFA] pt-24 pb-24 selection:bg-primary/20 selection:text-primary">
+    <main className="min-h-screen bg-[#FAFAFA] pt-10 sm:pt-14 pb-24 selection:bg-primary/20 selection:text-primary">
       {/* Background Decor */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-[-20%] right-[-10%] w-[50%] h-[50%] bg-primary/5 rounded-full blur-[150px]" />

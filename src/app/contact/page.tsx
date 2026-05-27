@@ -34,7 +34,7 @@ export default function ContactPage() {
     <div className="min-h-screen bg-white text-neutral-900 font-sans">
 
       {/* ── HERO ── */}
-      <section className="bg-gradient-to-br from-blue-600 to-blue-800 pt-32 pb-24 relative overflow-hidden">
+      <section className="bg-gradient-to-br from-blue-600 to-blue-800 pt-10 sm:pt-14 pb-24 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#ffffff 1.5px, transparent 1.5px)', backgroundSize: '28px 28px' }} />
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white/10 blur-[120px] rounded-full pointer-events-none" />
 

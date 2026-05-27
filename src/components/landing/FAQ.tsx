@@ -51,7 +51,7 @@ export function FAQ() {
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-16">
            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-[11px] font-bold uppercase tracking-widest mb-6">
-             <MessageCircleQuestion size={14} />
+             <MessageCircleQuestion size={14} strokeWidth={1.5} />
              Help Center
            </div>
            <h2 className="text-4xl md:text-5xl font-semibold text-slate-900 tracking-tight">Frequently Asked Questions</h2>
@@ -65,7 +65,11 @@ export function FAQ() {
                 onClick={() => setOpenIndex(openIndex === i ? null : i)}
               >
                 <span className="text-lg tracking-tight">{faq.q}</span>
-                <ChevronDown className={`text-slate-400 transition-transform ${openIndex === i ? 'rotate-180 text-indigo-500' : ''}`} size={20} />
+                <ChevronDown
+                  className={`text-slate-400 transition-transform ${openIndex === i ? 'rotate-180 text-indigo-500' : ''}`}
+                  size={20}
+                  strokeWidth={1.5}
+                />
               </button>
               <AnimatePresence>
                 {openIndex === i && (
