@@ -477,7 +477,7 @@ export function ShareModal({
                           className="group flex flex-col items-start gap-4 rounded-xl border border-slate-200 bg-white p-6 text-left ring-1 ring-slate-200 transition-all hover:border-primary/30 hover:shadow-md"
                         >
                           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-50/50">
-                            <img src="/330px-PDF_file_icon.svg.png" alt="PDF Icon" className="h-10 w-10 object-contain" />
+                            <img src="/pdf-icon.png" alt="PDF Icon" className="h-10 w-10 object-contain" />
                           </div>
                           <div>
                             <h4 className="font-bold text-slate-900">PDF</h4>
@@ -495,7 +495,7 @@ export function ShareModal({
                           className="group flex flex-col items-start gap-4 rounded-xl border border-slate-200 bg-white p-6 text-left ring-1 ring-slate-200 transition-all hover:border-primary/30 hover:shadow-md"
                         >
                           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-50/50">
-                            <img src="/330px-Microsoft_Office_PowerPoint_(2019-2025).svg.png" alt="PowerPoint Icon" className="h-10 w-10 object-contain" />
+                            <img src="/ppt-icon.png" alt="PowerPoint Icon" className="h-10 w-10 object-contain" />
                           </div>
                           <div>
                             <h4 className="font-bold text-slate-900">PowerPoint</h4>

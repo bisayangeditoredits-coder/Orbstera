@@ -47,19 +47,19 @@ const FORMAT_OPTIONS: {
   id: ExportFormat;
   label: string;
   description: string;
-  icon: typeof Presentation;
+  icon: React.ComponentType<any>;
 }[] = [
   {
     id: 'pptx',
     label: 'Export as PPTX',
     description: 'Fully editable in PowerPoint and Keynote',
-    icon: Presentation,
+    icon: () => <img src="/ppt-icon.png" alt="PowerPoint" style={{ width: 24, height: 24 }} className="object-contain" />,
   },
   {
     id: 'pdf',
     label: 'Export as PDF',
     description: 'High quality static document',
-    icon: FileText,
+    icon: () => <img src="/pdf-icon.png" alt="PDF" style={{ width: 24, height: 24 }} className="object-contain" />,
   },
 ];
 
