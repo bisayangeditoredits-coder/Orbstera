@@ -37,11 +37,13 @@ export default function Home() {
       {/* Massive Premium Element Section */}
       <section className="w-full bg-[#FAFAFA] pt-8 pb-16 sm:pt-12 sm:pb-24 overflow-hidden border-t border-black/[0.04]">
         <div className="mx-auto max-w-7xl px-6 lg:px-8 flex flex-col items-center justify-center">
-          <div className="relative w-full max-w-5xl mx-auto max-h-[500px] flex items-center justify-center">
+          <div className="relative w-full max-w-5xl mx-auto max-h-[500px] flex items-center justify-center group">
+            {/* Hardware-accelerated glow instead of CSS drop-shadow on alpha channel */}
+            <div className="absolute inset-0 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/10 transition-colors duration-700 pointer-events-none" />
             <img 
               src="/premium-icons/oRBSTERA-ELEMENT 1.png" 
               alt="Orbstera Premium Element" 
-              className="w-full h-auto max-h-[500px] object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.15)] hover:scale-105 transition-transform duration-700"
+              className="relative z-10 w-full h-auto max-h-[500px] object-contain group-hover:scale-[1.02] transition-transform duration-700 ease-out will-change-transform"
             />
           </div>
         </div>
