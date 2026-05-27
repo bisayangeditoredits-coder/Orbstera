@@ -1,11 +1,11 @@
-﻿"use client";
+"use client";
 
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff, ShieldCheck, Zap, Clock3, Star, Lock, ChevronDown } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import Script from 'next/script';
+
 import { explainGetUserMediaError, explainRecognitionStartError } from '@/lib/mic-access';
 import { OnboardingModal } from '@/components/dashboard/OnboardingModal';
 import { useCredits } from '@/hooks/useCredits';
@@ -1099,12 +1099,14 @@ export function HeroSection() {
               style={{ transform: 'translateZ(0)', willChange: 'transform' }}
             >
               <iframe
-                src="https://player.vimeo.com/video/1190869944?badge=0&autopause=0&player_id=0&app_id=58479&autoplay=1&muted=1&loop=1"
+                src="https://www.youtube-nocookie.com/embed/q_rhPocHIOQ?si=Uwza9NwgWSB-taAT&start=1&autoplay=1&muted=1&loop=1&playlist=q_rhPocHIOQ&controls=0&modestbranding=1&rel=0&showinfo=0"
+                title="Orbstera Demo"
                 frameBorder="0"
-                allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
                 className="absolute top-0 left-0 w-full h-full"
-                title="Orbstera_Video"
+                loading="lazy"
               />
               {/* Invisible overlay to prevent scroll wheel trapping while leaving controls clickable */}
               <div className="absolute top-0 left-0 w-full h-[85%] z-10 cursor-default" />
@@ -1114,7 +1116,7 @@ export function HeroSection() {
       </div>
 
 
-      <Script src="https://player.vimeo.com/api/player.js" strategy="lazyOnload" />
+      {/* YouTube uses no external SDK — no extra script needed */}
       
       {/* Super simple light mode divider */}
       <div className="w-full h-px bg-black/[0.04] my-10 max-w-7xl mx-auto" />
