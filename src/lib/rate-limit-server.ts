@@ -82,17 +82,9 @@ async function runRateLimitChecks(
 
   for (const result of results) {
     if (result.status === 'rejected') {
-      if (process.env.NODE_ENV === 'production') {
-        console.error(`[rate-limit${logPrefix}] Redis error — failing closed:`, result.reason);
-        return NextResponse.json(
-          {
-            error: 'SERVICE_UNAVAILABLE',
-            message: 'Rate limiting is temporarily unavailable. Please try again later.',
-          },
-          { status: 503 },
-        );
-      }
-      console.warn(`[rate-limit${logPrefix}] Redis error — failing open (dev):`, result.reason);
+      // Fail open in ALL environments — a Redis hiccup should never block users from
+      // creating or saving presentations. Log the error for monitoring but allow through.
+      console.error(`[rate-limit${logPrefix}] Redis error — failing open:`, result.reason);
       continue;
     }
     if (!result.value.success) {
