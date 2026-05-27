@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -79,7 +79,12 @@ export function ShareModal({
 
   const publicUrl = useMemo(() => {
     if (typeof window === 'undefined') return '';
-    return `${window.location.origin}/share/${ownerUserId}/${deckId}`;
+    // Use the canonical app URL so share links always point to production,
+    // not a Vercel preview URL (e.g. orbstera-git-main-xxx.vercel.app).
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ||
+      window.location.origin;
+    return `${baseUrl}/share/${ownerUserId}/${deckId}`;
   }, [ownerUserId, deckId]);
 
   const embedCode = useMemo(() => {

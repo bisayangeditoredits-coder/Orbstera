@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -111,7 +111,6 @@ export function ExportModal({
           <div
             className="absolute inset-0 bg-black/45 backdrop-blur-sm"
             aria-hidden
-            onClick={phase === 'progress' ? undefined : onClose}
           />
 
           <motion.div

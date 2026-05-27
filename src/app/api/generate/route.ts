@@ -452,6 +452,12 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('[Generate] Internal error:', error);
     captureApiException(error, { requestId, route: 'POST /api/generate' });
+    // Refund credits if they were charged but we never got to the stream
+    if (typeof refundIfNeeded === 'function') {
+      try { await refundIfNeeded(); } catch (refundErr) {
+        console.error('[Generate] Refund failed on outer catch:', refundErr);
+      }
+    }
     return NextResponse.json({ error: 'An unexpected error occurred during generation.' }, { status: 500 });
   }
 }

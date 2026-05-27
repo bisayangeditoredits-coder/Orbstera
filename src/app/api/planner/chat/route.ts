@@ -192,12 +192,6 @@ export async function POST(req: Request) {
     // ── Save user message to DB (best-effort, non-blocking) ──────────────────
     if (sessionId && userId) {
       try {
-        const cookieStore = cookies();
-        const supabase = createServerClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-          { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } }
-        );
         const userMessage = messages[messages.length - 1];
         await supabase.from('chat_messages').insert({
           session_id: sessionId,
@@ -313,12 +307,7 @@ export async function POST(req: Request) {
       async flush() {
         if (sessionId && userId && fullResponse) {
           try {
-            const cookieStore = cookies();
-            const supabase = createServerClient(
-              process.env.NEXT_PUBLIC_SUPABASE_URL!,
-              process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-              { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } }
-            );
+            // Reuse the shared supabase client — no new connection needed
             await supabase.from('chat_messages').insert({
               session_id: sessionId,
               role: 'assistant',

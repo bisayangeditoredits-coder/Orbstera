@@ -7,7 +7,17 @@ import { getServiceSupabase } from '@/lib/billing/supabase-admin';
  */
 export async function getBillingPlan(userId: string): Promise<PlanTier> {
   const admin = getServiceSupabase();
-  if (!admin) return 'free';
+  if (!admin) {
+    // CRITICAL: Without SUPABASE_SERVICE_ROLE_KEY, ALL users are treated as free.
+    // Paid subscribers (Student Pro / Creator Pro) will lose access to their plan.
+    // Set SUPABASE_SERVICE_ROLE_KEY in Vercel Environment Variables immediately.
+    console.error(
+      '[billing] SUPABASE_SERVICE_ROLE_KEY is missing or invalid. ' +
+      'Cannot resolve billing plan — all users will be treated as FREE. ' +
+      'Paying users will lose access to their purchased plan features.'
+    );
+    return 'free';
+  }
 
   try {
     const { data, error } = await admin
