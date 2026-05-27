@@ -32,6 +32,8 @@ export const maxDuration = 300;
 
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
+  // Declared in outer scope so the catch block can refund credits on any error.
+  let refundIfNeeded: (() => Promise<void>) | null = null;
   try {
     const contentLength = Number(req.headers.get('content-length') ?? 0);
     if (contentLength > 1 * 1024 * 1024) { // 1MB max payload
@@ -161,7 +163,7 @@ export async function POST(req: Request) {
     }
 
     let creditsRefunded = false;
-    const refundIfNeeded = async () => {
+    refundIfNeeded = async () => {
       if (creditsRefunded) return;
       creditsRefunded = true;
       await refundCreditsForUser({
@@ -453,7 +455,7 @@ export async function POST(req: Request) {
     console.error('[Generate] Internal error:', error);
     captureApiException(error, { requestId, route: 'POST /api/generate' });
     // Refund credits if they were charged but we never got to the stream
-    if (typeof refundIfNeeded === 'function') {
+    if (refundIfNeeded) {
       try { await refundIfNeeded(); } catch (refundErr) {
         console.error('[Generate] Refund failed on outer catch:', refundErr);
       }
