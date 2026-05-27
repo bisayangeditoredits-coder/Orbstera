@@ -3,7 +3,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import {
-  flushPresentationCloudSaveKeepalive,
   postPresentationCloudSave,
 } from '@/lib/presentation-cloud-save';
 import { buildPresentationUpdatesAfterCloudSave } from '@/lib/merge-cloud-prepared';
@@ -157,7 +156,6 @@ export function usePresentationCloudSync() {
     const body = usePresentationStore.getState().presentation;
     if (!body?.id) return;
     void enqueueCloudSave(async () => {
-      await flushPresentationCloudSaveKeepalive(body);
       await runSaveInternal();
       dirtyRef.current = false;
     });

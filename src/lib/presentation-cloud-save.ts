@@ -382,6 +382,7 @@ export async function postPresentationCloudSave(presentation: PresentationData):
           headers,
           body,
           cache: 'no-store',
+          keepalive: payloadBytes <= CLOUD_SAVE_KEEPALIVE_MAX_BYTES,
         });
   return { response, prepared };
 }
