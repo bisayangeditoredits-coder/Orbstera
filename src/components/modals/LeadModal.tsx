@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
@@ -53,9 +53,9 @@ export function LeadModal({ open, onClose }: LeadModalProps) {
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-6 shadow-sm">
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-2">You're on the list!</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mb-2">You&apos;re on the list!</h3>
                 <p className="text-slate-500">
-                  We'll let you know as soon as Orbstera is ready for you. Keep an eye on your inbox.
+                  We&apos;ll let you know as soon as Orbstera is ready for you. Keep an eye on your inbox.
                 </p>
               </motion.div>
             ) : (
@@ -72,7 +72,7 @@ export function LeadModal({ open, onClose }: LeadModalProps) {
                 
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">Join the Waitlist</h2>
                 <p className="text-slate-500 text-sm mb-8">
-                  Get exclusive early access to Orbstera's AI presentation tools before anyone else. We're launching soon!
+                  Get exclusive early access to Orbstera&apos;s AI presentation tools before anyone else. We&apos;re launching soon!
                 </p>
 
                 <form onSubmit={handleSubmit} className="space-y-4">

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
@@ -676,7 +676,7 @@ export function PublicViewer({
               style={{ background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(12px)' }}
             >
               <Sparkles size={11} className="text-indigo-600" />
-              Make your own — it's free
+              Make your own — it&apos;s free
               <ExternalLink size={10} />
             </a>
           </motion.div>

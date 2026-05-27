@@ -19,7 +19,7 @@ export function SocialProof() {
           viewport={{ once: true }}
           className="text-center text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-widest mb-12 sm:mb-16"
         >
-          Powering the world's most innovative presentations
+          Powering the world&apos;s most innovative presentations
         </motion.p>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">

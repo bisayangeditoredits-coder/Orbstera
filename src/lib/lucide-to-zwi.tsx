@@ -1,8 +1,8 @@
-﻿import React from 'react';
+import React from 'react';
 import { ZwiIcon } from '@/components/ui/ZwiIcon';
 
 function withZwi(name: string) {
-  return React.forwardRef<HTMLElement, any>((props, ref) => {
+  const Comp = React.forwardRef<HTMLElement, any>((props, ref) => {
     const { size, color, className, strokeWidth, ...rest } = props;
     return (
       <ZwiIcon
@@ -15,6 +15,8 @@ function withZwi(name: string) {
       />
     );
   });
+  Comp.displayName = `ZwiIcon(${name})`;
+  return Comp;
 }
 
 // Mapping of Lucide icons to Zwicon classes

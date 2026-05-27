@@ -79,12 +79,12 @@ export async function processGenerateJobViaHttp(payload: ProcessGenerateJobPaylo
   }
 }
 
-export function useGenerateWorkerHttpCallback(): boolean {
+export function shouldUseGenerateWorkerHttpCallback(): boolean {
   return process.env.GENERATE_WORKER_USE_HTTP_CALLBACK === 'true';
 }
 
 export async function processGenerateJob(payload: ProcessGenerateJobPayload): Promise<void> {
-  if (useGenerateWorkerHttpCallback()) {
+  if (shouldUseGenerateWorkerHttpCallback()) {
     return processGenerateJobViaHttp(payload);
   }
   return processGenerateJobInline(payload);
