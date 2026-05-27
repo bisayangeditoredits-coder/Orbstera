@@ -416,7 +416,7 @@ export async function POST(req: Request) {
             sendOrb({
               orb: { phase: 'error', message: 'Generation could not complete. Try again shortly.' },
             });
-            await refundIfNeeded();
+            await refundIfNeeded?.();
             void updateJobRecord(jobId, { status: 'failed', error: 'Stream failed' });
           } else {
             if (freeTaste) {
@@ -427,7 +427,7 @@ export async function POST(req: Request) {
         } catch (e: unknown) {
           console.error('[Generate] stream error:', e);
           captureApiException(e, { requestId, route: 'POST /api/generate stream' });
-          await refundIfNeeded();
+          await refundIfNeeded?.();
           void updateJobRecord(jobId, {
             status: 'failed',
             error: e instanceof Error ? e.message : 'Stream failed',
