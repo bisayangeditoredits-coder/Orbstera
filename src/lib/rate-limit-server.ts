@@ -41,19 +41,17 @@ const LIMITS = {
   },
 } as const;
 
-/** Fail closed in production when Upstash is not configured. */
+/** Fail open in production when Upstash is not configured so the app still works. */
 export function requireRateLimitInfrastructure(): NextResponse | null {
   if (process.env.NODE_ENV !== 'production') return null;
   const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
   const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
   if (url && token && redis) return null;
-  return NextResponse.json(
-    {
-      error: 'SERVICE_UNAVAILABLE',
-      message: 'Rate limiting is not configured. Please try again later.',
-    },
-    { status: 503 },
-  );
+  
+  // FIXED: Changed from failing closed (503 SERVICE_UNAVAILABLE) to failing open (null).
+  // This allows the app to function without rate limits if Upstash Redis isn't set up yet.
+  console.warn('Rate limiting is bypassed because UPSTASH_REDIS_REST_URL is missing.');
+  return null;
 }
 
 // ── Singleton limiters (created once per process) ─────────────────────────────
