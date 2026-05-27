@@ -1099,7 +1099,7 @@ export function HeroSection() {
               style={{ transform: 'translateZ(0)', willChange: 'transform' }}
             >
               <iframe
-                src="https://www.youtube-nocookie.com/embed/q_rhPocHIOQ?si=Uwza9NwgWSB-taAT&start=1&autoplay=1&muted=1&loop=1&playlist=q_rhPocHIOQ&controls=0&modestbranding=1&rel=0&showinfo=0"
+                src="https://www.youtube-nocookie.com/embed/q_rhPocHIOQ?si=Uwza9NwgWSB-taAT&start=1&autoplay=1&mute=1&loop=1&playlist=q_rhPocHIOQ&controls=1&modestbranding=1&rel=0&showinfo=0"
                 title="Orbstera Demo"
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -1109,7 +1109,7 @@ export function HeroSection() {
                 loading="lazy"
               />
               {/* Invisible overlay to prevent scroll wheel trapping while leaving controls clickable */}
-              <div className="absolute top-0 left-0 w-full h-[85%] z-10 cursor-default" />
+              <div className="absolute top-0 left-0 w-full h-[80%] z-10 cursor-default" />
             </div>
           </div>
         </motion.div>
