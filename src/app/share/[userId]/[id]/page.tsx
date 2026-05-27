@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { Lock } from 'lucide-react';
 import { PublicViewer } from '@/components/viewer/PublicViewer';
+import { getBillingPlan } from '@/lib/billing/resolve-plan';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,9 +107,11 @@ export default async function PublicPresentationPage({
       return <PrivateShareGate />;
     }
 
+    const ownerPlan = await getBillingPlan(userId);
+
     return (
       <main className="w-full h-screen bg-[#010104] overflow-hidden">
-        <PublicViewer presentation={presentation} />
+        <PublicViewer presentation={presentation} ownerPlan={ownerPlan} />
       </main>
     );
   } catch (error: any) {

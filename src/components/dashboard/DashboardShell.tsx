@@ -16,6 +16,7 @@ const NewDeckModal = dynamic(
 );
 import { DashboardSidebar } from './DashboardSidebar';
 import { DashboardHeader } from './DashboardHeader';
+import { CreditWarningBanner } from './CreditWarningBanner';
 import { DashboardStats } from './DashboardStats';
 import { PresentationGrid } from './PresentationGrid';
 import { DashboardSettings } from './DashboardSettings';
@@ -222,6 +223,8 @@ export function DashboardShell() {
           onOpenSettings={() => navigateSection('settings')}
           onBackToWorkspace={() => navigateSection('overview')}
         />
+
+        <CreditWarningBanner credits={credits} />
 
         <main className="flex-1 overflow-y-auto px-5 pb-12 pt-5 sm:px-8 sm:pb-16">
           <NewDeckModal open={newDeckOpen} onClose={() => setNewDeckOpen(false)} />

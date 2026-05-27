@@ -29,6 +29,8 @@ import {
 } from '@/lib/presentationMotion';
 import { createClient } from '@/lib/supabase';
 import { exportToPptx } from '@/lib/export';
+import { ShareWatermarkBadge } from './ShareWatermarkBadge';
+import { ShareVisitorCtaBar } from './ShareVisitorCtaBar';
 
 // ── Export Progress Modal ─────────────────────────────────────────────────────
 const EXPORT_STEPS = [
@@ -171,8 +173,15 @@ function ExportModal({ step, done, error, onClose }: {
   );
 }
 
-export function PublicViewer({ presentation }: { presentation: PresentationData }) {
+export function PublicViewer({
+  presentation,
+  ownerPlan,
+}: {
+  presentation: PresentationData;
+  ownerPlan?: string;
+}) {
   const [started, setStarted] = useState(false);
+  const [visitorCtaVisible, setVisitorCtaVisible] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const [scale, setScale] = useState(1);
@@ -499,6 +508,9 @@ export function PublicViewer({ presentation }: { presentation: PresentationData 
             <ExternalLink size={10} />
           </a>
         </div>
+
+        <ShareVisitorCtaBar onVisibilityChange={setVisitorCtaVisible} />
+        <ShareWatermarkBadge ownerPlan={ownerPlan} hasBottomBar={visitorCtaVisible} />
       </div>
     );
   }
@@ -728,6 +740,9 @@ export function PublicViewer({ presentation }: { presentation: PresentationData 
           />
         )}
       </AnimatePresence>
+
+      <ShareVisitorCtaBar onVisibilityChange={setVisitorCtaVisible} />
+      <ShareWatermarkBadge ownerPlan={ownerPlan} hasBottomBar={visitorCtaVisible} />
     </div>
   );
 }

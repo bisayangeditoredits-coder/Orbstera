@@ -45,10 +45,10 @@ const nextConfig = {
     ],
   },
 
-  // FIXED: Moved from experimental.serverComponentsExternalPackages (deprecated in Next.js 14.2)
-  serverExternalPackages: ['canvas'],
-
+  // Prevent canvas native module from being bundled server-side
+  // Note: serverExternalPackages is the Next.js 15 name; for 14.2 we use experimental.serverComponentsExternalPackages
   experimental: {
+    serverComponentsExternalPackages: ['canvas'],
     // Tree-shake icon barrel imports on the client
     optimizePackageImports: ['lucide-react', 'framer-motion'],
   },

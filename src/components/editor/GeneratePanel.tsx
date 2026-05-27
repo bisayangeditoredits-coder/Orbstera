@@ -19,7 +19,7 @@ import {
 import { explainGetUserMediaError, explainRecognitionStartError } from '@/lib/mic-access';
 import { VoiceOrb } from '@/components/editor/VoiceOrb';
 import {
-  Sparkles, X, ChevronDown, Loader2, Wand2,
+  Sparkles, X, ChevronDown, Wand2,
   Crown, Globe, ArrowRight,
   Save, Trash2, Download, AlertCircle, Plus, Mic, MicOff,
   Briefcase, Palette, Zap, Minus, BookOpen, FlaskConical,
@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useCredits } from '@/hooks/useCredits';
 import { pollJobUntilDone } from '@/lib/client/poll-job';
+import { GenerationProgress } from './GenerationProgress';
 
 
 
@@ -256,6 +257,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const generateAbortRef = useRef<AbortController | null>(null);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -509,6 +511,31 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isProfileLoading, searchParams]);
 
+  const handleCancelGenerate = useCallback(() => {
+    generateAbortRef.current?.abort();
+    generateAbortRef.current = null;
+    setActiveJobId(null);
+    setEditorState({
+      isGenerating: false,
+      generationBlockingOverlay: false,
+      generationBuildReveal: false,
+      generationRevealedSlides: [],
+      generationGalleryOpen: false,
+      deckGenerationLifecycle: 'idle',
+      generationTargetSlides: 0,
+      generationPendingImages: 0,
+      generationImageJobsTotal: 0,
+      generationImageJobsCompleted: 0,
+      generationImageJobsFailed: 0,
+      orchestrationPhase: '',
+      activeModelLabel: '',
+      orchestrationMessage: '',
+      freeTasteActive: false,
+      freeTasteImagesRemaining: 0,
+    });
+    setShowInterviewSummary(false);
+  }, [setEditorState]);
+
   const handleGenerateClick = (overridePrompt?: string) => {
     const targetPrompt = overridePrompt || prompt;
     // ── AUTH GATE ──
@@ -655,6 +682,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
         if (res.status === 202) {
           const queued = (await res.json()) as { jobId?: string };
           if (!queued.jobId) throw new Error('Missing job id');
+          setActiveJobId(queued.jobId);
           setEditorState({ deckGenerationLifecycle: 'building', orchestrationMessage: 'Queued…' });
           const job = await pollJobUntilDone(queued.jobId, {
             signal: ac.signal,
@@ -930,6 +958,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
         setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
       } finally {
         if (activeTab === 'create') {
+          setActiveJobId(null);
           if (createGenerationSucceeded) {
             await waitForPendingDeckImages(usePresentationStore.getState().editor.generationEpoch);
           }
@@ -1497,6 +1526,9 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
 
       {/* Consistent Luxury CTA */}
       <div className="shrink-0 px-4 sm:px-5 pt-3.5 pb-3 border-t border-black/[0.06] bg-white relative z-50">
+        {isLoading && (
+          <GenerationProgress jobId={activeJobId} onCancel={handleCancelGenerate} />
+        )}
         <button
           type="button"
           onClick={() => handleGenerateClick()}
@@ -1505,10 +1537,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
         >
           <div className="relative flex items-center justify-center gap-2.5">
             {isLoading ? (
-              <>
-                <Loader2 size={19} className="animate-spin text-white/90" strokeWidth={1.75} />
-                <span className="text-[14px] font-semibold tracking-tight">Orchestrating…</span>
-              </>
+              <span className="text-[14px] font-semibold tracking-tight">Generating…</span>
             ) : (
               <>
                 <span className="text-[14px] font-semibold tracking-tight">Generate Presentation</span>
