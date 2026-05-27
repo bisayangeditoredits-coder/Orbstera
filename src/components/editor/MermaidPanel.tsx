@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
@@ -56,7 +56,7 @@ const TEMPLATES: { id: string; label: string; emoji: string; code: string }[] = 
     Topic C`,
   },
   {
-    id: 'er', label: 'ER Diagram', emoji: 'ðŸ—ƒï¸',
+    id: 'er', label: 'ER Diagram', emoji: '🗃️',
     code: `erDiagram
     CUSTOMER ||--o{ ORDER : places
     ORDER ||--|{ LINE-ITEM : contains

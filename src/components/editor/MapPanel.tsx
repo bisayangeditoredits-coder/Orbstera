@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
@@ -148,9 +148,9 @@ L.circleMarker([${lat},${lon}],{radius:8,color:'#fff',weight:3,fillColor:'#4f46e
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
 const MAP_STYLES = [
-  { id: 'standard',  label: 'Standard',  thumb: 'ðŸ—ºï¸' },
-  { id: 'satellite', label: 'Satellite', thumb: 'ðŸ›°ï¸' },
-  { id: 'terrain',   label: 'Terrain',   thumb: 'ðŸ”ï¸' },
+  { id: 'standard',  label: 'Standard',  thumb: '🗺️' },
+  { id: 'satellite', label: 'Satellite', thumb: '🛰️' },
+  { id: 'terrain',   label: 'Terrain',   thumb: '🏔️' },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -256,7 +256,7 @@ export function MapPanel({ onClose }: { onClose?: () => void }) {
         type: 'text',
         x: 90, y: 672,
         width: 1100, height: 34,
-        content: `ðŸ“  ${result.name.split(',').slice(0, 3).join(', ')}`,
+        content: `📍  ${result.name.split(',').slice(0, 3).join(', ')}`,
         textStyle: {
           fontSize: 13, fontWeight: 'normal', color: '#6B7280',
           textAlign: 'left', lineHeight: 1.4, fontFamily: 'Inter',

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 /**
  * InsertStyleSelector
@@ -35,13 +35,13 @@ const STYLE_OPTIONS: StyleOption[] = [
   {
     id: 'textBox',
     label: 'Text Box',
-    icon: 'ðŸ“',
+    icon: '📝',
     description: 'Plain text block on the slide',
   },
   {
     id: 'imageCard',
     label: 'Image Card',
-    icon: 'ðŸ–¼ï¸',
+    icon: '🖼️',
     description: 'Image with caption overlay',
   },
   {
@@ -59,7 +59,7 @@ const STYLE_OPTIONS: StyleOption[] = [
   {
     id: 'quote',
     label: 'Quote',
-    icon: 'â',
+    icon: '💬',
     description: 'Centered pull-quote style',
   },
   {

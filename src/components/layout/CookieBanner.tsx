@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -43,7 +43,7 @@ export function CookieBanner() {
       <div className="bg-white rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.14)] border border-black/[0.06] px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4">
         {/* Text area */}
         <div className="flex items-start gap-3 flex-1 min-w-0">
-          <span className="text-[20px] shrink-0 leading-none mt-0.5">ðŸª</span>
+          <span className="text-[20px] shrink-0 leading-none mt-0.5">🍪</span>
           <div>
             <p className="text-[13px] font-bold text-neutral-900 mb-0.5">About our cookies</p>
             <p className="text-[12px] text-neutral-500 leading-relaxed">
