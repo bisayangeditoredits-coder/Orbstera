@@ -476,8 +476,13 @@ export function ShareModal({
                           }}
                           className="group flex flex-col items-start gap-4 rounded-xl border border-slate-200 bg-white p-6 text-left ring-1 ring-slate-200 transition-all hover:border-primary/30 hover:shadow-md"
                         >
-                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 text-red-600">
-                            <FileText size={22} strokeWidth={1.75} />
+                          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-50/50">
+                            <svg viewBox="0 0 100 100" className="h-10 w-10" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M25 10 C20 10 15 15 15 20 L15 80 C15 85 20 90 25 90 L75 90 C80 90 85 85 85 80 L85 30 L65 10 Z" fill="#ffffff" stroke="#ff0000" strokeWidth="4" strokeLinejoin="round" />
+                              <path d="M65 10 L65 30 L85 30" fill="none" stroke="#ff0000" strokeWidth="4" strokeLinejoin="round" />
+                              <text x="50" y="78" fontSize="26" fontWeight="800" fill="#222" textAnchor="middle" fontFamily="Arial, sans-serif">PDF</text>
+                              <path d="M45 45 C45 35 43 25 43 22 C43 18 48 18 48 22 C48 30 45 40 40 45 C35 50 22 50 22 45 C22 40 35 42 40 45 M45 45 C52 42 60 41 65 41 C72 41 72 48 65 48 C60 48 52 45 48 45 M45 45 C48 55 52 65 55 70 C60 80 68 70 60 62 C55 55 50 50 48 45" fill="none" stroke="#ff0000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
                           </div>
                           <div>
                             <h4 className="font-bold text-slate-900">PDF</h4>
@@ -494,8 +499,13 @@ export function ShareModal({
                           }}
                           className="group flex flex-col items-start gap-4 rounded-xl border border-slate-200 bg-white p-6 text-left ring-1 ring-slate-200 transition-all hover:border-primary/30 hover:shadow-md"
                         >
-                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
-                            <Presentation size={22} strokeWidth={1.75} />
+                          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-50/50">
+                            <svg viewBox="0 0 100 100" className="h-10 w-10" xmlns="http://www.w3.org/2000/svg">
+                              <path fill="#d24726" d="M50 10a40 40 0 1 1-1 0" />
+                              <path fill="#b03a1f" d="M50 10a40 40 0 0 0 0 80V50Z" />
+                              <rect x="25" y="28" width="35" height="44" rx="4" fill="#d24726" stroke="#b03a1f" strokeWidth="1.5" />
+                              <path fill="#fff" d="M37 40h9c5 0 8 2.5 8 6.5s-3 6.5-8 6.5h-5v11h-4V40zm4 4v5h5c2.5 0 4-1 4-2.5s-1.5-2.5-4-2.5h-5z" />
+                            </svg>
                           </div>
                           <div>
                             <h4 className="font-bold text-slate-900">PowerPoint</h4>
