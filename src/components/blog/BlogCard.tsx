@@ -43,7 +43,7 @@ export function BlogFeaturedCard({ post }: { post: BlogPost }) {
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-4 text-[12px] text-neutral-500">
           <time dateTime={post.date}>{formatBlogDate(post.date)}</time>
-          <span aria-hidden>Â·</span>
+          <span aria-hidden>·</span>
           <span>{post.readMinutes} min read</span>
         </div>
         <span className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
@@ -97,7 +97,7 @@ export function BlogCard({ post, variant = 'default' }: { post: BlogPost; varian
           dateTime={post.date}
           className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-400"
         >
-          {formatBlogDate(post.date)} Â· {post.readMinutes} min
+          {formatBlogDate(post.date)} · {post.readMinutes} min
         </time>
         <h3
           className="mt-2 text-lg font-semibold tracking-tight text-neutral-950 group-hover:text-primary transition-colors sm:text-xl"

@@ -7,9 +7,9 @@ import { Mail, MapPin, Phone, ArrowRight, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const OFFICES = [
-  { city: "San Francisco", address: "101 Mission Street, Suite 2400", flag: "ðŸ‡ºðŸ‡¸" },
-  { city: "London", address: "22 Bishopsgate, EC2N 4BQ", flag: "ðŸ‡¬ðŸ‡§" },
-  { city: "Singapore", address: "Marina Bay Financial Centre", flag: "ðŸ‡¸ðŸ‡¬" },
+  { city: "San Francisco", address: "101 Mission Street, Suite 2400", flag: "🇺🇸" },
+  { city: "London", address: "22 Bishopsgate, EC2N 4BQ", flag: "🇬🇧" },
+  { city: "Singapore", address: "Marina Bay Financial Centre", flag: "🇸🇬" },
 ];
 
 export default function ContactPage() {

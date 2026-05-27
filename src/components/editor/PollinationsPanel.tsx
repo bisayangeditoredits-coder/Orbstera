@@ -96,7 +96,7 @@ export function PollinationsPanel({ onClose }: { onClose?: () => void }) {
           </div>
           <div>
             <h2 className="text-[14px] font-semibold text-neutral-900 leading-tight">AI Image Gen</h2>
-            <p className="text-[11px] text-neutral-400 mt-0.5">Powered by Pollinations Â· 100% Free</p>
+            <p className="text-[11px] text-neutral-400 mt-0.5">Powered by Pollinations · 100% Free</p>
           </div>
         </div>
         {onClose && (

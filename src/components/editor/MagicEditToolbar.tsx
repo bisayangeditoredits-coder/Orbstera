@@ -318,7 +318,7 @@ export function MagicEditToolbar() {
                 disabled={isLoading || freeImageAtLimit}
                 placeholder={
                   isListening
-                    ? 'ðŸŽ¤ Listening...'
+                    ? '🎤 Listening...'
                     : isPro
                       ? !selectedElementId
                         ? `Generate AI Background... e.g. "cyberpunk city"`

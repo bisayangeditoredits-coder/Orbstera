@@ -46,12 +46,12 @@ async function waitForPendingDeckImages(epoch: number, timeoutMs = 120_000): Pro
 }
 
 const EXAMPLE_PROMPTS = [
-  { emoji: 'ðŸš€', label: 'Startup Pitch',   prompt: 'Create a 10-slide Series A pitch deck for an AI startup. Include problem, solution, market size, traction, and ask.' },
-  { emoji: 'ðŸ“Š', label: 'Business Review', prompt: 'Build a quarterly business review deck with KPIs, revenue metrics, team wins, and Q3 roadmap.' },
-  { emoji: 'ðŸŽ“', label: 'Education',       prompt: 'Design an engaging 8-slide lesson on climate change for high school students with facts and visuals.' },
-  { emoji: 'ðŸŽ¨', label: 'Creative Agency', prompt: 'Create a portfolio presentation for a creative design agency — bold, vibrant, and visually stunning.' },
-  { emoji: 'ðŸ“ˆ', label: 'Sales Deck',      prompt: 'Build a sales deck for an enterprise SaaS product targeting HR teams. Focus on pain points and ROI.' },
-  { emoji: 'ðŸ”¬', label: 'Research',        prompt: 'Create a 12-slide research presentation on the future of quantum computing for a tech conference.' },
+  { emoji: '🚀', label: 'Startup Pitch',   prompt: 'Create a 10-slide Series A pitch deck for an AI startup. Include problem, solution, market size, traction, and ask.' },
+  { emoji: '📊', label: 'Business Review', prompt: 'Build a quarterly business review deck with KPIs, revenue metrics, team wins, and Q3 roadmap.' },
+  { emoji: '🎓', label: 'Education',       prompt: 'Design an engaging 8-slide lesson on climate change for high school students with facts and visuals.' },
+  { emoji: '🎨', label: 'Creative Agency', prompt: 'Create a portfolio presentation for a creative design agency — bold, vibrant, and visually stunning.' },
+  { emoji: '📈', label: 'Sales Deck',      prompt: 'Build a sales deck for an enterprise SaaS product targeting HR teams. Focus on pain points and ROI.' },
+  { emoji: '🔬', label: 'Research',        prompt: 'Create a 12-slide research presentation on the future of quantum computing for a tech conference.' },
 ];
 
 const SLIDE_COUNTS = [2, 5, 10, 15, 20, 25, 30, 35, 40];
@@ -75,14 +75,14 @@ const THEME_OPTIONS = [
 ];
 
 const LANGUAGE_OPTIONS = [
-  { code: 'en', label: 'English',    flag: 'ðŸ‡ºðŸ‡¸' },
-  { code: 'es', label: 'Spanish',   flag: 'ðŸ‡ªðŸ‡¸' },
-  { code: 'fr', label: 'French',    flag: 'ðŸ‡«ðŸ‡·' },
-  { code: 'de', label: 'German',    flag: 'ðŸ‡©ðŸ‡ª' },
-  { code: 'pt', label: 'Portuguese', flag: 'ðŸ‡§ðŸ‡·' },
-  { code: 'zh', label: 'Chinese',   flag: 'ðŸ‡¨ðŸ‡³' },
-  { code: 'ja', label: 'Japanese',  flag: 'ðŸ‡¯ðŸ‡µ' },
-  { code: 'ar', label: 'Arabic',    flag: 'ðŸ‡¸ðŸ‡¦' },
+  { code: 'en', label: 'English',    flag: '🇺🇸' },
+  { code: 'es', label: 'Spanish',   flag: '🇪🇸' },
+  { code: 'fr', label: 'French',    flag: '🇫🇷' },
+  { code: 'de', label: 'German',    flag: '🇩🇪' },
+  { code: 'pt', label: 'Portuguese', flag: '🇧🇷' },
+  { code: 'zh', label: 'Chinese',   flag: '🇨🇳' },
+  { code: 'ja', label: 'Japanese',  flag: '🇯🇵' },
+  { code: 'ar', label: 'Arabic',    flag: '🇸🇦' },
 ];
 
 function CollapsibleSection({
@@ -1198,7 +1198,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={isListening ? 'ðŸŽ¤ Listening... speak your vision' : 'Describe your presentation topic in detail...'}
+                  placeholder={isListening ? '🎤 Listening... speak your vision' : 'Describe your presentation topic in detail...'}
                   className="w-full flex-1 bg-transparent text-[18px] text-neutral-900 placeholder:text-neutral-300 resize-none focus:outline-none font-medium leading-relaxed"
                   autoFocus
                 />
@@ -1353,7 +1353,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
                       onKeyDown={handleKeyDown}
-                      placeholder={isListening ? 'ðŸŽ¤ Listening... speak your vision' : 'Describe your presentation topic...'}
+                      placeholder={isListening ? '🎤 Listening... speak your vision' : 'Describe your presentation topic...'}
                       className="w-full flex-1 bg-transparent text-[16px] text-neutral-900 placeholder:text-neutral-300 resize-none focus:outline-none font-medium leading-relaxed min-h-[4.5rem]"
                     />
 
@@ -1422,7 +1422,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
               title="Density (Slides)"
               summary={
                 `${slideCount} slide${slideCount !== 1 ? 's' : ''}` +
-                (!isPaid ? ' Â· Free max 5' : ` Â· max ${maxSlidesForPlan}`)
+                (!isPaid ? ' · Free max 5' : ` · max ${maxSlidesForPlan}`)
               }
               expanded={expandDensity}
               onToggle={() => setExpandDensity((v) => !v)}

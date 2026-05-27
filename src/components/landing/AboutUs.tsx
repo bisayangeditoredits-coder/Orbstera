@@ -5,7 +5,7 @@ import { Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 const STATS = [
-  { value: '10Ã—', label: 'Faster than traditional tools' },
+  { value: '10×', label: 'Faster than traditional tools' },
   { value: '50K+', label: 'Decks created worldwide' },
   { value: '98%', label: 'Would recommend Orbstera' },
 ];

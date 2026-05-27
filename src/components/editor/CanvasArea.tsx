@@ -108,7 +108,7 @@ function GenerationAssetsBanner() {
         <span className="text-[10px] font-bold uppercase tracking-widest text-black/55">Live AI visuals</span>
         <span className="text-[12px] font-semibold tracking-tight whitespace-nowrap">
           {done}/{total} rendered
-          {failed > 0 ? ` Â· ${failed} failed` : ''} Â· streaming to canvas ({pct}%)
+          {failed > 0 ? ` · ${failed} failed` : ''} · streaming to canvas ({pct}%)
         </span>
       </div>
       <span className="relative h-1.5 w-24 overflow-hidden rounded-full bg-black/[0.07] shrink-0">
@@ -632,7 +632,7 @@ export function CanvasArea() {
 
       <div className="absolute bottom-3 left-3 right-3 z-50 flex items-end justify-between gap-3 pointer-events-none">
         <p className="hidden sm:block text-[10px] font-medium text-neutral-600/90 bg-white/90 border border-neutral-200/80 rounded-md px-2.5 py-1 shadow-sm">
-          Space + drag to pan Â· Ctrl + scroll to zoom Â· Shift constrains shapes
+          Space + drag to pan · Ctrl + scroll to zoom · Shift constrains shapes
         </p>
       </div>
 

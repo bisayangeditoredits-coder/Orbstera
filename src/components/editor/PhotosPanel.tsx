@@ -92,7 +92,7 @@ export function PhotosPanel({ onClose }: { onClose?: () => void }) {
             </div>
             <div>
               <h2 className="text-[14px] font-semibold text-neutral-900 leading-tight">Photos</h2>
-              <p className="text-[11px] text-neutral-400 mt-0.5">Powered by Unsplash Â· Free</p>
+              <p className="text-[11px] text-neutral-400 mt-0.5">Powered by Unsplash · Free</p>
             </div>
           </div>
           {onClose && (

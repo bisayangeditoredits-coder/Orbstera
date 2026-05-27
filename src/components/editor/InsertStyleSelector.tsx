@@ -53,7 +53,7 @@ const STYLE_OPTIONS: StyleOption[] = [
   {
     id: 'fullBleed',
     label: 'Full Bleed',
-    icon: 'ðŸŒ…',
+    icon: '🌅',
     description: 'Full-canvas background image',
   },
   {
@@ -65,7 +65,7 @@ const STYLE_OPTIONS: StyleOption[] = [
   {
     id: 'list',
     label: 'Bullet List',
-    icon: 'ðŸ“‹',
+    icon: '📋',
     description: 'Bulleted content list',
   },
 ];

@@ -463,7 +463,7 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
               animate={{ opacity: 1, y: 0 }}
             >
               {editor.activeModelLabel
-                ? `${editor.activeModelLabel} Ã‚Â· `
+                ? `${editor.activeModelLabel} Ã‚· `
                 : ''}
               {editor.orchestrationMessage ||
                 `Live ${slides.filter((s) => !s.isGeneratingPlaceholder).length} / ${targetSlides}`}
@@ -471,7 +471,7 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
           )}
           {editor.freeTasteActive && isLiveGenerating && (
             <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-600/90">
-              Premium preview Ã‚Â· {editor.freeTasteImagesRemaining ?? 0} HD visuals left
+              Premium preview Ã‚· {editor.freeTasteImagesRemaining ?? 0} HD visuals left
             </p>
           )}
         </motion.div>

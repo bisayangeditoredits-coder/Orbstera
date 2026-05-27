@@ -646,7 +646,7 @@ const LAYOUTS = [
       const cardY = 240;
       const metrics = [
         { value: '$12M', label: 'ARR', desc: 'Annual recurring revenue at scale.' },
-        { value: '3.2Ã—', label: 'LTV / CAC', desc: 'Efficient growth economics.' },
+        { value: '3.2×', label: 'LTV / CAC', desc: 'Efficient growth economics.' },
         { value: '98%', label: 'NPS', desc: 'Customer love score.' },
       ];
       return [

@@ -262,16 +262,16 @@ const REWRITE_PRESETS = [
 ] as const;
 
 const TRANSLATE_LANGS = [
-  { code: 'es', flag: 'ðŸ‡ªðŸ‡¸', label: 'Spanish'    },
-  { code: 'fr', flag: 'ðŸ‡«ðŸ‡·', label: 'French'     },
-  { code: 'de', flag: 'ðŸ‡©ðŸ‡ª', label: 'German'     },
-  { code: 'ja', flag: 'ðŸ‡¯ðŸ‡µ', label: 'Japanese'   },
-  { code: 'zh', flag: 'ðŸ‡¨ðŸ‡³', label: 'Chinese'    },
-  { code: 'ko', flag: 'ðŸ‡°ðŸ‡·', label: 'Korean'     },
-  { code: 'pt', flag: 'ðŸ‡§ðŸ‡·', label: 'Portuguese' },
-  { code: 'ar', flag: 'ðŸ‡¸ðŸ‡¦', label: 'Arabic'     },
-  { code: 'it', flag: 'ðŸ‡®ðŸ‡¹', label: 'Italian'    },
-  { code: 'ru', flag: 'ðŸ‡·ðŸ‡º', label: 'Russian'    },
+  { code: 'es', flag: '🇪🇸', label: 'Spanish'    },
+  { code: 'fr', flag: '🇫🇷', label: 'French'     },
+  { code: 'de', flag: '🇩🇪', label: 'German'     },
+  { code: 'ja', flag: '🇯🇵', label: 'Japanese'   },
+  { code: 'zh', flag: '🇨🇳', label: 'Chinese'    },
+  { code: 'ko', flag: '🇰🇷', label: 'Korean'     },
+  { code: 'pt', flag: '🇧🇷', label: 'Portuguese' },
+  { code: 'ar', flag: '🇸🇦', label: 'Arabic'     },
+  { code: 'it', flag: '🇮🇹', label: 'Italian'    },
+  { code: 'ru', flag: '🇷🇺', label: 'Russian'    },
 ];
 
 function TextRewriteSection() {
@@ -561,7 +561,7 @@ function ModelsBadge() {
     <div className="flex items-center justify-center gap-3 rounded-xl border border-neutral-100 bg-white px-3 py-2.5">
       <img src="/ui-icons/ai-brain.png" alt="AI" className="h-4 w-4 rounded-md object-cover opacity-60" />
       <p className="text-[9.5px] font-semibold text-neutral-400">
-        Powered by <span className="text-neutral-600 font-bold">GPT-5.5</span> Â· <span className="text-neutral-600 font-bold">Claude Opus 4</span> Â· <span className="text-neutral-600 font-bold">FLUX Kontext</span>
+        Powered by <span className="text-neutral-600 font-bold">GPT-5.5</span> · <span className="text-neutral-600 font-bold">Claude Opus 4</span> · <span className="text-neutral-600 font-bold">FLUX Kontext</span>
       </p>
     </div>
   );
@@ -588,7 +588,7 @@ export function AIToolsPanel() {
           </div>
           <div className="flex-1">
             <h3 className="text-[13px] font-bold text-neutral-900 leading-tight">AI Tools</h3>
-            <p className="text-[9.5px] text-neutral-400 font-semibold">GPT-5.5 Â· Claude Opus 4 Â· FLUX</p>
+            <p className="text-[9.5px] text-neutral-400 font-semibold">GPT-5.5 · Claude Opus 4 · FLUX</p>
           </div>
           {/* Context indicator */}
           <div className={`flex items-center gap-1 rounded-full px-2 py-1 text-[9px] font-bold border ${

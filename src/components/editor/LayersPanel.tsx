@@ -835,7 +835,7 @@ const SortableLayerRow = memo(function SortableLayerRow({
           </p>
           <div className="flex items-center gap-1 mt-0.5">
             <span className="text-[9.5px] font-medium text-neutral-400 tabular-nums">
-              {Math.round(el.width)}Ã—{Math.round(el.height)}
+              {Math.round(el.width)}×{Math.round(el.height)}
             </span>
             {isLocked && (
               <span className="rounded bg-amber-50 px-1 text-[8px] font-bold text-amber-500">LOCK</span>

@@ -238,7 +238,7 @@ export function MapPanel({ onClose }: { onClose?: () => void }) {
 
     setInserting(true);
     try {
-      // Render 1100Ã—600 map as data URL by stitching tiles on canvas
+      // Render 1100×600 map as data URL by stitching tiles on canvas
       const dataUrl = await renderMapToDataUrl(result.lat, result.lon, zoom, mapStyle, 1100, 600);
 
       addElement(slide.id, {
@@ -285,7 +285,7 @@ export function MapPanel({ onClose }: { onClose?: () => void }) {
             </div>
             <div>
               <h2 className="text-[13px] font-bold text-neutral-900 leading-none">Map Inserter</h2>
-              <p className="text-[10px] text-neutral-400 mt-0.5 font-semibold">OpenStreetMap Â· Free</p>
+              <p className="text-[10px] text-neutral-400 mt-0.5 font-semibold">OpenStreetMap · Free</p>
             </div>
           </div>
           {onClose && (
@@ -422,7 +422,7 @@ export function MapPanel({ onClose }: { onClose?: () => void }) {
                 </div>
 
                 <p className="text-[10px] text-neutral-400 text-center mb-3">
-                  Preview Â· Map will be stitched as image when inserted
+                  Preview · Map will be stitched as image when inserted
                 </p>
 
                 {/* Insert button */}

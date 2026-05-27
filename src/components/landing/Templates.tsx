@@ -137,7 +137,7 @@ const TEMPLATE_PREVIEWS: Record<string, React.ReactNode> = {
       <div className="flex-1 flex flex-col items-center justify-center py-3">
         <div className="text-[9px] font-bold text-orange-200 tracking-widest mb-2">TRACTION</div>
         <div className="text-[28px] font-bold text-white leading-none mb-1">$10K</div>
-        <div className="text-[8px] text-white/60 font-bold">MRR Â· 3 months</div>
+        <div className="text-[8px] text-white/60 font-bold">MRR · 3 months</div>
       </div>
       <div className="bg-white/15 rounded-xl p-2.5 flex items-center gap-2">
         <div className="w-6 h-6 rounded-lg bg-white/20" />

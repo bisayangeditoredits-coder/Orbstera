@@ -89,7 +89,7 @@ function ImageDropdown({
     {
       icon: Map,
       label: 'Insert a Map',
-      sub: 'OpenStreetMap Â· Satellite Â· Terrain',
+      sub: 'OpenStreetMap · Satellite · Terrain',
       action: () => { onOpenPanel('map'); onClose(); },
     },
     {

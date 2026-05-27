@@ -113,12 +113,12 @@ const TRENDING: { label: string; icon: React.FC<any>; color: string }[] = [
 ];
 
 const LANGS = [
-  { code: 'en', label: 'English',  short: 'EN', flag: 'ðŸ‡ºðŸ‡¸' },
-  { code: 'tl', label: 'Filipino', short: 'TL', flag: 'ðŸ‡µðŸ‡­' },
-  { code: 'es', label: 'EspaÃ±ol',  short: 'ES', flag: 'ðŸ‡ªðŸ‡¸' },
-  { code: 'fr', label: 'FranÃ§ais', short: 'FR', flag: 'ðŸ‡«ðŸ‡·' },
-  { code: 'de', label: 'Deutsch',  short: 'DE', flag: 'ðŸ‡©ðŸ‡ª' },
-  { code: 'ja', label: 'æ—¥æœ¬èªž',   short: 'JA', flag: 'ðŸ‡¯ðŸ‡µ' },
+  { code: 'en', label: 'English',  short: 'EN', flag: '🇺🇸' },
+  { code: 'tl', label: 'Filipino', short: 'TL', flag: '🇵🇭' },
+  { code: 'es', label: 'Español',  short: 'ES', flag: '🇪🇸' },
+  { code: 'fr', label: 'Français', short: 'FR', flag: '🇫🇷' },
+  { code: 'de', label: 'Deutsch',  short: 'DE', flag: '🇩🇪' },
+  { code: 'ja', label: 'æ—¥æœ¬èªž',   short: 'JA', flag: '🇯🇵' },
 ];
 
 type ModeConfig = { id: InsertMode; icon: any; label: string; desc: string };
@@ -1224,7 +1224,7 @@ export function WikipediaPanel({ onClose }: { onClose?: () => void }) {
                                 </p>
                                 <p className={`text-[11px] mt-0.5 leading-snug ${active ? 'text-white/60' : 'text-neutral-500'}`}>
                                   {mode.desc}
-                                  {disabled ? ' Â· Image required' : ''}
+                                  {disabled ? ' · Image required' : ''}
                                 </p>
                               </div>
                               {active && <CheckCircle2 size={16} className="text-white shrink-0" />}

@@ -496,7 +496,7 @@ export function PublicViewer({
             transition={{ delay: 0.55 }}
             className="text-neutral-400 text-xs font-medium"
           >
-            Use ← → arrow keys to navigate Â· F for fullscreen
+            Use ← → arrow keys to navigate · F for fullscreen
           </motion.p>
         </div>
 

@@ -27,8 +27,8 @@ type TextElementError = {
 const LANGS = [
   { code: 'en-US', label: 'English (US)' },
   { code: 'en-GB', label: 'English (UK)' },
-  { code: 'es',    label: 'EspaÃ±ol' },
-  { code: 'fr',    label: 'FranÃ§ais' },
+  { code: 'es',    label: 'Español' },
+  { code: 'fr',    label: 'Français' },
   { code: 'de',    label: 'Deutsch' },
   { code: 'tl',    label: 'Filipino' },
 ];
@@ -104,7 +104,7 @@ export function GrammarPanel({ onClose }: { onClose?: () => void }) {
             </div>
             <div>
               <h2 className="text-[13px] font-bold text-neutral-900 leading-none">Grammar Check</h2>
-              <p className="text-[10px] text-neutral-400 mt-0.5 font-semibold">LanguageTool Â· Free</p>
+              <p className="text-[10px] text-neutral-400 mt-0.5 font-semibold">LanguageTool · Free</p>
             </div>
           </div>
           {onClose && (
