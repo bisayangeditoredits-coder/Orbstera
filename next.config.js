@@ -45,9 +45,10 @@ const nextConfig = {
     ],
   },
 
+  // FIXED: Moved from experimental.serverComponentsExternalPackages (deprecated in Next.js 14.2)
+  serverExternalPackages: ['canvas'],
+
   experimental: {
-    // Prevent canvas native module from being bundled server-side
-    serverComponentsExternalPackages: ['canvas'],
     // Tree-shake icon barrel imports on the client
     optimizePackageImports: ['lucide-react', 'framer-motion'],
   },
@@ -81,8 +82,10 @@ const nextConfig = {
   },
 };
 
+const baseConfig = withBundleAnalyzer(nextConfig);
+
 module.exports = process.env.SENTRY_DSN
-  ? withSentryConfig(nextConfig, {
+  ? withSentryConfig(baseConfig, {
       silent: true,
       org: process.env.SENTRY_ORG,
       project: process.env.SENTRY_PROJECT,
@@ -91,4 +94,4 @@ module.exports = process.env.SENTRY_DSN
       disableLogger: true,
       automaticVercelMonitors: true,
     })
-  : nextConfig;
+  : baseConfig;

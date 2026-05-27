@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -76,7 +76,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1">Enterprise Sales</p>
-                  <p className="text-[#1E293B] font-semibold">+1 (415) 800-0000</p>
+                  <a href="mailto:sales@orbstera.ai" className="text-[#1E293B] font-semibold hover:text-blue-600 transition-colors">sales@orbstera.ai</a>
                 </div>
               </div>
               <div className="flex gap-4 items-start">

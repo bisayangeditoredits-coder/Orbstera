@@ -1,4 +1,4 @@
-﻿import type { Metadata, Viewport } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk, Lora, Montserrat } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/layout/Providers";
@@ -9,7 +9,7 @@ import { CookieBanner } from "@/components/layout/CookieBanner";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
 const lora = Lora({ subsets: ["latin"], variable: "--font-lora" });
-const montserrat = Montserrat({ subsets: ["latin"], variable: "--", weight: ["300","400","500","600","700","800","900"] });
+const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-montserrat", weight: ["300","400","500","600","700","800","900"] });
 
 export const metadata: Metadata = {
   title: "Orbstera — Futuristic Presentation Generation",

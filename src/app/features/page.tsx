@@ -127,9 +127,6 @@ export default function FeaturesPage() {
               <div className="flex gap-4 h-full">
                 <div className="w-1/3 bg-slate-50 rounded-lg h-full" />
                 <div className="w-2/3 bg-blue-500 rounded-lg h-full relative">
-                  <div className="absolute -bottom-2 -right-2 bg-cyan-400 text-white text-xs font-bold px-3 py-1 rounded-full">
-                    Fix This
-                  </div>
                 </div>
               </div>
             </div>

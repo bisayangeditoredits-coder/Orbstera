@@ -23,6 +23,7 @@ type DashboardHeaderProps = {
   query: string;
   onQueryChange: (q: string) => void;
   onNewDeck: () => void;
+  onCreateAIDeck?: () => void;
   onOpenMenu: () => void;
   onOpenSettings: () => void;
   onBackToWorkspace?: () => void;
@@ -39,7 +40,7 @@ export function DashboardHeader({
   onOpenSettings,
   onBackToWorkspace,
   creditsWarning,
-}: DashboardHeaderProps & { onCreateAIDeck?: () => void }) {
+}: DashboardHeaderProps) {
   const showSearch = section !== 'settings';
 
   return (

@@ -1,8 +1,8 @@
-﻿'use client';
+'use client';
 
 import Link from 'next/link';
 import { LogOut, Menu, X, LayoutGrid, ChevronRight } from 'lucide-react';
-import { useEffect, useState, useRef, Fragment } from 'react';
+import { useEffect, useState, useRef, Fragment, useMemo } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useRouter, usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -24,7 +24,7 @@ export function Navbar() {
   const [newDeckOpen, setNewDeckOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const pathname = usePathname();
 

@@ -314,7 +314,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     // Create a deep copy with a new ID and slightly offset position
     const newElement: SlideElement = {
       ...JSON.parse(JSON.stringify(state.editor.clipboardElement)),
-      id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `el-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       x: state.editor.clipboardElement.x + 20,
       y: state.editor.clipboardElement.y + 20,
     };
@@ -333,7 +333,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
 
     const newElement: SlideElement = {
       ...JSON.parse(JSON.stringify(element)),
-      id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `el-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       x: element.x + 20,
       y: element.y + 20,
     };
