@@ -329,13 +329,16 @@ function ElementNode({
       node.scaleY(1);
       layer.batchDraw();
     };
-  }, [previewElementId, el.id, el.opacity, el.animation, el.x, el.y, el.width, el.height]);
+  }, [previewElementId, generationRevealActive, el.id, el.opacity, el.animation, el.x, el.y, el.width, el.height]);
 
   const baseOpacity = el.opacity ?? 1;
   const prevRevealVisibleRef = useRef(revealVisible);
 
   useEffect(() => {
-    if (!generationRevealActive) return;
+    if (!generationRevealActive) {
+      prevRevealVisibleRef.current = revealVisible;
+      return;
+    }
     const node = shapeRef.current;
     if (!node) return;
     const layer = node.getLayer();
@@ -351,12 +354,16 @@ function ElementNode({
     if (revealVisible && !prevRevealVisibleRef.current) {
       node.opacity(0);
       layer.batchDraw();
+      prevRevealVisibleRef.current = true;
       const tween = new Konva.Tween({
         node,
         duration: 0.18,
         opacity: baseOpacity,
         easing: Konva.Easings.EaseOut,
-        onFinish: () => layer.batchDraw(),
+        onFinish: () => {
+          prevRevealVisibleRef.current = true;
+          layer.batchDraw();
+        },
       });
       tween.play();
       return () => tween.destroy();

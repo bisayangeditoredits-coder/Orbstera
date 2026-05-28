@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { SlideElement } from '@/types';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import {
@@ -38,7 +38,24 @@ export function useGenerationElementReveal({
     setEditorState({ generationRevealedSlides: [...revealed, slideId] });
   }, [slideId, setEditorState]);
 
-  const elementKey = elements.map((e) => e.id).join('|');
+  const elementKey = useMemo(
+    () =>
+      JSON.stringify(
+        elements.map((e) => ({
+          id: e.id,
+          visible: e.visible,
+          type: e.type,
+          zIndex: e.zIndex,
+          y: e.y,
+          width: e.width,
+          height: e.height,
+          shapeType: e.type === 'shape' ? e.shapeType : undefined,
+          shapeFill: e.type === 'shape' ? e.shapeStyle?.fill ?? null : undefined,
+          fontSize: e.type === 'text' ? e.textStyle?.fontSize ?? null : undefined,
+        })),
+      ),
+    [elements],
+  );
 
   useEffect(() => {
     clearTimers();
@@ -94,6 +111,7 @@ export function useGenerationElementReveal({
     slideId,
     enabled,
     slideAlreadyRevealed,
+    elements,
     elementKey,
     clearTimers,
     markSlideRevealed,

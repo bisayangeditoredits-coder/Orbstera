@@ -8,9 +8,11 @@ import {
 import { getOrCreateRequestId, captureApiException } from '@/lib/observability';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
+const MAX_BODY_BYTES = 64 * 1024;
 
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
@@ -24,7 +26,14 @@ export async function POST(req: Request) {
     }
     const user = auth.user;
 
-    const body = await req.json();
+    const bodyResult = await readJsonBodyWithLimit<{
+      prompt: string;
+      style?: 'vector' | 'raster';
+      mode?: 'generate' | 'restyle';
+      imageUrl?: string;
+    }>(req, MAX_BODY_BYTES);
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.value;
     const {
       prompt,
       style = 'vector',

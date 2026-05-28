@@ -5,8 +5,10 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { runPresentationSaveFromParsed } from '@/lib/server/run-presentation-save';
 import { isValidDeckStagingKey } from '@/lib/server/deck-staging-key';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 export const maxDuration = 60;
+const MAX_BODY_BYTES = 24 * 1024;
 
 let s3Client: S3Client | null = null;
 if (
@@ -55,7 +57,9 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const bucket = process.env.CLOUDFLARE_R2_BUCKET_NAME;
-  const body = await req.json().catch(() => ({}));
+  const bodyResult = await readJsonBodyWithLimit<Record<string, unknown>>(req, MAX_BODY_BYTES);
+  if (!bodyResult.ok) return bodyResult.response;
+  const body = bodyResult.value;
   const stagingKey = body.stagingKey;
   const gzip = Boolean(body.gzip);
 

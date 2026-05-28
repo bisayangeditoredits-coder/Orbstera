@@ -5,12 +5,14 @@ import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { chargeCreditsBeforeJob, getActionCreditCost, getCreditConfig } from '@/lib/billing/credits';
 import { getBillingPlan } from '@/lib/billing/resolve-plan';
 import { getPlannerModelCascade, type SubscriptionTier } from '@/lib/ai/tier-models';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
 export const runtime = 'nodejs';
 /** Streaming planner replies; align with OpenRouter stream timeout budget. */
 export const maxDuration = 120;
+const MAX_BODY_BYTES = 256 * 1024;
 
 type PlannerPreferences = {
   slideCount?: number;
@@ -128,12 +130,14 @@ export async function POST(req: Request) {
     const user = auth.user;
     const userId = user.id;
 
-    const { messages, sessionId, topic, preferences } = await req.json() as {
+    const bodyResult = await readJsonBodyWithLimit<{
       messages?: { role: string; content: string }[];
       sessionId?: string;
       topic?: string;
       preferences?: PlannerPreferences;
-    };
+    }>(req, MAX_BODY_BYTES);
+    if (!bodyResult.ok) return bodyResult.response;
+    const { messages, sessionId, topic, preferences } = bodyResult.value;
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Messages array is required' }, { status: 400 });

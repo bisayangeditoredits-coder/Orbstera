@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { generateLeonardoMotionUrl } from '@/lib/leonardo-image';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
+const MAX_BODY_BYTES = 16 * 1024;
 
 export async function POST(req: Request) {
   try {
@@ -29,7 +31,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await req.json();
+    const bodyResult = await readJsonBodyWithLimit<{ imageId?: string }>(req, MAX_BODY_BYTES);
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.value;
     const { imageId } = body;
 
     if (!imageId || typeof imageId !== 'string') {

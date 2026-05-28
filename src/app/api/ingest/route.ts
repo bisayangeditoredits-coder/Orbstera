@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { assertTrustedOrigin, untrustedOriginResponse } from '@/lib/auth/server';
+import { enforceContentLengthLimit, readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 import { assertPublicHttpUrl } from '@/lib/security/url-fetch-policy';
 import {
   enforceAiIpRateLimit,
@@ -19,7 +21,12 @@ function stripHtml(html: string): string {
     .slice(0, 24_000);
 }
 
+export const maxDuration = 60;
+const MAX_MULTIPART_BYTES = 30 * 1024 * 1024;
+const MAX_JSON_BYTES = 64 * 1024;
+
 export async function POST(req: Request) {
+  if (!assertTrustedOrigin(req)) return untrustedOriginResponse();
   const infra = requireRateLimitInfrastructure();
   if (infra) return infra;
 
@@ -42,6 +49,8 @@ export async function POST(req: Request) {
 
   try {
     if (ct.includes('multipart/form-data')) {
+      const sizeCheck = enforceContentLengthLimit(req, MAX_MULTIPART_BYTES);
+      if (sizeCheck) return sizeCheck;
       const form = await req.formData();
       const file = form.get('file');
       if (!(file instanceof Blob)) {
@@ -58,7 +67,12 @@ export async function POST(req: Request) {
       });
     }
 
-    const body = await req.json();
+    const bodyResult = await readJsonBodyWithLimit<{ url?: string; sourceType?: string }>(
+      req,
+      MAX_JSON_BYTES,
+    );
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.value;
     const { url, sourceType } = body as { url?: string; sourceType?: string };
 
     if (sourceType === 'youtube' || (url && /youtube\.com|youtu\.be/.test(url))) {

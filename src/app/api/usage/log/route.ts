@@ -5,6 +5,7 @@ import {
   PRIVATE_API_HEADERS,
   untrustedOriginResponse,
 } from '@/lib/auth/server';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
@@ -12,6 +13,8 @@ import { cookies } from 'next/headers';
 // the route still returns 200 so the UI never breaks.
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
+const MAX_BODY_BYTES = 16 * 1024;
 
 type UsageKind = 'genfill_image' | 'magic_edit_image' | 'magic_edit_text';
 
@@ -19,7 +22,12 @@ export async function POST(req: Request) {
   if (!assertTrustedOrigin(req)) return untrustedOriginResponse();
 
   try {
-    const body = (await req.json()) as { kind?: UsageKind; meta?: Record<string, unknown> };
+    const bodyResult = await readJsonBodyWithLimit<{ kind?: UsageKind; meta?: Record<string, unknown> }>(
+      req,
+      MAX_BODY_BYTES,
+    );
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.value;
     const kind = body?.kind;
     const meta = body?.meta && typeof body.meta === 'object' ? body.meta : {};
 

@@ -2,12 +2,14 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { enforceContactRateLimit } from '@/lib/rate-limit-server';
 import { withRouteError } from '@/lib/api/with-route-error';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 const bodySchema = z.object({
   name: z.string().trim().min(1).max(120),
   email: z.string().trim().email().max(254),
   message: z.string().trim().min(10).max(8000),
 });
+const MAX_BODY_BYTES = 32 * 1024;
 
 function escapeHtml(s: string) {
   return s
@@ -34,12 +36,9 @@ async function postContact(req: Request) {
     );
   }
 
-  let json: unknown;
-  try {
-    json = await req.json();
-  } catch {
-    return NextResponse.json({ ok: false, error: 'INVALID_JSON' as const }, { status: 400 });
-  }
+  const bodyResult = await readJsonBodyWithLimit<unknown>(req, MAX_BODY_BYTES);
+  if (!bodyResult.ok) return bodyResult.response;
+  const json = bodyResult.value;
 
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {

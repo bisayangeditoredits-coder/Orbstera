@@ -7,8 +7,11 @@ import {
 } from '@/lib/auth/server';
 import { getServiceSupabase } from '@/lib/billing/supabase-admin';
 import { applySubscriptionUpgrade } from '@/lib/billing/subscription';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
+const MAX_BODY_BYTES = 16 * 1024;
 
 export async function POST(req: Request) {
   if (!assertTrustedOrigin(req)) return untrustedOriginResponse();
@@ -17,7 +20,12 @@ export async function POST(req: Request) {
   if ('response' in auth) return auth.response;
 
   try {
-    const { targetUserId, newPlan } = await req.json();
+    const bodyResult = await readJsonBodyWithLimit<{ targetUserId?: string; newPlan?: string }>(
+      req,
+      MAX_BODY_BYTES,
+    );
+    if (!bodyResult.ok) return bodyResult.response;
+    const { targetUserId, newPlan } = bodyResult.value;
 
     if (!targetUserId || !newPlan || typeof targetUserId !== 'string' || typeof newPlan !== 'string') {
       return NextResponse.json(

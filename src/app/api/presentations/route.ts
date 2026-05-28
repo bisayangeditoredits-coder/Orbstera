@@ -13,6 +13,14 @@ import {
   enforceApiIpRateLimit,
   requireRateLimitInfrastructure,
 } from '@/lib/rate-limit-server';
+import {
+  readArrayBufferWithLimit,
+  readJsonBodyWithLimit,
+} from '@/lib/http/request-body-limit';
+
+export const maxDuration = 120;
+const MAX_PRESENTATION_POST_BYTES = 25 * 1024 * 1024;
+const MAX_PRESENTATION_PATCH_BYTES = 512 * 1024;
 
 const PUBLIC_CACHE_HEADERS = {
   'Cache-Control': 'public, max-age=60',
@@ -177,7 +185,9 @@ export async function POST(req: Request) {
 
   try {
     const encoding = (req.headers.get('content-encoding') || '').toLowerCase();
-    const raw = Buffer.from(await req.arrayBuffer());
+    const rawResult = await readArrayBufferWithLimit(req, MAX_PRESENTATION_POST_BYTES);
+    if (!rawResult.ok) return rawResult.response;
+    const raw = Buffer.from(rawResult.buffer);
     const jsonStr =
       encoding === 'gzip' ? gunzipSync(raw).toString('utf8') : raw.toString('utf8');
     const presentation = JSON.parse(jsonStr) as Record<string, unknown>;
@@ -323,7 +333,12 @@ export async function PATCH(req: Request) {
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
-  const body = await req.json().catch(() => ({}));
+  const bodyResult = await readJsonBodyWithLimit<Record<string, unknown>>(
+    req,
+    MAX_PRESENTATION_PATCH_BYTES,
+  );
+  if (!bodyResult.ok) return bodyResult.response;
+  const body = bodyResult.value;
   const newTitle =
     typeof body.title === 'string' && body.title.trim() ? body.title.trim() : null;
   const shareAccessRaw = body.shareAccess;

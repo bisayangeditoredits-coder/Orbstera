@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
+import { assertTrustedOrigin, untrustedOriginResponse } from '@/lib/auth/server';
 import { getR2PublicBaseTrimmed } from '@/lib/r2-public-url';
 import { requireApiUserWithRateLimit } from '@/lib/auth/require-api-route';
 import { PRIVATE_NO_STORE } from '@/lib/http/cache-headers';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 let s3Client: S3Client | null = null;
 if (
@@ -32,11 +34,15 @@ function extFromMime(mime: string): string {
   return 'bin';
 }
 
+export const maxDuration = 30;
+const MAX_BODY_BYTES = 8 * 1024;
+
 /**
  * Returns a short-lived presigned PUT URL so the browser can upload large binaries
  * directly to R2 (avoids Next.js / CDN request body limits that cause HTTP 413).
  */
 export async function POST(req: Request) {
+  if (!assertTrustedOrigin(req)) return untrustedOriginResponse();
   if (!s3Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) {
     return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
   }
@@ -53,7 +59,9 @@ export async function POST(req: Request) {
   if ('response' in auth) return auth.response;
   const user = auth.user;
 
-  const body = await req.json().catch(() => ({}));
+  const bodyResult = await readJsonBodyWithLimit<Record<string, unknown>>(req, MAX_BODY_BYTES);
+  if (!bodyResult.ok) return bodyResult.response;
+  const body = bodyResult.value;
   const presentationId = typeof body.presentationId === 'string' && body.presentationId.trim()
     ? body.presentationId.trim()
     : 'unknown-deck';

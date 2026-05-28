@@ -1,13 +1,23 @@
 import { NextResponse } from 'next/server';
 import { DodoPayments } from 'dodopayments';
-import { requireApiUser, PRIVATE_API_HEADERS } from '@/lib/auth/server';
+import {
+  assertTrustedOrigin,
+  requireApiUser,
+  PRIVATE_API_HEADERS,
+  untrustedOriginResponse,
+} from '@/lib/auth/server';
 import {
   enforceAiIpRateLimit,
   enforceAiUserRateLimit,
   requireRateLimitInfrastructure,
 } from '@/lib/rate-limit-server';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
+
+export const maxDuration = 30;
+const MAX_BODY_BYTES = 16 * 1024;
 
 export async function POST(req: Request) {
+  if (!assertTrustedOrigin(req)) return untrustedOriginResponse();
   try {
     const infra = requireRateLimitInfrastructure();
     if (infra) return infra;
@@ -41,7 +51,12 @@ export async function POST(req: Request) {
       'Customer';
     const userId = user.id;
 
-    const { planId, productId } = await req.json();
+    const bodyResult = await readJsonBodyWithLimit<{ planId?: string; productId?: string }>(
+      req,
+      MAX_BODY_BYTES,
+    );
+    if (!bodyResult.ok) return bodyResult.response;
+    const { planId, productId } = bodyResult.value;
 
     const PRODUCT_MAP: Record<string, string> = {
       student_pro: process.env.DODO_STUDENT_PRO_ID || '',

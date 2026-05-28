@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
+import { assertTrustedOrigin, untrustedOriginResponse } from '@/lib/auth/server';
 import { requireApiUserWithRateLimit } from '@/lib/auth/require-api-route';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 let s3Client: S3Client | null = null;
 if (
@@ -25,11 +27,15 @@ function safeDeckFolderId(raw: unknown): string {
   return raw.replace(/[^a-zA-Z0-9-]/g, '_').slice(0, 120);
 }
 
+export const maxDuration = 30;
+const MAX_BODY_BYTES = 16 * 1024;
+
 /**
  * Presigned PUT for a staging object holding raw deck JSON (optionally gzip).
  * Lets clients bypass Vercel ~4.5 MB request limits on POST /api/presentations.
  */
 export async function POST(req: Request) {
+  if (!assertTrustedOrigin(req)) return untrustedOriginResponse();
   if (!s3Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) {
     return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
   }
@@ -38,7 +44,9 @@ export async function POST(req: Request) {
   if ('response' in auth) return auth.response;
   const user = auth.user;
 
-  const body = await req.json().catch(() => ({}));
+  const bodyResult = await readJsonBodyWithLimit<Record<string, unknown>>(req, MAX_BODY_BYTES);
+  if (!bodyResult.ok) return bodyResult.response;
+  const body = bodyResult.value;
   const presentationId = safeDeckFolderId(body.presentationId);
   const gzip = Boolean(body.gzip);
 

@@ -1,14 +1,19 @@
 import { NextResponse } from 'next/server';
 import { openRouterComplete } from '@/lib/ai/openrouter';
+import { assertTrustedOrigin, untrustedOriginResponse } from '@/lib/auth/server';
 import { requireAiUser } from '@/lib/auth/require-ai-route';
 import { chargeCreditsBeforeJob, getActionCreditCost, getCreditConfig } from '@/lib/billing/credits';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 // Edge runtime is fine — requireAiUser uses fetch-based Supabase + Upstash
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 const MAX_TEXT_CHARS = 4000; // ~1000 tokens, enough for a full slide
+const MAX_BODY_BYTES = 24 * 1024;
 
 export async function POST(req: Request) {
+  if (!assertTrustedOrigin(req)) return untrustedOriginResponse();
   try {
     // ── 1. Auth + rate limit ────────────────────────────────────────────────
     const auth = await requireAiUser(req, 'default');
@@ -16,7 +21,9 @@ export async function POST(req: Request) {
     const { user } = auth;
 
     // ── 2. Parse + validate ────────────────────────────────────────────────
-    const { action, text } = await req.json();
+    const bodyResult = await readJsonBodyWithLimit<{ action?: string; text?: string }>(req, MAX_BODY_BYTES);
+    if (!bodyResult.ok) return bodyResult.response;
+    const { action, text } = bodyResult.value;
 
     if (!text || typeof text !== 'string') {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });

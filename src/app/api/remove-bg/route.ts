@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { requireAiUser } from '@/lib/auth/require-ai-route';
 import { consumeCreditsForUser, refundCreditsForUser } from '@/lib/billing/credits';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 export const maxDuration = 120;
 
@@ -25,7 +26,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = await req.json();
+    const bodyResult = await readJsonBodyWithLimit<{ imageUrl?: string }>(req, MAX_PAYLOAD_BYTES);
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.value;
     const { imageUrl } = body;
 
     if (!imageUrl || typeof imageUrl !== 'string') {

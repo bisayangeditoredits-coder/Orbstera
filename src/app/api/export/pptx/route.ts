@@ -12,6 +12,7 @@ import { isValidDeckStagingKey } from '@/lib/server/deck-staging-key';
 import { asyncExportSlideThreshold } from '@/lib/infra/scaling-flags';
 import { runPptxExport, type PptxExportBody } from '@/lib/export/run-pptx-export';
 import { getR2BucketName, getR2Client } from '@/lib/server/r2-client';
+import { readArrayBufferWithLimit } from '@/lib/http/request-body-limit';
 
 async function readS3BodyToBuffer(stream: unknown): Promise<Buffer> {
   const chunks: Buffer[] = [];
@@ -23,6 +24,7 @@ async function readS3BodyToBuffer(stream: unknown): Promise<Buffer> {
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
+const MAX_EXPORT_BODY_BYTES = 100 * 1024 * 1024;
 
 function isWorkerRequest(req: Request): string | null {
   const secret = process.env.WORKER_INTERNAL_SECRET?.trim();
@@ -38,11 +40,6 @@ export async function POST(req: Request) {
   const exportJobId = req.headers.get('x-export-job-id')?.trim() || '';
 
   try {
-    const contentLength = Number(req.headers.get('content-length') ?? 0);
-    if (!workerUserId && contentLength > 100 * 1024 * 1024) {
-      return NextResponse.json({ error: 'Payload too large. Maximum export payload is 100MB.' }, { status: 413 });
-    }
-
     let authedUserId: string;
     if (workerUserId) {
       authedUserId = workerUserId;
@@ -59,7 +56,9 @@ export async function POST(req: Request) {
 
     const encoding = (req.headers.get('content-encoding') || '').toLowerCase();
     const contentType = (req.headers.get('content-type') || '').toLowerCase();
-    const raw = Buffer.from(await req.arrayBuffer());
+    const rawResult = await readArrayBufferWithLimit(req, MAX_EXPORT_BODY_BYTES);
+    if (!rawResult.ok) return rawResult.response;
+    const raw = Buffer.from(rawResult.buffer);
 
     let jsonStr: string;
     const trySmallStagingMeta =

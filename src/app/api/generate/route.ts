@@ -22,6 +22,7 @@ import { isGenerateQueueEnabled, shouldPreferAsyncGenerate } from '@/lib/jobs/ge
 import { apiLog, captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import { v4 as uuidv4 } from 'uuid';
 import { globalRateLimit } from '@/lib/rate-limit';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -29,17 +30,13 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 export const runtime = 'nodejs';
 /** Raise on Vercel Pro+ if deck generation consistently hits the ceiling (dashboard → Functions). */
 export const maxDuration = 300;
+const MAX_BODY_BYTES = 1 * 1024 * 1024;
 
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
   // Declared in outer scope so the catch block can refund credits on any error.
   let refundIfNeeded: (() => Promise<void>) | null = null;
   try {
-    const contentLength = Number(req.headers.get('content-length') ?? 0);
-    if (contentLength > 1 * 1024 * 1024) { // 1MB max payload
-      return NextResponse.json({ error: 'Payload too large. Maximum size is 1MB.' }, { status: 413 });
-    }
-
     if (!OPENROUTER_API_KEY.trim()) {
       return NextResponse.json({ error: 'OPENROUTER_API_KEY is not configured.' }, { status: 500 });
     }
@@ -71,7 +68,9 @@ export async function POST(req: Request) {
       }
     }
 
-    const body = await req.json();
+    const bodyResult = await readJsonBodyWithLimit<Record<string, unknown>>(req, MAX_BODY_BYTES);
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.value;
     const {
       prompt,
       slideCount = 10,

@@ -4,9 +4,11 @@ import {
   type ProcessGenerateJobPayload,
 } from '@/lib/jobs/process-generate-job';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
+const MAX_BODY_BYTES = 256 * 1024;
 
 function assertWorkerAuth(req: Request): boolean {
   const secret = process.env.WORKER_INTERNAL_SECRET?.trim();
@@ -27,7 +29,9 @@ export async function POST(req: Request) {
 
   let jobId = '';
   try {
-    const payload = (await req.json()) as ProcessGenerateJobPayload;
+    const payloadResult = await readJsonBodyWithLimit<ProcessGenerateJobPayload>(req, MAX_BODY_BYTES);
+    if (!payloadResult.ok) return payloadResult.response;
+    const payload = payloadResult.value;
     ({ jobId } = payload);
 
     await processGenerateJobInline(payload);

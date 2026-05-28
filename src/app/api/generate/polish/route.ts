@@ -10,6 +10,7 @@ import { chargeCreditsBeforeJob, getActionCreditCost, getCreditConfig } from '@/
 import { getBillingPlan } from '@/lib/billing/resolve-plan';
 import { getSpendState } from '@/lib/ai/spend';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -21,6 +22,7 @@ Do not add HTML. Do not wrap in markdown.`;
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
 
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
@@ -41,7 +43,9 @@ export async function POST(req: Request) {
       { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } },
     );
 
-    const { presentation } = await req.json();
+    const bodyResult = await readJsonBodyWithLimit<{ presentation?: unknown }>(req, MAX_BODY_BYTES);
+    if (!bodyResult.ok) return bodyResult.response;
+    const { presentation } = bodyResult.value;
     if (!presentation || typeof presentation !== 'object') {
       return NextResponse.json({ error: 'presentation required' }, { status: 400 });
     }

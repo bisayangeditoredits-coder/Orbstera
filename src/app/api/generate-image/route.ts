@@ -16,12 +16,14 @@ import { selectImageProvider } from '@/lib/ai/router';
 import { addEstimatedSpend, getSpendState } from '@/lib/ai/spend';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 const POLISH_SUFFIX =
   ', editorial quality, sharp focus, balanced composition, clean professional look, no text overlays, no watermarks';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
+const MAX_BODY_BYTES = 128 * 1024;
 
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
@@ -35,7 +37,9 @@ export async function POST(req: Request) {
     }
     const user = auth.user;
 
-    const body = await req.json();
+    const bodyResult = await readJsonBodyWithLimit<Record<string, unknown>>(req, MAX_BODY_BYTES);
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.value;
     const {
       prompt,
       width = 1024,

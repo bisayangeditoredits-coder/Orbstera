@@ -7,11 +7,13 @@ import { getSpendState } from '@/lib/ai/spend';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import { imageRateLimit } from '@/lib/rate-limit';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
+const MAX_BODY_BYTES = 256 * 1024;
 
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
@@ -52,7 +54,9 @@ export async function POST(req: Request) {
       }
     }
 
-    const body = await req.json();
+    const bodyResult = await readJsonBodyWithLimit<Record<string, unknown>>(req, MAX_BODY_BYTES);
+    if (!bodyResult.ok) return bodyResult.response;
+    const body = bodyResult.value;
     const {
       prompt,
       size: sizeIn,

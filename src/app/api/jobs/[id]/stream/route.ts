@@ -26,7 +26,7 @@ function sseComment(): Uint8Array {
  * Server-Sent Events stream for job status.
  * One long-lived connection replaces dozens of client GET polls.
  */
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: { id: string } }) {
   const id = params.id?.trim();
   if (!id) {
     return new Response(JSON.stringify({ error: 'Missing job id' }), {
@@ -54,6 +54,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      let aborted = req.signal.aborted;
+      const onAbort = () => {
+        aborted = true;
+      };
+      req.signal.addEventListener('abort', onAbort);
       const started = Date.now();
       let lastSig = '';
       let lastHeartbeat = Date.now();
@@ -80,8 +85,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
           return;
         }
 
-        while (Date.now() - started < STREAM_MAX_MS) {
+        while (!aborted && Date.now() - started < STREAM_MAX_MS) {
           await new Promise((r) => setTimeout(r, SERVER_POLL_MS));
+          if (aborted) break;
           const job = await getJobRecord(id);
           if (!job) {
             controller.enqueue(sseChunk({ error: 'NOT_FOUND', status: 'failed' }));
@@ -97,13 +103,16 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         }
       } catch (e) {
         console.error('[api/jobs/stream]', e);
-        controller.enqueue(
-          sseChunk({
-            status: 'failed',
-            error: e instanceof Error ? e.message : 'Stream error',
-          }),
-        );
+        if (!aborted) {
+          controller.enqueue(
+            sseChunk({
+              status: 'failed',
+              error: e instanceof Error ? e.message : 'Stream error',
+            }),
+          );
+        }
       } finally {
+        req.signal.removeEventListener('abort', onAbort);
         controller.close();
       }
     },

@@ -6,11 +6,13 @@ import { openRouterComplete } from '@/lib/ai/openrouter';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { chargeCreditsBeforeJob, getActionCreditCost, getCreditConfig } from '@/lib/billing/credits';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+const MAX_BODY_BYTES = 32 * 1024;
 
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
@@ -55,7 +57,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const { slideTitle, speakerNotes, presentationTitle } = await req.json();
+    const bodyResult = await readJsonBodyWithLimit<{
+      slideTitle?: string;
+      speakerNotes?: string;
+      presentationTitle?: string;
+    }>(req, MAX_BODY_BYTES);
+    if (!bodyResult.ok) return bodyResult.response;
+    const { slideTitle, speakerNotes, presentationTitle } = bodyResult.value;
 
     const text = await openRouterComplete(APP_URL, {
       model: OR_MODELS.coach,

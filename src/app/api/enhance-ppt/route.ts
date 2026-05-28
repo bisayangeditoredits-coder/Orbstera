@@ -11,12 +11,14 @@ import { cookies } from 'next/headers';
 import { chargeCreditsBeforeJob, getDeckGenerationCreditCost, getCreditConfig } from '@/lib/billing/credits';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
+import { enforceContentLengthLimit } from '@/lib/http/request-body-limit';
 
 const OPENROUTER_API_KEY = (process.env.OPENROUTER_API_KEY || '').trim();
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
+const MAX_MULTIPART_BYTES = 50 * 1024 * 1024;
 
 async function extractTextFromPptx(buffer: Buffer): Promise<string> {
   const zip = await JSZip.loadAsync(buffer);
@@ -108,10 +110,8 @@ if (
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
   try {
-    const contentLength = Number(req.headers.get('content-length') ?? 0);
-    if (contentLength > 50 * 1024 * 1024) {
-      return NextResponse.json({ error: 'Payload too large. Maximum upload is 50MB.' }, { status: 413 });
-    }
+    const sizeCheck = enforceContentLengthLimit(req, MAX_MULTIPART_BYTES);
+    if (sizeCheck) return sizeCheck;
 
     const auth = await requireAiUser(req, 'heavy');
     if ('response' in auth) {

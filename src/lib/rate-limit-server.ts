@@ -128,30 +128,6 @@ export async function enforceAiUserRateLimit(
   return runRateLimitChecks([userLim.limit(userId)], '');
 }
 
-/**
- * Per-user + per-IP sliding window.
- * No-op when Upstash Redis is not configured (dev / missing env).
- *
- * Returns a 429 NextResponse if either limit is exceeded, null otherwise.
- */
-export async function enforceAiRateLimit(
-  req: Request,
-  userId: string | null,
-  tier: AiTier = 'default',
-): Promise<NextResponse | null> {
-  const userLim = getLimiter(`ai:user:${tier}`, LIMITS.user[tier]);
-  const ipLim = getLimiter(`ai:ip:${tier}`, LIMITS.ip[tier]);
-
-  if (!userLim && !ipLim) return null;
-
-  const checks: Promise<{ success: boolean }>[] = [];
-  if (userLim && userId) checks.push(userLim.limit(userId));
-  if (ipLim) checks.push(ipLim.limit(clientIp(req)));
-  if (checks.length === 0) return null;
-
-  return runRateLimitChecks(checks, '');
-}
-
 /** IP-only API rate limit — before auth. */
 export async function enforceApiIpRateLimit(
   req: Request,
@@ -216,22 +192,3 @@ export async function enforceContactRateLimit(req: Request): Promise<NextRespons
   return runRateLimitChecks([ipLim.limit(clientIp(req))], ':contact');
 }
 
-/** Rate limit for storage/CRUD API routes (separate prefix from AI). */
-export async function enforceApiRateLimit(
-  req: Request,
-  userId: string | null,
-  tier: ApiTier = 'default',
-): Promise<NextResponse | null> {
-  const { user, ip, prefix } = apiTierKeys(tier);
-  const userLim = getLimiter(`${prefix}:user`, user);
-  const ipLim = getLimiter(`${prefix}:ip`, ip);
-
-  if (!userLim && !ipLim) return null;
-
-  const checks: Promise<{ success: boolean }>[] = [];
-  if (userLim && userId) checks.push(userLim.limit(userId));
-  if (ipLim) checks.push(ipLim.limit(clientIp(req)));
-  if (checks.length === 0) return null;
-
-  return runRateLimitChecks(checks, ':api');
-}

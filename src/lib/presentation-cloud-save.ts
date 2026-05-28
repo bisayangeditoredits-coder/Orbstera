@@ -387,38 +387,3 @@ export async function postPresentationCloudSave(presentation: PresentationData):
   return { response, prepared };
 }
 
-/** Browser keepalive/beacon limit — stay under typical 64KB caps. */
-export const CLOUD_SAVE_KEEPALIVE_MAX_BYTES = 60_000;
-
-/**
- * Best-effort save on tab hide/close using `fetch(..., { keepalive: true })`.
- * Skips oversized payloads (debounced autosave handles those).
- */
-export async function flushPresentationCloudSaveKeepalive(
-  presentation: PresentationData,
-): Promise<boolean> {
-  if (typeof window === 'undefined') return false;
-  if (!presentation?.id || presentation.title === 'Generating...' || !presentation.slides?.length) {
-    return false;
-  }
-
-  try {
-    const prepared = await preparePresentationForCloudSave(presentation);
-    const json = JSON.stringify(prepared);
-    const { body, headers } = await encodePresentationPostBody(json);
-    const bytes = encodedBodyByteLength(body);
-    if (bytes > CLOUD_SAVE_KEEPALIVE_MAX_BYTES) return false;
-
-    const res = await fetch('/api/presentations', {
-      method: 'POST',
-      headers,
-      body,
-      cache: 'no-store',
-      credentials: 'include',
-      keepalive: true,
-    });
-    return res.ok || res.status === 409;
-  } catch {
-    return false;
-  }
-}

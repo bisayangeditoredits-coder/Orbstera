@@ -3,12 +3,14 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { convertPptxBufferToPresentation } from '@/lib/import/pptxToPresentation';
 import { withRouteError } from '@/lib/api/with-route-error';
+import { enforceContentLengthLimit } from '@/lib/http/request-body-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const MAX_BYTES = 40 * 1024 * 1024;
+const MAX_MULTIPART_BYTES = 42 * 1024 * 1024;
 
 async function getAuthUser() {
   const cookieStore = cookies();
@@ -29,6 +31,8 @@ async function postImport(req: Request) {
   if (!ct.includes('multipart/form-data')) {
     return NextResponse.json({ error: 'Expected multipart/form-data' }, { status: 400 });
   }
+  const sizeCheck = enforceContentLengthLimit(req, MAX_MULTIPART_BYTES);
+  if (sizeCheck) return sizeCheck;
 
   let form: FormData;
   try {

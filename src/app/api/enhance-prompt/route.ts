@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { chargeCreditsBeforeJob, getActionCreditCost, getCreditConfig } from '@/lib/billing/credits';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -23,11 +24,17 @@ Output ONLY the prompt text. No preamble or quotes.`;
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+const MAX_BODY_BYTES = 24 * 1024;
 
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
   try {
-    const { prompt, purpose } = await req.json();
+    const bodyResult = await readJsonBodyWithLimit<{ prompt?: string; purpose?: string }>(
+      req,
+      MAX_BODY_BYTES,
+    );
+    if (!bodyResult.ok) return bodyResult.response;
+    const { prompt, purpose } = bodyResult.value;
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });

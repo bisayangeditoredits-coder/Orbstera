@@ -20,6 +20,7 @@ import { getBillingPlan } from '@/lib/billing/resolve-plan';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import { pollinationsChat } from '@/lib/pollinations-text';
+import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
@@ -72,6 +73,7 @@ function toPollinationPixels(w: number, h: number) {
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
+const MAX_BODY_BYTES = 512 * 1024;
 
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
@@ -89,7 +91,13 @@ export async function POST(req: Request) {
     }
     const userId = auth.user.id;
 
-    const { prompt, element, slideContext } = await req.json();
+    const bodyResult = await readJsonBodyWithLimit<{
+      prompt?: string;
+      element?: SlideElement;
+      slideContext?: Record<string, unknown>;
+    }>(req, MAX_BODY_BYTES);
+    if (!bodyResult.ok) return bodyResult.response;
+    const { prompt, element, slideContext } = bodyResult.value;
 
     if (!prompt || !element) {
       return NextResponse.json({ error: 'Prompt and element data are required' }, { status: 400 });

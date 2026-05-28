@@ -40,7 +40,12 @@ export async function GET(req: Request) {
       .update(`${userId}:${planId}`)
       .digest('hex');
 
-    if (sig !== expectedSig) {
+    const expected = Buffer.from(expectedSig, 'utf8');
+    const provided = Buffer.from(sig, 'utf8');
+    const isValidSig =
+      expected.length === provided.length &&
+      crypto.timingSafeEqual(expected, provided);
+    if (!isValidSig) {
       console.error('[Dodo Sync] Invalid signature mismatch');
       return NextResponse.redirect(`${appUrl}/my-presentations?payment=failed_sig#settings`);
     }

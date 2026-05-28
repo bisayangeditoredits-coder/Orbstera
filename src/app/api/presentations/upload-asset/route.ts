@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
+import { assertTrustedOrigin, untrustedOriginResponse } from '@/lib/auth/server';
+import { enforceContentLengthLimit } from '@/lib/http/request-body-limit';
 import { requireApiUserWithRateLimit } from '@/lib/auth/require-api-route';
 import { getR2PublicBaseTrimmed } from '@/lib/r2-public-url';
 
@@ -31,12 +33,15 @@ function extFromMime(mime: string): string {
 }
 
 const MAX_BYTES = 32 * 1024 * 1024;
+export const maxDuration = 60;
+const MAX_MULTIPART_BYTES = 35 * 1024 * 1024;
 
 /**
  * Same-origin upload of a deck image to R2 (server PutObject).
  * Use when browser presigned PUT to R2 fails (e.g. missing bucket CORS).
  */
 export async function POST(req: Request) {
+  if (!assertTrustedOrigin(req)) return untrustedOriginResponse();
   if (!s3Client || !process.env.CLOUDFLARE_R2_BUCKET_NAME) {
     return NextResponse.json({ error: 'Cloudflare R2 is not configured' }, { status: 500 });
   }
@@ -57,6 +62,8 @@ export async function POST(req: Request) {
   if (!ct.includes('multipart/form-data')) {
     return NextResponse.json({ error: 'Expected multipart/form-data' }, { status: 400 });
   }
+  const sizeCheck = enforceContentLengthLimit(req, MAX_MULTIPART_BYTES);
+  if (sizeCheck) return sizeCheck;
 
   let form: FormData;
   try {
