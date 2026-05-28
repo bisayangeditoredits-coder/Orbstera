@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
@@ -15,6 +15,7 @@ import {
   Star,
   Path,
   Circle,
+  Arc,
 } from 'react-konva';
 import Konva from 'konva';
 import useImage from 'use-image';
@@ -94,6 +95,53 @@ interface ElementNodeProps {
   revealVisible?: boolean;
 }
 
+// Custom hook to load and play an HTML5 video for Konva
+function useVideo(src: string): [HTMLVideoElement | undefined, string] {
+  const [video, setVideo] = useState<HTMLVideoElement | undefined>(undefined);
+  const [status, setStatus] = useState<string>('loading');
+  const shapeRef = useRef<Konva.Shape | null>(null);
+
+  useEffect(() => {
+    if (!src) {
+      setVideo(undefined);
+      setStatus('loading');
+      return;
+    }
+    
+    // Fallback if not mp4, just let image loader handle it (though we won't call this for non-mp4s)
+    if (!src.endsWith('.mp4')) {
+      setVideo(undefined);
+      setStatus('failed');
+      return;
+    }
+
+    const vid = document.createElement('video');
+    vid.src = src;
+    vid.crossOrigin = 'Anonymous';
+    vid.loop = true;
+    vid.muted = true;
+    vid.playsInline = true;
+    
+    vid.addEventListener('loadeddata', () => {
+      setStatus('loaded');
+      vid.play().catch(e => console.warn('Video play error:', e));
+    });
+    vid.addEventListener('error', () => {
+      setStatus('failed');
+    });
+
+    setVideo(vid);
+
+    return () => {
+      vid.pause();
+      vid.removeAttribute('src');
+      vid.load();
+    };
+  }, [src]);
+
+  return [video, status];
+}
+
 // ─── Element Node Component ───────────────────────────────────────────────────
 function ElementNode({
   el,
@@ -131,35 +179,86 @@ function ElementNode({
   const dragStartPosRef = useRef<{ x: number; y: number } | null>(null);
   const rawImgSrc = el.type === 'image' ? (el.src || '').trim() : '';
   let displayImgSrc = editorImageFetchUrl(rawImgSrc);
+  
+  const isVideoSource = displayImgSrc.split('?')[0].endsWith('.mp4');
+  let videoId = '';
   if (displayImgSrc.includes('youtube.com/embed/')) {
-    const videoId = displayImgSrc.split('embed/')[1]?.split('?')[0];
+    videoId = displayImgSrc.split('embed/')[1]?.split('?')[0] || '';
     if (videoId) displayImgSrc = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-  } else if (displayImgSrc.split('?')[0].endsWith('.mp4') && el.content) {
-    displayImgSrc = el.content;
   }
+  
   const imageHookSrc =
-    displayImgSrc &&
+    displayImgSrc && !isVideoSource &&
     (/^data:image\//i.test(displayImgSrc) ||
       /^https?:\/\//i.test(displayImgSrc) ||
       /^blob:/i.test(displayImgSrc) ||
       displayImgSrc.startsWith('/api/'))
       ? displayImgSrc
       : '';
+      
   const [img, imgStatus] = useImage(imageHookSrc, 'anonymous');
-
+  const [videoElement, videoStatus] = useVideo(isVideoSource ? displayImgSrc : '');
+  
+  // Create an animation loop to trigger Konva redraws when video is playing
   useEffect(() => {
-    if (!genFillBorderRef.current) return;
-    const node = genFillBorderRef.current;
+    if (!isVideoSource || !videoElement || videoStatus !== 'loaded') return;
+    const node = shapeRef.current;
+    if (!node) return;
     const layer = node.getLayer();
-    const anim = new Konva.Animation((frame) => {
-      const t = frame?.time ?? 0;
-      node.dashOffset((t / 24) % 32);
+    if (!layer) return;
+    
+    const anim = new Konva.Animation(() => {
+      // do nothing, but let it redraw the layer so the video frame updates
     }, layer);
     anim.start();
     return () => {
       anim.stop();
     };
-  }, [el.type, el.id, img]);
+  }, [isVideoSource, videoElement, videoStatus]);
+
+  const activeMedia = isVideoSource ? videoElement : img;
+  const activeMediaStatus = isVideoSource ? videoStatus : imgStatus;
+
+  const spinnerRef = useRef<Konva.Arc>(null);
+  const glowRef = useRef<Konva.Circle>(null);
+
+  useEffect(() => {
+    let borderAnim: Konva.Animation | undefined;
+    let spinnerAnim: Konva.Animation | undefined;
+
+    if (genFillBorderRef.current) {
+      const node = genFillBorderRef.current;
+      const layer = node.getLayer();
+      if (layer) {
+        borderAnim = new Konva.Animation((frame) => {
+          const t = frame?.time ?? 0;
+          node.dashOffset((t / 24) % 32);
+        }, layer);
+        borderAnim.start();
+      }
+    }
+
+    if (spinnerRef.current && glowRef.current) {
+      const sNode = spinnerRef.current;
+      const gNode = glowRef.current;
+      const layer = sNode.getLayer();
+      if (layer) {
+        spinnerAnim = new Konva.Animation((frame) => {
+          const t = frame?.time ?? 0;
+          sNode.rotation((t / 800) * 360);
+          const scale = 1 + Math.sin(t / 200) * 0.15;
+          gNode.scale({ x: scale, y: scale });
+          gNode.opacity(0.4 + Math.sin(t / 200) * 0.2);
+        }, layer);
+        spinnerAnim.start();
+      }
+    }
+
+    return () => {
+      if (borderAnim) borderAnim.stop();
+      if (spinnerAnim) spinnerAnim.stop();
+    };
+  }, [el.aiImagePending, el.type, el.id, img]);
 
   useEffect(() => {
     // Transformer logic moved to KonvaCanvas for separate overlay layer
@@ -472,10 +571,10 @@ function ElementNode({
     if (el.type === 'image') {
       const awaitingPrompt = !el.src?.trim();
       const aiSlot = !!(awaitingPrompt && el.aiImagePending);
-      const statusTitle = awaitingPrompt ? (aiSlot ? 'AI visuals' : 'Generative fill') : 'Rendering';
+      const statusTitle = awaitingPrompt ? (aiSlot ? 'Generating masterpiece...' : 'Generative fill') : 'Rendering';
       const statusSub = awaitingPrompt
         ? aiSlot
-          ? 'Rendering with AI — updates live'
+          ? 'Applying AI models and polishing details'
           : 'Describe content in the panel below'
         : 'Loading image…';
 
@@ -506,23 +605,17 @@ function ElementNode({
           }}
         >
           <Rect x={0} y={0} width={el.width} height={el.height} fill="transparent" listening={elementListening} />
-          {!img && imgStatus !== 'failed' && (
+          {!activeMedia && activeMediaStatus !== 'failed' && (
             <Group listening={false}>
               <Rect
                 x={0}
                 y={0}
                 width={el.width}
                 height={el.height}
-                fillLinearGradientStartPoint={{ x: 0, y: 0 }}
-                fillLinearGradientEndPoint={{ x: el.width, y: el.height }}
-                fillLinearGradientColorStops={[
-                  0,
-                  'rgba(15,23,42,0.92)',
-                  0.45,
-                  'rgba(30,41,59,0.88)',
-                  1,
-                  'rgba(15,23,42,0.94)',
-                ]}
+                fill="rgba(241, 245, 249, 0.95)"
+                shadowColor="rgba(15,23,42,0.08)"
+                shadowBlur={16}
+                shadowOffsetY={4}
                 cornerRadius={!el.maskType || el.maskType === 'square' || el.maskType === 'none' ? 12 : 0}
               />
               <Rect
@@ -532,45 +625,66 @@ function ElementNode({
                 width={el.width}
                 height={el.height}
                 fill="transparent"
-                stroke="rgba(56,189,248,0.65)"
+                stroke="#5B7CFF"
                 strokeWidth={1.5}
+                opacity={0.7}
                 cornerRadius={!el.maskType || el.maskType === 'square' || el.maskType === 'none' ? 12 : 0}
-                dash={[10, 7]}
+                dash={[6, 6]}
               />
-              <Text
-                x={0}
-                y={el.height / 2 - 26}
-                width={el.width}
-                text="✦"
-                fill="#38BDF8"
-                fontSize={22}
-                align="center"
-                fontFamily="Inter"
-              />
+              {aiSlot ? (
+                <Group x={el.width / 2} y={el.height / 2 - 20}>
+                  <Circle
+                    ref={glowRef as React.RefObject<Konva.Circle>}
+                    radius={16}
+                    fill="rgba(91,124,255,0.15)"
+                    shadowBlur={20}
+                    shadowColor="#5B7CFF"
+                  />
+                  <Arc
+                    ref={spinnerRef as React.RefObject<Konva.Arc>}
+                    innerRadius={8}
+                    outerRadius={11}
+                    angle={270}
+                    fill="#5B7CFF"
+                    lineCap="round"
+                  />
+                </Group>
+              ) : (
+                <Text
+                  x={0}
+                  y={el.height / 2 - 26}
+                  width={el.width}
+                  text="✦"
+                  fill="#5B7CFF"
+                  fontSize={20}
+                  align="center"
+                  fontFamily="Inter"
+                />
+              )}
               <Text
                 x={0}
                 y={el.height / 2 - 2}
                 width={el.width}
                 text={statusTitle}
-                fill="rgba(248,250,252,0.92)"
-                fontSize={12}
+                fill="rgba(15,23,42,0.9)"
+                fontSize={13}
                 align="center"
                 fontFamily="Inter"
-                fontStyle="bold"
+                fontStyle="600"
               />
               <Text
                 x={0}
-                y={el.height / 2 + 16}
+                y={el.height / 2 + 18}
                 width={el.width}
                 text={statusSub}
-                fill="rgba(148,163,184,0.85)"
-                fontSize={9}
+                fill="rgba(100,116,139,0.8)"
+                fontSize={10}
                 align="center"
                 fontFamily="Inter"
               />
             </Group>
           )}
-          {!img && imgStatus === 'failed' && displayImgSrc && (
+          {!activeMedia && activeMediaStatus === 'failed' && displayImgSrc && (
             <Group listening={false}>
               <Rect x={0} y={0} width={el.width} height={el.height} fill="rgba(127,29,29,0.25)" cornerRadius={8} />
               <Text
@@ -585,14 +699,14 @@ function ElementNode({
               />
             </Group>
           )}
-          {img && (
+          {activeMedia && (
             <KonvaImage
-              image={img}
+              image={activeMedia}
               x={0}
               y={0}
               width={el.width}
               height={el.height}
-              {...getObjectFitCoverCrop(img as HTMLImageElement, el.width, el.height, el.cropPositionX, el.cropPositionY)}
+              {...getObjectFitCoverCrop(activeMedia as any, el.width, el.height, el.cropPositionX, el.cropPositionY)}
               draggable={isPanningImage === el.id}
               dragBoundFunc={(pos) => {
                 if (isPanningImage === el.id) return { x: 0, y: 0 };
@@ -615,8 +729,9 @@ function ElementNode({
                 const dx = e.evt.clientX - panStartRef.current.pointerX;
                 const dy = e.evt.clientY - panStartRef.current.pointerY;
 
-                const naturalWidth = (img as HTMLImageElement).naturalWidth || img.width;
-                const naturalHeight = (img as HTMLImageElement).naturalHeight || img.height;
+                const media = activeMedia as any;
+                const naturalWidth = media.naturalWidth || media.videoWidth || media.width;
+                const naturalHeight = media.naturalHeight || media.videoHeight || media.height;
                 const imageRatio = naturalWidth / naturalHeight;
                 const boxRatio = el.width / el.height;
                 
@@ -650,8 +765,52 @@ function ElementNode({
             />
           )}
 
+          {/* AI Animating Overlay */}
+          {activeMedia && el.aiImagePending && (
+            <Group listening={false}>
+              <Rect
+                x={0}
+                y={0}
+                width={el.width}
+                height={el.height}
+                fill="rgba(15,23,42,0.6)"
+              />
+              <Text
+                x={0}
+                y={el.height / 2 - 26}
+                width={el.width}
+                text="✦"
+                fill="#38BDF8"
+                fontSize={22}
+                align="center"
+                fontFamily="Inter"
+              />
+              <Text
+                x={0}
+                y={el.height / 2 - 2}
+                width={el.width}
+                text="Animating"
+                fill="rgba(248,250,252,0.92)"
+                fontSize={12}
+                align="center"
+                fontFamily="Inter"
+                fontStyle="bold"
+              />
+              <Text
+                x={0}
+                y={el.height / 2 + 16}
+                width={el.width}
+                text="Generating motion... this may take 1-2 minutes"
+                fill="rgba(148,163,184,0.85)"
+                fontSize={9}
+                align="center"
+                fontFamily="Inter"
+              />
+            </Group>
+          )}
+
           {/* Centered Move Handle when in Pan Mode */}
-          {img && isPanningImage === el.id && (
+          {activeMedia && isPanningImage === el.id && (
             <Group 
               x={el.width / 2} 
               y={el.height / 2}
@@ -676,8 +835,9 @@ function ElementNode({
                 const dx = e.evt.clientX - panStartRef.current.pointerX;
                 const dy = e.evt.clientY - panStartRef.current.pointerY;
 
-                const naturalWidth = (img as HTMLImageElement).naturalWidth || img.width;
-                const naturalHeight = (img as HTMLImageElement).naturalHeight || img.height;
+                const media = activeMedia as any;
+                const naturalWidth = media.naturalWidth || media.videoWidth || media.width;
+                const naturalHeight = media.naturalHeight || media.videoHeight || media.height;
                 const imageRatio = naturalWidth / naturalHeight;
                 const boxRatio = el.width / el.height;
                 

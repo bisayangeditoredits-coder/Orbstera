@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { usePresentationStore } from '@/store/usePresentationStore';
@@ -12,6 +12,7 @@ import type { EditorToolId } from '@/types';
 const RAIL_ITEMS = [
   { id: 'templates',  icon: LayoutTemplate, label: 'Design',   panel: 'generate' as const },
   { id: 'gen-fill',   icon: Sparkles,       label: 'AI Fill',  tool: 'gen-fill' as EditorToolId },
+  { id: 'recraft',    icon: Sparkles,       label: 'Recraft',  tool: 'recraft' as EditorToolId },
   { id: 'select',     icon: MousePointer2,  label: 'Select',   tool: 'select' as EditorToolId },
   { id: 'text',       icon: Type,           label: 'Text',     tool: 'text' as EditorToolId },
   { id: 'uploads',    icon: Upload,         label: 'Uploads',  tool: 'image' as EditorToolId },
@@ -109,12 +110,32 @@ export function LeftIconRail() {
                 )}
               >
                 {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[4px] h-6 bg-primary rounded-r-full" />
+                  <span className={cn(
+                    "absolute left-0 top-1/2 -translate-y-1/2 w-[4px] h-6 rounded-r-full",
+                    isAiFill ? "bg-gradient-to-b from-[#5B7CFF] to-primary" : "bg-primary"
+                  )} />
                 )}
-                <Icon size={20} strokeWidth={isActive ? 2 : 1.6} />
-                <span className="text-[9.5px] font-semibold tracking-wide leading-none text-center px-1">
-                  {item.label}
-                </span>
+                
+                {/* For AI Fill, use a sleek animated text gradient instead of a bulky background block */}
+                <div className={cn(
+                  "flex flex-col items-center gap-1.5",
+                  isAiFill && "group-hover:scale-[1.05] transition-transform duration-200"
+                )}>
+                  <Icon 
+                    size={20} 
+                    strokeWidth={isActive ? 2 : 1.6} 
+                    className={cn(
+                      isAiFill && !isActive && "text-neutral-400 group-hover:text-[#5B7CFF] transition-colors",
+                      isAiFill && isActive && "text-[#5B7CFF]"
+                    )}
+                  />
+                  <span className={cn(
+                    "text-[9.5px] font-semibold tracking-wide leading-none text-center px-1",
+                    isAiFill ? "bg-clip-text text-transparent bg-gradient-to-r from-[#5B7CFF] via-indigo-400 to-[#5B7CFF] animate-gradient-pan" : ""
+                  )}>
+                    {item.label}
+                  </span>
+                </div>
               </button>
 
               {isAiFill && typeof window !== 'undefined' && createPortal(

@@ -4,6 +4,8 @@ import { cookies } from 'next/headers';
 import { requireAiUser } from '@/lib/auth/require-ai-route';
 import { consumeCreditsForUser, refundCreditsForUser } from '@/lib/billing/credits';
 
+export const maxDuration = 120;
+
 // remove.bg charges per image — cap payload to prevent abuse
 const MAX_PAYLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
 

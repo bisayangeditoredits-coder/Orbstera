@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -160,13 +160,16 @@ export function GenerativeFillToolbar() {
       updateElement(slide.id, el.id, {
         src: cacheBustedUrl,
         animation: el.animation ?? { entrance: 'fadeIn', duration: 600, delay: 0 },
-      });
+        aiImagePending: false,
+        aiMetadata: data.imageId ? { leonardoImageId: data.imageId } : undefined
+      }, true);
       setEditorState({
         generativeFillTarget: null,
         activeTool: 'select',
         previewElementId: el.id,
       });
       setPrompt('');
+      window.dispatchEvent(new Event('credits-updated'));
 
       // Fire-and-forget usage log for dashboard cost tracking (if backend supports it).
       fetch('/api/usage/log', {
@@ -179,8 +182,14 @@ export function GenerativeFillToolbar() {
       }).catch(() => {});
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Something went wrong';
+      // Restore canvas placeholder — clear the pending flag so it doesn't stay stuck
+      if (slide && el) {
+        updateElement(slide.id, el.id, { aiImagePending: false });
+      }
       if (msg === 'FREE_LIMIT_REACHED') {
         setError('Free limit reached (15/month). Upgrade to Pro for unlimited Generative Fill.');
+      } else if (msg === 'RATE_LIMITED') {
+        setError('AI servers are busy right now. Please wait a moment and try again.');
       } else {
         setError(msg);
       }

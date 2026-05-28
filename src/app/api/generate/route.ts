@@ -51,19 +51,23 @@ export async function POST(req: Request) {
     if (globalRateLimit) {
       const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
       const identifier = `${user.id}-${ip}`;
-      const { success, limit, reset, remaining } = await globalRateLimit.limit(identifier);
-      if (!success) {
-        return NextResponse.json(
-          { error: 'Rate limit exceeded. Please try again later.' },
-          {
-            status: 429,
-            headers: {
-              'X-RateLimit-Limit': limit.toString(),
-              'X-RateLimit-Remaining': remaining.toString(),
-              'X-RateLimit-Reset': reset.toString(),
-            },
-          }
-        );
+      try {
+        const { success, limit, reset, remaining } = await globalRateLimit.limit(identifier);
+        if (!success) {
+          return NextResponse.json(
+            { error: 'Rate limit exceeded. Please try again later.' },
+            {
+              status: 429,
+              headers: {
+                'X-RateLimit-Limit': limit.toString(),
+                'X-RateLimit-Remaining': remaining.toString(),
+                'X-RateLimit-Reset': reset.toString(),
+              },
+            }
+          );
+        }
+      } catch (rlError) {
+        console.warn('[Global] Rate limit check failed, failing open:', rlError);
       }
     }
 

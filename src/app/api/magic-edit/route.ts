@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { SlideElement } from '@/types';
 import { generateClaidImageUrl } from '@/lib/claid-image';
 import { generatePollinationsImageUrl } from '@/lib/pollinations-image';
+import { generateLeonardoImageUrl } from '@/lib/leonardo-image';
 import { openRouterImageGeneration } from '@/lib/ai/openrouter-image';
 import { openRouterCompleteCascade } from '@/lib/ai/openrouter-cascade';
 import { getMagicEditTextModels, selectImageProvider } from '@/lib/ai/router';
@@ -218,10 +219,16 @@ Return the modified element JSON only.`;
             Number((updatedElementFromFallback as { height?: number }).height) || 1024,
           );
           try {
-            const { generatePollinationsImageUrl } = await import('@/lib/pollinations-image');
-            (updatedElementFromFallback as { src?: string }).src = await generatePollinationsImageUrl({ prompt: promptText, width: fw, height: fh, polish: true });
+            const resObj = await generateLeonardoImageUrl({ prompt: promptText, width: fw, height: fh });
+            (updatedElementFromFallback as { src?: string }).src = resObj.url;
           } catch (imgErr) {
-            console.error('[MagicEdit] Pollinations image gen in fallback failed:', imgErr);
+            console.error('[MagicEdit] Leonardo image gen in fallback failed:', imgErr);
+            // Fallback to pollinations if leonardo fails
+            try {
+              (updatedElementFromFallback as { src?: string }).src = await generatePollinationsImageUrl({ prompt: promptText, width: fw, height: fh, polish: true });
+            } catch (fallbackErr) {
+              console.error('[MagicEdit] Pollinations fallback also failed:', fallbackErr);
+            }
           }
         }
 
@@ -264,12 +271,21 @@ Return the modified element JSON only.`;
       }
       try {
         if (!paid) {
-          updatedElement.src = await generatePollinationsImageUrl({
-            prompt: promptText,
-            width,
-            height,
-            polish: true,
-          });
+          try {
+            const resObj = await generateLeonardoImageUrl({
+              prompt: promptText,
+              width,
+              height,
+            });
+            updatedElement.src = resObj.url;
+          } catch (err) {
+            updatedElement.src = await generatePollinationsImageUrl({
+              prompt: promptText,
+              width,
+              height,
+              polish: true,
+            });
+          }
         } else {
           const imgSel = selectImageProvider({
             plan,
@@ -307,14 +323,19 @@ Return the modified element JSON only.`;
 
           const src = String(updatedElement.src || '');
           if (!src.startsWith('http') && !src.startsWith('data:')) {
-            updatedElement.src = hasClaid
-              ? await generateClaidImageUrl({ prompt: promptText, polish: true, width, height })
-              : await generatePollinationsImageUrl({
-                  prompt: promptText,
-                  width,
-                  height,
-                  polish: true,
-                });
+            try {
+              const resObj = await generateLeonardoImageUrl({ prompt: promptText, width, height });
+              updatedElement.src = resObj.url;
+            } catch (leoErr) {
+              updatedElement.src = hasClaid
+                ? await generateClaidImageUrl({ prompt: promptText, polish: true, width, height })
+                : await generatePollinationsImageUrl({
+                    prompt: promptText,
+                    width,
+                    height,
+                    polish: true,
+                  });
+            }
           }
         }
 

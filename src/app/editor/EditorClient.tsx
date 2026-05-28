@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
 
@@ -25,6 +25,7 @@ import { isSlideDeckBackgroundImage } from '@/lib/slide-background';
 import { createStarterPresentation } from '@/lib/editor-starter-deck';
 import { createEditorGeneratingShell } from '@/lib/editor-generating-shell';
 import { ComponentErrorBoundary } from '@/components/editor/ComponentErrorBoundary';
+import { RecraftModal } from '@/components/editor/RecraftModal';
 import { Monitor } from 'lucide-react';
 
 const EditorCanvasLoading = () => (
@@ -761,6 +762,7 @@ export default function EditorClient() {
           {activePanelContent}
         </aside>
       </div>
+      <RecraftModal />
     </div>
     </>
   );

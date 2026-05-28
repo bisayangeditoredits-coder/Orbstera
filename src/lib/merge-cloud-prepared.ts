@@ -67,10 +67,6 @@ export function buildPresentationUpdatesAfterCloudSave(
   const bodySlides = bodyUsedForSave.slides;
   const curSlides = current.slides;
 
-  if (slidesMatchBodyStructure(bodySlides, curSlides)) {
-    return { ...baseMeta, slides: prepared.slides };
-  }
-
   const bodyMap = new Map((bodySlides || []).map((s) => [s.id, s]));
   const prepMap = new Map((prepared.slides || []).map((s) => [s.id, s]));
 

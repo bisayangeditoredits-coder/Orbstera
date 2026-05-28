@@ -1,4 +1,4 @@
-﻿/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -136,12 +136,31 @@ export function GiphyPanel({ onClose }: { onClose?: () => void }) {
             Add <code className="bg-neutral-100 px-1 rounded text-[10px]">NEXT_PUBLIC_GIPHY_API_KEY</code> to .env
           </div>
         ) : loading ? (
-          <div className="flex items-center justify-center h-40">
-            <Loader2 className="animate-spin text-neutral-300" size={22} />
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-2">
+              {[...Array(8)].map((_, i) => (
+                <div 
+                  key={i} 
+                  className="relative rounded-xl bg-neutral-100 overflow-hidden aspect-square border border-neutral-50"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-sweep" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : error ? (
           <div className="text-[12px] text-red-500 text-center p-4 bg-red-50 rounded-xl border border-red-100">
             {error === 'API_KEY_INVALID' ? 'Invalid Giphy API key.' : error}
+          </div>
+        ) : gifs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center p-4 pt-10 opacity-70">
+            <div className="w-12 h-12 rounded-full bg-neutral-100 flex items-center justify-center mb-3">
+              <Smile size={20} className="text-neutral-400" />
+            </div>
+            <p className="text-[13px] font-bold text-neutral-600">No {mode} found</p>
+            <p className="text-[11px] text-neutral-400 mt-1 max-w-[180px] mx-auto">
+              Try searching for something else like "happy" or "confetti".
+            </p>
           </div>
         ) : (
           <div className="flex flex-col gap-3">

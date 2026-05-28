@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { ImageVisualProfile } from '@/lib/ai/agent-models';
 import { openRouterImageGeneration } from '@/lib/ai/openrouter-image';
+import { generateLeonardoImageUrl } from '@/lib/leonardo-image';
 import { selectImageProvider, type AiTask } from '@/lib/ai/router';
 import { getSpendState } from '@/lib/ai/spend';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
@@ -31,19 +32,23 @@ export async function POST(req: Request) {
     if (imageRateLimit) {
       const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
       const identifier = `${user.id}-${ip}`;
-      const { success, limit, reset, remaining } = await imageRateLimit.limit(identifier);
-      if (!success) {
-        return NextResponse.json(
-          { error: 'Rate limit exceeded. Please try again later.' },
-          {
-            status: 429,
-            headers: {
-              'X-RateLimit-Limit': limit.toString(),
-              'X-RateLimit-Remaining': remaining.toString(),
-              'X-RateLimit-Reset': reset.toString(),
-            },
-          }
-        );
+      try {
+        const { success, limit, reset, remaining } = await imageRateLimit.limit(identifier);
+        if (!success) {
+          return NextResponse.json(
+            { error: 'Rate limit exceeded. Please try again later.' },
+            {
+              status: 429,
+              headers: {
+                'X-RateLimit-Limit': limit.toString(),
+                'X-RateLimit-Remaining': remaining.toString(),
+                'X-RateLimit-Reset': reset.toString(),
+              },
+            }
+          );
+        }
+      } catch (rlError) {
+        console.warn('[Image] Rate limit check failed, failing open:', rlError);
       }
     }
 
@@ -90,6 +95,27 @@ export async function POST(req: Request) {
 
     const isGenfillTask = task === 'genfill_image' || task === 'magic_edit_image';
 
+    // ── Retry helper: retries fn up to maxAttempts times on 429/503 responses ──
+    const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+    async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
+      const backoffMs = [500, 1500, 3000];
+      let lastErr: unknown;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          return await fn();
+        } catch (err) {
+          lastErr = err;
+          const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+          const isRetryable = msg.includes('429') || msg.includes('503') ||
+            msg.includes('rate limit') || msg.includes('too many');
+          if (!isRetryable || attempt >= maxAttempts - 1) throw err;
+          console.warn(`[Image] Retryable error (attempt ${attempt + 1}/${maxAttempts}), retrying in ${backoffMs[attempt]}ms:`, msg);
+          await sleep(backoffMs[attempt]);
+        }
+      }
+      throw lastErr;
+    }
+
     // ── FREE USERS: Pollinations + monthly Redis cap (no credits) ──
     if (!isPaid) {
       const slot = await consumeFreeGenfillSlot(user.id);
@@ -127,15 +153,15 @@ export async function POST(req: Request) {
           pw = Math.max(8, Math.round(pw / 8) * 8);
           ph = Math.max(8, Math.round(ph / 8) * 8);
         }
-        const freeUrl = await generatePollinationsImageUrl({ prompt: String(prompt), width: pw, height: ph });
-
-        // Optional background removal for transparent flag
-        let finalFreeUrl = freeUrl;
+        const { generateLeonardoImageUrl } = await import('@/lib/leonardo-image');
+        const resObj = await withRetry(() => generateLeonardoImageUrl({ prompt: String(prompt), width: pw, height: ph }));
+        let finalFreeUrl = resObj.url;
+        
         if (body.transparent) {
           const bgKey = process.env.REMOVE_BG_API_KEY?.trim();
           if (bgKey) {
             try {
-              const b64Data = freeUrl.split(',')[1];
+              const b64Data = finalFreeUrl.split(',')[1];
               const formData = new FormData();
               formData.append('image_file_b64', b64Data);
               formData.append('size', 'auto');
@@ -153,9 +179,16 @@ export async function POST(req: Request) {
             }
           }
         }
-        return NextResponse.json({ url: finalFreeUrl });
+        return NextResponse.json({ url: finalFreeUrl, imageId: resObj.imageId });
       } catch (freeErr) {
-        console.error('[Image] Pollinations generation failed for free user:', freeErr);
+        console.error('[Image] Leonardo generation failed for free user:', freeErr);
+        const freeErrMsg = (freeErr instanceof Error ? freeErr.message : String(freeErr)).toLowerCase();
+        if (freeErrMsg.includes('429') || freeErrMsg.includes('rate limit') || freeErrMsg.includes('too many')) {
+          return NextResponse.json(
+            { error: 'RATE_LIMITED', message: 'AI servers are busy. Please try again in a moment.' },
+            { status: 429 },
+          );
+        }
         return NextResponse.json({ error: 'Image generation failed. Please try again.' }, { status: 502 });
       }
     }
@@ -207,7 +240,9 @@ export async function POST(req: Request) {
       hasPollinationsKey: true,
     });
 
-    const result = await openRouterImageGeneration({
+    // Fallback if we need to call leonardo manually (removed animate pre-check)
+
+    const openRouterArgs = {
       prompt: String(prompt),
       size,
       visualProfile,
@@ -217,7 +252,14 @@ export async function POST(req: Request) {
       sourceImage: typeof sourceImage === 'string' ? sourceImage : undefined,
       maskImage: typeof maskImage === 'string' ? maskImage : undefined,
       plan,
-    });
+    };
+    let result = await openRouterImageGeneration(openRouterArgs);
+    // Single retry on 429/503 from OpenRouter before falling back to Pollinations
+    if (!result.ok && (result.status === 429 || result.status === 503)) {
+      console.warn(`[Image] OpenRouter returned ${result.status}, retrying once after 1500ms...`);
+      await sleep(1500);
+      result = await openRouterImageGeneration(openRouterArgs);
+    }
 
     if (!result.ok || !result.url) {
       console.warn('[Image] OpenRouter failed, falling back to Pollinations:', result.status);
@@ -302,6 +344,6 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('Image Generation Error:', error);
     captureApiException(error, { requestId, route: 'POST /api/generate/image' });
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

@@ -1,4 +1,4 @@
-﻿/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import Link from 'next/link';
@@ -785,19 +785,34 @@ function TopBarInner({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileGal
           >
           {PANEL_BUTTONS.map((btn) => {
             const isActive = activePanel === btn.id && isPanelOpen;
+            const isGenerate = btn.id === 'generate';
             return (
               <button
                 key={btn.id}
                 type="button"
                 onClick={() => handlePanelToggle(btn.id)}
-                className={`flex shrink-0 items-center gap-2 px-3 sm:px-3.5 min-h-9 sm:h-[34px] rounded-[10px] text-[11px] sm:text-[12px] font-semibold transition-all duration-200 touch-manipulation ${
+                className={`flex shrink-0 items-center gap-2 px-3 sm:px-3.5 min-h-9 sm:h-[34px] rounded-[10px] text-[11px] sm:text-[12px] font-semibold transition-all duration-200 touch-manipulation group ${
                   isActive
                     ? 'bg-white text-neutral-900 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)]'
                     : 'text-neutral-500 hover:text-neutral-900 hover:bg-white/70'
                 }`}
               >
-                <btn.icon size={15} strokeWidth={1.75} className={isActive ? 'text-primary' : 'text-neutral-400'} />
-                <span className="hidden sm:inline">{btn.label}</span>
+                <btn.icon
+                  size={15}
+                  strokeWidth={isGenerate ? 2 : 1.75}
+                  className={
+                    isGenerate
+                      ? isActive
+                        ? 'text-[#5B7CFF]'
+                        : 'text-neutral-400 group-hover:text-[#5B7CFF] transition-colors'
+                      : isActive
+                        ? 'text-primary'
+                        : 'text-neutral-400'
+                  }
+                />
+                <span className={`hidden sm:inline ${isGenerate ? "bg-clip-text text-transparent bg-gradient-to-r from-[#5B7CFF] via-indigo-400 to-[#5B7CFF] animate-gradient-pan font-bold" : ""}`}>
+                  {btn.label}
+                </span>
               </button>
             );
           })}
@@ -852,7 +867,7 @@ function TopBarInner({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileGal
             disabled={!presentation || isExporting}
             className="min-h-9 h-9 sm:h-[36px] px-3.5 sm:px-4 flex items-center shrink-0 whitespace-nowrap gap-2 text-[12px] sm:text-[13px] font-semibold text-white bg-gradient-to-b from-[#5B7CFF] to-primary hover:from-primary hover:to-[#3d5ef0] rounded-full shadow-[0_4px_14px_-4px_rgba(59,130,246,0.55),0_0_0_1px_rgba(255,255,255,0.12)_inset] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none relative overflow-hidden group touch-manipulation"
           >
-            <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/18 to-transparent opacity-0 group-hover:opacity-100 group-hover:translate-x-full transition-all duration-700 translate-x-[-100%]" />
+            <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer-sweep" />
             <Download size={15} className="shrink-0 relative" strokeWidth={1.75} />
             <span className="hidden xs:inline relative whitespace-nowrap">Export .pptx</span>
             <span className="xs:hidden relative whitespace-nowrap">PPTX</span>

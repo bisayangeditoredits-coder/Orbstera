@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { generateClaidImageUrl } from '@/lib/claid-image';
 import { generatePollinationsImageUrl } from '@/lib/pollinations-image';
+import { generateLeonardoImageUrl } from '@/lib/leonardo-image';
 import { openRouterImageGeneration } from '@/lib/ai/openrouter-image';
 import type { ImageVisualProfile } from '@/lib/ai/agent-models';
 import { cookies } from 'next/headers';
@@ -114,50 +115,31 @@ export async function POST(req: Request) {
       hasPollinationsKey: Boolean(process.env.POLLINATIONS_API_KEY?.trim()),
     });
 
-    const hasOpenRouter = Boolean(process.env.OPENROUTER_API_KEY?.trim());
-    if (sel.provider === 'openrouter' && hasOpenRouter) {
-      const result = await openRouterImageGeneration({
-        prompt: text,
-        size: `${w}x${h}`,
-        visualProfile,
-        model: sel.model,
-        modelCascade: sel.modelCascade,
-        qualityBoost: isPaidPlan,
-      });
-      if (result.ok && result.url) {
-        const seed = Math.floor(Math.random() * 1_000_000);
-        return NextResponse.json({ url: result.url, seed });
-      }
-      console.warn('[generate-image] OpenRouter failed, trying legacy providers:', result.status);
-    }
-
     const hasClaid = Boolean(process.env.CLAID_API_KEY?.trim());
-    const hasPollinations = Boolean(process.env.POLLINATIONS_API_KEY?.trim());
-
-    if (!hasClaid && !hasPollinations) {
-      return NextResponse.json(
-        {
-          error:
-            'Image generation is not configured. Set OPENROUTER_API_KEY, or CLAID_API_KEY / POLLINATIONS_API_KEY (see .env.example).',
-        },
-        { status: 503 }
-      );
-    }
-
     const polishBool = Boolean(polish);
     const seed = Math.floor(Math.random() * 1_000_000);
 
-    const url =
-      sel.provider === 'claid' && hasClaid
-        ? await generateClaidImageUrl({ prompt: text, polish: polishBool, width: w, height: h })
-        : await generatePollinationsImageUrl({
-            prompt: text,
-            width: w,
-            height: h,
-            polish: polishBool,
-          });
+    let url: string | undefined;
+    let imageId: string | undefined;
 
-    return NextResponse.json({ url, seed });
+    try {
+      const res = await generateLeonardoImageUrl({ prompt: text, width: w, height: h });
+      url = res.url;
+      imageId = res.imageId;
+    } catch (leoErr) {
+      console.error('Leonardo failed, falling back:', leoErr);
+      url =
+        sel.provider === 'claid' && hasClaid
+          ? await generateClaidImageUrl({ prompt: text, polish: polishBool, width: w, height: h })
+          : await generatePollinationsImageUrl({
+              prompt: text,
+              width: w,
+              height: h,
+              polish: polishBool,
+            });
+    }
+
+    return NextResponse.json({ url, seed, imageId });
   } catch (error) {
     console.error('Image Generation Error:', error);
     captureApiException(error, { requestId, route: 'POST /api/generate-image' });

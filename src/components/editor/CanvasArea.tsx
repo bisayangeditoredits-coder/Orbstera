@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,6 +10,7 @@ import { FloatingPropertiesBar } from './FloatingPropertiesBar';
 import { AlignmentToolbar } from './AlignmentToolbar';
 import { ComponentErrorBoundary } from './ComponentErrorBoundary';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { DRAG_TYPE_PEXELS_VIDEO, normalizeVideoSrc } from './VideosPanel';
 
 // ─── Generation Loader (deterministic milestones — no faux random %) ───────────────────
 
@@ -338,6 +339,9 @@ export function CanvasArea() {
   const activeTool = usePresentationStore((s) => s.editor.activeTool);
   const isGenerating = usePresentationStore((s) => s.editor.isGenerating);
   const generationBlockingOverlay = usePresentationStore((s) => s.editor.generationBlockingOverlay);
+  const addElement = usePresentationStore((s) => s.addElement);
+  const currentSlideIndex = usePresentationStore((s) => s.currentSlideIndex);
+  const presentation = usePresentationStore((s) => s.presentation);
 
   // ─── Interaction State ───
   const [isPanning, setIsPanning] = useState(false);
@@ -546,6 +550,64 @@ export function CanvasArea() {
     }
   };
 
+  // ─── Video Drag-and-Drop onto Canvas ───────────────────────────────────────
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    if (e.dataTransfer.types.includes(DRAG_TYPE_PEXELS_VIDEO)) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    const raw = e.dataTransfer.getData(DRAG_TYPE_PEXELS_VIDEO);
+    if (!raw) return;
+    e.preventDefault();
+
+    let payload: { link: string; width: number; height: number; duration?: number };
+    try { payload = JSON.parse(raw); } catch { return; }
+    if (!payload?.link) return;
+
+    const slideId = presentation?.slides?.[currentSlideIndex]?.id;
+    if (!slideId) return;
+
+    // Convert viewport drop coordinates to slide-space coordinates
+    const containerEl = containerRef.current;
+    const canvasEl = canvasDivRef.current;
+    if (!containerEl || !canvasEl) return;
+
+    const canvasRect = canvasEl.getBoundingClientRect();
+
+    // Drop point relative to slide canvas div
+    const dropRelX = e.clientX - canvasRect.left;
+    const dropRelY = e.clientY - canvasRect.top;
+
+    // Convert from screen pixels to slide units (1280x720 space)
+    const scale = canvasRect.width / CANVAS_WIDTH;
+    const slideX = dropRelX / scale;
+    const slideY = dropRelY / scale;
+
+    const SLIDE_W = CANVAS_WIDTH, SLIDE_H = CANVAS_HEIGHT;
+    const MAX_W = 800, MAX_H = 450;
+    let w = payload.width || 800;
+    let h = payload.height || 450;
+    if (w > MAX_W) { h = h * (MAX_W / w); w = MAX_W; }
+    if (h > MAX_H) { w = w * (MAX_H / h); h = MAX_H; }
+
+    const x = Math.max(0, Math.min(SLIDE_W - w, slideX - w / 2));
+    const y = Math.max(0, Math.min(SLIDE_H - h, slideY - h / 2));
+
+    addElement(slideId, {
+      id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type: 'image',
+      x,
+      y,
+      width: w,
+      height: h,
+      src: normalizeVideoSrc(payload.link),
+      zIndex: 100,
+    });
+  }, [addElement, currentSlideIndex, presentation]);
+
   return (
     <div
       ref={containerRef}
@@ -563,6 +625,8 @@ export function CanvasArea() {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       <AnimatePresence>
         {isGenerating && generationBlockingOverlay && <GenerationLoader />}

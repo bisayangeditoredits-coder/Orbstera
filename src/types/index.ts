@@ -113,6 +113,9 @@ export interface SlideElement {
   cropPositionY?: number; // 0 to 1, default 0.5
   /** True while this slot is waiting on deck-level /api/generate-image (UI placeholder). */
   aiImagePending?: boolean;
+  aiMetadata?: {
+    leonardoImageId?: string;
+  };
   maskType?: 'circle' | 'heart' | 'square' | 'none';
   // Shape element
   shapeType?: 'rect' | 'circle' | 'triangle' | 'star' | 'line' | 'arrow' | 'path';
@@ -257,6 +260,7 @@ export type EditorToolId =
   | 'frame-heart'
   | 'frame-box'
   | 'divider'
+  | 'recraft'
   | 'draw';
 
 export interface EditorState {

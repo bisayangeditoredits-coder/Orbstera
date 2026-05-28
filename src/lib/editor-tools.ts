@@ -30,6 +30,7 @@ export interface EditorToolDef {
 export const EDITOR_TOOLS: EditorToolDef[] = [
   { id: 'select', icon: MousePointer2, label: 'Move', shortcut: 'V', group: 'navigate' },
   { id: 'gen-fill', icon: Sparkles, label: 'Generative fill', shortcut: '⇧G', group: 'ai' },
+  { id: 'recraft', icon: Sparkles, label: 'Recraft AI', shortcut: '⇧R', group: 'ai' },
   { id: 'text', icon: Type, label: 'Type', shortcut: 'T', group: 'type' },
   { id: 'image', icon: ImageIcon, label: 'Image', shortcut: 'I', group: 'media' },
   { id: 'rect', icon: Square, label: 'Rectangle', shortcut: 'R', group: 'shape' },

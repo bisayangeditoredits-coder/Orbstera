@@ -627,7 +627,12 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
                 }),
               });
               const json = await res.json();
-              if (json.url) get().updateElement(slideId, bgId, { src: json.url });
+              if (json.url) {
+                get().updateElement(slideId, bgId, {
+                  src: json.url,
+                  aiMetadata: json.imageId ? { leonardoImageId: json.imageId } : undefined
+                });
+              }
             } catch (e) {
               console.error('[DeckGen] Hero background image failed:', e);
             }
@@ -677,7 +682,12 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
               }),
             });
             const json = await res.json();
-            if (json.url) get().updateElement(slideId, imgId, { src: json.url });
+            if (json.url) {
+              get().updateElement(slideId, imgId, {
+                src: json.url,
+                aiMetadata: json.imageId ? { leonardoImageId: json.imageId } : undefined
+              });
+            }
           } catch (e) {
             console.error('[DeckGen] Split/media slide image failed:', e);
           }

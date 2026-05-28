@@ -201,10 +201,15 @@ export function useCredits(refreshInterval = 60_000): CreditState & { refresh: (
         fetchCredits().then(setState);
       }, refreshInterval);
     }
+    
+    const onCreditsUpdated = () => refresh();
+    window.addEventListener('credits-updated', onCreditsUpdated);
+    
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      window.removeEventListener('credits-updated', onCreditsUpdated);
     };
-  }, [refreshInterval]);
+  }, [refreshInterval, refresh]);
 
   return { ...state, refresh };
 }

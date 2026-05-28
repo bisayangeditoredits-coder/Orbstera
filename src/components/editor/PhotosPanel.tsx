@@ -1,4 +1,4 @@
-﻿/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -134,12 +134,31 @@ export function PhotosPanel({ onClose }: { onClose?: () => void }) {
             </div>
           </div>
         ) : loading ? (
-          <div className="flex items-center justify-center h-40">
-            <Loader2 className="animate-spin text-neutral-300" size={22} />
+          <div className="flex flex-col gap-3">
+            <div className="columns-2 gap-2 space-y-2">
+              {[...Array(6)].map((_, i) => (
+                <div 
+                  key={i} 
+                  className={`relative rounded-xl bg-neutral-100 overflow-hidden ${i % 2 === 0 ? 'h-[140px]' : 'h-[180px]'}`}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-sweep" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : error ? (
           <div className="text-[12px] text-red-500 text-center p-4 bg-red-50 rounded-xl border border-red-100">
             {error}
+          </div>
+        ) : photos.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center p-4 pt-10 opacity-70">
+            <div className="w-12 h-12 rounded-full bg-neutral-100 flex items-center justify-center mb-3">
+              <ImageIcon size={20} className="text-neutral-400" />
+            </div>
+            <p className="text-[13px] font-bold text-neutral-600">No photos found</p>
+            <p className="text-[11px] text-neutral-400 mt-1 max-w-[180px] mx-auto">
+              Search for high-quality photos to add to your slide.
+            </p>
           </div>
         ) : (
           <div className="flex flex-col gap-3">

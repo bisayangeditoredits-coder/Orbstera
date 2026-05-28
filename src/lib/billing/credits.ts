@@ -29,7 +29,9 @@ export type CreditAction =
   | 'genfill_free'
   | 'genfill_pro'
   | 'genfill_creator'
-  | 'animation_enhance';
+  | 'animation_enhance'
+  | 'recraft_v2_raster'
+  | 'recraft_v3_vector';
 
 export type CreditConfig = {
   monthly: Record<PlanTier, number>;
@@ -142,6 +144,8 @@ const DEFAULT_CONFIG: CreditConfig = {
     genfill_pro: 8,      // FLUX Kontext Pro
     genfill_creator: 12, // FLUX Kontext Max
     animation_enhance: 2,
+    recraft_v2_raster: 3,
+    recraft_v3_vector: 10,
   },
   // $0.008 per credit = calibrated to real GPT-5.5 / FLUX API costs
   // If a user exhausts ALL credits, your max spend = credits × 0.008:

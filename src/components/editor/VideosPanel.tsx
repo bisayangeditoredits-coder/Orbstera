@@ -1,18 +1,21 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Video as VideoIcon, Loader2, X, Plus } from 'lucide-react';
+import { Search, Video as VideoIcon, Loader2, X, Plus, GripVertical } from 'lucide-react';
 
 const PEXELS_API_KEY = process.env.NEXT_PUBLIC_PEXELS_API_KEY || '';
+
+// Key used for drag-and-drop payload
+export const DRAG_TYPE_PEXELS_VIDEO = 'application/x-orbstera-pexels-video';
 
 type PexelsVideo = {
   id: number;
   width: number;
   height: number;
   url: string;
-  image: string; // Thumbnail
+  image: string;
   duration: number;
   user: { name: string; };
   video_files: {
@@ -25,6 +28,25 @@ type PexelsVideo = {
   }[];
 };
 
+/** Picks the best quality MP4 file from a Pexels video */
+function pickBestFile(video: PexelsVideo) {
+  return (
+    video.video_files.find((f) => f.quality === 'hd' && f.file_type === 'video/mp4') ||
+    video.video_files.find((f) => f.quality === 'sd' && f.file_type === 'video/mp4') ||
+    video.video_files.find((f) => f.file_type === 'video/mp4') ||
+    video.video_files[0]
+  );
+}
+
+/** Ensures Pexels video link is treated as a video by appending .mp4 extension if needed */
+export function normalizeVideoSrc(link: string): string {
+  if (!link) return link;
+  const base = link.split('?')[0];
+  const qs = link.includes('?') ? link.slice(link.indexOf('?')) : '';
+  if (base.endsWith('.mp4')) return link;
+  return `${base}.mp4${qs}`;
+}
+
 export function VideosPanel({ onClose }: { onClose?: () => void }) {
   const [query, setQuery] = useState('');
   const [lastSearchedQuery, setLastSearchedQuery] = useState('nature');
@@ -34,7 +56,8 @@ export function VideosPanel({ onClose }: { onClose?: () => void }) {
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  
+  const [draggingId, setDraggingId] = useState<number | null>(null);
+
   const addElement = usePresentationStore((s) => s.addElement);
   const currentSlideIndex = usePresentationStore((s) => s.currentSlideIndex);
   const presentation = usePresentationStore((s) => s.presentation);
@@ -45,16 +68,18 @@ export function VideosPanel({ onClose }: { onClose?: () => void }) {
     if (pageNum === 1) { setLoading(true); setVideos([]); } else { setLoadingMore(true); }
     setError('');
     setLastSearchedQuery(searchQuery);
-    
     try {
-      const res = await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(searchQuery)}&page=${pageNum}&per_page=15`, {
-        headers: {
-          Authorization: PEXELS_API_KEY
-        }
-      });
+      const res = await fetch(
+        `https://api.pexels.com/videos/search?query=${encodeURIComponent(searchQuery)}&page=${pageNum}&per_page=15`,
+        { headers: { Authorization: PEXELS_API_KEY } }
+      );
       if (!res.ok) throw new Error('Failed to fetch videos. Check your API key.');
       const data = await res.json();
-      if (pageNum === 1) { setVideos(data.videos || []); } else { setVideos(prev => [...prev, ...(data.videos || [])]); }
+      if (pageNum === 1) {
+        setVideos(data.videos || []);
+      } else {
+        setVideos((prev) => [...prev, ...(data.videos || [])]);
+      }
       setHasMore(data.page < data.total_results / 15);
       setPage(pageNum);
     } catch (err: any) {
@@ -67,34 +92,104 @@ export function VideosPanel({ onClose }: { onClose?: () => void }) {
 
   useEffect(() => { if (PEXELS_API_KEY) searchVideos('nature'); }, []);
 
-  const handleAddVideo = (video: PexelsVideo) => {
+  const insertVideo = (video: PexelsVideo, dropX?: number, dropY?: number) => {
     if (currentSlideIndex === null || !presentation) return;
     const slideId = presentation.slides[currentSlideIndex]?.id;
     if (!slideId) return;
 
-    // Find the best quality MP4 file (prefer hd, fallback to sd)
-    const file = video.video_files.find(f => f.quality === 'hd' && f.file_type === 'video/mp4') 
-              || video.video_files.find(f => f.quality === 'sd' && f.file_type === 'video/mp4')
-              || video.video_files[0];
-              
+    const file = pickBestFile(video);
     if (!file) return;
 
+    const SLIDE_W = 1280, SLIDE_H = 720;
     const MAX_W = 800, MAX_H = 450;
-    let w = file.width || 800, h = file.height || 450;
+    let w = file.width || video.width || 800;
+    let h = file.height || video.height || 450;
     if (w > MAX_W) { h = h * (MAX_W / w); w = MAX_W; }
     if (h > MAX_H) { w = w * (MAX_H / h); h = MAX_H; }
+
+    const x = dropX != null
+      ? Math.max(0, Math.min(SLIDE_W - w, dropX - w / 2))
+      : (SLIDE_W - w) / 2;
+    const y = dropY != null
+      ? Math.max(0, Math.min(SLIDE_H - h, dropY - h / 2))
+      : (SLIDE_H - h) / 2;
 
     addElement(slideId, {
       id: `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type: 'image',
-      x: (1280 - w) / 2, 
-      y: (720 - h) / 2,
-      width: w, 
-      height: h, 
-      src: file.link,
-      content: video.image, // Store thumbnail as content for editor display
+      x,
+      y,
+      width: w,
+      height: h,
+      src: normalizeVideoSrc(file.link),
       zIndex: 100,
     });
+  };
+
+  const handleAddVideo = (video: PexelsVideo) => insertVideo(video);
+
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, video: PexelsVideo) => {
+    setDraggingId(video.id);
+    const file = pickBestFile(video);
+    if (!file) return;
+    const payload = JSON.stringify({
+      videoId: video.id,
+      link: normalizeVideoSrc(file.link),
+      thumbnail: video.image,
+      width: file.width || video.width,
+      height: file.height || video.height,
+      duration: video.duration,
+    });
+    e.dataTransfer.setData(DRAG_TYPE_PEXELS_VIDEO, payload);
+    e.dataTransfer.effectAllowed = 'copy';
+    // Build a small drag ghost using an offscreen canvas (120×68px)
+    // We use an offscreen canvas because the browser needs a DOM element
+    // that is already painted — a newly created Image that hasn't loaded
+    // yet results in the full DOM node being used as the ghost (very large).
+    const GHOST_W = 120;
+    const GHOST_H = 68;
+    try {
+      // Find the already-rendered <img> element inside the card being dragged
+      const cardEl = (e.currentTarget as HTMLElement);
+      const renderedImg = cardEl.querySelector('img') as HTMLImageElement | null;
+      const canvas = document.createElement('canvas');
+      canvas.width = GHOST_W;
+      canvas.height = GHOST_H;
+      canvas.style.position = 'fixed';
+      canvas.style.top = '-9999px';
+      canvas.style.left = '-9999px';
+      document.body.appendChild(canvas);
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        if (renderedImg && renderedImg.complete && renderedImg.naturalWidth > 0) {
+          ctx.drawImage(renderedImg, 0, 0, GHOST_W, GHOST_H);
+        } else {
+          // Fallback: dark card with play icon
+          ctx.fillStyle = '#1e2430';
+          ctx.fillRect(0, 0, GHOST_W, GHOST_H);
+          ctx.fillStyle = 'rgba(56,189,248,0.9)';
+          ctx.beginPath();
+          ctx.arc(GHOST_W / 2, GHOST_H / 2, 18, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.moveTo(GHOST_W / 2 - 6, GHOST_H / 2 - 8);
+          ctx.lineTo(GHOST_W / 2 + 10, GHOST_H / 2);
+          ctx.lineTo(GHOST_W / 2 - 6, GHOST_H / 2 + 8);
+          ctx.closePath();
+          ctx.fill();
+        }
+        // Overlay rounded border
+        ctx.strokeStyle = 'rgba(56,189,248,0.7)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(1, 1, GHOST_W - 2, GHOST_H - 2);
+      }
+      e.dataTransfer.setDragImage(canvas, GHOST_W / 2, GHOST_H / 2);
+      // Clean up the canvas after drag starts
+      setTimeout(() => { canvas.remove(); }, 0);
+    } catch {
+      // Silently ignore — browser will use default ghost
+    }
   };
 
   return (
@@ -108,7 +203,7 @@ export function VideosPanel({ onClose }: { onClose?: () => void }) {
             </div>
             <div>
               <h2 className="text-[14px] font-bold text-neutral-900 leading-tight">Stock Videos</h2>
-              <p className="text-[11px] font-medium text-neutral-400 mt-0.5">Powered by Pexels</p>
+              <p className="text-[11px] font-medium text-neutral-400 mt-0.5">Powered by Pexels · Drag to canvas</p>
             </div>
           </div>
           {onClose && (
@@ -120,7 +215,6 @@ export function VideosPanel({ onClose }: { onClose?: () => void }) {
             </button>
           )}
         </div>
-
         <div className="px-4 pb-4">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
@@ -150,12 +244,31 @@ export function VideosPanel({ onClose }: { onClose?: () => void }) {
             </div>
           </div>
         ) : loading ? (
-          <div className="flex items-center justify-center h-40">
-            <Loader2 className="animate-spin text-teal-500" size={22} />
+          <div className="flex flex-col gap-3">
+            <div className="columns-2 gap-2 space-y-2">
+              {[...Array(6)].map((_, i) => (
+                <div 
+                  key={i} 
+                  className={`relative rounded-xl bg-neutral-100 overflow-hidden ${i % 2 === 0 ? 'h-[140px]' : 'h-[180px]'}`}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer-sweep" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : error ? (
           <div className="text-[12px] text-red-500 text-center p-4 bg-red-50 rounded-xl border border-red-100">
             {error}
+          </div>
+        ) : videos.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center p-4 pt-10 opacity-70">
+            <div className="w-12 h-12 rounded-full bg-neutral-100 flex items-center justify-center mb-3">
+              <VideoIcon size={20} className="text-neutral-400" />
+            </div>
+            <p className="text-[13px] font-bold text-neutral-600">No videos found</p>
+            <p className="text-[11px] text-neutral-400 mt-1 max-w-[180px] mx-auto">
+              Try searching for "abstract", "nature", or "office".
+            </p>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -167,7 +280,14 @@ export function VideosPanel({ onClose }: { onClose?: () => void }) {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="relative group cursor-pointer break-inside-avoid rounded-xl overflow-hidden bg-neutral-100 mb-2 border border-neutral-200/50 hover:border-teal-300 hover:shadow-md transition-all duration-200"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent<HTMLDivElement>, video)}
+                    onDragEnd={() => setDraggingId(null)}
+                    className={`relative group cursor-grab active:cursor-grabbing break-inside-avoid rounded-xl overflow-hidden bg-neutral-100 mb-2 border transition-all duration-200 ${
+                      draggingId === video.id
+                        ? 'border-teal-400 shadow-lg shadow-teal-500/20 scale-[0.97] opacity-70'
+                        : 'border-neutral-200/50 hover:border-teal-300 hover:shadow-md'
+                    }`}
                     onClick={() => handleAddVideo(video)}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -175,10 +295,17 @@ export function VideosPanel({ onClose }: { onClose?: () => void }) {
                       src={video.image}
                       alt="Pexels Video"
                       className="w-full h-auto object-cover group-hover:scale-[1.05] transition-transform duration-500"
+                      draggable={false}
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center">
                       <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-teal-600 scale-0 group-hover:scale-100 transition-transform duration-200 shadow-sm">
                         <Plus size={16} strokeWidth={2.5} />
+                      </div>
+                    </div>
+                    {/* Drag hint icon */}
+                    <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="w-5 h-5 rounded bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                        <GripVertical size={10} className="text-white" />
                       </div>
                     </div>
                     <div className="absolute bottom-0 left-0 right-0 p-2 pt-6 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
