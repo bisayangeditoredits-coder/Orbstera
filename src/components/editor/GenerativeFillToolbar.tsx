@@ -289,7 +289,7 @@ export function GenerativeFillToolbar() {
                   type="button"
                   onClick={runFill}
                   disabled={!prompt.trim() || busy}
-                  className="shrink-0 h-11 px-4 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white text-[12px] font-bold flex items-center justify-center gap-2 disabled:opacity-35 transition-colors shadow-[0_14px_30px_-18px_rgba(56,189,248,0.85)]"
+                  className="shrink-0 h-11 px-4 rounded-2xl bg-gradient-to-b from-[#5B7CFF] to-primary hover:from-primary hover:to-[#3d5ef0] text-white text-[12px] font-bold flex items-center justify-center gap-2 disabled:opacity-35 transition-all shadow-[0_4px_14px_-4px_rgba(59,130,246,0.55),0_0_0_1px_rgba(255,255,255,0.12)_inset]"
                 >
                   {busy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={15} />}
                   {busy ? 'Working…' : 'Fill region'}
@@ -304,7 +304,7 @@ export function GenerativeFillToolbar() {
                   checked={enhance}
                   onChange={(e) => setEnhance(e.target.checked)}
                   disabled={busy}
-                  className="rounded border-slate-300 text-sky-600 focus:ring-sky-500/30"
+                  className="rounded border-slate-300 text-primary focus:ring-primary/30"
                 />
                 AI refine prompt
               </label>
@@ -314,7 +314,7 @@ export function GenerativeFillToolbar() {
                   checked={transparent}
                   onChange={(e) => setTransparent(e.target.checked)}
                   disabled={busy}
-                  className="rounded border-slate-300 text-sky-600 focus:ring-sky-500/30"
+                  className="rounded border-slate-300 text-primary focus:ring-primary/30"
                 />
                 Transparent (No BG)
               </label>
@@ -324,7 +324,7 @@ export function GenerativeFillToolbar() {
                   checked={polish}
                   onChange={(e) => setPolish(e.target.checked)}
                   disabled={busy}
-                  className="rounded border-slate-300 text-sky-600 focus:ring-sky-500/30"
+                  className="rounded border-slate-300 text-primary focus:ring-primary/30"
                 />
                 Presentation polish
               </label>
