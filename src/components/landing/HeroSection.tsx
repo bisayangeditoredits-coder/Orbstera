@@ -722,7 +722,7 @@ export function HeroSection() {
       >
         {/* Mobile: static gradient only (lighter). md+: Lottie. */}
         <div className="absolute inset-0 md:hidden bg-gradient-to-br from-[#dbe1ff] via-[#f0f2ff] to-white" aria-hidden />
-        <div className="absolute inset-0 w-full h-full opacity-80 mix-blend-multiply hidden md:block">
+        <div className="absolute inset-0 w-full h-full opacity-80 mix-blend-multiply hidden md:block blur-[60px] will-change-transform transform-gpu">
           {/* @ts-ignore */}
           <lottie-player
             src="/Background gradient.json"
@@ -735,8 +735,8 @@ export function HeroSection() {
           />
         </div>
 
-        {/* Ambient Overlay Blur */}
-        <div className="absolute inset-0 bg-white/20 backdrop-blur-[100px] z-[2]" />
+        {/* Ambient Overlay (Lighter, NO EXPENSIVE BACKDROP-BLUR) */}
+        <div className="absolute inset-0 bg-white/20 z-[2]" />
       </div>
 
       <div className="relative z-10 flex flex-col items-center text-center max-w-7xl w-full min-w-0 px-3 sm:px-6">
