@@ -79,7 +79,7 @@ export function FeatureDemos() {
                     loop
                     muted
                     playsInline
-                    preload="metadata"
+                    preload="none"
                     className="w-full h-auto object-cover block"
                   />
                 </div>
