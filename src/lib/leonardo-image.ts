@@ -15,10 +15,10 @@ export async function generateLeonardoImageUrl(params: {
   
   const token = params.apiKey || process.env.LEONARDO_API_KEY || '1ded889c-1e0d-4235-abb8-7b1589049d8b';
 
-  // Upgrade to Premium Leonardo Phoenix (State-of-the-art) with Alchemy enabled for best quality
+  // Premium Generation: Leonardo Vision XL with Alchemy enabled for best quality
   const reqBody = {
     prompt: params.prompt,
-    modelId: '6b645e3a-d64f-4341-a6d8-7bea56ebfc23', // Leonardo Phoenix
+    modelId: 'b24e16ff-06e3-43eb-8d33-4416c2d75876', // Leonardo Vision XL
     width: 1024,
     height: 1024,
     num_images: 1,
