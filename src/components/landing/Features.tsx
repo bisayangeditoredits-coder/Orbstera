@@ -11,7 +11,7 @@ const FEATURES = [
   },
   {
     title: 'Present anywhere, beautifully.',
-    desc: 'Stop worrying about aspect ratios. Orbstera presentations are web-native and automatically adapt to any screen size�from ultrawide monitors to mobile phones.',
+    desc: 'Stop worrying about aspect ratios. Orbstera presentations are web-native and automatically adapt to any screen size???from ultrawide monitors to mobile phones.',
     image: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=800&auto=format&fit=crop',
     align: 'right',
   },
