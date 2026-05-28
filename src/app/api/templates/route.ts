@@ -17,7 +17,8 @@ export async function GET() {
     const { data, error } = await supabase
       .from('templates')
       .select('*')
-      .order('created_at', { ascending: true }); // keep default order
+      .order('created_at', { ascending: true }) // keep default order
+      .limit(200); // Protect against unbounded queries at scale
 
     if (error) {
       console.error('Error fetching templates:', error);
