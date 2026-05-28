@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { motion } from 'framer-motion';
 import { Share2, Globe } from 'lucide-react';
@@ -97,7 +97,7 @@ export function Team() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-40px' }}
               transition={{ duration: 0.5, delay: 0.08 * i }}
-              className="group relative overflow-hidden rounded-3xl border border-white/80 bg-white/60 shadow-sm ring-1 ring-black/[0.04] backdrop-blur-md transition-all duration-500 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/[0.08] hover:ring-indigo-200/60"
+              className="group relative overflow-hidden rounded-3xl border border-white/80 bg-white/60 shadow-sm ring-1 ring-black/[0.04]  transition-all duration-500 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/[0.08] hover:ring-indigo-200/60"
             >
               <p className="pointer-events-none absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-500 group-hover:opacity-100 from-indigo-500/[0.04] to-transparent" />
 
@@ -125,14 +125,14 @@ export function Team() {
                     <button
                       type="button"
                       aria-label={`${member.name} on LinkedIn`}
-                      className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur-md transition-colors hover:bg-white/25"
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white  transition-colors hover:bg-white/25"
                     >
                       <Share2 size={14} />
                     </button>
                     <button
                       type="button"
                       aria-label={`${member.name} profile`}
-                      className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur-md transition-colors hover:bg-white/25"
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white  transition-colors hover:bg-white/25"
                     >
                       <Globe size={14} />
                     </button>
@@ -148,7 +148,7 @@ export function Team() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.3 }}
-          className="mx-auto mt-16 max-w-2xl rounded-2xl border border-indigo-100/80 bg-white/70 px-6 py-5 text-center shadow-sm backdrop-blur-md ring-1 ring-black/[0.03]"
+          className="mx-auto mt-16 max-w-2xl rounded-2xl border border-indigo-100/80 bg-white/70 px-6 py-5 text-center shadow-sm  ring-1 ring-black/[0.03]"
         >
           <p className="text-sm font-medium leading-relaxed text-slate-600">
             We&apos;re hiring across AI, design, and growth.{' '}

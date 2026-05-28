@@ -1,11 +1,11 @@
-ï»¿'use client';
+'use client';
 
 import { motion } from 'framer-motion';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 const STATS = [
-  { value: '10Ã—', label: 'Faster than traditional tools' },
+  { value: '10×', label: 'Faster than traditional tools' },
   { value: '50K+', label: 'Decks created worldwide' },
   { value: '98%', label: 'Would recommend Orbstera' },
 ];
@@ -48,7 +48,7 @@ export function AboutUs() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-80px' }}
               transition={{ duration: 0.55 }}
-              className="mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-200/60 bg-indigo-50/80 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-widest text-indigo-700 backdrop-blur-sm"
+              className="mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-200/60 bg-indigo-50/80 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-widest text-indigo-700 "
             >
               <Sparkles size={13} className="text-indigo-500" />
               Our story
@@ -78,7 +78,7 @@ export function AboutUs() {
               Orbstera was born from a simple frustration: brilliant ideas buried under ugly slides,
               endless formatting, and tools that treat design as an afterthought. We believe every
               founder, student, and creative deserves a deck that looks like it came from a world-class
-              agencyâ€”without the world-class budget.
+              agency—without the world-class budget.
             </motion.p>
 
             <motion.p
@@ -106,7 +106,7 @@ export function AboutUs() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: 0.25 + i * 0.06 }}
-                  className="rounded-2xl border border-white/60 bg-white/70 p-4 shadow-sm ring-1 ring-black/[0.04] backdrop-blur-md"
+                  className="rounded-2xl border border-white/60 bg-white/70 p-4 shadow-sm ring-1 ring-black/[0.04] "
                 >
                   <p className="text-2xl font-semibold tracking-tight text-slate-900">{stat.value}</p>
                   <p className="mt-1 text-[11px] font-semibold leading-snug text-slate-500">{stat.label}</p>
@@ -123,7 +123,7 @@ export function AboutUs() {
             >
               <Link
                 href="/about"
-                className="group inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-5 py-2.5 text-sm font-bold text-slate-800 shadow-sm backdrop-blur-sm transition-all hover:border-indigo-200 hover:bg-indigo-50/50 hover:text-indigo-700"
+                className="group inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-5 py-2.5 text-sm font-bold text-slate-800 shadow-sm  transition-all hover:border-indigo-200 hover:bg-indigo-50/50 hover:text-indigo-700"
               >
                 Read our full story
                 <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
@@ -156,7 +156,7 @@ export function AboutUs() {
               whileInView={{ opacity: 1, y: 0, x: 0 }}
               viewport={{ once: true, margin: '-60px' }}
               transition={{ duration: 0.7, delay: 0.15 }}
-              className="absolute -bottom-6 left-0 z-20 w-[52%] overflow-hidden rounded-2xl border border-white/80 shadow-xl ring-1 ring-black/[0.05] backdrop-blur-sm"
+              className="absolute -bottom-6 left-0 z-20 w-[52%] overflow-hidden rounded-2xl border border-white/80 shadow-xl ring-1 ring-black/[0.05] "
             >
               <img
                 src={IMAGES.overlap}
@@ -184,7 +184,7 @@ export function AboutUs() {
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ delay: 0.4 }}
-              className="absolute -left-4 top-1/2 z-40 -translate-y-1/2 rounded-2xl border border-white/70 bg-white/75 px-4 py-3 shadow-lg backdrop-blur-xl ring-1 ring-indigo-100/80"
+              className="absolute -left-4 top-1/2 z-40 -translate-y-1/2 rounded-2xl border border-white/70 bg-white/75 px-4 py-3 shadow-lg  ring-1 ring-indigo-100/80"
             >
               <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Mission</p>
               <p className="mt-1 max-w-[140px] text-xs font-semibold leading-snug text-slate-700">

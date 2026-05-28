@@ -50,7 +50,7 @@ function SlideCountDropdown({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 pl-3.5 pr-3 py-1.5 rounded-xl bg-white/70 backdrop-blur-sm border border-black/[0.09] text-[13px] font-semibold text-textMain hover:bg-white hover:border-black/[0.15] transition-all shadow-sm"
+        className="flex items-center gap-2 pl-3.5 pr-3 py-1.5 rounded-xl bg-white/70  border border-black/[0.09] text-[13px] font-semibold text-textMain hover:bg-white hover:border-black/[0.15] transition-all shadow-sm"
       >
         {slideCount} cards
         <ChevronDown
@@ -745,7 +745,7 @@ export function HeroSection() {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="group relative flex flex-col xs:flex-row items-center justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-2 rounded-2xl sm:rounded-full bg-white/40 backdrop-blur-md border border-white/60 shadow-xl mb-6 sm:mb-8 md:mb-12 cursor-pointer hover:bg-white/60 transition-all active:scale-95 max-w-[min(100%,22rem)] sm:max-w-none mx-auto"
+          className="group relative flex flex-col xs:flex-row items-center justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-2 rounded-2xl sm:rounded-full bg-white/40  border border-white/60 shadow-xl mb-6 sm:mb-8 md:mb-12 cursor-pointer hover:bg-white/60 transition-all active:scale-95 max-w-[min(100%,22rem)] sm:max-w-none mx-auto"
         >
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 shrink-0">
             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
@@ -880,7 +880,7 @@ export function HeroSection() {
 
                         {!isListening && (
                           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div className="w-12 h-12 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center border border-white/20">
+                            <div className="w-12 h-12 rounded-full bg-primary/10  flex items-center justify-center border border-white/20">
                               <Mic size={24} strokeWidth={1.5} className="text-primary" />
                             </div>
                           </div>

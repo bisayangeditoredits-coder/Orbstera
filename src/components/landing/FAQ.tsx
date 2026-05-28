@@ -1,4 +1,4 @@
-ï»¿"use client";
+"use client";
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,7 +7,7 @@ import { ChevronDown, MessageCircleQuestion } from 'lucide-react';
 const faqs = [
   {
     q: "Can I edit the generated presentations?",
-    a: "Absolutely. Our AI provides a starting point, but every elementâ€”text, images, charts, and shapesâ€”can be fully customized in our 60fps canvas editor."
+    a: "Absolutely. Our AI provides a starting point, but every element—text, images, charts, and shapes—can be fully customized in our 60fps canvas editor."
   },
   {
     q: "Does the exported PPTX work offline?",

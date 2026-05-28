@@ -233,7 +233,7 @@ export function Templates() {
                     </div>
 
                     {/* Hover overlay */}
-                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-[1.5rem]">
+                    <div className="absolute inset-0 bg-black/50  opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-[1.5rem]">
                       <span className="translate-y-3 group-hover:translate-y-0 transition-all duration-300 bg-white text-neutral-900 px-6 py-2.5 rounded-full font-bold text-sm flex items-center gap-2 shadow-lg">
                         Use Template <ArrowRight size={15} />
                       </span>

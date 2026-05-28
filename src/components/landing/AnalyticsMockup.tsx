@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { motion } from 'framer-motion';
 import { BarChart3, Users, Clock, ArrowUpRight } from 'lucide-react';

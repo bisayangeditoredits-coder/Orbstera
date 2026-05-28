@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { motion } from 'framer-motion';
 import { Sparkles, Wand2, LayoutTemplate } from 'lucide-react';

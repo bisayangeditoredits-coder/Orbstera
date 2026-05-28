@@ -1,4 +1,4 @@
-ï»¿"use client";
+"use client";
 
 import { motion } from "framer-motion";
 import { Download, Monitor } from "lucide-react";
@@ -20,7 +20,7 @@ export function DesktopDownload() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-          className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-white/85 backdrop-blur-md"
+          className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-white/85 "
         >
           <Monitor className="h-3.5 w-3.5 text-primary" aria-hidden />
           <span>Desktop App</span>
@@ -83,8 +83,8 @@ export function DesktopDownload() {
           )}
 
           <div className="flex flex-wrap items-center justify-center gap-3 text-xs font-semibold uppercase tracking-widest text-white/35">
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-white/50">macOS â€” coming soon</span>
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-white/50">Linux â€” coming soon</span>
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-white/50">macOS — coming soon</span>
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-white/50">Linux — coming soon</span>
           </div>
         </motion.div>
       </div>
