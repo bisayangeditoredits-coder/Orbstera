@@ -187,10 +187,9 @@ export function DashboardShell() {
     );
   };
 
-  const handleBulkDeleted = (ids: string[]) => {
-    const removed = new Set(ids);
-    setPresentations((prev) => prev.filter((p) => !removed.has(p.id)));
-  };
+  const handleBulkDeleted = useCallback((ids: string[]) => {
+    setPresentations((prev) => prev.filter((d) => !ids.includes(d.id)));
+  }, []);
 
   const creditsWarning = !credits.loading && credits.usagePct >= 90;
   const activePlan = credits.plan || plan;

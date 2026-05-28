@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -282,9 +282,20 @@ export function PlannerShell() {
       }
       setSessionId(sid);
 
+      let initialTopicContext = topic;
+      try {
+        const storedNotes = sessionStorage.getItem('orbstera_notes_import');
+        if (storedNotes && topic === 'Imported Notes') {
+          initialTopicContext = `Please create a presentation based on the following imported notes/document:\n\n${storedNotes}`;
+          sessionStorage.removeItem('orbstera_notes_import');
+        }
+      } catch {
+        // ignore
+      }
+
       const firstMessage: Message = {
         role: 'user',
-        content: buildPlannerFirstMessage(topic, plannerPreferences),
+        content: buildPlannerFirstMessage(initialTopicContext, plannerPreferences),
       };
 
       setMessages([firstMessage]);

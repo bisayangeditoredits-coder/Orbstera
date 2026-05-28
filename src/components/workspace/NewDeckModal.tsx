@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -81,12 +81,16 @@ export function NewDeckModal({ open, onClose }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
   const [themeId, setThemeId] = useState<typeof THEMES[number]['id']>('dark');
+  const [mode, setMode] = useState<'blank' | 'notes'>('blank');
+  const [notes, setNotes] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setTitle('');
+      setNotes('');
+      setMode('blank');
       setError(null);
       setCreating(false);
       setTimeout(() => inputRef.current?.focus(), 80);
@@ -96,6 +100,16 @@ export function NewDeckModal({ open, onClose }: Props) {
   const selected = THEMES.find((t) => t.id === themeId) ?? THEMES[0];
 
   const handleCreate = async () => {
+    if (mode === 'notes') {
+      const trimmedNotes = notes.trim();
+      if (!trimmedNotes) return;
+      setCreating(true);
+      sessionStorage.setItem('orbstera_notes_import', trimmedNotes);
+      onClose();
+      router.push(`/planner?topic=Imported+Notes&slides=10`);
+      return;
+    }
+
     const trimmed = title.trim() || 'Untitled Presentation';
     setCreating(true);
     setError(null);
@@ -189,10 +203,43 @@ export function NewDeckModal({ open, onClose }: Props) {
               {/* Divider */}
               <div className="h-px bg-neutral-100 mx-8" />
 
+              <div className="px-8 pt-6 pb-2">
+                <div className="flex bg-slate-100 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setMode('blank')}
+                    className={`flex-1 py-2 text-[12px] font-bold rounded-lg transition-all ${mode === 'blank' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    Blank Deck
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode('notes')}
+                    className={`flex-1 py-2 text-[12px] font-bold rounded-lg transition-all ${mode === 'notes' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    Import Notes (AI)
+                  </button>
+                </div>
+              </div>
+
               {/* Fields */}
-              <div className="px-8 py-6 flex flex-col gap-6 flex-1">
-                {/* Title */}
-                <div>
+              <div className="px-8 pb-6 flex flex-col gap-6 flex-1">
+                {mode === 'notes' ? (
+                  <div className="flex-1 flex flex-col h-full min-h-[200px]">
+                    <label className="block text-[12px] font-semibold text-neutral-700 mb-2 mt-2">
+                      Paste your text
+                    </label>
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Paste your Notion notes, Google Docs essay, or lesson plan here (max 1000 words)..."
+                      className="w-full flex-1 h-full min-h-[160px] text-[14px] font-medium text-slate-900 placeholder:text-slate-400 bg-white outline-none transition-all border border-slate-200 rounded-lg p-4 focus:border-primary/50 focus:ring-4 focus:ring-primary/10 resize-none"
+                    />
+                  </div>
+                ) : (
+                  <>
+                    {/* Title */}
+                    <div>
                   <label className="block text-[12px] font-semibold text-neutral-700 mb-2">
                     Title
                   </label>
@@ -262,6 +309,8 @@ export function NewDeckModal({ open, onClose }: Props) {
                     })}
                   </div>
                 </div>
+                  </>
+                )}
 
                 {error && (
                   <p className="text-[12px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-3.5 py-2.5">
@@ -283,13 +332,13 @@ export function NewDeckModal({ open, onClose }: Props) {
                 <button
                   type="button"
                   onClick={handleCreate}
-                  disabled={creating || !title.trim()}
+                  disabled={creating || (mode === 'notes' ? !notes.trim() : !title.trim())}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-[13px] font-semibold text-white transition-all disabled:opacity-35 disabled:cursor-not-allowed active:scale-[0.98] bg-primary hover:bg-primaryHover shadow-sm"
                 >
                   {creating ? (
                     <Loader2 size={13} className="animate-spin" />
                   ) : null}
-                  <span>{creating ? 'Creating…' : 'Create Presentation'}</span>
+                  <span>{creating ? 'Creating…' : mode === 'notes' ? 'Generate from Notes' : 'Create Presentation'}</span>
                   {!creating && <ArrowRight size={13} strokeWidth={2.5} />}
                 </button>
               </div>

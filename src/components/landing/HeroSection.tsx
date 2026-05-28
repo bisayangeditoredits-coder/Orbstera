@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff, ShieldCheck, Zap, Clock3, Star, Lock, ChevronDown } from 'lucide-react';
+import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff, ShieldCheck, Zap, Clock3, Star, Lock, ChevronDown, FileText } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -143,7 +143,7 @@ export function HeroSection() {
   const [prompt, setPrompt] = useState("");
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [activeMode, setActiveMode] = useState<'create' | 'enhance' | 'voice'>('create');
+  const [activeMode, setActiveMode] = useState<'create' | 'enhance' | 'voice' | 'notes'>('create');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [slideCount, setSlideCount] = useState<number>(8);
   const [showUpgradeNudge, setShowUpgradeNudge] = useState(false);
@@ -668,10 +668,18 @@ export function HeroSection() {
       prompt.trim() ||
       interimTranscript.trim();
 
-    if (activeMode === 'create' && !effectivePrompt) return;
+    if ((activeMode === 'create' || activeMode === 'notes') && !effectivePrompt) return;
     if (activeMode === 'voice' && !effectivePrompt) {
       setSpeechError("Please say something first.");
       setTimeout(() => setSpeechError(null), 3000);
+      return;
+    }
+
+    if (activeMode === 'notes') {
+      sessionStorage.setItem('orbstera_notes_import', effectivePrompt);
+      startTransition(() => {
+        router.push(`/planner?topic=Imported+Notes&slides=${slideCount}`);
+      });
       return;
     }
 
@@ -790,6 +798,14 @@ export function HeroSection() {
             >
               <Wand2 size={14} strokeWidth={1.5} />
               <span>Create New</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { stopVoiceSession(); setActiveMode('notes'); setPrompt(''); }}
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full text-[10px] sm:text-[11px] font-medium uppercase tracking-wide sm:tracking-widest transition-all shrink-0 snap-start ${activeMode === 'notes' ? 'bg-primary text-white shadow-lg' : 'bg-white/50 text-textSecondary hover:bg-white'}`}
+            >
+              <FileText size={14} strokeWidth={1.5} />
+              <span>Import Notes</span>
             </button>
             <button
               type="button"
@@ -917,6 +933,22 @@ export function HeroSection() {
                       )}
                     </button>
                   </div>
+                ) : activeMode === 'notes' ? (
+                  <div className="relative flex-1 flex flex-col">
+                    <textarea
+                      ref={promptInputRef}
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleGenerate();
+                        }
+                      }}
+                      placeholder="Paste your Google Docs, Notion notes, or lesson plan here (max 1000 words)..."
+                      className="w-full flex-1 min-h-[7rem] sm:min-h-0 bg-transparent border-none focus:ring-0 focus:outline-none text-[14px] sm:text-[15px] md:text-[16px] text-textMain placeholder:text-textMuted resize-none font-medium pb-2"
+                    />
+                  </div>
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center">
                     {!selectedFile ? (
@@ -1001,7 +1033,7 @@ export function HeroSection() {
                   <button
                     type="button"
                     onClick={handleGenerate}
-                    disabled={(activeMode === 'create' ? !prompt.trim() : !selectedFile) || isPending}
+                    disabled={((activeMode === 'create' || activeMode === 'notes') ? !prompt.trim() : !selectedFile) || isPending}
                       className="group relative w-full sm:w-auto min-h-11 px-5 sm:px-8 justify-center bg-primary text-white rounded-full text-[11px] sm:text-[12px] font-medium shadow-xl hover:bg-primaryHover hover:scale-[1.01] sm:hover:scale-[1.02] transition-all active:scale-[0.98] flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none shrink-0"
                   >
                     <motion.div
@@ -1013,7 +1045,7 @@ export function HeroSection() {
                       <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin relative z-10" />
                     )}
                     <span className="relative z-10 truncate max-w-[16rem] sm:max-w-none">
-                      {isPending ? 'Starting...' : activeMode === 'enhance' ? 'Enhance PPT' : 'Generate Presentation'}
+                      {isPending ? 'Starting...' : activeMode === 'enhance' ? 'Enhance PPT' : activeMode === 'notes' ? 'Generate from Notes' : 'Generate Presentation'}
                     </span>
                     <ArrowRight
                       size={16}

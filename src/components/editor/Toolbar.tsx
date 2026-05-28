@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useRef } from 'react';
 import { usePresentationStore } from '@/store/usePresentationStore';
@@ -102,6 +102,7 @@ export function Toolbar() {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+      if (!e.key) return;
       const key = e.key.toLowerCase();
       if (key === 'v') handleToolClick('select');
       if (key === 't') handleToolClick('text');
