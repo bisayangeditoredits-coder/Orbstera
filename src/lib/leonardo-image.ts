@@ -94,7 +94,6 @@ export async function generateLeonardoMotionUrl(params: {
     body: JSON.stringify({
       imageId: params.imageId,
       isPublic: true,
-      motionStrength: 6, // High motion strength for cinematic animations
     })
   });
 
