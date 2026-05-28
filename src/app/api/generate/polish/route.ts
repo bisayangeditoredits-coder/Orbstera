@@ -80,7 +80,7 @@ export async function POST(req: Request) {
     const polishPrimary = selectTextModel({
       plan,
       task: 'deck_polish',
-      complexity: { promptChars: body.length, slideCount: Array.isArray(presentation.slides) ? presentation.slides.length : 10 },
+      complexity: { promptChars: body.length, slideCount: Array.isArray((presentation as any).slides) ? (presentation as any).slides.length : 10 },
       spendState: { forcedEconomyMode: spend.forcedEconomyMode },
     });
     const polishFallback = selectTextModel({

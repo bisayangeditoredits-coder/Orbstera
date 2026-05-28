@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     }
 
     const VALID_ACTIONS = ['grammar', 'professional', 'shorter', 'tagalog'] as const;
-    if (!VALID_ACTIONS.includes(action)) {
+    if (!action || !(VALID_ACTIONS as readonly string[]).includes(action)) {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 

@@ -22,6 +22,7 @@ const SERVER_UPLOAD_MAX_BYTES = 4_000_000;
 
 /** Above this size, POST the deck to R2 via presigned PUT then finalize (avoids Vercel request body limits). */
 export const VERCEL_DIRECT_POST_MAX_BYTES = 2_800_000;
+export const CLOUD_SAVE_KEEPALIVE_MAX_BYTES = 60_000;
 
 /** Fresh `ArrayBuffer` so `Blob` / `BodyInit` accept it under TS 5.x (avoids `Uint8Array<ArrayBufferLike>` vs `BlobPart`). */
 function uint8ToArrayBuffer(src: Uint8Array): ArrayBuffer {
