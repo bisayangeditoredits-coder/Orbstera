@@ -514,39 +514,21 @@ export function CanvasArea() {
     if (isPanning) {
       const newX = e.clientX - startPanPos.current.x;
       const newY = e.clientY - startPanPos.current.y;
-      velocityRef.current = { x: e.clientX - lastPanPosRef.current.x, y: e.clientY - lastPanPosRef.current.y };
-      lastPanPosRef.current = { x: e.clientX, y: e.clientY };
+      // No velocity tracking — direct 1:1 panning like Canva/Figma
       setEditorState({ pan: { x: newX, y: newY } });
     }
   };
 
-  const applyMomentum = useCallback(() => {
-    const friction = 0.94;
-    const v = velocityRef.current;
-    if (Math.abs(v.x) > 0.1 || Math.abs(v.y) > 0.1) {
-      const p = panRef.current;
-      velocityRef.current = { x: v.x * friction, y: v.y * friction };
-      setEditorState({ pan: { x: p.x + v.x, y: p.y + v.y } });
-      rafMomentumRef.current = requestAnimationFrame(applyMomentum);
-    } else {
-      rafMomentumRef.current = null;
-    }
-  }, [setEditorState]);
-
-  // Cleanup RAF momentum on unmount to prevent memory leaks
-  useEffect(() => {
-    return () => {
+  // Standard direct-stop pan — no momentum/inertia RAF loop
+  // Canva and Figma both use this pattern: pan stops instantly on mouseup
+  const handleMouseUp = () => {
+    if (isPanning) {
+      setIsPanning(false);
+      // Cancel any lingering RAF just in case
       if (rafMomentumRef.current) {
         cancelAnimationFrame(rafMomentumRef.current);
         rafMomentumRef.current = null;
       }
-    };
-  }, []);
-
-  const handleMouseUp = () => {
-    if (isPanning) {
-      setIsPanning(false);
-      applyMomentum();
     }
   };
 
