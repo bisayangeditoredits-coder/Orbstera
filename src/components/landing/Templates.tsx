@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+
 import Link from 'next/link';
 import { ArrowRight, Lock, Sparkles, Crown } from 'lucide-react';
 
@@ -195,12 +195,8 @@ export function Templates() {
           {templates.map((tpl, i) => {
             const preview = TEMPLATE_PREVIEWS[tpl.slug || tpl.id];
             return (
-              <motion.div
+              <div
                 key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
               >
                 <Link
                   href={`/templates/${tpl.slug || tpl.id}`}
@@ -252,7 +248,7 @@ export function Templates() {
                     )}
                   </div>
                 </Link>
-              </motion.div>
+              </div>
             );
           })}
         </div>

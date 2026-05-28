@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { ChevronDown, MessageCircleQuestion } from 'lucide-react';
 
 const faqs = [
   {
     q: "Can I edit the generated presentations?",
-    a: "Absolutely. Our AI provides a starting point, but every element—text, images, charts, and shapes—can be fully customized in our 60fps canvas editor."
+    a: "Absolutely. Our AI provides a starting point, but every elementï¿½text, images, charts, and shapesï¿½can be fully customized in our 60fps canvas editor."
   },
   {
     q: "Does the exported PPTX work offline?",
@@ -73,14 +73,11 @@ export function FAQ() {
               </button>
               <AnimatePresence>
                 {openIndex === i && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
+                  <div
                     className="px-6 pb-6 text-slate-500 font-medium leading-relaxed"
                   >
                     {faq.a === 'models-list' ? <ModelsList /> : faq.a}
-                  </motion.div>
+                  </div>
                 )}
               </AnimatePresence>
             </div>

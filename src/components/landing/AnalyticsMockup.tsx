@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from 'framer-motion';
+
 import { BarChart3, Users, Clock, ArrowUpRight } from 'lucide-react';
 
 export function AnalyticsMockup() {
@@ -57,11 +57,7 @@ export function AnalyticsMockup() {
 
               {/* KPI Cards */}
               <div className="grid grid-cols-2 gap-4 mb-8">
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.1 }}
+                <div 
                   className="bg-slate-50 p-4 rounded-2xl border border-slate-100"
                 >
                   <div className="flex items-center gap-2 text-slate-500 text-sm font-semibold mb-2">
@@ -71,13 +67,9 @@ export function AnalyticsMockup() {
                   <div className="flex items-center gap-1 text-indigo-600 text-xs font-bold mt-2">
                     <ArrowUpRight size={14} /> +12% this week
                   </div>
-                </motion.div>
+                </div>
                 
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.2 }}
+                <div 
                   className="bg-slate-50 p-4 rounded-2xl border border-slate-100"
                 >
                   <div className="flex items-center gap-2 text-slate-500 text-sm font-semibold mb-2">
@@ -87,7 +79,7 @@ export function AnalyticsMockup() {
                   <div className="flex items-center gap-1 text-indigo-600 text-xs font-bold mt-2">
                     <ArrowUpRight size={14} /> Top performing
                   </div>
-                </motion.div>
+                </div>
               </div>
 
               {/* Chart Mockup */}
@@ -95,12 +87,8 @@ export function AnalyticsMockup() {
                 <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Views by slide</div>
                 <div className="flex items-end gap-2 h-32">
                   {[100, 95, 92, 85, 80, 75, 78, 65, 60, 55, 58, 50].map((height, i) => (
-                    <motion.div
+                    <div
                       key={i}
-                      initial={{ height: 0 }}
-                      whileInView={{ height: `${height}%` }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.8, delay: 0.2 + (i * 0.05), ease: "easeOut" }}
                       className="flex-1 bg-gradient-to-t from-indigo-200 to-indigo-400 rounded-t-sm"
                     />
                   ))}

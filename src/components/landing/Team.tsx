@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+
 import { Share2, Globe } from 'lucide-react';
 
 const TEAM = [
@@ -47,56 +47,37 @@ export function Team() {
     <section className="relative w-full overflow-hidden bg-[#FAFAFA] py-24 sm:py-32">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(99,102,241,0.08),transparent)]" />
 
-      <motion.div
+      <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]"
       />
 
       <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+          <p
             className="text-[11px] font-bold uppercase tracking-[0.28em] text-indigo-600"
           >
             Meet the team
-          </motion.p>
-          <motion.h2
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.05 }}
+          </p>
+          <h2
             className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl"
           >
             Built by designers, engineers &amp; storytellers.
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
+          </h2>
+          <p
             className="mt-5 text-lg font-medium leading-relaxed text-slate-600"
           >
             A small, elite team obsessed with one thing: making you look extraordinary every time you
             hit Present.
-          </motion.p>
+          </p>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-40px' }}
-          transition={{ duration: 0.6, delay: 0.15 }}
+        <div
           className="mt-16 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
         >
           {TEAM.map((member, i) => (
-            <motion.article
+            <article
               key={member.name}
-              initial={{ opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-40px' }}
-              transition={{ duration: 0.5, delay: 0.08 * i }}
               className="group relative overflow-hidden rounded-3xl border border-white/80 bg-white/60 shadow-sm ring-1 ring-black/[0.04]  transition-all duration-500 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/[0.08] hover:ring-indigo-200/60"
             >
               <p className="pointer-events-none absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-500 group-hover:opacity-100 from-indigo-500/[0.04] to-transparent" />
@@ -108,7 +89,7 @@ export function Team() {
                   className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-indigo-600/25 via-violet-600/10 to-transparent opacity-70" />
-                <motion.div
+                <div
                   aria-hidden
                   className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent opacity-90 transition-opacity duration-500 group-hover:opacity-100"
                 />
@@ -139,15 +120,11 @@ export function Team() {
                   </div>
                 </div>
               </div>
-            </motion.article>
+            </article>
           ))}
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.3 }}
+        <div
           className="mx-auto mt-16 max-w-2xl rounded-2xl border border-indigo-100/80 bg-white/70 px-6 py-5 text-center shadow-sm  ring-1 ring-black/[0.03]"
         >
           <p className="text-sm font-medium leading-relaxed text-slate-600">
@@ -157,7 +134,7 @@ export function Team() {
             </a>{' '}
             and help redefine how the world presents ideas.
           </p>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

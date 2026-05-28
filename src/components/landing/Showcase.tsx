@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from 'framer-motion';
+
 import { ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 
@@ -33,34 +33,22 @@ export function Showcase() {
     <section className="w-full bg-[#FAFAFA] py-24 sm:py-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center mb-16">
-          <motion.h2 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
+          <h2 
             className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl"
           >
             Create beautiful presentations, documents, and websites.
-          </motion.h2>
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.1 }}
+          </h2>
+          <p 
             className="mt-6 text-lg text-slate-600 leading-relaxed font-medium"
           >
             No design skills required.
-          </motion.p>
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[250px] md:auto-rows-[300px]">
           {BENTO_ITEMS.map((item, i) => (
-            <motion.div
+            <div
               key={i}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.1 * i }}
               className={`group relative overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-black/[0.04] transition-all hover:shadow-lg ${item.colSpan} ${item.rowSpan}`}
             >
               <div className="absolute inset-0">
@@ -80,7 +68,7 @@ export function Showcase() {
                   <ArrowUpRight className="ml-1 h-4 w-4" />
                 </div>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

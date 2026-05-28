@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from 'framer-motion';
+
 import { Sparkles, Wand2, LayoutTemplate } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/cn';
@@ -47,11 +47,7 @@ export function FeatureDemos() {
             >
               {/* Text Content */}
               <div className="flex-1 max-w-xl lg:max-w-none">
-                <motion.div
-                  initial={{ opacity: 0, y: 15 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-100px" }}
-                  transition={{ duration: 0.5 }}
+                <div
                 >
                   <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 border border-indigo-100/50 mb-6">
                     <feature.icon size={20} className="text-indigo-600" strokeWidth={2.5} />
@@ -69,16 +65,12 @@ export function FeatureDemos() {
                   >
                     Start for free
                   </Link>
-                </motion.div>
+                </div>
               </div>
 
               {/* Video Content */}
               <div className="flex-1 w-full relative">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true, margin: "-100px" }}
-                  transition={{ duration: 0.5, delay: 0.1 }}
+                <div
                   className="relative w-full rounded-2xl sm:rounded-[2rem] overflow-hidden bg-white border border-slate-200 shadow-xl"
                 >
                   <video 
@@ -90,7 +82,7 @@ export function FeatureDemos() {
                     preload="metadata"
                     className="w-full h-auto object-cover block"
                   />
-                </motion.div>
+                </div>
               </div>
             </div>
           ))}

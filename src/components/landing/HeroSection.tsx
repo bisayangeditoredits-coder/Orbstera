@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff, ShieldCheck, Zap, Clock3, Star, Lock, ChevronDown, FileText } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo, useTransition } from 'react';
@@ -63,11 +63,7 @@ function SlideCountDropdown({
       {/* Panel */}
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.97 }}
-            transition={{ duration: 0.15, ease: 'easeOut' }}
+          <div
             className="absolute left-0 top-full mt-1.5 z-50 w-52 rounded-2xl border border-black/[0.08] bg-white shadow-xl shadow-black/10 overflow-hidden py-1"
           >
             <div className="px-4 pt-3 pb-2">
@@ -116,22 +112,19 @@ function SlideCountDropdown({
                 </button>
               );
             })}
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
       {/* Upgrade nudge */}
       <AnimatePresence>
         {showUpgrade && (
-          <motion.div
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
+          <div
             className="absolute left-0 top-full mt-1.5 z-[60] flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] font-semibold text-amber-800 shadow-lg whitespace-nowrap"
           >
             <Lock size={11} strokeWidth={1.5} />
             <Link href="/pricing" className="underline underline-offset-2">Upgrade to Pro</Link> for more slides
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
@@ -741,10 +734,7 @@ export function HeroSection() {
 
       <div className="relative z-10 flex flex-col items-center text-center max-w-7xl w-full min-w-0 px-3 sm:px-6">
         {/* Premium Evolution Badge */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
+        <div
           className="group relative flex flex-col xs:flex-row items-center justify-center gap-2 px-3 py-2.5 sm:px-4 sm:py-2 rounded-2xl sm:rounded-full bg-white/40  border border-white/60 shadow-xl mb-6 sm:mb-8 md:mb-12 cursor-pointer hover:bg-white/60 transition-all active:scale-95 max-w-[min(100%,22rem)] sm:max-w-none mx-auto"
         >
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 shrink-0">
@@ -760,33 +750,24 @@ export function HeroSection() {
             className="text-textMuted group-hover:translate-x-1 transition-transform hidden xs:block shrink-0"
           />
           <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        </motion.div>
+        </div>
 
         {/* Original Headline */}
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.1 }}
+        <h1
           className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-[80px] font-bold tracking-tighter leading-[1.1] mb-6 text-[#1A1A1A] text-balance max-w-4xl mx-auto px-4"
         >
           The Future of <span className="text-primary">AI</span> <span className="italic font-light">Presentations</span> is Here.
-        </motion.h1>
+        </h1>
 
         {/* Original Subhead */}
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.2 }}
+        <p
           className="text-base sm:text-lg md:text-xl text-textSecondary max-w-2xl mb-10 text-balance leading-relaxed font-medium mx-auto px-4"
         >
           Generate professional slides from simple prompts in seconds.
-        </motion.p>
+        </p>
 
         {/* AI Input Card — Gamma style */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.3 }}
+        <div
           className="w-full max-w-4xl min-w-0 mb-8 sm:mb-10 mx-auto -mt-2 sm:-mt-3"
         >
           {/* Original Mode Toggles */}
@@ -847,11 +828,8 @@ export function HeroSection() {
                       onClick={toggleListening}
                     >
                       {isListening && [0, 1].map((i) => (
-                        <motion.div
+                        <div
                           key={i}
-                          initial={{ scale: 1, opacity: 0.6 }}
-                          animate={{ scale: 2.2 + i * 0.4, opacity: 0 }}
-                          transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.5, ease: "easeOut" }}
                           className="absolute rounded-full border border-primary/30 will-change-transform"
                           style={{ width: 132, height: 132, left: '50%', top: '50%', marginLeft: -66, marginTop: -66 }}
                         />
@@ -982,9 +960,7 @@ export function HeroSection() {
                     disabled={(!prompt.trim() && !interimTranscript.trim()) || isPending}
                     className="group relative h-11 sm:h-12 px-8 sm:px-10 bg-primary text-white rounded-full text-[12px] sm:text-[13px] font-medium shadow-xl hover:bg-primaryHover hover:scale-[1.02] transition-all active:scale-95 flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none"
                   >
-                    <motion.div
-                      animate={{ x: ['-100%', '100%'] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    <div
                       className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]"
                     />
                     {isPending ? (
@@ -1036,9 +1012,7 @@ export function HeroSection() {
                     disabled={((activeMode === 'create' || activeMode === 'notes') ? !prompt.trim() : !selectedFile) || isPending}
                       className="group relative w-full sm:w-auto min-h-11 px-5 sm:px-8 justify-center bg-primary text-white rounded-full text-[11px] sm:text-[12px] font-medium shadow-xl hover:bg-primaryHover hover:scale-[1.01] sm:hover:scale-[1.02] transition-all active:scale-[0.98] flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none shrink-0"
                   >
-                    <motion.div
-                      animate={{ x: ['-100%', '100%'] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    <div
                       className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]"
                     />
                     {isPending && (
@@ -1057,13 +1031,10 @@ export function HeroSection() {
               )}
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* App preview + Vimeo — hidden on small screens (weight + width) */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.5 }}
+        <div
           className="hidden md:block w-full max-w-[1400px] rounded-2xl border border-borderSubtle bg-white p-2 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.12)] group overflow-hidden"
         >
           <div className="w-full rounded-xl bg-panel border border-borderSubtle overflow-hidden relative flex flex-col">
@@ -1142,7 +1113,7 @@ export function HeroSection() {
               />
             </div>
           </div>
-        </motion.div>
+        </div>
       </div>
 
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { Paintbrush } from 'lucide-react';
 
@@ -96,43 +96,40 @@ export function ThemeSwitcherDemo() {
           {/* Interactive Demo Area */}
           <div className="w-full md:w-7/12 relative">
             {/* The "Presentation" Container */}
-            <motion.div 
-              layout
+            <div 
               className={`relative w-full aspect-[4/3] sm:aspect-video rounded-3xl overflow-hidden shadow-2xl transition-colors duration-700 ${activeTheme.bg} ring-1 ring-inset ${activeTheme.id === 'minimal' || activeTheme.id === 'editorial' ? 'ring-black/5' : 'ring-white/10'}`}
             >
               <div className="absolute inset-0 p-6 sm:p-10 flex flex-col">
                 {/* Header */}
-                <motion.div layout className="flex justify-between items-center mb-12">
-                  <motion.div layout className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-lg ${activeTheme.accent}`}>
+                <div className="flex justify-between items-center mb-12">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-lg ${activeTheme.accent}`}>
                     O
-                  </motion.div>
-                  <motion.div layout className={`text-[11px] uppercase tracking-widest font-bold ${activeTheme.textSecondary}`}>
+                  </div>
+                  <div className={`text-[11px] uppercase tracking-widest font-bold ${activeTheme.textSecondary}`}>
                     Q3 Strategy Review
-                  </motion.div>
-                </motion.div>
+                  </div>
+                </div>
 
                 {/* Content Layout */}
                 <div className="flex-1 flex flex-col sm:flex-row gap-8">
                   {/* Left Column (Text) */}
                   <div className="w-full sm:w-1/2 flex flex-col justify-center">
-                    <motion.h3 
-                      layout
+                    <h3 
                       className={`text-3xl sm:text-4xl font-bold leading-tight mb-4 transition-colors duration-700 ${activeTheme.textPrimary} ${activeTheme.font}`}
                     >
                       Accelerating Growth in 2026.
-                    </motion.h3>
-                    <motion.p 
-                      layout
+                    </h3>
+                    <p 
                       className={`text-sm sm:text-base leading-relaxed transition-colors duration-700 ${activeTheme.textSecondary} ${activeTheme.font}`}
                     >
                       We are expanding our reach across three key demographics, increasing our marketing spend by 40%, and launching our highly anticipated V2 engine.
-                    </motion.p>
+                    </p>
                     
-                    <motion.div layout className="mt-8">
+                    <div className="mt-8">
                       <div className={`px-5 py-2.5 rounded-full text-sm font-bold inline-block transition-colors duration-700 ${activeTheme.accent} ${activeTheme.font}`}>
                         View Financials
                       </div>
-                    </motion.div>
+                    </div>
                   </div>
 
                   {/* Right Column (Cards with Images) */}
@@ -142,8 +139,7 @@ export function ThemeSwitcherDemo() {
                       'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?q=80&w=400&auto=format&fit=crop',
                       'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=400&auto=format&fit=crop'
                     ].map((img, i) => (
-                      <motion.div 
-                        layout
+                      <div 
                         key={i}
                         className={`w-full p-2.5 rounded-2xl border transition-colors duration-700 flex items-center gap-4 ${activeTheme.cardBg} ${activeTheme.cardBorder} shadow-sm`}
                       >
@@ -154,13 +150,13 @@ export function ThemeSwitcherDemo() {
                           <div className={`w-1/2 h-2.5 rounded-full mb-2 ${activeTheme.textSecondary} opacity-40`} />
                           <div className={`w-3/4 h-2.5 rounded-full ${activeTheme.textSecondary} opacity-20`} />
                         </div>
-                      </motion.div>
+                      </div>
                     ))}
                   </div>
                 </div>
 
               </div>
-            </motion.div>
+            </div>
 
             {/* Decorative blurs */}
             <div className="absolute -inset-10 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 blur-3xl -z-10 rounded-full" />

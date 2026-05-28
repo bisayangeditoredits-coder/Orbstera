@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from 'framer-motion';
+
 
 const FEATURES = [
   {
@@ -11,7 +11,7 @@ const FEATURES = [
   },
   {
     title: 'Present anywhere, beautifully.',
-    desc: 'Stop worrying about aspect ratios. Orbstera presentations are web-native and automatically adapt to any screen size—from ultrawide monitors to mobile phones.',
+    desc: 'Stop worrying about aspect ratios. Orbstera presentations are web-native and automatically adapt to any screen sizeï¿½from ultrawide monitors to mobile phones.',
     image: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=800&auto=format&fit=crop',
     align: 'right',
   },
@@ -30,11 +30,7 @@ export function Features() {
             >
               
               {/* Text Side */}
-              <motion.div 
-                initial={{ opacity: 0, x: feature.align === 'left' ? -30 : 30 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, margin: "-100px" }}
-                transition={{ duration: 0.7 }}
+              <div 
                 className="w-full md:w-1/2 flex flex-col justify-center"
               >
                 <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 mb-6 leading-tight">
@@ -43,14 +39,10 @@ export function Features() {
                 <p className="text-lg text-slate-600 leading-relaxed font-medium">
                   {feature.desc}
                 </p>
-              </motion.div>
+              </div>
 
               {/* Image Side */}
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true, margin: "-100px" }}
-                transition={{ duration: 0.7, delay: 0.2 }}
+              <div 
                 className="w-full md:w-1/2"
               >
                 <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-black/[0.05]">
@@ -61,7 +53,7 @@ export function Features() {
                   />
                   <div className="absolute inset-0 ring-1 ring-inset ring-black/10 rounded-2xl pointer-events-none" />
                 </div>
-              </motion.div>
+              </div>
 
             </div>
           ))}
