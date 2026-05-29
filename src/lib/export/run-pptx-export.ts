@@ -762,8 +762,12 @@ async function injectAnimations(
 
       if (xml.includes('<p:timing>')) {
         xml = xml.replace(/<p:timing>[\s\S]*?<\/p:timing>/, timingXml);
+      } else if (xml.includes('<p:extLst>')) {
+        xml = xml.replace('<p:extLst>', `${timingXml}<p:extLst>`);
+      } else if (xml.includes('</p:transition>')) {
+        xml = xml.replace('</p:transition>', `</p:transition>${timingXml}`);
       } else {
-        xml = xml.replace('</p:sld>', `${timingXml}</p:sld>`);
+        xml = xml.replace('</p:cSld>', `</p:cSld>${timingXml}`);
       }
       zip.file(`ppt/slides/slide${si + 1}.xml`, xml);
     }
@@ -822,7 +826,7 @@ async function injectVideoAutoplay(buffer: ArrayBuffer): Promise<ArrayBuffer> {
                     `<p:stCondLst><p:cond delay="0"/></p:stCondLst>` +
                     `<p:childTnLst>` +
                       `<p:video><p:cMediaNode vol="80000">` +
-                        `<p:cTn id="${d}" dur="indefinite" fill="hold"/>` +
+                        `<p:cTn id="${d}" dur="indefinite" fill="hold" repeatCount="indefinite"/>` +
                         `<p:tgtEl><p:spTgt spid="${spId}"/></p:tgtEl>` +
                       `</p:cMediaNode></p:video>` +
                     `</p:childTnLst>` +
@@ -838,6 +842,12 @@ async function injectVideoAutoplay(buffer: ArrayBuffer): Promise<ArrayBuffer> {
       let injected = false;
       if (xml.includes('nodeType="mainSeq"')) {
         xml = xml.replace(/(nodeType="mainSeq"[^>]*><p:childTnLst>)/, `$1${videoPars}`);
+        let bldEntries = videoShapeIds.map((spId, i) => `<p:bldP spid="${spId}" grpId="${100+i}" uiExpand="0" build="p"/>`).join('');
+        if (xml.includes('</p:bldLst>')) {
+          xml = xml.replace('</p:bldLst>', `${bldEntries}</p:bldLst>`);
+        } else if (xml.includes('</p:tnLst>')) {
+          xml = xml.replace('</p:tnLst>', `</p:tnLst><p:bldLst>${bldEntries}</p:bldLst>`);
+        }
         injected = true;
       }
 
@@ -846,7 +856,13 @@ async function injectVideoAutoplay(buffer: ArrayBuffer): Promise<ArrayBuffer> {
         let bldEntries = videoShapeIds.map((spId, i) => `<p:bldP spid="${spId}" grpId="${i}" uiExpand="0" build="p"/>`).join('');
         let timingXml = 
           `<p:timing><p:tnLst><p:par><p:cTn id="${nxt()}" dur="indefinite" restart="whenNotActive" nodeType="tmRoot"><p:childTnLst><p:seq concurrent="1" nextAc="seek"><p:cTn id="${seqId}" dur="indefinite" nodeType="mainSeq"><p:childTnLst>${videoPars}</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onStopAudio" delay="0"><p:tn><p:cTnRef id="${seqId}"/></p:tn></p:cond></p:prevCondLst></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst><p:bldLst>${bldEntries}</p:bldLst></p:timing>`;
-        xml = xml.replace('</p:sld>', timingXml + '</p:sld>');
+        if (xml.includes('<p:extLst>')) {
+          xml = xml.replace('<p:extLst>', `${timingXml}<p:extLst>`);
+        } else if (xml.includes('</p:transition>')) {
+          xml = xml.replace('</p:transition>', `</p:transition>${timingXml}`);
+        } else {
+          xml = xml.replace('</p:cSld>', `</p:cSld>${timingXml}`);
+        }
       }
       zip.file(slideFileName, xml);
     }
