@@ -320,6 +320,8 @@ export async function runPptxExport(params: {
       if (data) imgMap.set(`${t.slideIdx}:${t.elementId}`, data);
     }
 
+    const pptSlidesInfo: { bgShapeCount: number; exportedElements: any[] }[] = [];
+
     // ── Build each slide ──────────────────────────────────────────────────────
     for (let si = 0; si < slides.length; si++) {
       const slide    = slides[si];
@@ -377,6 +379,8 @@ export async function runPptxExport(params: {
         if (el.visible === false) continue;
         if (isSlideDeckBackgroundImage(el)) continue;
 
+        exportedElements.push(el);
+
         const _placement = elementPlacement(el);
         const common = { ..._placement, w: _placement.w as number, h: _placement.h as number, objectName: el.id };
 
@@ -405,28 +409,58 @@ export async function runPptxExport(params: {
           });
         }
 
-        // ── IMAGE / ICON ──────────────────────────────────────────────────
+        // ── IMAGE / VIDEO / ICON ─────────────────────────────────────────
         else if (
           (el.type === 'image' || el.type === 'icon') &&
           el.src &&
           !el.aiImagePending
         ) {
-          const imgData =
-            imgMap.get(`${si}:${el.id}`) || (await fetchImageAsBase64ForExport(el.src));
-
-          if (imgData) {
-            const imageTransparency = combinedShapeTransparency(undefined, el.opacity);
-            pptSlide.addImage({
-              ...common,
-              data: imgData,
-              sizing: { type: 'cover', w: common.w, h: common.h },
-              rounding: false,
-              ...(imageTransparency !== undefined
-                ? { transparency: imageTransparency }
-                : {}),
-            } as any);
+          const isVideo = el.src.includes('youtube.com') || el.src.includes('youtu.be') || el.src.split('?')[0].endsWith('.mp4') || el.src.split('?')[0].endsWith('.mov');
+          
+          if (isVideo) {
+            try {
+              if (el.src.includes('youtube.com') || el.src.includes('youtu.be')) {
+                (pptSlide as any).addMedia({
+                  ...common,
+                  type: 'online',
+                  link: el.src,
+                });
+              } else {
+                let videoUrl = el.src;
+                if (videoUrl.includes('?') && !videoUrl.includes('read-asset')) {
+                  videoUrl = videoUrl.split('?')[0];
+                }
+                const b64 = await fetchVideoAsBase64ForExport(el.src);
+                if (b64) {
+                  (pptSlide as any).addMedia({
+                    ...common,
+                    type: 'video',
+                    data: b64,
+                  });
+                }
+              }
+            } catch (e) {
+              console.error('[pptx-export] video insertion failed:', e);
+            }
           } else {
-            console.warn('[pptx-export] missing image on slide', si + 1, el.id, (el.src || '').slice(0, 80));
+            // Regular Image
+            const imgData =
+              imgMap.get(`${si}:${el.id}`) || (await fetchImageAsBase64ForExport(el.src));
+
+            if (imgData) {
+              const imageTransparency = combinedShapeTransparency(undefined, el.opacity);
+              pptSlide.addImage({
+                ...common,
+                data: imgData,
+                sizing: { type: 'cover', w: common.w, h: common.h },
+                rounding: false,
+                ...(imageTransparency !== undefined
+                  ? { transparency: imageTransparency }
+                  : {}),
+              } as any);
+            } else {
+              console.warn('[pptx-export] missing image on slide', si + 1, el.id, (el.src || '').slice(0, 80));
+            }
           }
         }
 
@@ -524,6 +558,8 @@ export async function runPptxExport(params: {
         slide.imagePrompt ? `Image Prompt: ${slide.imagePrompt}` : '',
       ].filter(Boolean).join('\n\n');
       if (notes) pptSlide.addNotes(notes);
+
+      pptSlidesInfo.push({ bgShapeCount, exportedElements });
     }
 
     // ── Watermark: inject on every slide for Free users ──────────────────────
@@ -599,11 +635,11 @@ export async function runPptxExport(params: {
     const buffer = await pptx.write({ outputType: 'arraybuffer' }) as ArrayBuffer;
 
     // ── Inject entrance animations via OOXML post-processing ─────────────────
-    // Temporarily disabled: The experimental OOXML patching caused shape ID mismatches,
-    // resulting in missing elements (black boxes) in the exported PPTX.
-    
-
-    const finalBuffer = buffer; // Use the safe, unpatched buffer
+    let finalBuffer = buffer;
+    if (pptSlidesInfo.length > 0) {
+      finalBuffer = await injectAnimations(finalBuffer, pptSlidesInfo);
+      finalBuffer = await injectVideoAutoplay(finalBuffer);
+    }
 
   if (jobId) {
     const client = getR2Client();
