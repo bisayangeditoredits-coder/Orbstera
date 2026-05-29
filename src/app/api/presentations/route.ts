@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { gunzipSync } from 'node:zlib';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { runPresentationSaveFromParsed } from '@/lib/server/run-presentation-save';
+import { readIndexMeta, writeIndexWithMeta } from '@/lib/server/r2-index';
 import {
   assertTrustedOrigin,
   getApiUser,
@@ -283,21 +284,35 @@ export async function DELETE(req: Request) {
       }));
     }
 
-    let index: any[] = [];
-    try {
-      const res  = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: `${prefix}/index.json` }));
-      const body = await streamToString(res.Body);
-      index = JSON.parse(body);
-    } catch (e: any) { if (e.name !== 'NoSuchKey') throw e; }
+    const indexKey = `${prefix}/index.json`;
+    const metaKey = `${prefix}/index.meta.json`;
 
-    index = index.filter((p: any) => !idSet.has(p.id));
+    for (let attempt = 0; attempt < 5; attempt++) {
+      let index: any[] = [];
+      let expectedVersion = 0;
+      try {
+        const idxRes = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: indexKey }));
+        index = JSON.parse(await streamToString(idxRes.Body));
+        const meta = await readIndexMeta(s3Client, bucket, metaKey);
+        expectedVersion = meta.version;
+      } catch (e: any) { if (e.name !== 'NoSuchKey') throw e; }
 
-    await s3Client.send(new PutObjectCommand({
-      Bucket:      bucket,
-      Key:         `${prefix}/index.json`,
-      Body:        JSON.stringify(index),
-      ContentType: 'application/json',
-    }));
+      const updatedIndex = index.filter((p: any) => !idSet.has(p.id));
+
+      const res = await writeIndexWithMeta({
+        client: s3Client,
+        bucket,
+        indexKey,
+        metaKey,
+        index: updatedIndex,
+        expectedVersion
+      });
+
+      if (res.ok) break;
+      if (attempt === 4) {
+        throw new Error('Failed to update index due to concurrent modifications');
+      }
+    }
 
     for (const id of ids) {
       try {
@@ -363,21 +378,42 @@ export async function PATCH(req: Request) {
 
     await putJsonWithRetry(s3Client, bucket, deckKey, JSON.stringify(deck));
 
-    let index: any[] = [];
-    try {
-      const idxRes = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: `${prefix}/index.json` }));
-      index = JSON.parse(await streamToString(idxRes.Body));
-    } catch (e: any) { if (e.name !== 'NoSuchKey') throw e; }
+    const indexKey = `${prefix}/index.json`;
+    const metaKey = `${prefix}/index.meta.json`;
 
-    const idx = index.findIndex((p: any) => p.id === id);
-    if (idx >= 0) {
-      index[idx] = {
-        ...index[idx],
-        ...(newTitle ? { title: newTitle, date: deck.updatedAt } : { date: deck.updatedAt }),
-        ...(shareAccess ? { shareAccess } : {}),
-      };
+    for (let attempt = 0; attempt < 5; attempt++) {
+      let index: any[] = [];
+      let expectedVersion = 0;
+      try {
+        const idxRes = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: indexKey }));
+        index = JSON.parse(await streamToString(idxRes.Body));
+        const meta = await readIndexMeta(s3Client, bucket, metaKey);
+        expectedVersion = meta.version;
+      } catch (e: any) { if (e.name !== 'NoSuchKey') throw e; }
+
+      const idx = index.findIndex((p: any) => p.id === id);
+      if (idx >= 0) {
+        index[idx] = {
+          ...index[idx],
+          ...(newTitle ? { title: newTitle, date: deck.updatedAt } : { date: deck.updatedAt }),
+          ...(shareAccess ? { shareAccess } : {}),
+        };
+      }
+
+      const res = await writeIndexWithMeta({
+        client: s3Client,
+        bucket,
+        indexKey,
+        metaKey,
+        index,
+        expectedVersion
+      });
+
+      if (res.ok) break;
+      if (attempt === 4) {
+        throw new Error('Failed to update index due to concurrent modifications');
+      }
     }
-    await putJsonWithRetry(s3Client, bucket, `${prefix}/index.json`, JSON.stringify(index));
 
     return NextResponse.json(
       {

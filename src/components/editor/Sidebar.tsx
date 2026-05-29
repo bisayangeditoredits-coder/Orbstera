@@ -1,4 +1,4 @@
-﻿/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -175,22 +175,42 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
             );
           }
           if (el.type === 'image' && el.src) {
+            const src = editorImageFetchUrl(el.src);
+            const isVideo = src.split('?')[0].endsWith('.mp4');
+            const style = {
+              position: 'absolute' as const,
+              left: el.x,
+              top: el.y,
+              width: el.width,
+              height: el.height,
+              objectFit: 'cover' as const,
+              transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+            };
+
+            if (isVideo) {
+              return (
+                <motion.video
+                  key={el.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: el.opacity ?? 1 }}
+                  src={src}
+                  style={style}
+                  muted
+                  playsInline
+                  loop
+                  autoPlay
+                />
+              );
+            }
+
             return (
               <motion.img
                 key={el.id}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: el.opacity ?? 1 }}
-                src={editorImageFetchUrl(el.src)}
+                src={src}
                 alt=""
-                style={{
-                  position: 'absolute',
-                  left: el.x,
-                  top: el.y,
-                  width: el.width,
-                  height: el.height,
-                  objectFit: 'cover',
-                  transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
-                }}
+                style={style}
               />
             );
           }

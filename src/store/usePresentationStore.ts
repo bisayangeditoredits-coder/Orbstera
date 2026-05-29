@@ -2,6 +2,7 @@ import { setPresentationAction } from './actions/setPresentationAction';
 import { create } from 'zustand';
 import { PresentationData, Slide, SlideElement, HistoryEntry, EditorState } from '@/types';
 import { finalizeSlideMotion } from '@/lib/presentationMotion';
+import { persistGeneratedImage } from '@/lib/client/persist-generated-image';
 
 /** Cap undo stack size to limit RAM on large decks (structured clones per step). */
 const MAX_HISTORY_STEPS = 10;
@@ -628,8 +629,10 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
               });
               const json = await res.json();
               if (json.url) {
+                const deckId = get().presentation?.id || 'draft';
+                const persistedUrl = await persistGeneratedImage(json.url, deckId);
                 get().updateElement(slideId, bgId, {
-                  src: json.url,
+                  src: persistedUrl,
                   aiMetadata: json.imageId ? { leonardoImageId: json.imageId } : undefined
                 });
               }
@@ -683,8 +686,10 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
             });
             const json = await res.json();
             if (json.url) {
+              const deckId = get().presentation?.id || 'draft';
+              const persistedUrl = await persistGeneratedImage(json.url, deckId);
               get().updateElement(slideId, imgId, {
-                src: json.url,
+                src: persistedUrl,
                 aiMetadata: json.imageId ? { leonardoImageId: json.imageId } : undefined
               });
             }

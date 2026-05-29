@@ -1,8 +1,8 @@
 import PptxGenJS from 'pptxgenjs';
 import { createClient } from '@supabase/supabase-js';
-import { PresentationData, Slide, SlideTransition } from '@/types';
+import { PresentationData, Slide, SlideTransition, SlideElement } from '@/types';
 import { findDeckBackgroundElement, isSlideDeckBackgroundImage } from '@/lib/slide-background';
-import { fetchImageAsBase64ForExport } from '@/lib/export/export-image';
+import { fetchImageAsBase64ForExport, fetchVideoAsBase64ForExport } from '@/lib/export/export-image';
 import { combinedShapeTransparency, parseColorForPptx } from '@/lib/export/export-colors';
 import { shapePathToSvgDataUri } from '@/lib/export/export-shape-path';
 import { elementPlacement } from '@/lib/export/export-pptx-placement';
@@ -333,10 +333,13 @@ export async function runPptxExport(params: {
       // ── 3. Hero background image (low opacity, full-slide) ─────────────────
       const bgEl = findDeckBackgroundElement(slide.elements);
 
+      let bgShapeCount = 0;
+
       if (bgEl?.src) {
         const bgData = imgMap.get(`${si}:${bgEl.id}`);
         if (bgData) {
           const bgOpacity = bgEl.opacity ?? 0.18;
+          bgShapeCount++;
           pptSlide.addImage({
             x: 0,
             y: 0,
@@ -351,6 +354,7 @@ export async function runPptxExport(params: {
           );
           if (bgOverlayTransparency !== undefined && bgOverlayTransparency < 100) {
             pptSlide.addShape(pptx.ShapeType.rect, {
+              objectName: 'bg-overlay',
               x: 0,
               y: 0,
               w: PPTX_W,
@@ -363,6 +367,7 @@ export async function runPptxExport(params: {
       }
 
       // ── 4. Elements ────────────────────────────────────────────────────────
+      const exportedElements: SlideElement[] = [];
       const sorted = [...(slide.elements || [])].sort(
         (a, b) => (a.zIndex || 0) - (b.zIndex || 0)
       );
@@ -372,7 +377,8 @@ export async function runPptxExport(params: {
         if (el.visible === false) continue;
         if (isSlideDeckBackgroundImage(el)) continue;
 
-        const common = elementPlacement(el);
+        const _placement = elementPlacement(el);
+        const common = { ..._placement, w: _placement.w as number, h: _placement.h as number, objectName: el.id };
 
         // ── TEXT ──────────────────────────────────────────────────────────
         if (el.type === 'text' && el.content) {
@@ -595,7 +601,7 @@ export async function runPptxExport(params: {
     // ── Inject entrance animations via OOXML post-processing ─────────────────
     // Temporarily disabled: The experimental OOXML patching caused shape ID mismatches,
     // resulting in missing elements (black boxes) in the exported PPTX.
-    // const xmlStr = await injectAnimations(buffer, slides, palette);
+    
 
     const finalBuffer = buffer; // Use the safe, unpatched buffer
 
@@ -639,126 +645,200 @@ export async function runPptxExport(params: {
   }
 }
 
+
+
 // ── Post-process: Inject OOXML animations into the pptx buffer ────────────────
-// This uses JSZip-style manipulation to patch slide XMLs inside the .pptx zip
 async function injectAnimations(
   buffer: ArrayBuffer,
-  slides: PresentationData['slides'],
-  palette: string[]
+  pptSlidesInfo: { bgShapeCount: number; exportedElements: SlideElement[] }[],
 ): Promise<ArrayBuffer> {
   try {
-    // Dynamic import to avoid SSR issues
     const JSZip = (await import('jszip')).default;
     const zip   = await JSZip.loadAsync(buffer);
 
-    for (let si = 0; si < slides.length; si++) {
+    for (let si = 0; si < pptSlidesInfo.length; si++) {
       const slideFile = zip.file(`ppt/slides/slide${si + 1}.xml`);
       if (!slideFile) continue;
 
       let xml = await slideFile.async('string');
 
-      // Extract all shape IDs from the spTree
-      const spIds: { id: number; entrance: string; delay: number }[] = [];
-      const spIdRegex = /<p:sp>[\s\S]*?<p:cNvPr id="(\d+)"[\s\S]*?<\/p:sp>/g;
-      let match: RegExpExecArray | null;
-      let order = 0;
+      const shapeIdMap = new Map<string, number>();
+      const cNvPrRe = /<p:cNvPr\s([^>]+)>/g;
+      let m;
+      while ((m = cNvPrRe.exec(xml)) !== null) {
+        const attrs = m[1];
+        const idM   = /\bid="(\d+)"/.exec(attrs);
+        const nameM = /\bname="([^"]+)"/.exec(attrs);
+        if (idM && nameM) {
+          const id   = parseInt(idM[1], 10);
+          const name = nameM[1];
+          if (id > 1 && name) shapeIdMap.set(name, id);
+        }
+      }
 
-      // Map elements to animations in sorted order (skip bg image)
-      const sorted = [...(slides[si]?.elements || [])]
-        .filter(el => el.visible !== false && !(el.type === 'image' && el.zIndex === 0 && el.x === 0 && el.y === 0))
-        .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+      if (shapeIdMap.size === 0) continue;
+      const meta = pptSlidesInfo[si];
+      if (!meta) continue;
+      const { exportedElements } = meta;
 
-      // Collect shape IDs from the XML (they are assigned sequentially by pptxgenjs)
-      // pptxgenjs assigns IDs starting at 2 (slide layout ref is 1)
-      let shapeCounter = 2; // Gradient overlay is 2, bg overlay is 3 etc
-      // We conservatively assign animations starting from shape 4 (after our overlays)
-      const animElems = sorted.filter(el => el.type === 'text' || el.type === 'shape');
+      const hasAnyAnim = exportedElements.some(el => el.animation && el.animation.entrance !== 'none');
+      if (!hasAnyAnim) continue;
 
-      if (animElems.length === 0) continue;
+      interface AnimEntry { spId: number; entrance: string; delay: number; duration: number }
+      const animEntries: AnimEntry[] = [];
+      exportedElements.forEach((el, i) => {
+        const anim = el.animation;
+        if (!anim || anim.entrance === 'none') return;
+        const spId = shapeIdMap.get(el.id);
+        if (!spId) return;
+        animEntries.push({
+          spId,
+          entrance: anim.entrance,
+          delay:    anim.delay    ?? i * 150,
+          duration: anim.duration ?? 600,
+        });
+      });
+      if (animEntries.length === 0) continue;
 
-      // Build the timing XML block
-      const parList = animElems.map((el, i) => {
-        const entrance = el.animation?.entrance || 'fadeIn';
-        const delay = el.animation?.delay ?? i * 150;
-        const durationMs = Math.max(50, el.animation?.duration ?? 600);
-        const spId = 4 + i;
-        return `<p:par>
-          <p:cTn id="${100 + i * 3}" presetID="${getPresetId(entrance)}" presetClass="entr" grpId="${i}" fill="hold" nodeType="clickEffect">
-            <p:stCondLst><p:cond delay="${delay * 100000}"/></p:stCondLst>
-            <p:childTnLst>
-              <p:animEffect transition="in" filter="fade">
-                <p:cBhvr><p:cTn id="${101 + i * 3}" dur="${durationMs}" fill="hold"/>
-                  <p:tgtEl><p:spTgt spid="${spId}"/></p:tgtEl>
-                </p:cBhvr>
-              </p:animEffect>
-            </p:childTnLst>
-          </p:cTn>
-        </p:par>`;
+      let nodeId = 100;
+      const getId = () => nodeId++;
+      const rootId   = getId();
+      const seqId    = getId();
+
+      const parBlocks = animEntries.map((entry) => {
+        const preset   = getPresetId(entry.entrance);
+        const subtype  = getPresetSubtype(entry.entrance);
+        const subtypeAttr = subtype ? ` presetSubtype="${subtype}"` : '';
+        const dur      = Math.round(Math.max(100, entry.duration));
+        const delayEmu = Math.round(entry.delay) * 100_000;
+        const parId    = getId();
+        const setId    = getId();
+        const animId   = getId();
+        return `<p:par><p:cTn id="${parId}" presetID="${preset}"${subtypeAttr} presetClass="entr" grpId="0" fill="hold" nodeType="clickEffect"><p:stCondLst><p:cond delay="${delayEmu}"/></p:stCondLst><p:childTnLst><p:set><p:cBhvr><p:cTn id="${setId}" dur="1" fill="hold"/><p:tgtEl><p:spTgt spid="${entry.spId}"/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val="visible"/></p:to></p:set><p:animEffect transition="in" filter="fade"><p:cBhvr><p:cTn id="${animId}" dur="${dur}"/><p:tgtEl><p:spTgt spid="${entry.spId}"/></p:tgtEl></p:cBhvr></p:animEffect></p:childTnLst></p:cTn></p:par>`;
       }).join('');
 
-      const timingXml = `<p:timing>
-        <p:tnLst>
-          <p:par>
-            <p:cTn id="1" dur="indefinite" restart="whenNotActive" nodeType="tmRoot">
-              <p:childTnLst>
-                <p:seq concurrent="1" nextAc="seek">
-                  <p:cTn id="2" dur="indefinite" nodeType="mainSeq">
-                    <p:childTnLst>${parList}</p:childTnLst>
-                  </p:cTn>
-                  <p:prevCondLst><p:cond evt="onPrevClick" delay="0"><p:tn/></p:cond></p:prevCondLst>
-                  <p:nextCondLst><p:cond evt="onNextClick" delay="0"><p:tn/></p:cond></p:nextCondLst>
-                </p:seq>
-              </p:childTnLst>
-            </p:cTn>
-          </p:par>
-        </p:tnLst>
-        <p:bldLst>${animElems.map((el, i) =>
-          `<p:bldP spid="${4 + i}" grpId="${i}" uiExpand="0" build="p"/>`
-        ).join('')}</p:bldLst>
-      </p:timing>`;
+      const bldList = animEntries.map((entry, i) =>
+        `<p:bldP spid="${entry.spId}" grpId="${i}" uiExpand="0" build="p"/>`
+      ).join('');
 
-      // Replace or append timing block
+      const timingXml =
+        `<p:timing><p:tnLst><p:par><p:cTn id="${rootId}" dur="indefinite" restart="whenNotActive" nodeType="tmRoot"><p:childTnLst><p:seq concurrent="1" nextAc="seek"><p:cTn id="${seqId}" dur="indefinite" nodeType="mainSeq"><p:childTnLst>${parBlocks}</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onPrevClick" delay="0"><p:tn/></p:cond></p:prevCondLst><p:nextCondLst><p:cond evt="onNextClick" delay="0"><p:tn/></p:cond></p:nextCondLst></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst><p:bldLst>${bldList}</p:bldLst></p:timing>`;
+
       if (xml.includes('<p:timing>')) {
         xml = xml.replace(/<p:timing>[\s\S]*?<\/p:timing>/, timingXml);
       } else {
         xml = xml.replace('</p:sld>', `${timingXml}</p:sld>`);
       }
-
       zip.file(`ppt/slides/slide${si + 1}.xml`, xml);
     }
-
     return await zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' });
   } catch (e) {
-    console.error('[PPTX] Animation injection failed (non-fatal):', e);
-    return buffer; // Return original if patching fails
+    console.error('[PPTX] Animation injection failed:', e);
+    return buffer;
+  }
+}
+
+// ── Post-process: Make embedded MP4 videos autoplay on slide entry ────────────────
+async function injectVideoAutoplay(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+  try {
+    const JSZip = (await import('jszip')).default;
+    const zip   = await JSZip.loadAsync(buffer);
+
+    const slideNames = Object.keys(zip.files)
+      .filter(f => /^ppt\/slides\/slide\d+\.xml$/.test(f))
+      .sort((a, b) => parseInt(a.match(/\d+/)![0]) - parseInt(b.match(/\d+/)![0]));
+
+    for (const slideFileName of slideNames) {
+      const slideFile = zip.file(slideFileName);
+      if (!slideFile) continue;
+
+      let xml = await slideFile.async('string');
+
+      const videoShapeIds: number[] = [];
+      const picRe = /<p:pic>[\s\S]*?<\/p:pic>/g;
+      let picM;
+      while ((picM = picRe.exec(xml)) !== null) {
+        if (picM[0].includes('<a:videoFile')) {
+          const idM = /id="(\d+)"/.exec(picM[0]);
+          if (idM) videoShapeIds.push(parseInt(idM[1], 10));
+        }
+      }
+      if (videoShapeIds.length === 0) continue;
+
+      let maxId = 0;
+      for (const m of xml.matchAll(/ id="(\d+)"/g)) {
+        const n = parseInt(m[1], 10);
+        if (n > maxId) maxId = n;
+      }
+      let nid = Math.max(maxId + 50, 500);
+      const nxt = () => nid++;
+
+      const buildVideoPar = (spId: number) => {
+        const [a, b, c, d] = [nxt(), nxt(), nxt(), nxt()];
+        return (
+          `<p:par><p:cTn id="${a}" fill="hold">` +
+            `<p:stCondLst><p:cond delay="0"/></p:stCondLst>` +
+            `<p:childTnLst>` +
+              `<p:par><p:cTn id="${b}" fill="hold">` +
+                `<p:stCondLst><p:cond delay="0"/></p:stCondLst>` +
+                `<p:childTnLst>` +
+                  `<p:par><p:cTn id="${c}" dur="indefinite" fill="hold">` +
+                    `<p:stCondLst><p:cond delay="0"/></p:stCondLst>` +
+                    `<p:childTnLst>` +
+                      `<p:video><p:cMediaNode vol="80000">` +
+                        `<p:cTn id="${d}" dur="indefinite" fill="hold"/>` +
+                        `<p:tgtEl><p:spTgt spid="${spId}"/></p:tgtEl>` +
+                      `</p:cMediaNode></p:video>` +
+                    `</p:childTnLst>` +
+                  `</p:cTn></p:par>` +
+                `</p:childTnLst>` +
+              `</p:cTn></p:par>` +
+            `</p:childTnLst>` +
+          `</p:cTn></p:par>`
+        );
+      };
+
+      const videoPars = videoShapeIds.map(buildVideoPar).join('');
+      let injected = false;
+      if (xml.includes('nodeType="mainSeq"')) {
+        xml = xml.replace(/(nodeType="mainSeq"[^>]*><p:childTnLst>)/, `$1${videoPars}`);
+        injected = true;
+      }
+
+      if (!injected) {
+        let seqId = nxt();
+        let bldEntries = videoShapeIds.map((spId, i) => `<p:bldP spid="${spId}" grpId="${i}" uiExpand="0" build="p"/>`).join('');
+        let timingXml = 
+          `<p:timing><p:tnLst><p:par><p:cTn id="${nxt()}" dur="indefinite" restart="whenNotActive" nodeType="tmRoot"><p:childTnLst><p:seq concurrent="1" nextAc="seek"><p:cTn id="${seqId}" dur="indefinite" nodeType="mainSeq"><p:childTnLst>${videoPars}</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onStopAudio" delay="0"><p:tn><p:cTnRef id="${seqId}"/></p:tn></p:cond></p:prevCondLst></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst><p:bldLst>${bldEntries}</p:bldLst></p:timing>`;
+        xml = xml.replace('</p:sld>', timingXml + '</p:sld>');
+      }
+      zip.file(slideFileName, xml);
+    }
+    return zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' });
+  } catch (err) {
+    console.error('[pptx-export] injectVideoAutoplay failed', err);
+    return buffer;
   }
 }
 
 function getPresetId(entrance: string): number {
   const map: Record<string, number> = {
-    none: 10,
-    fadeSlideUp:   2,
-    fadeSlideLeft: 2,
-    slideRight:     2,
-    fadeIn:        10,
-    zoomIn:        18,
-    elasticScale:  18,
-    reveal:        37,
-    blurIn:        10,
-    glassBlur:     10,
-    glitch:        2,
-    flipIn:        8,
-    bounceIn:      38,
-    parallaxDrift: 2,
-    verticalRise:  2,
-    horizontalReveal: 2,
-    depthRise:     18,
-    floatGentle:   10,
-    scaleSoft:     18,
-    morphBlend:    10,
-    cinematicImageZoom: 18,
-    typewriterWords: 10,
-    staggerLines:  2,
+    none: 10, fadeSlideUp: 2, fadeSlideLeft: 2, slideRight: 2,
+    fadeIn: 10, zoomIn: 18, elasticScale: 18, reveal: 37,
+    blurIn: 10, glassBlur: 10, glitch: 2, flipIn: 8,
+    bounceIn: 38, parallaxDrift: 2, verticalRise: 2, horizontalReveal: 2,
+    depthRise: 18, floatGentle: 10, scaleSoft: 18, morphBlend: 10,
+    cinematicImageZoom: 18, typewriterWords: 10, staggerLines: 2,
   };
   return map[entrance] || 10;
+}
+
+function getPresetSubtype(entrance: string): number | undefined {
+  const map: Record<string, number> = {
+    fadeSlideUp: 8, verticalRise: 8, staggerLines: 8,
+    fadeSlideLeft: 2, parallaxDrift: 2, horizontalReveal: 2, glitch: 2,
+    slideRight: 4, zoomIn: 1, elasticScale: 1, depthRise: 1,
+    scaleSoft: 1, cinematicImageZoom: 1,
+  };
+  return map[entrance];
 }

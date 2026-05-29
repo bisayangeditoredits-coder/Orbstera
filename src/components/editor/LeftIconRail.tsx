@@ -2,23 +2,20 @@ import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import {
-  LayoutTemplate, Sparkles, MousePointer2, Type, Upload,
-  Layers, StickyNote, Wand2, Grid3x3,
-} from 'lucide-react';
+import { Grid3x3 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import type { EditorToolId } from '@/types';
 
 const RAIL_ITEMS = [
-  { id: 'templates',  icon: LayoutTemplate, label: 'Design',   panel: 'generate' as const },
-  { id: 'gen-fill',   icon: Sparkles,       label: 'AI Fill',  tool: 'gen-fill' as EditorToolId },
-  { id: 'recraft',    icon: Sparkles,       label: 'Recraft',  tool: 'recraft' as EditorToolId },
-  { id: 'select',     icon: MousePointer2,  label: 'Select',   tool: 'select' as EditorToolId },
-  { id: 'text',       icon: Type,           label: 'Text',     tool: 'text' as EditorToolId },
-  { id: 'uploads',    icon: Upload,         label: 'Uploads',  tool: 'image' as EditorToolId },
-  { id: 'layers',     icon: Layers,         label: 'Layers',   panel: 'layers' as const },
-  { id: 'design',     icon: Wand2,          label: 'Style',    panel: 'design' as const },
-  { id: 'notes',      icon: StickyNote,     label: 'Notes',    panel: 'notes' as const },
+  { id: 'templates', icon: '/sidebar-toolbar-icons/design.png',  label: 'Design',   panel: 'generate' as const },
+  { id: 'gen-fill',  icon: '/sidebar-toolbar-icons/ai fill.png', label: 'AI Fill',  tool: 'gen-fill' as EditorToolId },
+  { id: 'recraft',   icon: '/sidebar-toolbar-icons/recraft.png', label: 'Recraft',  tool: 'recraft' as EditorToolId },
+  { id: 'select',    icon: '/sidebar-toolbar-icons/select.png',  label: 'Select',   tool: 'select' as EditorToolId },
+  { id: 'text',      icon: '/sidebar-toolbar-icons/text.png',    label: 'Text',     tool: 'text' as EditorToolId },
+  { id: 'uploads',   icon: '/sidebar-toolbar-icons/uploads.png', label: 'Uploads',  tool: 'image' as EditorToolId },
+  { id: 'layers',    icon: '/sidebar-toolbar-icons/layers.png',  label: 'Layers',   panel: 'layers' as const },
+  { id: 'design',    icon: '/sidebar-toolbar-icons/style.png',   label: 'Style',    panel: 'design' as const },
+  { id: 'notes',     icon: '/sidebar-toolbar-icons/notes.png',   label: 'Notes',    panel: 'notes' as const },
 ] as const;
 
 export function LeftIconRail() {
@@ -84,11 +81,9 @@ export function LeftIconRail() {
     >
       <div className="flex-1 flex flex-col items-center gap-0 py-2 w-full overflow-y-auto scrollbar-none">
         {RAIL_ITEMS.map((item) => {
-          const Icon = item.icon;
           const isToolActive  = 'tool' in item && item.tool && activeTool === item.tool && !isPanelOpen;
           const isPanelActive = 'panel' in item && item.panel && activePanel === item.panel && isPanelOpen;
           const isActive = isToolActive || isPanelActive;
-
           const isAiFill = item.id === 'gen-fill';
 
           return (
@@ -115,23 +110,35 @@ export function LeftIconRail() {
                     isAiFill ? "bg-gradient-to-b from-[#5B7CFF] to-primary" : "bg-primary"
                   )} />
                 )}
-                
-                {/* For AI Fill, use a sleek animated text gradient instead of a bulky background block */}
+
                 <div className={cn(
                   "flex flex-col items-center gap-1.5",
                   isAiFill && "group-hover:scale-[1.05] transition-transform duration-200"
                 )}>
-                  <Icon 
-                    size={20} 
-                    strokeWidth={isActive ? 2 : 1.6} 
-                    className={cn(
-                      isAiFill && !isActive && "text-neutral-400 group-hover:text-[#5B7CFF] transition-colors",
-                      isAiFill && isActive && "text-[#5B7CFF]"
-                    )}
+                  {/* Custom PNG icon */}
+                  <img
+                    src={item.icon}
+                    alt={item.label}
+                    width={22}
+                    height={22}
+                    style={{
+                      width: 22,
+                      height: 22,
+                      objectFit: 'contain',
+                      transition: 'filter 0.15s ease, opacity 0.15s ease',
+                      filter: isActive
+                        ? 'invert(30%) sepia(100%) saturate(500%) hue-rotate(200deg) brightness(1.1)'
+                        : 'invert(55%) sepia(0%) saturate(0%) brightness(0.7)',
+                    }}
+                    className="group-hover:[filter:invert(25%)_sepia(10%)_saturate(200%)_brightness(0.4)]"
                   />
                   <span className={cn(
                     "text-[9.5px] font-semibold tracking-wide leading-none text-center px-1",
-                    isAiFill ? "bg-clip-text text-transparent bg-gradient-to-r from-[#5B7CFF] via-indigo-400 to-[#5B7CFF] animate-gradient-pan" : ""
+                    isAiFill
+                      ? isActive
+                        ? "text-[#5B7CFF]"
+                        : "text-neutral-400 group-hover:text-[#5B7CFF] transition-colors"
+                      : ""
                   )}>
                     {item.label}
                   </span>

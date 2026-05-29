@@ -71,8 +71,61 @@ async function readExportFailureMessage(res: Response): Promise<string> {
  * When the encoded POST body still exceeds the Vercel limit, the deck is staged to R2 (same as large saves)
  * and the export route loads it from a small JSON reference.
  */
+/**
+ * Converts all blob: URLs in a presentation clone to base64 data: URLs so they
+ * survive the export pipeline (blob URLs are browser-session-only and cannot be
+ * sent to the server).  Failures for individual images are silently ignored —
+ * the element will simply be left without an image rather than blocking the
+ * whole export.
+ */
+async function resolveBlobUrls(presentation: PresentationData): Promise<PresentationData> {
+  const hasBlobUrls = (presentation.slides || []).some(
+    (s) =>
+      (s.imageUrl || '').startsWith('blob:') ||
+      (s.elements || []).some((el) => el.type === 'image' && (el.src || '').startsWith('blob:')),
+  );
+  if (!hasBlobUrls) return presentation;
+
+  const clone = structuredClone(presentation) as PresentationData;
+
+  async function blobToDataUrl(blobUrl: string): Promise<string | null> {
+    try {
+      const res = await fetch(blobUrl);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  for (const slide of clone.slides || []) {
+    if ((slide.imageUrl || '').startsWith('blob:')) {
+      const dataUrl = await blobToDataUrl(slide.imageUrl!);
+      if (dataUrl) slide.imageUrl = dataUrl;
+    }
+    for (const el of slide.elements || []) {
+      if (el.type === 'image' && (el.src || '').startsWith('blob:')) {
+        const dataUrl = await blobToDataUrl(el.src!);
+        if (dataUrl) el.src = dataUrl;
+        else el.src = ''; // clear unresolvable blob URL so it doesn't get sent as-is
+      }
+    }
+  }
+
+  return clone;
+}
+
 export async function exportToPptx(presentation: PresentationData): Promise<void> {
-  const prepared = await preparePresentationForCloudSave(presentation);
+  // Resolve any blob: URLs to base64 data URLs before cloud-save preparation,
+  // since blob URLs are session-only and cannot be sent to the server.
+  const withResolvedBlobs = await resolveBlobUrls(presentation);
+  const prepared = await preparePresentationForCloudSave(withResolvedBlobs);
 
   const pendingImages = (prepared.slides || []).some((s) =>
     (s.elements || []).some((el) => el.type === 'image' && el.aiImagePending && !el.src?.trim()),
@@ -80,15 +133,6 @@ export async function exportToPptx(presentation: PresentationData): Promise<void
   if (pendingImages) {
     throw new Error(
       'Some images are still generating. Wait for them to finish on the canvas, then export again.',
-    );
-  }
-
-  const hasBlobImages = (prepared.slides || []).some((s) =>
-    (s.elements || []).some((el) => el.type === 'image' && (el.src || '').trim().startsWith('blob:')),
-  );
-  if (hasBlobImages) {
-    throw new Error(
-      'Some images are only stored in this browser session. Save the deck to the cloud, then export again.',
     );
   }
   const json = JSON.stringify(prepared);

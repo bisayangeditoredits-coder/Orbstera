@@ -99,7 +99,6 @@ interface ElementNodeProps {
 function useVideo(src: string): [HTMLVideoElement | undefined, string] {
   const [video, setVideo] = useState<HTMLVideoElement | undefined>(undefined);
   const [status, setStatus] = useState<string>('loading');
-  const shapeRef = useRef<Konva.Shape | null>(null);
 
   useEffect(() => {
     if (!src) {
@@ -107,32 +106,43 @@ function useVideo(src: string): [HTMLVideoElement | undefined, string] {
       setStatus('loading');
       return;
     }
-    
-    // Fallback if not mp4, just let image loader handle it (though we won't call this for non-mp4s)
-    if (!src.endsWith('.mp4')) {
+
+    // BUG-6 fix: use split('?')[0] so query-string URLs like
+    // https://player.vimeo.com/.../vid.mp4?s=TOKEN still match
+    if (!src.split('?')[0].endsWith('.mp4')) {
       setVideo(undefined);
       setStatus('failed');
       return;
     }
 
+    let cancelled = false;
     const vid = document.createElement('video');
     vid.src = src;
     vid.crossOrigin = 'Anonymous';
     vid.loop = true;
     vid.muted = true;
     vid.playsInline = true;
-    
-    vid.addEventListener('loadeddata', () => {
+
+    // BUG-5 fix: keep named references so we can remove them in cleanup
+    const onLoaded = () => {
+      if (cancelled) return;
       setStatus('loaded');
       vid.play().catch(e => console.warn('Video play error:', e));
-    });
-    vid.addEventListener('error', () => {
+    };
+    const onError = () => {
+      if (cancelled) return;
       setStatus('failed');
-    });
+    };
+
+    vid.addEventListener('loadeddata', onLoaded);
+    vid.addEventListener('error', onError);
 
     setVideo(vid);
 
     return () => {
+      cancelled = true;
+      vid.removeEventListener('loadeddata', onLoaded);
+      vid.removeEventListener('error', onError);
       vid.pause();
       vid.removeAttribute('src');
       vid.load();
@@ -221,10 +231,15 @@ function ElementNode({
 
   const spinnerRef = useRef<Konva.Arc>(null);
   const glowRef = useRef<Konva.Circle>(null);
+  // Refs for the motion/animating overlay animation
+  const motionSpinnerRef = useRef<Konva.Arc>(null);
+  const motionGlowRef = useRef<Konva.Circle>(null);
+  const motionGlowRef2 = useRef<Konva.Circle>(null);
 
   useEffect(() => {
     let borderAnim: Konva.Animation | undefined;
     let spinnerAnim: Konva.Animation | undefined;
+    let motionAnim: Konva.Animation | undefined;
 
     if (genFillBorderRef.current) {
       const node = genFillBorderRef.current;
@@ -254,9 +269,36 @@ function ElementNode({
       }
     }
 
+    // Motion/animating overlay animation — pulsing glow rings + spinning arc
+    if (motionSpinnerRef.current && motionGlowRef.current) {
+      const sNode = motionSpinnerRef.current;
+      const g1 = motionGlowRef.current;
+      const g2 = motionGlowRef2.current;
+      const layer = sNode.getLayer();
+      if (layer) {
+        motionAnim = new Konva.Animation((frame) => {
+          const t = frame?.time ?? 0;
+          // Spinner arc rotates smoothly
+          sNode.rotation((t / 1400) * 360);
+          // Outer ring pulses (breathe in)
+          const s1 = 1 + Math.sin(t / 900) * 0.28;
+          g1.scale({ x: s1, y: s1 });
+          g1.opacity(0.35 + Math.sin(t / 900) * 0.25);
+          // Inner ring pulses offset (breathe out)
+          if (g2) {
+            const s2 = 1 + Math.sin(t / 900 + Math.PI) * 0.22;
+            g2.scale({ x: s2, y: s2 });
+            g2.opacity(0.25 + Math.sin(t / 900 + Math.PI) * 0.2);
+          }
+        }, layer);
+        motionAnim.start();
+      }
+    }
+
     return () => {
       if (borderAnim) borderAnim.stop();
       if (spinnerAnim) spinnerAnim.stop();
+      if (motionAnim) motionAnim.stop();
     };
   }, [el.aiImagePending, el.type, el.id, img]);
 
@@ -772,29 +814,58 @@ function ElementNode({
             />
           )}
 
-          {/* AI Animating Overlay */}
+          {/* AI Animating Overlay — animated pulsing glow + spinning arc */}
           {activeMedia && el.aiImagePending && (
             <Group listening={false}>
-              <Rect
-                x={0}
-                y={0}
-                width={el.width}
-                height={el.height}
-                fill="rgba(15,23,42,0.6)"
-              />
+              {/* Dimmed background */}
+              <Rect x={0} y={0} width={el.width} height={el.height} fill="rgba(10,16,32,0.62)" />
+
+              {/* Centered icon group */}
+              <Group x={el.width / 2} y={el.height / 2 - 22}>
+                {/* Outer pulsing glow ring */}
+                <Circle
+                  ref={motionGlowRef}
+                  radius={26}
+                  fill="transparent"
+                  stroke="rgba(56,189,248,0.30)"
+                  strokeWidth={1.5}
+                  shadowBlur={18}
+                  shadowColor="#38BDF8"
+                />
+                {/* Inner pulsing ring (offset phase for radar effect) */}
+                <Circle
+                  ref={motionGlowRef2}
+                  radius={18}
+                  fill="rgba(56,189,248,0.08)"
+                  stroke="rgba(56,189,248,0.18)"
+                  strokeWidth={1}
+                />
+                {/* Spinning arc */}
+                <Arc
+                  ref={motionSpinnerRef}
+                  innerRadius={10}
+                  outerRadius={14}
+                  angle={230}
+                  fill="#38BDF8"
+                  lineCap="round"
+                />
+                {/* Diamond icon in the centre */}
+                <Text
+                  x={-9}
+                  y={-9}
+                  width={18}
+                  text="✦"
+                  fill="#e0f2fe"
+                  fontSize={14}
+                  align="center"
+                  fontFamily="Inter"
+                />
+              </Group>
+
+              {/* Labels */}
               <Text
                 x={0}
-                y={el.height / 2 - 26}
-                width={el.width}
-                text="✦"
-                fill="#38BDF8"
-                fontSize={22}
-                align="center"
-                fontFamily="Inter"
-              />
-              <Text
-                x={0}
-                y={el.height / 2 - 2}
+                y={el.height / 2 + 14}
                 width={el.width}
                 text="Animating"
                 fill="rgba(248,250,252,0.92)"
@@ -805,10 +876,10 @@ function ElementNode({
               />
               <Text
                 x={0}
-                y={el.height / 2 + 16}
+                y={el.height / 2 + 30}
                 width={el.width}
-                text="Generating motion... this may take 1-2 minutes"
-                fill="rgba(148,163,184,0.85)"
+                text="Generating motion… this may take 1–2 minutes"
+                fill="rgba(148,163,184,0.75)"
                 fontSize={9}
                 align="center"
                 fontFamily="Inter"

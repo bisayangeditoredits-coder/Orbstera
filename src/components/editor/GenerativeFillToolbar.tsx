@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { Sparkles, Loader2, X, Wand2, Trash2 } from 'lucide-react';
+import { persistGeneratedImage } from '@/lib/client/persist-generated-image';
 
 function regionToImagePixels(regionW: number, regionH: number) {
   // Preserve the exact aspect ratio of the drawn rectangle.
@@ -157,8 +158,12 @@ export function GenerativeFillToolbar() {
             : `${data.url}${data.url.includes('?') ? '&' : '?'}v=${Date.now()}`
           : data.url;
 
+      // Persist to R2 so the URL is permanent and available for PPTX export
+      const deckId = presentation?.id || 'draft';
+      const persistedUrl = await persistGeneratedImage(cacheBustedUrl, deckId);
+
       updateElement(slide.id, el.id, {
-        src: cacheBustedUrl,
+        src: persistedUrl,
         animation: el.animation ?? { entrance: 'fadeIn', duration: 600, delay: 0 },
         aiImagePending: false,
         aiMetadata: data.imageId ? { leonardoImageId: data.imageId } : undefined

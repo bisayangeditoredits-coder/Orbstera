@@ -19,8 +19,22 @@ export function createRouteSupabase() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
+        // BUG-25 fix: use getAll + setAll so Supabase SSR can refresh
+        // expired JWTs and write the new session token back to the response.
+        // A read-only adapter (get only) silently breaks token refresh in
+        // all API routes, causing 401s for users with recently expired sessions.
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // setAll is called from a Server Component context where cookies
+            // cannot be set — middleware will handle the refresh instead.
+          }
         },
       },
     },

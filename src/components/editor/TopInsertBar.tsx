@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -36,25 +36,26 @@ const QUICK_SHAPES: {
 const PRIMARY_ITEMS: {
   tool?: EditorToolId;
   panel?: string;
-  icon: React.ElementType;
+  icon: React.ElementType | string;
   label: string;
   dividerAfter?: boolean;
   hasDropdown?: 'shapes' | 'image';
 }[] = [
-  { panel: 'layouts',   icon: Layout,       label: 'Layouts', dividerAfter: true },
-  { tool: 'text',  icon: Type,      label: 'Text' },
+  { panel: 'layouts',   icon: '/sidebar-toolbar-icons/tool-bar-top/layouts.png',       label: 'Layouts', dividerAfter: true },
+  { tool: 'text',  icon: '/sidebar-toolbar-icons/tool-bar-top/text.png',      label: 'Text' },
   { tool: 'rect',  icon: Square,    label: 'Shape' },
-  { tool: 'image', icon: ImageIcon, label: 'Image', hasDropdown: 'image', dividerAfter: true },
-  { panel: 'photos',    icon: ImageIcon,    label: 'Photos' },
-  { panel: 'icons',     icon: Star,         label: 'Icons' },
-  { panel: 'shapes',    icon: Shapes,       label: 'Shapes', hasDropdown: 'shapes' },
-  { panel: 'giphy',     icon: Smile,        label: 'Giphy' },
-  { panel: 'videos',    icon: Clapperboard, label: 'Video', dividerAfter: true },
-  { panel: 'wikipedia', icon: BookOpen,     label: 'Wiki' },
-  { panel: 'grammar',   icon: SpellCheck,   label: 'Grammar' },
-  { panel: 'ai',        icon: Sparkles,     label: 'AI Image', dividerAfter: true },
+  { tool: 'image', icon: '/sidebar-toolbar-icons/tool-bar-top/image.png', label: 'Image', hasDropdown: 'image', dividerAfter: true },
+  { panel: 'photos',    icon: '/sidebar-toolbar-icons/tool-bar-top/photos.png',    label: 'Photos' },
+  { panel: 'icons',     icon: '/sidebar-toolbar-icons/tool-bar-top/icons.png',         label: 'Icons' },
+  { panel: 'shapes',    icon: '/sidebar-toolbar-icons/tool-bar-top/shapes.png',       label: 'Shapes', hasDropdown: 'shapes' },
+  { panel: 'giphy',     icon: '/sidebar-toolbar-icons/tool-bar-top/gif.png',        label: 'Giphy' },
+  { panel: 'videos',    icon: '/sidebar-toolbar-icons/tool-bar-top/video.png', label: 'Video', dividerAfter: true },
+  { panel: 'wikipedia', icon: '/sidebar-toolbar-icons/tool-bar-top/wiki.png',     label: 'Wiki' },
+  { panel: 'grammar',   icon: '/sidebar-toolbar-icons/tool-bar-top/grammar.png',   label: 'Grammar' },
+  { panel: 'ai',        icon: '/sidebar-toolbar-icons/tool-bar-top/ai image.png',     label: 'AI Image', dividerAfter: true },
   { tool: 'divider',    icon: Minus,        label: 'Line' },
 ];
+
 
 // ── More-menu items (QR + Map moved to Image dropdown) ───────────────────────
 const MORE_ITEMS: { panel: string; icon: React.ElementType; label: string }[] = [
@@ -401,7 +402,24 @@ export function TopInsertBar() {
                       : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'
                   }`}
                 >
-                  <Icon size={14} strokeWidth={isActive ? 2 : 1.7} />
+                  {typeof Icon === 'string' ? (
+                    <img
+                      src={Icon}
+                      alt={item.label}
+                      width={14}
+                      height={14}
+                      style={{
+                        width: 14,
+                        height: 14,
+                        objectFit: 'contain',
+                        filter: isActive
+                          ? 'brightness(0) invert(1)'
+                          : 'invert(55%) sepia(0%) saturate(0%) brightness(0.7)',
+                      }}
+                    />
+                  ) : (
+                    <Icon size={14} strokeWidth={isActive ? 2 : 1.7} />
+                  )}
                   <span className="hidden sm:inline">Image</span>
                   <ChevronDown
                     size={11}
@@ -440,7 +458,24 @@ export function TopInsertBar() {
                       : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'
                   }`}
                 >
-                  <Icon size={14} strokeWidth={isActive ? 2 : 1.7} />
+                  {typeof Icon === 'string' ? (
+                    <img
+                      src={Icon}
+                      alt={item.label}
+                      width={14}
+                      height={14}
+                      style={{
+                        width: 14,
+                        height: 14,
+                        objectFit: 'contain',
+                        filter: isActive
+                          ? 'brightness(0) invert(1)'
+                          : 'invert(55%) sepia(0%) saturate(0%) brightness(0.7)',
+                      }}
+                    />
+                  ) : (
+                    <Icon size={14} strokeWidth={isActive ? 2 : 1.7} />
+                  )}
                   <span className="hidden sm:inline">Shapes</span>
                   <ChevronDown
                     size={11}
@@ -483,7 +518,24 @@ export function TopInsertBar() {
                     : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'
                 }`}
               >
-                <Icon size={14} strokeWidth={isActive ? 2 : 1.7} />
+                {typeof Icon === 'string' ? (
+                  <img
+                    src={Icon}
+                    alt={item.label}
+                    width={14}
+                    height={14}
+                    style={{
+                      width: 14,
+                      height: 14,
+                      objectFit: 'contain',
+                      filter: isActive
+                        ? 'brightness(0) invert(1)'
+                        : 'invert(55%) sepia(0%) saturate(0%) brightness(0.7)',
+                    }}
+                  />
+                ) : (
+                  <Icon size={14} strokeWidth={isActive ? 2 : 1.7} />
+                )}
                 <span className="hidden sm:inline">{item.label}</span>
               </button>
 
@@ -548,7 +600,24 @@ export function TopInsertBar() {
                   : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'
               }`}
             >
-              <Icon size={14} strokeWidth={isActive ? 2 : 1.7} />
+              {typeof Icon === 'string' ? (
+                <img
+                  src={Icon}
+                  alt={item.label}
+                  width={14}
+                  height={14}
+                  style={{
+                    width: 14,
+                    height: 14,
+                    objectFit: 'contain',
+                    filter: isActive
+                      ? 'brightness(0) invert(1)'
+                      : 'invert(55%) sepia(0%) saturate(0%) brightness(0.7)',
+                  }}
+                />
+              ) : (
+                <Icon size={14} strokeWidth={isActive ? 2 : 1.7} />
+              )}
               <span className="hidden sm:inline">{item.label}</span>
             </button>
             {item.dividerAfter && <div className="w-px h-5 bg-neutral-200 mx-1.5" />}
@@ -588,7 +657,7 @@ export function TopInsertBar() {
                 background: 'rgba(255,255,255,0.98)',
                 border: '1px solid rgba(0,0,0,0.1)',
                 boxShadow: '0 16px 48px rgba(0,0,0,0.12)',
-                minWidth: 180,
+                minWidth: 220,
               }}
             >
               <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 px-4 pt-3 pb-1.5">

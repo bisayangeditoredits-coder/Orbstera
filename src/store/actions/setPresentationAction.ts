@@ -1,5 +1,6 @@
 import { PresentationData, Slide, SlideElement } from '@/types';
 import { finalizeSlideMotion } from '@/lib/presentationMotion';
+import { persistGeneratedImage } from '@/lib/client/persist-generated-image';
 
 const CANVAS_W = 1280;
 const CANVAS_H = 720;
@@ -390,7 +391,8 @@ export const setPresentationAction = (set: any, get: any, data: any) => {
             });
             const json = await res.json().catch(() => ({}));
             if (json.url) {
-              get().updateElement(task.slideId, task.elementId, { src: json.url });
+              const persistedUrl = await persistGeneratedImage(json.url, deckIdForImages);
+              get().updateElement(task.slideId, task.elementId, { src: persistedUrl });
             }
           } catch (e) {
             console.error(`[Store] Image failed for ${task.elementId}`, e);
