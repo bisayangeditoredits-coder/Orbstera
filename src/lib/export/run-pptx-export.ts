@@ -348,7 +348,8 @@ export async function runPptxExport(params: {
             w: PPTX_W,
             h: PPTX_H,
             data: bgData,
-            sizing: { type: 'cover', w: PPTX_W, h: PPTX_H },
+            // Removed sizing: 'cover' to prevent background image warping 
+            // AI-generated backgrounds are already 16:9
           } as any);
           const bgOverlayTransparency = combinedShapeTransparency(
             undefined,
@@ -452,7 +453,8 @@ export async function runPptxExport(params: {
               pptSlide.addImage({
                 ...common,
                 data: imgData,
-                sizing: { type: 'cover', w: common.w, h: common.h },
+                // Removed sizing: 'cover' to prevent image warping in PPTX
+                // The w and h from 'common' already preserve the exact aspect ratio from the canvas
                 rounding: false,
                 ...(imageTransparency !== undefined
                   ? { transparency: imageTransparency }
