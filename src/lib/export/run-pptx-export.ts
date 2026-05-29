@@ -637,9 +637,9 @@ export async function runPptxExport(params: {
     const buffer = await pptx.write({ outputType: 'arraybuffer' }) as ArrayBuffer;
 
     // ── Inject entrance animations via OOXML post-processing ─────────────────
+    // Temporarily disabled injectAnimations because it causes file corruption (shape ID mismatches & XML schema violations)
     let finalBuffer = buffer;
     if (pptSlidesInfo.length > 0) {
-      finalBuffer = await injectAnimations(finalBuffer, pptSlidesInfo);
       finalBuffer = await injectVideoAutoplay(finalBuffer);
     }
 
@@ -857,7 +857,7 @@ async function injectVideoAutoplay(buffer: ArrayBuffer): Promise<ArrayBuffer> {
         let seqId = nxt();
         let bldEntries = videoShapeIds.map((spId, i) => `<p:bldP spid="${spId}" grpId="${i}" uiExpand="0" build="p"/>`).join('');
         let timingXml = 
-          `<p:timing><p:tnLst><p:par><p:cTn id="${nxt()}" dur="indefinite" restart="whenNotActive" nodeType="tmRoot"><p:childTnLst><p:seq concurrent="1" nextAc="seek"><p:cTn id="${seqId}" dur="indefinite" nodeType="mainSeq"><p:childTnLst>${videoPars}</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onStopAudio" delay="0"><p:tn><p:cTnRef id="${seqId}"/></p:tn></p:cond></p:prevCondLst></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst><p:bldLst>${bldEntries}</p:bldLst></p:timing>`;
+          `<p:timing><p:tnLst><p:par><p:cTn id="${nxt()}" dur="indefinite" restart="whenNotActive" nodeType="tmRoot"><p:childTnLst><p:seq concurrent="1" nextAc="seek"><p:cTn id="${seqId}" dur="indefinite" nodeType="mainSeq"><p:childTnLst>${videoPars}</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onPrevClick" delay="0"><p:tn><p:cTnRef id="${seqId}"/></p:tn></p:cond></p:prevCondLst><p:nextCondLst><p:cond evt="onNextClick" delay="0"><p:tn><p:cTnRef id="${seqId}"/></p:tn></p:cond></p:nextCondLst></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst><p:bldLst>${bldEntries}</p:bldLst></p:timing>`;
         if (xml.includes('<p:extLst>')) {
           xml = xml.replace('<p:extLst>', `${timingXml}<p:extLst>`);
         } else if (xml.includes('</p:transition>')) {
