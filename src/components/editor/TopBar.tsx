@@ -193,7 +193,7 @@ function TopBarInner({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileGal
   const presentation = usePresentationStore(s => s.presentation);
   const { activePanel, setActivePanel, isPanelOpen, setPanelOpen, setEditorState, setPresentation, updatePresentation, cloudSync, cloudMsg } = usePresentationStore(
     useShallow((s) => ({
-      activePanel: s.editor.activePanel,
+      activePanel: s.activePanel,
       setActivePanel: s.setActivePanel,
       isPanelOpen: s.isPanelOpen,
       setPanelOpen: s.setPanelOpen,

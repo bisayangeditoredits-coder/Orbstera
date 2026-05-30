@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -51,8 +51,8 @@ export function SessionGuard({ children }: { children: React.ReactNode }) {
 
         if (false && res.status === 401) {
           const body = await res.json().catch(() => ({}));
-          clearAllUserClientCaches(user.id);
-          await signOutAndClearCaches(supabase, user.id);
+          clearAllUserClientCaches(user!.id);
+          await signOutAndClearCaches(supabase, user!.id);
           const reason =
             body?.error === 'session_expired' ? 'session_expired' : 'session_invalid';
           router.replace(`/login?error=${reason}`);

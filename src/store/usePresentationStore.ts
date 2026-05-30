@@ -116,7 +116,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   addSlide: (slide) => {
     get().pushHistory();
     set((state) => {
-      console.log('ZUSTAND SET:', new Error().stack.split('\n').slice(1,4).join('\n'));
+      console.log('ZUSTAND SET:', new Error().stack?.split('\n').slice(1,4).join('\n'));
       if (!state.presentation) return state;
       return {
         presentation: { ...state.presentation, slides: [...state.presentation.slides, slide] },

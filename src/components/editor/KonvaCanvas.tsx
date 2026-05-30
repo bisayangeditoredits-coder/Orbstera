@@ -1210,7 +1210,7 @@ export function KonvaCanvas({ scale }: { scale: number }) {
   const slideAlreadyRevealed = slide ? generationRevealedSlides.includes(slide.id) : false;
   const { isElementVisible } = useGenerationElementReveal({
     slideId: slide?.id ?? '',
-    elements: slide?.elements ?? EMPTY_STRING_ARRAY,
+    elements: slide?.elements ?? ([] as SlideElement[]),
     enabled: revealEnabled,
     slideAlreadyRevealed,
   });

@@ -393,6 +393,11 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
     deckGenerationLifecycle,
     generationBuildReveal,
     generationTargetSlides,
+    orchestrationPhase,
+    activeModelLabel,
+    orchestrationMessage,
+    freeTasteActive,
+    freeTasteImagesRemaining,
     currentSlideIndex,
     setCurrentSlideIndex,
     addSlide,
@@ -406,6 +411,11 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
       deckGenerationLifecycle: s.editor.deckGenerationLifecycle,
       generationBuildReveal: s.editor.generationBuildReveal,
       generationTargetSlides: s.editor.generationTargetSlides,
+      orchestrationPhase: s.editor.orchestrationPhase,
+      activeModelLabel: s.editor.activeModelLabel,
+      orchestrationMessage: s.editor.orchestrationMessage,
+      freeTasteActive: s.editor.freeTasteActive,
+      freeTasteImagesRemaining: s.editor.freeTasteImagesRemaining,
       currentSlideIndex: s.currentSlideIndex,
       setCurrentSlideIndex: s.setCurrentSlideIndex,
       addSlide: s.addSlide,
@@ -415,7 +425,7 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
     }))
   );
 
-  const editor = { isGenerating, deckGenerationLifecycle, generationBuildReveal, generationTargetSlides };
+  const editor = { isGenerating, deckGenerationLifecycle, generationBuildReveal, generationTargetSlides, orchestrationPhase, activeModelLabel, orchestrationMessage, freeTasteActive, freeTasteImagesRemaining };
 
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const slides = presentation?.slides || [];

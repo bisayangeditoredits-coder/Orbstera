@@ -295,7 +295,16 @@ export default function EditorClient() {
     if (st.presentation) return;
     if (st.editor.isGenerating) return;
 
-    st.setPresentation({ id: 'mock123', title: 'Mock', slides: [], colorPalette: [], userId: 'mock' });
+    st.setPresentation({
+      id: 'mock123',
+      title: 'Mock',
+      theme: 'light',
+      fontPairing: { heading: 'Inter', body: 'Inter' },
+      animationStyle: 'fade',
+      slides: [],
+      colorPalette: [],
+      userId: 'mock'
+    });
     
     // Auto-open generate panel for the default empty presentation
     const { setActivePanel, setPanelOpen } = usePresentationStore.getState();
