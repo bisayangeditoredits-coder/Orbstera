@@ -284,6 +284,80 @@ export async function POST(req: Request) {
             finalPrompt += `\n\n[USER BRAND KIT]\nPlease STRICTLY apply the following brand kit rules to the generated JSON output:
 - Primary Color: ${brandKit.primary_color} (Must be the dominant color in colorPalette)
 - Font: ${brandKit.font || 'Default'}
+      if (queued) {
+        return NextResponse.json(
+          {
+            jobId,
+            status: 'queued',
+            message: 'Generation queued. Poll GET /api/jobs/[id] for status.',
+            progressUrl: `/api/jobs/${jobId}`,
+          },
+          { status: 202 },
+        );
+      }
+      captureApiException(new Error('enqueueGenerateJob failed while workers enabled'), {
+        requestId,
+        route: 'POST /api/generate',
+        userId: user.id,
+        slideCount: finalSlideCount,
+      });
+    } else if (preferAsync && process.env.NODE_ENV === 'production') {
+      apiLog('generate', 'warn', 'sync_sse_fallback_large_deck', {
+        requestId,
+        userId: user.id,
+        slideCount: finalSlideCount,
+        hint: 'Set GENERATE_WORKER_ENABLED=true and GENERATE_ASYNC_DEFAULT=true',
+      });
+    }
+
+    void createJobRecord({
+      id: jobId,
+      userId: user.id,
+      type: 'deck_generate',
+      status: 'running',
+      progress: 0,
+    });
+
+    const encoder = new TextEncoder();
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        const sendOrb = (payload: Record<string, unknown>) => {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+        };
+
+        try {
+          sendOrb({
+            orb: {
+              phase: 'starting',
+              message: freeTaste
+                ? 'Premium preview — elite models composing your deck…'
+                : 'Analyzing narrative architecture...',
+              freeTaste,
+              maxImages: freeTaste ? FREE_TIER.maxImagesPerDeck : undefined,
+              targetSlides: finalSlideCount,
+            },
+          });
+
+          // Global spend protection signal (best-effort). Router will downshift if threshold is exceeded.
+          const spend = await getSpendState({ supabase });
+          const spendState = { forcedEconomyMode: spend.forcedEconomyMode };
+
+          sendOrb({
+            orb: {
+              phase: 'structure_complete',
+              message: '✓ Structure complete',
+            },
+          });
+
+          // Inject Brand Kit into the prompt if present
+          let finalPrompt = userPrompt;
+          const { data: profileData } = await supabase.from('profiles').select('brand_kit').eq('id', user.id).single();
+          const brandKit = profileData?.brand_kit as any;
+          if (brandKit && brandKit.primary_color) {
+            finalPrompt += `\n\n[USER BRAND KIT]\nPlease STRICTLY apply the following brand kit rules to the generated JSON output:
+- Primary Color: ${brandKit.primary_color} (Must be the dominant color in colorPalette)
+- Font: ${brandKit.font || 'Default'}
 - Brand Name/Company: ${brandKit.name || 'User Company'} (Use this anywhere a company name is needed in the slide titles or content)`;
           }
 
@@ -293,6 +367,7 @@ export async function POST(req: Request) {
             const preset = resolveVisualTheme(theme.trim());
             finalPrompt += `\n\n[USER COLOR PALETTE]\nUse exactly this colorPalette array in the deck JSON: ${JSON.stringify(preset.colorPalette)}`;
           }
+          finalPrompt += `\n\n[USER LAYOUT CATEGORY]\nRoot layoutCategory must be "${layoutCategory}". ${buildDeckLayoutCategoryPrompt(layoutCategory)} This must change slide structures and layout rhythm, not just colors.`;
 
           if (typeof theme === 'string' && theme.trim()) {
             finalPrompt += `\n\n${buildVisualCurationBlock({

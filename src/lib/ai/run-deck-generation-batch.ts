@@ -46,6 +46,7 @@ export async function runDeckGenerationBatch(args: {
   if (brandKit && brandKit.primary_color) {
     finalPrompt += `\n\n[USER BRAND KIT]\nPrimary Color: ${brandKit.primary_color}\nFont: ${brandKit.font || 'Default'}\nBrand: ${brandKit.name || 'User Company'}`;
   }
+  finalPrompt += `\n\n[USER LAYOUT CATEGORY]\nRoot layoutCategory must be "${layoutCategory}". ${buildDeckLayoutCategoryPrompt(layoutCategory)} This must change slide structures and layout rhythm, not just colors.`;
 
 
   const { dossierText, refinedBrief, preflightSummary } = await runOpenRouterOrchestration(
