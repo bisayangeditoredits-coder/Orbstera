@@ -3,7 +3,7 @@ import { coerceSlideTransition } from '@/lib/presentationMotion';
 import { resolveVisualTheme } from '@/lib/visual-themes';
 import { normalizeDeckLayoutCategory, getDeckLayoutCategoryOption } from '@/lib/deck-layout-categories';
 import { openRouterComplete, extractJsonObject } from './openrouter';
-import { PREFLIGHT_SYSTEM, buildComposerSystemPrompt, buildComposerUserPrompt, buildDeckImagePrompt } from './prompts';
+import { PREFLIGHT_SYSTEM, buildComposerSystemPrompt, buildComposerUserPrompt, buildDeckImagePrompt } from './deck-generation-skill';
 import { AGENT_MODELS } from './agent-models';
 
 export interface PreflightResult {
