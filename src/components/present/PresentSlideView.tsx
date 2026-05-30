@@ -228,9 +228,11 @@ const PresentElementLayer = memo(function PresentElementLayer({
     whiteSpace: 'pre-wrap',
     wordBreak: 'normal',
     overflowWrap: 'break-word',
-    overflow: 'visible',
+    overflow: 'hidden',
+    boxSizing: 'border-box',
     margin: 0,
     padding: 0,
+    display: 'block',
   };
 
   const inner =

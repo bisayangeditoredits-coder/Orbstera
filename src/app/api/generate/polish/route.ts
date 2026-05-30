@@ -14,11 +14,7 @@ import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-const POLISH_SYSTEM = `You are the final cinematic polish agent (GPT‑5 class). You receive structured presentation JSON (no HTML).
-
-Return ONE raw JSON object only — same schema as input — with improved headlines, subtitles, bullets, visualDirection, imagePrompt consistency, speakerNotes, and motion (animation + slideTransition) where it elevates storytelling.
-Preserve slide count, ids, types, and chart data structurally.
-Do not add HTML. Do not wrap in markdown.`;
+import { POLISH_SYSTEM } from '@/lib/ai/deck-generation-skill';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -104,14 +100,21 @@ export async function POST(req: Request) {
     };
 
     let polished: Record<string, unknown> | null = null;
-    try {
-      polished = await runPolish(polishPrimary.model);
-    } catch {
-      const fb =
-        polishFallback.model !== polishPrimary.model
-          ? polishFallback.model
-          : OR_MODELS.composerFallback;
-      polished = await runPolish(fb);
+    const polishModels = [
+      polishPrimary.model,
+      polishFallback.model,
+      OR_MODELS.composerFallback,
+      OR_MODELS.composerPrimary,
+      OR_MODELS.coach,
+    ].filter((m, i, arr) => m && arr.indexOf(m) === i);
+
+    for (const model of polishModels) {
+      try {
+        polished = await runPolish(model);
+        if (polished) break;
+      } catch (err) {
+        console.warn('[Polish] model failed:', model, err);
+      }
     }
 
     if (!polished) {

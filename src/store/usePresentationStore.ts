@@ -2,7 +2,9 @@ import { setPresentationAction } from './actions/setPresentationAction';
 import { create } from 'zustand';
 import { PresentationData, Slide, SlideElement, HistoryEntry, EditorState } from '@/types';
 import { finalizeSlideMotion } from '@/lib/presentationMotion';
-import { persistGeneratedImage } from '@/lib/client/persist-generated-image';
+import { runDeckImageTasks } from '@/lib/deck-image-generation';
+import { buildDeckSlideElements } from '@/lib/deck-slide-layout';
+import { resolveVisualTheme } from '@/lib/visual-themes';
 
 /** Cap undo stack size to limit RAM on large decks (structured clones per step). */
 const MAX_HISTORY_STEPS = 10;
@@ -31,9 +33,6 @@ function captureHistorySnapshot(presentation: PresentationData): HistoryEntry {
 }
 
 // ── Canvas dimensions (must match KonvaCanvas.tsx) ──────────────────────────
-const CANVAS_W = 1280;
-const CANVAS_H = 720;
-
 interface PresentationStore {
   // ─── Presentation Data ─────────────────────────────────────────────────────
   presentation: PresentationData | null;
@@ -117,6 +116,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   addSlide: (slide) => {
     get().pushHistory();
     set((state) => {
+      console.log('ZUSTAND SET:', new Error().stack.split('\n').slice(1,4).join('\n'));
       if (!state.presentation) return state;
       return {
         presentation: { ...state.presentation, slides: [...state.presentation.slides, slide] },
@@ -381,7 +381,33 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     generationRevealedSlides: [],
   },
   setEditorState: (updates) =>
-    set((state) => ({ editor: { ...state.editor, ...updates } })),
+    set((state) => {
+      // Bail-out: skip the update if nothing actually changed.
+      // This is critical during generation where setEditorState is called frequently
+      // (e.g. reasoning text, pan resets) and can trigger infinite re-render loops.
+      const current = state.editor;
+      let changed = false;
+      for (const key of Object.keys(updates) as (keyof typeof updates)[]) {
+        const nextVal = (updates as Record<string, unknown>)[key];
+        const curVal = current[key];
+        // Special-case `pan` (and any object with x/y): compare by value, not reference.
+        if (
+          key === 'pan' &&
+          curVal !== null && typeof curVal === 'object' &&
+          nextVal !== null && typeof nextVal === 'object'
+        ) {
+          const c = curVal as { x: number; y: number };
+          const n = nextVal as { x: number; y: number };
+          if (c.x !== n.x || c.y !== n.y) { changed = true; break; }
+          continue;
+        }
+        if (curVal !== nextVal) { changed = true; break; }
+      }
+      if (!changed) return state;
+      return { editor: { ...current, ...updates } };
+    }),
+
+
 
   selectElement: (id) =>
     set((state) => {
@@ -476,11 +502,18 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
 
   initGenerationPlaceholders: (count) => {
     const base = get().presentation;
-    const palette = base?.colorPalette || ['#05050A', '#FFFFFF', '#0009fa', '#94A3B8'];
+    const handoff = get().editor.plannerHandoff;
+    const palette = base?.colorPalette || handoff?.colorPalette || ['#05050A', '#FFFFFF', '#0009fa', '#94A3B8'];
+    const titleFromHandoff =
+      typeof handoff?.topic === 'string' && handoff.topic.trim()
+        ? handoff.topic.trim()
+        : base?.title && base.title !== 'Generating...'
+          ? base.title
+          : 'Untitled Presentation';
     set({
       presentation: {
-        title: base?.title && base.title !== 'Generating...' ? base.title : 'Generating...',
-        theme: base?.theme || 'modern-dark',
+        title: titleFromHandoff,
+        theme: base?.theme || handoff?.themeName || 'modern-dark',
         colorPalette: palette,
         fontPairing: base?.fontPairing || { heading: 'Space Grotesk', body: 'Inter' },
         animationStyle: base?.animationStyle || 'cinematic-reveal',
@@ -566,177 +599,66 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   streamSlide: (slideData) => {
     const state = get();
     if (!state.presentation) {
-      set({ presentation: { title: "Generating...", theme: "modern-dark", colorPalette: ["#05050A", "#FFFFFF", "#0009fa", "#94A3B8"], fontPairing: { heading: "Space Grotesk", body: "Inter" }, animationStyle: "cinematic-reveal", slides: [] } });
-    }
-
-    const pendingImageJobs: Array<() => void> = [];
-    const scheduleDeckImage = (work: () => Promise<void>) => {
-      const ed = get().editor;
-      if (ed.freeTasteActive && (ed.freeTasteImagesRemaining ?? 0) <= 0) return;
-      if (ed.freeTasteActive) {
-        set({
-          editor: {
-            ...ed,
-            freeTasteImagesRemaining: Math.max(0, (ed.freeTasteImagesRemaining ?? 0) - 1),
-          },
-        });
-      }
-      pendingImageJobs.push(() => {
-        get().trackDeckGenerationImage(work);
+      const handoff = state.editor.plannerHandoff;
+      const title =
+        typeof handoff?.topic === 'string' && handoff.topic.trim()
+          ? handoff.topic.trim()
+          : 'Untitled Presentation';
+      set({
+        presentation: {
+          title,
+          theme: handoff?.themeName || 'modern-dark',
+          colorPalette: handoff?.colorPalette?.length
+            ? handoff.colorPalette
+            : ['#05050A', '#FFFFFF', '#0009fa', '#94A3B8'],
+          fontPairing: { heading: 'Space Grotesk', body: 'Inter' },
+          animationStyle: 'cinematic-reveal',
+          slides: [],
+        },
       });
-    };
+    }
 
     const currentPres = get().presentation!;
     const palette     = currentPres.colorPalette || ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'];
     const headingFont = currentPres.fontPairing?.heading || 'Space Grotesk';
     const bodyFont    = currentPres.fontPairing?.body    || 'Inter';
+    const backgroundMode = resolveVisualTheme(currentPres.theme).backgroundMode;
     const placeholderIdx = currentPres.slides.findIndex((s) => s.isGeneratingPlaceholder);
     const sIdx = placeholderIdx >= 0 ? placeholderIdx : currentPres.slides.length;
 
     const uid = (prefix: string) => `${prefix}-${sIdx}-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
-    const elements: SlideElement[] = [];
-    let currentZ = 1;
-
     const mergedBullets = [
       ...(slideData.bullets || []),
       ...(slideData.content?.bullets || []),
     ];
-    const slideForLayout = mergedBullets.length
-      ? { ...slideData, bullets: mergedBullets }
-      : slideData;
-
-    const isHero  = slideData.type === 'hero';
-    const isSplit = slideData.type === 'split' || slideData.type === 'media';
-    const isQuote = slideData.type === 'quote';
-
-    if (isHero) {
-        if (slideData.imagePrompt) {
-          const bgId = uid('el-bg-image');
-          const slideId = slideData.id || `slide-${sIdx}`;
-          elements.unshift({ id: bgId, type: 'image', src: '', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: 0, visible: true, opacity: 0.35, animation: { entrance: 'fadeIn', duration: 1500, delay: 0 } });
-          scheduleDeckImage(async () => {
-            try {
-              const res = await fetch('/api/generate-image', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  prompt: slideData.imagePrompt,
-                  width: 1280,
-                  height: 720,
-                  visualProfile: 'typography',
-                  task: 'image_generate',
-                }),
-              });
-              const json = await res.json();
-              if (json.url) {
-                const deckId = get().presentation?.id || 'draft';
-                const persistedUrl = await persistGeneratedImage(json.url, deckId);
-                get().updateElement(slideId, bgId, {
-                  src: persistedUrl,
-                  aiMetadata: json.imageId ? { leonardoImageId: json.imageId } : undefined
-                });
-              }
-            } catch (e) {
-              console.error('[DeckGen] Hero background image failed:', e);
-            }
-          });
-        }
-        elements.push({ id: uid('el-hero-overlay'), type: 'shape', shapeType: 'rect', x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(5, 5, 10, 0.65)', stroke: 'transparent', strokeWidth: 0 }, animation: { entrance: 'fadeIn', duration: 1000 } });
-        if (slideData.title) elements.push({ id: uid('el-title'), type: 'text', x: 80, y: CANVAS_H / 2 - 80, width: CANVAS_W-160, height: 160, content: slideData.title, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 84, fontWeight: 'bold', color: palette[1], textAlign: 'center', lineHeight: 1.1 }, animation: { entrance: 'fadeSlideUp', duration: 800 } });
-        if (slideData.subtitle) elements.push({ id: uid('el-sub'), type: 'text', x: 200, y: CANVAS_H / 2 + 80, width: CANVAS_W-400, height: 80, content: slideData.subtitle, zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 28, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'center', lineHeight: 1.5, letterSpacing: 1.5 }, animation: { entrance: 'fadeSlideUp', duration: 800, delay: 200 } });
-    } else if (isSplit) {
-      elements.push({ id: uid('el-split-bg-left'), type: 'shape', shapeType: 'rect', x: 40, y: 40, width: 620, height: CANVAS_H - 80, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.02)', stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 1, cornerRadius: 24, shadowColor: 'rgba(0,0,0,0.3)', shadowBlur: 30 }, animation: { entrance: 'fadeSlideLeft', duration: 600 } });
-      if (slideData.title) {
-        elements.push({ id: uid('el-title'), type: 'text', x: 80, y: 80, width: 540, height: 120, content: slideData.title, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 46, fontWeight: 'bold', color: palette[1], textAlign: 'left', lineHeight: 1.2 }, animation: { entrance: 'fadeSlideLeft', duration: 600 } });
-        elements.push({ id: uid('el-accent'), type: 'shape', shapeType: 'rect', x: 80, y: 190, width: 60, height: 4, zIndex: currentZ++, visible: true, shapeStyle: { fill: palette[2] || '#38BDF8', stroke: 'transparent', cornerRadius: 2 }, animation: { entrance: 'reveal', duration: 500, delay: 200 } });
-      }
-      if (slideForLayout.bullets) slideForLayout.bullets!.slice(0, 5).forEach((b, i) => {
-        elements.push({ id: uid(`el-bullet-bg-${i}`), type: 'shape', shapeType: 'rect', x: 80, y: 240 + (i * 80), width: 540, height: 64, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.03)', cornerRadius: 12 }, animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 300 + (i * 80) } });
-        elements.push({ id: uid(`el-bullet-${i}`), type: 'text', x: 100, y: 258 + (i * 80), width: 500, height: 64, content: b.replace(/^•\s*/, ''), zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 20, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'left', lineHeight: 1.4 }, animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 350 + (i * 80) } });
-      });
-      elements.push({ id: uid('el-split-bg-right'), type: 'shape', shapeType: 'rect', x: 680, y: 40, width: 560, height: CANVAS_H - 80, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.02)', stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 1, cornerRadius: 24 }, animation: { entrance: 'slideRight', duration: 600 } });
-      const imgId = uid('el-image');
-      elements.push({
-        id: imgId,
-        type: 'image',
-        src: '',
-        aiImagePending: true,
-        x: 700,
-        y: 60,
-        width: 520,
-        height: CANVAS_H - 120,
-        zIndex: currentZ++,
-        visible: true,
-        animation: { entrance: 'zoomIn', duration: 800, delay: 400 },
-      });
-      if (slideData.imagePrompt) {
-        const slideId = slideData.id || `slide-${sIdx}`;
-        scheduleDeckImage(async () => {
-          try {
-            const res = await fetch('/api/generate-image', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                prompt: slideData.imagePrompt,
-                width: 800,
-                height: 900,
-                visualProfile: 'cinematic',
-                task: 'image_generate',
-              }),
-            });
-            const json = await res.json();
-            if (json.url) {
-              const deckId = get().presentation?.id || 'draft';
-              const persistedUrl = await persistGeneratedImage(json.url, deckId);
-              get().updateElement(slideId, imgId, {
-                src: persistedUrl,
-                aiMetadata: json.imageId ? { leonardoImageId: json.imageId } : undefined
-              });
-            }
-          } catch (e) {
-            console.error('[DeckGen] Split/media slide image failed:', e);
-          }
-        });
-      }
-    } else if (isQuote) {
-      elements.push({ id: uid('el-quote-bg'), type: 'shape', shapeType: 'rect', x: 80, y: 100, width: CANVAS_W - 160, height: CANVAS_H - 200, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.03)', stroke: 'rgba(255, 255, 255, 0.06)', strokeWidth: 1, cornerRadius: 32 }, animation: { entrance: 'zoomIn', duration: 800 } });
-      elements.push({ id: uid('el-quote-mark'), type: 'text', x: 120, y: 80, width: CANVAS_W - 240, height: 100, content: '"', zIndex: currentZ++, visible: true, opacity: 0.3, textStyle: { fontFamily: headingFont, fontSize: 160, fontWeight: 'bold', color: palette[2] || '#38BDF8', textAlign: 'center' }, animation: { entrance: 'fadeIn', duration: 1000 } });
-      elements.push({ id: uid('el-quote'), type: 'text', x: 140, y: 220, width: CANVAS_W-280, height: 240, content: slideData.title || '', zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 52, fontWeight: 'normal', fontStyle: 'italic', color: palette[1], textAlign: 'center', lineHeight: 1.35 }, animation: { entrance: 'fadeIn', duration: 800, delay: 100 } });
-      if (slideData.subtitle) elements.push({ id: uid('el-author'), type: 'text', x: 140, y: 480, width: CANVAS_W-280, height: 60, content: `— ${slideData.subtitle}`, zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: 24, fontWeight: 'bold', color: palette[2], textAlign: 'center', lineHeight: 1.2, letterSpacing: 2 }, animation: { entrance: 'fadeIn', duration: 800, delay: 300 } });
-    } else {
-      // CONTENT BENTO GRID
-      if (slideData.title) {
-        elements.push({ id: uid('el-title-bg'), type: 'shape', shapeType: 'rect', x: 40, y: 40, width: CANVAS_W - 80, height: 100, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.02)', stroke: 'rgba(255, 255, 255, 0.08)', strokeWidth: 1, cornerRadius: 20 }, animation: { entrance: 'fadeSlideUp', duration: 500 } });
-        elements.push({ id: uid('el-title'), type: 'text', x: 80, y: 65, width: CANVAS_W-160, height: 80, content: slideData.title, zIndex: currentZ++, visible: true, textStyle: { fontFamily: headingFont, fontSize: 42, fontWeight: 'bold', color: palette[1], textAlign: 'left', lineHeight: 1.2 }, animation: { entrance: 'fadeSlideUp', duration: 600, delay: 100 } });
-      }
-      if (slideForLayout.bullets) {
-        const numBullets = Math.min(slideForLayout.bullets.length, 6);
-        const isGrid = numBullets > 3;
-        const boxWidth = isGrid ? (CANVAS_W - 120) / 2 : CANVAS_W - 80;
-        const boxHeight = isGrid ? (CANVAS_H - 220) / Math.ceil(numBullets / 2) : 90;
-        
-        slideForLayout.bullets.slice(0, 6).forEach((b, i) => {
-          const col = isGrid ? i % 2 : 0;
-          const row = isGrid ? Math.floor(i / 2) : i;
-          const x = 40 + (col * (boxWidth + 40));
-          const y = 160 + (row * (boxHeight + 20));
-          
-          elements.push({ id: uid(`el-bullet-bg-${i}`), type: 'shape', shapeType: 'rect', x, y, width: boxWidth, height: boxHeight, zIndex: currentZ++, visible: true, shapeStyle: { fill: 'rgba(255, 255, 255, 0.03)', stroke: 'rgba(255, 255, 255, 0.06)', strokeWidth: 1, cornerRadius: 16 }, animation: { entrance: 'zoomIn', duration: 500, delay: 200 + (i * 100) } });
-          elements.push({ id: uid(`el-bullet-dot-${i}`), type: 'shape', shapeType: 'circle', x: x + 24, y: y + 24, width: 8, height: 8, zIndex: currentZ++, visible: true, shapeStyle: { fill: palette[2] || '#38BDF8' }, animation: { entrance: 'fadeIn', duration: 400, delay: 300 + (i * 100) } });
-          elements.push({ id: uid(`el-b-${i}`), type: 'text', x: x + 48, y: y + 18, width: boxWidth - 64, height: boxHeight - 36, content: b.replace(/^•\s*/, ''), zIndex: currentZ++, visible: true, textStyle: { fontFamily: bodyFont, fontSize: isGrid ? 18 : 22, fontWeight: 'normal', color: palette[3] || palette[1], textAlign: 'left', lineHeight: 1.5 }, animation: { entrance: 'fadeIn', duration: 500, delay: 350 + (i * 100) } });
-        });
-      }
-    }
-
     const slideId =
       slideData.id || (placeholderIdx >= 0 ? currentPres.slides[placeholderIdx].id : `slide-${sIdx}`);
+
+    const { elements, imageTasks } = buildDeckSlideElements({
+      slide: {
+        id: slideId,
+        type: slideData.type,
+        title: slideData.title,
+        subtitle: slideData.subtitle,
+        bullets: mergedBullets.length ? mergedBullets : slideData.bullets,
+        content: slideData.content,
+        imagePrompt: slideData.imagePrompt,
+      },
+      sIdx,
+      palette,
+      headingFont,
+      bodyFont,
+      uid,
+      backgroundMode,
+    });
+
     const rawSlide: Slide = {
       ...slideData,
       id: slideId,
       bullets: mergedBullets.length ? mergedBullets : slideData.bullets,
       elements,
       isGeneratingPlaceholder: false,
-      generationStatus: slideData.imagePrompt ? 'visuals' : 'ready',
+      generationStatus: imageTasks.length > 0 ? 'visuals' : 'ready',
     };
     const newSlide = finalizeSlideMotion(rawSlide, {
       animationStyle: currentPres.animationStyle,
@@ -758,8 +680,17 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         currentSlideIndex: placeholderIdx >= 0 ? placeholderIdx : slides.length - 1,
       };
     });
-    if (deckIdAtStream && get().presentation?.id === deckIdAtStream) {
-      for (const job of pendingImageJobs) job();
+    if (deckIdAtStream && get().presentation?.id === deckIdAtStream && imageTasks.length > 0) {
+      if (get().editor.isGenerating) {
+        set((state) => ({
+          editor: {
+            ...state.editor,
+            deckGenerationLifecycle: 'images',
+            generationBlockingOverlay: false,
+          },
+        }));
+      }
+      runDeckImageTasks(get, imageTasks, deckIdAtStream);
     }
   },
 

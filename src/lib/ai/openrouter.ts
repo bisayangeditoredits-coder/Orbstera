@@ -188,35 +188,81 @@ export function extractBalancedJsonArray(text: string): string | null {
 }
 
 function stripModelFencesAndThinking(raw: string): string {
-  return raw
+  let s = raw
     .replace(/\x3credacted_thinking\x3e[\s\S]*?\x3c\/redacted_thinking\x3e/gi, '')
     .replace(/\x3cthink\x3e[\s\S]*?\x3c\/think\x3e/gi, '')
     .replace(/\x3credacted_reasoning\x3e[\s\S]*?\x3c\/redacted_reasoning\x3e/gi, '')
-    .replace(/\x3cthought\x3e[\s\S]*?\x3c\/thought\x3e/gi, '')
-    .replace(/```json\s*/gi, '')
-    .replace(/```\s*/g, '');
+    .replace(/\x3cthought\x3e[\s\S]*?\x3c\/thought\x3e/gi, '');
+
+  // Drop conversational preamble before the first fenced JSON block
+  const fenceStart = s.search(/```(?:json|JSON)?\s*\n?\s*\{/);
+  if (fenceStart > 0) s = s.slice(fenceStart);
+
+  s = s
+    .replace(/```(?:json|JSON|javascript|js)?\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .replace(/^\s*json\s*[\r\n]+/i, '')
+    .trim();
+
+  return s;
+}
+
+/** Slice from first `{` through last `}` — fallback when brace-balanced scan fails. */
+export function extractJsonByFirstLastBrace(text: string): string | null {
+  const first = text.indexOf('{');
+  const last = text.lastIndexOf('}');
+  if (first === -1 || last <= first) return null;
+  return text.slice(first, last + 1);
+}
+
+/** Fix common model JSON mistakes before JSON.parse. */
+export function repairJsonForParse(json: string): string {
+  let t = json.trim();
+  t = t.replace(/[\u201C\u201D\u201E\u2033\u2036]/g, '"');
+  t = t.replace(/[\u2018\u2019\u201A\u2032]/g, "'");
+  t = t.replace(/,\s*([}\]])/g, '$1');
+  t = t.replace(/\r\n/g, '\n');
+  // Trailing commas after last property in objects (multiline)
+  t = t.replace(/,(\s*\n\s*[}\]])/g, '$1');
+  return t;
+}
+
+function tryParseJsonString(json: string | null): Record<string, unknown> | null {
+  if (!json?.trim()) return null;
+  const candidates = [json.trim(), repairJsonForParse(json)];
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    if (!candidate || seen.has(candidate)) continue;
+    seen.add(candidate);
+    try {
+      const parsed = JSON.parse(candidate) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
 }
 
 /** Extract first JSON object from model output (handles stray prose / thinking tags). */
 export function extractJsonObject(raw: string): Record<string, unknown> | null {
   const stripped = stripModelFencesAndThinking(raw);
 
-  const balanced = extractBalancedJsonObject(stripped);
-  if (!balanced) return null;
-  try {
-    return JSON.parse(balanced) as Record<string, unknown>;
-  } catch {
-    return null;
+  const attempts = [
+    extractBalancedJsonObject(stripped),
+    extractJsonByFirstLastBrace(stripped),
+  ];
+  for (const chunk of attempts) {
+    const parsed = tryParseJsonString(chunk);
+    if (parsed) return parsed;
   }
+  return null;
 }
 
 function tryParseJsonObject(balanced: string | null): Record<string, unknown> | null {
-  if (!balanced?.trim()) return null;
-  try {
-    return JSON.parse(balanced) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
+  return tryParseJsonString(balanced);
 }
 
 function isDeckShape(o: Record<string, unknown>): boolean {
@@ -244,7 +290,9 @@ export function extractDeckJsonFromModelOutput(raw: string): Record<string, unkn
     }
   };
 
+  const firstLast = extractJsonByFirstLastBrace(stripped);
   consider(tryParseJsonObject(extractBalancedJsonObject(stripped)));
+  consider(tryParseJsonObject(firstLast));
 
   const maxScan = Math.min(stripped.length, 320_000);
   let brace = stripped.indexOf('{', 0);
@@ -253,16 +301,25 @@ export function extractDeckJsonFromModelOutput(raw: string): Record<string, unkn
     if (head.includes('"slides"')) {
       const balanced = extractBalancedJsonObject(stripped.slice(brace));
       if (balanced) consider(tryParseJsonObject(balanced));
+      const slice = stripped.slice(brace);
+      const lastBrace = slice.lastIndexOf('}');
+      if (lastBrace > 0) {
+        consider(tryParseJsonObject(slice.slice(0, lastBrace + 1)));
+      }
     }
     brace = stripped.indexOf('{', brace + 1);
   }
 
   if (best) return best;
 
-  const arrRaw = extractBalancedJsonArray(stripped);
+  const arrRaw = extractBalancedJsonArray(stripped) ?? (() => {
+    const a = stripped.indexOf('[');
+    const b = stripped.lastIndexOf(']');
+    return a !== -1 && b > a ? stripped.slice(a, b + 1) : null;
+  })();
   if (arrRaw) {
     try {
-      const arr = JSON.parse(arrRaw) as unknown;
+      const arr = JSON.parse(repairJsonForParse(arrRaw)) as unknown;
       if (Array.isArray(arr) && arr.length > 0 && typeof arr[0] === 'object' && arr[0] !== null) {
         const title =
           typeof (arr[0] as { title?: string }).title === 'string'

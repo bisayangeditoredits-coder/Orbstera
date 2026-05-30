@@ -43,7 +43,8 @@ function stepIndexFromPhase(phase: string, lifecycle: DeckGenerationLifecycle): 
     p === 'polishing' ||
     p === 'finishing' ||
     p === 'preflight_complete' ||
-    lifecycle === 'polishing'
+    lifecycle === 'polishing' ||
+    lifecycle === 'syncing'
   ) {
     return 4;
   }

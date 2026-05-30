@@ -11,7 +11,7 @@ export function PlannerOnboarding() {
   const start = () => {
     const trimmed = topic.trim();
     if (!trimmed) return;
-    router.push(`/planner?topic=${encodeURIComponent(trimmed)}`);
+    router.push(`/planner?topic=${encodeURIComponent(trimmed)}&slides=10`);
   };
 
   return (

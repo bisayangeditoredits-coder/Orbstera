@@ -1,4 +1,4 @@
-import { buildComposerMessages, normalizePresentationPayload } from '@/lib/ai/orchestration';
+import { mergeOrchestrationMetadata, normalizePresentationPayload, buildComposerMessages } from '@/lib/ai/orchestration';
 import { runOpenRouterOrchestration } from '@/lib/ai/prompt-chain';
 import { extractDeckJsonFromModelOutput } from '@/lib/ai/openrouter';
 import { openRouterCompleteCascade } from '@/lib/ai/openrouter-cascade';
@@ -107,5 +107,7 @@ export async function runDeckGenerationBatch(args: {
   onProgress?.(85, 'Parsing deck…');
   const parsed = extractDeckJsonFromModelOutput(raw);
   if (!parsed) throw new Error('Could not parse deck JSON from model output');
-  return normalizePresentationPayload(parsed) as unknown as Record<string, unknown>;
+  return normalizePresentationPayload(
+    mergeOrchestrationMetadata(parsed, preflightSummary),
+  ) as unknown as Record<string, unknown>;
 }

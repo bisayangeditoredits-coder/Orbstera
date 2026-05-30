@@ -68,12 +68,12 @@ export function normalizePlanTier(p: unknown): PlanTier {
  * Monthly list price (USD) for paid tiers.
  *
  * Pricing structure (budget-first):
- *   Student Pro  $9/mo  → net ~$8.43 after fees → $4.00 AI budget → $4.43 profit (52%)
- *   Creator Pro  $22/mo → net ~$21.04 after fees → $9.00 AI budget → $12.04 profit (57%)
+ *   Student Pro  $9/mo  → net ~$8.43 after fees → $4.21 AI budget → $4.21 profit (50%)
+ *   Creator Pro  $22/mo → net ~$21.04 after fees → $10.52 AI budget → $10.52 profit (50%)
  *
  * usdPerCredit = $0.008 (calibrated to real GPT-5.5 + FLUX cost per action)
- *   Student Pro credits : $4.00 / $0.008 = 500 cr  → max real AI spend $4.00
- *   Creator Pro credits : $9.00 / $0.008 = 1,125 cr → max real AI spend $9.00
+ *   Student Pro credits : $4.21 / $0.008 = 526 cr  → max real AI spend $4.21
+ *   Creator Pro credits : $10.52 / $0.008 = 1,315 cr → max real AI spend $10.52
  */
 export const PLAN_PRICING_USD: Partial<Record<PlanTier, number>> = {
   student_pro: 9,
@@ -83,7 +83,7 @@ export const PLAN_PRICING_USD: Partial<Record<PlanTier, number>> = {
 
 export const PLAN_MONTHLY_CREDITS: Record<PlanTier, number> = { ...CREDIT_CAP_MONTHLY };
 
-export const TARGET_MARGIN = 0.55;
+export const TARGET_MARGIN = 0.50;
 export const PAYMENT_FEE_RATE = 0.03;
 export const PAYMENT_FEE_FIXED_USD = 0.3;
 
@@ -150,8 +150,8 @@ const DEFAULT_CONFIG: CreditConfig = {
   // $0.008 per credit = calibrated to real GPT-5.5 / FLUX API costs
   // If a user exhausts ALL credits, your max spend = credits × 0.008:
   //   Free        150 cr × $0.008 = $1.20  (but free models = $0 actual)
-  //   Student Pro 500 cr × $0.008 = $4.00  ← guaranteed AI budget cap
-  //   Creator Pro 1125 cr × $0.008 = $9.00 ← guaranteed AI budget cap
+  //   Student Pro 526 cr × $0.008 = $4.21  ← guaranteed AI budget cap
+  //   Creator Pro 1315 cr × $0.008 = $10.52 ← guaranteed AI budget cap
   usdPerCredit: CREDIT_USD_PER_CREDIT_DEFAULT,
 };
 
@@ -218,14 +218,13 @@ export function getDeckGenerationCreditCost(config: CreditConfig, slideCount: nu
 }
 
 export function getGenfillCreditAction(plan: PlanTier): CreditAction {
-  if (plan === 'creator_pro' || plan === 'admin') return 'genfill_creator';
-  if (plan === 'student_pro' || plan === 'pro') return 'genfill_pro';
-  return 'genfill_free';
+  // All tiers now use Creator Pro models (FLUX Kontext Max)
+  return 'genfill_creator';
 }
 
 export function getImageCreditAction(plan: PlanTier, premium: boolean): CreditAction {
-  if (premium && (plan === 'creator_pro' || plan === 'admin')) return 'image_premium';
-  return 'image_standard';
+  // All tiers now use Creator Pro premium models for images
+  return 'image_premium';
 }
 
 /**
@@ -431,7 +430,10 @@ export async function consumeCreditsForUser(args: {
     });
     if (fast?.ok === false) {
       const refreshed = await readSummaryFromProfile(admin, args.userId, plan, config);
-      return { ok: false, error: 'INSUFFICIENT_CREDITS', summary: refreshed };
+      if (refreshed.remaining < cost) {
+        return { ok: false, error: 'INSUFFICIENT_CREDITS', summary: refreshed };
+      }
+      await syncCreditFastPathFromProfile(args.userId, monthKey, refreshed.used);
     }
     if (fast?.ok === true) redisReserved = true;
   }
@@ -493,6 +495,18 @@ export async function consumeCreditsForUser(args: {
   if (payload.error === 'INSUFFICIENT_CREDITS') {
     const refreshed = await readSummaryFromProfile(admin, args.userId, plan, config);
     return { ok: false, error: 'INSUFFICIENT_CREDITS', summary: refreshed };
+  }
+
+  if (payload.error === 'INVALID_COST_FOR_ACTION' && allowLegacyCreditFallback()) {
+    console.warn('[credits] RPC cost mismatch — using legacy consume path');
+    return consumeCreditsLegacy({
+      supabase: admin,
+      userId: args.userId,
+      planRaw: plan,
+      cost,
+      action: args.action,
+      meta: args.meta,
+    });
   }
 
   return { ok: false, error: payload.error || 'CONSUME_FAILED', summary };

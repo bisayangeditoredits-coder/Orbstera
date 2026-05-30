@@ -12,6 +12,7 @@ import {
   requireRateLimitInfrastructure,
 } from '@/lib/rate-limit-server';
 import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
+import { buildCheckoutReturnSig } from '@/lib/billing/dodo-sync-secret';
 
 export const maxDuration = 30;
 const MAX_BODY_BYTES = 16 * 1024;
@@ -70,6 +71,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid product or plan ID' }, { status: 400 });
     }
 
+    if (!planId) {
+      return NextResponse.json({ error: 'planId is required' }, { status: 400 });
+    }
+
     const apiKey = (process.env.DODO_PAYMENTS_API_KEY || '').trim();
     const isTest = process.env.DODO_PAYMENTS_ENDPOINT?.includes('test');
 
@@ -95,18 +100,16 @@ export async function POST(req: Request) {
       },
     };
 
-    const crypto = await import('crypto');
-    const secret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET || 'dev';
-    const sig = crypto.createHmac('sha256', secret).update(`${userId}:${planId}`).digest('hex');
+    const sig = buildCheckoutReturnSig(userId, planId || '');
 
     const sessionPayload = {
       ...basePayload,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/dodo/sync?userId=${userId}&planId=${planId}&sig=${sig}`,
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/dodo/sync?userId=${encodeURIComponent(userId)}&planId=${encodeURIComponent(planId || '')}&sig=${encodeURIComponent(sig)}`,
     };
 
     const session = await dodo.checkoutSessions.create(sessionPayload as Parameters<typeof dodo.checkoutSessions.create>[0]);
 
-    return NextResponse.json({ url: session.checkout_url });
+    return NextResponse.json({ url: session.checkout_url, planId, sig });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to create checkout session';
     console.error('[Dodo] Checkout Error:', message);

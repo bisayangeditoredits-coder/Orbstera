@@ -5,7 +5,7 @@ import { findDeckBackgroundElement, isSlideDeckBackgroundImage } from '@/lib/sli
 import { fetchImageAsBase64ForExport, fetchVideoAsBase64ForExport } from '@/lib/export/export-image';
 import { combinedShapeTransparency, parseColorForPptx } from '@/lib/export/export-colors';
 import { shapePathToSvgDataUri } from '@/lib/export/export-shape-path';
-import { elementPlacement } from '@/lib/export/export-pptx-placement';
+import { elementPlacement, pptxRectRadius, pptxShapeLine } from '@/lib/export/export-pptx-placement';
 import { updateJobRecord } from '@/lib/jobs/redis-job-queue';
 import { getServiceSupabase } from '@/lib/billing/supabase-admin';
 import { getR2BucketName, getR2Client, isR2Configured } from '@/lib/server/r2-client';
@@ -89,7 +89,7 @@ function mapFont(family?: string): string {
   if (f.includes('trebuchet'))                         return 'Trebuchet MS';
   if (f.includes('verdana'))                           return 'Verdana';
   if (f.includes('courier'))                           return 'Courier New';
-  if (f.includes('playfair'))                          return 'Georgia';
+  if (f.includes('playfair') || f.includes('lora')) return 'Georgia';
   if (f.includes('dm sans') || f.includes('dm'))       return 'Calibri';
   if (f.includes('jetbrains') || f.includes('mono'))   return 'Courier New';
   return 'Calibri';
@@ -407,6 +407,8 @@ export async function runPptxExport(params: {
             charSpacing:        ts.letterSpacing || 0,
             lineSpacingMultiple: ts.lineHeight || 1.4,
             autoFit:            false,
+            fit:                'shrink',
+            margin:             0,
           });
         }
 
@@ -437,6 +439,7 @@ export async function runPptxExport(params: {
                     ...common,
                     type: 'video',
                     data: b64,
+                    cover: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
                   });
                 }
               }
@@ -513,10 +516,7 @@ export async function runPptxExport(params: {
               }
             : { type: 'none' as const };
 
-          const line =
-            strokeParsed && ss.strokeWidth
-              ? { color: strokeParsed.color, pt: ss.strokeWidth }
-              : { type: 'none' as const };
+          const line = pptxShapeLine(ss);
 
           if (el.shapeType === 'line' || el.shapeType === 'arrow') {
             const lineColor = strokeParsed?.color || fillParsed?.color || '000000';
@@ -544,8 +544,7 @@ export async function runPptxExport(params: {
             ...common,
             fill,
             line,
-            rectRadius:
-              el.shapeType === 'rect' && ss.cornerRadius ? ss.cornerRadius / 100 : undefined,
+            rectRadius: pptxRectRadius(el),
           } as any);
         }
       }
@@ -818,7 +817,7 @@ async function injectVideoAutoplay(buffer: ArrayBuffer): Promise<ArrayBuffer> {
       const buildVideoPar = (spId: number) => {
         const [a, b, c, d] = [nxt(), nxt(), nxt(), nxt()];
         return (
-          `<p:par><p:cTn id="${a}" fill="hold">` +
+          `<p:par><p:cTn id="${a}" fill="hold" nodeType="withEffect">` +
             `<p:stCondLst><p:cond delay="0"/></p:stCondLst>` +
             `<p:childTnLst>` +
               `<p:par><p:cTn id="${b}" fill="hold">` +
@@ -828,7 +827,7 @@ async function injectVideoAutoplay(buffer: ArrayBuffer): Promise<ArrayBuffer> {
                     `<p:stCondLst><p:cond delay="0"/></p:stCondLst>` +
                     `<p:childTnLst>` +
                       `<p:video><p:cMediaNode vol="80000">` +
-                        `<p:cTn id="${d}" dur="indefinite" fill="hold" repeatCount="indefinite"/>` +
+                        `<p:cTn id="${d}" dur="indefinite" fill="hold" display="0" repeatCount="indefinite"/>` +
                         `<p:tgtEl><p:spTgt spid="${spId}"/></p:tgtEl>` +
                       `</p:cMediaNode></p:video>` +
                     `</p:childTnLst>` +
@@ -844,20 +843,15 @@ async function injectVideoAutoplay(buffer: ArrayBuffer): Promise<ArrayBuffer> {
       let injected = false;
       if (xml.includes('nodeType="mainSeq"')) {
         xml = xml.replace(/(nodeType="mainSeq"[^>]*><p:childTnLst>)/, `$1${videoPars}`);
-        let bldEntries = videoShapeIds.map((spId, i) => `<p:bldP spid="${spId}" grpId="${100+i}" uiExpand="0" build="p"/>`).join('');
-        if (xml.includes('</p:bldLst>')) {
-          xml = xml.replace('</p:bldLst>', `${bldEntries}</p:bldLst>`);
-        } else if (xml.includes('</p:tnLst>')) {
-          xml = xml.replace('</p:tnLst>', `</p:tnLst><p:bldLst>${bldEntries}</p:bldLst>`);
-        }
+        // We do NOT inject <p:bldP> for videos. Build paragraphs are for text animations.
+        // PowerPoint silently rejects autoplay if media elements have bogus paragraph builds!
         injected = true;
       }
 
       if (!injected) {
         let seqId = nxt();
-        let bldEntries = videoShapeIds.map((spId, i) => `<p:bldP spid="${spId}" grpId="${i}" uiExpand="0" build="p"/>`).join('');
         let timingXml = 
-          `<p:timing><p:tnLst><p:par><p:cTn id="${nxt()}" dur="indefinite" restart="whenNotActive" nodeType="tmRoot"><p:childTnLst><p:seq concurrent="1" nextAc="seek"><p:cTn id="${seqId}" dur="indefinite" nodeType="mainSeq"><p:childTnLst>${videoPars}</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onPrevClick" delay="0"><p:tn><p:cTnRef id="${seqId}"/></p:tn></p:cond></p:prevCondLst><p:nextCondLst><p:cond evt="onNextClick" delay="0"><p:tn><p:cTnRef id="${seqId}"/></p:tn></p:cond></p:nextCondLst></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst><p:bldLst>${bldEntries}</p:bldLst></p:timing>`;
+          `<p:timing><p:tnLst><p:par><p:cTn id="${nxt()}" dur="indefinite" restart="whenNotActive" nodeType="tmRoot"><p:childTnLst><p:seq concurrent="1" nextAc="seek"><p:cTn id="${seqId}" dur="indefinite" nodeType="mainSeq"><p:childTnLst>${videoPars}</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onPrevClick" delay="0"><p:tn><p:cTnRef id="${seqId}"/></p:tn></p:cond></p:prevCondLst><p:nextCondLst><p:cond evt="onNextClick" delay="0"><p:tn><p:cTnRef id="${seqId}"/></p:tn></p:cond></p:nextCondLst></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>`;
         if (xml.includes('<p:extLst>')) {
           xml = xml.replace('<p:extLst>', `${timingXml}<p:extLst>`);
         } else if (xml.includes('</p:transition>')) {

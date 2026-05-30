@@ -11,7 +11,6 @@ import {
   Eye,
   FlipHorizontal2, FlipVertical2,
   Move,
-  Wand2, Loader2,
 } from 'lucide-react';
 import type { SlideElement } from '@/types';
 import { ColorPicker } from './ColorPicker';
@@ -77,7 +76,7 @@ export function FloatingPropertiesBar({ scale, canvasLeft, canvasTop }: Floating
     }))
   );
   const setEditorState = usePresentationStore((s) => s.setEditorState);
-  const [isAnimating, setIsAnimating] = useState(false);
+
 
   const slide = usePresentationStore((s) => s.presentation?.slides[s.currentSlideIndex]);
   const updateElement = usePresentationStore((s) => s.updateElement);
@@ -128,36 +127,6 @@ export function FloatingPropertiesBar({ scale, canvasLeft, canvasTop }: Floating
     }
   };
 
-  const handleAnimate = async () => {
-    if (!el || !slide || !el.aiMetadata?.leonardoImageId) return;
-    setIsAnimating(true);
-    updateElement(slide.id, el.id, { aiImagePending: true }, false);
-    try {
-      const res = await fetch('/api/generate/animate-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageId: el.aiMetadata.leonardoImageId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to animate image');
-      if (data.url) {
-        updateElement(slide.id, el.id, {
-          src: data.url,
-          animation: el.animation ?? { entrance: 'fadeIn', duration: 600, delay: 0 },
-          aiImagePending: false,
-        }, true);
-        window.dispatchEvent(new Event('credits-updated'));
-      } else {
-        updateElement(slide.id, el.id, { aiImagePending: false }, false);
-      }
-    } catch (err) {
-      console.error(err);
-      updateElement(slide.id, el.id, { aiImagePending: false }, false);
-      alert(err instanceof Error ? err.message : 'An error occurred animating the image');
-    } finally {
-      setIsAnimating(false);
-    }
-  };
 
   return (
     <AnimatePresence>
@@ -232,30 +201,6 @@ export function FloatingPropertiesBar({ scale, canvasLeft, canvasTop }: Floating
                   <FlipVertical2 size={14} strokeWidth={2} />
                 </Btn>
               </div>
-              <div className="w-px h-5 bg-black/[0.09] shrink-0 mx-1" />
-            </>
-          )}
-
-          {/* ── AI ────────────────────────────────────────────── */}
-          {el.type === 'image' && el.aiMetadata?.leonardoImageId && (
-            <>
-              <button
-                type="button"
-                title="Animate image with Leonardo SVD"
-                disabled={isAnimating}
-                onClick={handleAnimate}
-                className={
-                  isAnimating
-                    ? 'flex items-center gap-1.5 h-8 px-3 rounded-lg text-[11px] font-bold bg-[#5B7CFF]/10 text-[#5B7CFF] cursor-not-allowed'
-                    : 'flex items-center gap-1.5 h-8 px-3 rounded-[8px] text-[11px] font-bold bg-gradient-to-b from-[#5B7CFF] to-primary text-white hover:from-primary hover:to-[#3d5ef0] shadow-[0_4px_14px_-4px_rgba(59,130,246,0.55),0_0_0_1px_rgba(255,255,255,0.12)_inset] transition-all hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden group'
-                }
-              >
-                {!isAnimating && (
-                  <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer-sweep" />
-                )}
-                {isAnimating ? <Loader2 size={14} className="animate-spin relative z-10" /> : <Wand2 size={14} strokeWidth={2.5} className="relative z-10" />}
-                <span className="relative z-10">Animate</span>
-              </button>
               <div className="w-px h-5 bg-black/[0.09] shrink-0 mx-1" />
             </>
           )}

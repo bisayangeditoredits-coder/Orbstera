@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { usePresentationStore } from '@/store/usePresentationStore';
+import { useShallow } from 'zustand/react/shallow';
 import { exportToPptx } from '@/lib/export';
 import { useState, useEffect, useRef, useCallback , memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -189,11 +190,20 @@ interface TopBarProps {
 
 function TopBarInner({ onOpenGenerate, showMobileGalleryTrigger, onOpenMobileGallery }: TopBarProps) {
   const router = useRouter();
-  const store       = usePresentationStore();
-  const presentation = store.presentation;
-  const { activePanel, setActivePanel, isPanelOpen, setPanelOpen, setEditorState, setPresentation, updatePresentation } = store;
-  const cloudSync = store.editor.cloudSyncStatus;
-  const cloudMsg  = store.editor.cloudSyncMessage;
+  const presentation = usePresentationStore(s => s.presentation);
+  const { activePanel, setActivePanel, isPanelOpen, setPanelOpen, setEditorState, setPresentation, updatePresentation, cloudSync, cloudMsg } = usePresentationStore(
+    useShallow((s) => ({
+      activePanel: s.editor.activePanel,
+      setActivePanel: s.setActivePanel,
+      isPanelOpen: s.isPanelOpen,
+      setPanelOpen: s.setPanelOpen,
+      setEditorState: s.setEditorState,
+      setPresentation: s.setPresentation,
+      updatePresentation: s.updatePresentation,
+      cloudSync: s.editor.cloudSyncStatus,
+      cloudMsg: s.editor.cloudSyncMessage,
+    }))
+  );
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>('pptx');

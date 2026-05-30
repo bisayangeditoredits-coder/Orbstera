@@ -23,6 +23,7 @@ import { apiLog, captureApiException, getOrCreateRequestId } from '@/lib/observa
 import { v4 as uuidv4 } from 'uuid';
 import { globalRateLimit } from '@/lib/rate-limit';
 import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
+import { buildVisualCurationBlock, resolveVisualTheme } from '@/lib/visual-themes';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -81,6 +82,7 @@ export async function POST(req: Request) {
       styleMode,
       theme,
       colorPalette,
+      imageSource,
     } = body as {
       prompt?: string;
       slideCount?: number;
@@ -91,6 +93,7 @@ export async function POST(req: Request) {
       styleMode?: string;
       theme?: string;
       colorPalette?: string[];
+      imageSource?: 'ai' | 'unsplash' | 'none';
     };
 
     const cookieStore = cookies();
@@ -280,9 +283,16 @@ export async function POST(req: Request) {
 
           if (Array.isArray(colorPalette) && colorPalette.length >= 3) {
             finalPrompt += `\n\n[USER COLOR PALETTE]\nUse exactly this colorPalette array in the deck JSON: ${JSON.stringify(colorPalette)}`;
+          } else if (typeof theme === 'string' && theme.trim()) {
+            const preset = resolveVisualTheme(theme.trim());
+            finalPrompt += `\n\n[USER COLOR PALETTE]\nUse exactly this colorPalette array in the deck JSON: ${JSON.stringify(preset.colorPalette)}`;
           }
           if (typeof theme === 'string' && theme.trim()) {
-            finalPrompt += `\n\n[USER THEME]\nVisual theme name: "${theme.trim()}". Match this aesthetic in theme, colorPalette, and layout choices.`;
+            finalPrompt += `\n\n${buildVisualCurationBlock({
+              themeId: theme.trim(),
+              artStyle: styleMode ? String(styleMode) : undefined,
+              imageSource: imageSource ?? 'ai',
+            })}`;
           }
 
           const { dossierText, refinedBrief, preflightSummary } = await runOpenRouterOrchestration(
@@ -306,6 +316,20 @@ export async function POST(req: Request) {
 
           sendOrb({
             orb: {
+              phase: 'orchestration_locked',
+              message: 'Director brief locked — composing slides…',
+              orchestrationMeta: (() => {
+                try {
+                  return JSON.parse(preflightSummary) as Record<string, unknown>;
+                } catch {
+                  return {};
+                }
+              })(),
+            },
+          });
+
+          sendOrb({
+            orb: {
               phase: 'slides_generated',
               message: '✓ Slides generated',
             },
@@ -319,6 +343,7 @@ export async function POST(req: Request) {
             tone: String(tone),
             language: String(language),
             styleMode: styleMode ? String(styleMode) : undefined,
+            imageSource: imageSource ?? 'ai',
           });
 
           sendOrb({

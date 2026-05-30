@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Zap } from 'lucide-react';
 import type { CreditState } from '@/hooks/useCredits';
@@ -10,7 +11,9 @@ type CreditWarningBannerProps = {
 };
 
 export function CreditWarningBanner({ credits }: CreditWarningBannerProps) {
-  if (credits.loading) return null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted || credits.loading) return null;
 
   const plan = credits.plan || 'free';
   if (isPaidPlan(plan)) return null;

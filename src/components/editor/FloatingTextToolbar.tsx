@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { TextStyle, SlideElement } from '@/types';
 import { ColorPicker } from '@/components/editor/ColorPicker';
+import { EMPTY_STRING_ARRAY } from '@/lib/stable-refs';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function ToolbarDivider() {
@@ -113,7 +114,9 @@ export function FloatingTextToolbar({ scale, canvasLeft, canvasTop }: FloatingTe
   const slide = usePresentationStore((s) =>
     s.presentation?.slides[s.currentSlideIndex]
   );
-  const colorPalette = usePresentationStore((s) => s.presentation?.colorPalette ?? []);
+  const colorPalette = usePresentationStore(
+    (s) => s.presentation?.colorPalette ?? EMPTY_STRING_ARRAY,
+  );
   const updateElement = usePresentationStore((s) => s.updateElement);
 
   const el = slide?.elements?.find((e) => e.id === selectedElementId);

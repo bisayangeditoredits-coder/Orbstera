@@ -2,134 +2,15 @@
 
 import { AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff, ShieldCheck, Zap, Clock3, Star, Lock, ChevronDown, FileText } from 'lucide-react';
+import { ArrowRight, Sparkles, X, Upload, Wand2, CheckCircle, Mic, MicOff, ShieldCheck, Zap, Clock3, Star, FileText } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { explainGetUserMediaError, explainRecognitionStartError } from '@/lib/mic-access';
 import { OnboardingModal } from '@/components/dashboard/OnboardingModal';
 import { useCredits } from '@/hooks/useCredits';
-
-// ── Slide count dropdown (Gamma-style) ────────────────────────────────────────
-const SLIDE_OPTIONS: { count: number; tier: 'free' | 'plus' | 'pro' }[] = [
-  { count: 1,  tier: 'free' }, { count: 2,  tier: 'free' },
-  { count: 3,  tier: 'free' }, { count: 4,  tier: 'free' },
-  { count: 5,  tier: 'free' }, { count: 6,  tier: 'free' },
-  { count: 7,  tier: 'free' }, { count: 8,  tier: 'free' },
-  { count: 9,  tier: 'free' }, { count: 10, tier: 'free' },
-  { count: 15, tier: 'plus' }, { count: 20, tier: 'plus' },
-  { count: 25, tier: 'pro'  }, { count: 30, tier: 'pro'  },
-  { count: 40, tier: 'pro'  },
-];
-
-function SlideCountDropdown({
-  slideCount,
-  setSlideCount,
-  isFree,
-}: {
-  slideCount: number;
-  setSlideCount: (n: number) => void;
-  isFree: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [showUpgrade, setShowUpgrade] = useState(false);
-  const dropRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (dropRef.current && !dropRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  return (
-    <div ref={dropRef} className="relative mb-4">
-      {/* Trigger */}
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 pl-3.5 pr-3 py-1.5 rounded-xl bg-white/70  border border-black/[0.09] text-[13px] font-semibold text-textMain hover:bg-white hover:border-black/[0.15] transition-all shadow-sm"
-      >
-        {slideCount} cards
-        <ChevronDown
-          size={14}
-          className={`text-textMuted transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-          strokeWidth={1.5}
-        />
-      </button>
-
-      {/* Panel */}
-      <AnimatePresence>
-        {open && (
-          <div
-            className="absolute left-0 top-full mt-1.5 z-50 w-52 rounded-2xl border border-black/[0.08] bg-white shadow-xl shadow-black/10 overflow-hidden py-1"
-          >
-            <div className="px-4 pt-3 pb-2">
-              <p className="text-[11px] font-semibold text-textMuted">Tip: cards are like slides</p>
-            </div>
-
-            {SLIDE_OPTIONS.map(({ count, tier }) => {
-              const locked = isFree && tier !== 'free';
-              const selected = slideCount === count;
-              return (
-                <button
-                  key={count}
-                  type="button"
-                  onClick={() => {
-                    if (locked) {
-                      setShowUpgrade(true);
-                      setTimeout(() => setShowUpgrade(false), 3000);
-                      setOpen(false);
-                      return;
-                    }
-                    setSlideCount(count);
-                    setOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-4 py-2 text-[13px] transition-colors ${
-                    locked
-                      ? 'text-slate-400 cursor-pointer hover:bg-slate-50'
-                      : selected
-                        ? 'text-textMain font-medium bg-slate-50'
-                        : 'text-textMain hover:bg-slate-50'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    {selected && !locked ? (
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="text-primary shrink-0">
-                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    ) : <span className="w-3 shrink-0" />}
-                    {count} cards
-                  </span>
-                  {tier === 'plus' && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary text-white tracking-wide">PLUS</span>
-                  )}
-                  {tier === 'pro' && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-white tracking-wide">PRO</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Upgrade nudge */}
-      <AnimatePresence>
-        {showUpgrade && (
-          <div
-            className="absolute left-0 top-full mt-1.5 z-[60] flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] font-semibold text-amber-800 shadow-lg whitespace-nowrap"
-          >
-            <Lock size={11} strokeWidth={1.5} />
-            <Link href="/pricing" className="underline underline-offset-2">Upgrade to Pro</Link> for more slides
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
+import { SlideCountDropdown } from '@/components/SlideCountDropdown';
+import { DEFAULT_SLIDE_COUNT } from '@/lib/slide-count-options';
 
 export function HeroSection() {
   const [isPending, startTransition] = useTransition();
@@ -138,7 +19,7 @@ export function HeroSection() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [activeMode, setActiveMode] = useState<'create' | 'enhance' | 'voice' | 'notes'>('create');
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [slideCount, setSlideCount] = useState<number>(8);
+  const [slideCount, setSlideCount] = useState<number>(DEFAULT_SLIDE_COUNT);
   const [showUpgradeNudge, setShowUpgradeNudge] = useState(false);
   const promptInputRef = useRef<HTMLTextAreaElement>(null);
   const { plan, loading: creditsLoading } = useCredits();
@@ -806,8 +687,14 @@ export function HeroSection() {
             </button>
           </div>
 
-
-
+          {(activeMode === 'create' || activeMode === 'notes' || activeMode === 'voice') && (
+            <SlideCountDropdown
+              slideCount={slideCount}
+              onChange={setSlideCount}
+              isFree={isFree}
+              className="mb-4"
+            />
+          )}
 
           {/* Original Animated Border Input */}
           <div className="animated-border shadow-[0_40px_100px_-20px_rgba(0,9,250,0.25)] group">

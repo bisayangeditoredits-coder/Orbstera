@@ -7,14 +7,14 @@
 
 export const AGENT_MODELS = {
   /** Intent, merge, final polish, cinematic hierarchy */
-  gptOrchestrator: process.env.OPENROUTER_AGENT_GPT5 ?? 'openai/gpt-5.5',
+  gptOrchestrator: process.env.OPENROUTER_AGENT_GPT5 ?? 'google/gemini-2.5-flash',
   /** Creator-tier orchestrator fallback */
   gptOrchestratorAlt:
-    process.env.OPENROUTER_AGENT_GPT5_ALT ?? 'openai/gpt-5',
+    process.env.OPENROUTER_AGENT_GPT5_ALT ?? 'anthropic/claude-sonnet-4.6',
   /** Slide spine, educational flow, long-form structure (Student Pro + fallback) */
-  claudeStructure: process.env.OPENROUTER_AGENT_CLAUDE ?? 'anthropic/claude-sonnet-latest',
+  claudeStructure: process.env.OPENROUTER_AGENT_CLAUDE ?? 'anthropic/claude-sonnet-4.6',
   /** Creator Pro — structure, strategy, elite polish */
-  claudeOpus: process.env.OPENROUTER_AGENT_CLAUDE_OPUS ?? 'anthropic/claude-opus-4',
+  claudeOpus: process.env.OPENROUTER_AGENT_CLAUDE_OPUS ?? 'anthropic/claude-sonnet-4.6',
   /** Optional — technical / analytical depth (retained for env overrides / legacy) */
   deepseekReason: process.env.OPENROUTER_AGENT_DEEPSEEK ?? 'deepseek/deepseek-r1',
   /** Long-context compose assist (Creator fallback) */

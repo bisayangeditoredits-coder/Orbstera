@@ -16,6 +16,7 @@ const NewDeckModal = dynamic(
 );
 import { DashboardSidebar } from './DashboardSidebar';
 import { DashboardHeader } from './DashboardHeader';
+import { finalizePaymentReturn } from '@/lib/billing/confirm-subscription-client';
 import { CreditWarningBanner } from './CreditWarningBanner';
 import { DashboardStats } from './DashboardStats';
 import { PresentationGrid } from './PresentationGrid';
@@ -103,7 +104,10 @@ export function DashboardShell() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('payment') !== 'success') return;
     navigateSection('settings');
-    void credits.refresh();
+    void (async () => {
+      await finalizePaymentReturn();
+      await credits.refresh();
+    })();
     params.delete('payment');
     const qs = params.toString();
     window.history.replaceState(null, '', `/my-presentations#settings${qs ? `?${qs}` : ''}`);

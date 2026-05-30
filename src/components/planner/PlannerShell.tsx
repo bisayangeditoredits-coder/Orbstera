@@ -9,7 +9,7 @@ import { PlannerChat } from './PlannerChat';
 import { PlannerOutlinePanel } from './PlannerOutlinePanel';
 import { PlannerComposer } from './PlannerComposer';
 import { PlannerOnboarding } from './PlannerOnboarding';
-import { PlannerSetup } from './PlannerSetup';
+import VisualsConfig from '@/components/VisualsConfig';
 import {
   type OutlineSlide,
   getMergedOutlineSlides,
@@ -18,8 +18,9 @@ import {
 import {
   buildPlannerFirstMessage,
   plannerSetupStorageKey,
-  DEFAULT_PLANNER_THEME,
   DEFAULT_PLANNER_SLIDE_COUNT,
+  DEFAULT_PLANNER_THEME,
+  resolvePlannerPreferencesFromParams,
   type PlannerSetupPreferences,
 } from '@/lib/presentation-themes';
 import { cn } from '@/lib/cn';
@@ -45,6 +46,8 @@ export function PlannerShell() {
   const router = useRouter();
   const topic = searchParams.get('topic')?.trim() || '';
   const sessionIdParam = searchParams.get('sessionId')?.trim() || null;
+  const slidesParam = searchParams.get('slides');
+  const themeParam = searchParams.get('theme');
 
   const setEditorState = usePresentationStore((s) => s.setEditorState);
 
@@ -57,8 +60,8 @@ export function PlannerShell() {
   const [mobileTab, setMobileTab] = useState<MobileTab>('chat');
   const [slideNotes, setSlideNotes] = useState<Record<number, string>>({});
 
-  const [setupComplete, setSetupComplete] = useState(false);
   const [plannerPreferences, setPlannerPreferences] = useState<PlannerSetupPreferences | null>(null);
+  const [showVisualsConfig, setShowVisualsConfig] = useState(false);
 
   const initStartedRef = useRef(false);
   const prevSlideCountRef = useRef(0);
@@ -71,15 +74,25 @@ export function PlannerShell() {
   const showMobileOutlineBanner =
     outlineSlides.length > 0 && mobileTab === 'chat';
 
-  // Restore setup from sessionStorage when topic is known
+  // Resolve deck prefs from sessionStorage or URL (?slides=8) — skip duplicate setup screen.
   useEffect(() => {
-    if (!topic) return;
+    if (!topic) {
+      setPlannerPreferences(null);
+      return;
+    }
     const stored = loadStoredSetup(topic);
     if (stored) {
       setPlannerPreferences(stored);
-      setSetupComplete(true);
+      return;
     }
-  }, [topic]);
+    const prefs = resolvePlannerPreferencesFromParams({ slidesParam, themeParam });
+    setPlannerPreferences(prefs);
+    try {
+      sessionStorage.setItem(plannerSetupStorageKey(topic), JSON.stringify(prefs));
+    } catch {
+      /* ignore */
+    }
+  }, [topic, slidesParam, themeParam]);
 
   // Sticky outline: merge across messages, never flash empty while loading
   useEffect(() => {
@@ -134,6 +147,12 @@ export function PlannerShell() {
         }
         if (!res.ok) {
           const errData = await res.json().catch(() => ({ error: 'Unknown error' }));
+          if (res.status === 503) {
+            throw new Error(
+              errData.message ||
+                'AI Copilot is not configured. Add OPENAI_API_KEY or OPENROUTER_API_KEY to .env.local and restart the dev server.',
+            );
+          }
           if (res.status === 402) {
             throw new Error(
               errData.message || 'Not enough credits. Open your dashboard to upgrade or wait for reset.',
@@ -235,7 +254,7 @@ export function PlannerShell() {
   );
 
   useEffect(() => {
-    if (!topic || !setupComplete || !plannerPreferences || initStartedRef.current) return;
+    if (!topic || !plannerPreferences || initStartedRef.current) return;
     initStartedRef.current = true;
 
     const initChat = async () => {
@@ -268,7 +287,6 @@ export function PlannerShell() {
                 colorPalette: [...DEFAULT_PLANNER_THEME.palette],
               },
             );
-            setSetupComplete(true);
             return;
           }
         }
@@ -303,7 +321,7 @@ export function PlannerShell() {
     };
 
     void initChat();
-  }, [topic, setupComplete, plannerPreferences, sessionIdParam, streamResponse]);
+  }, [topic, plannerPreferences, sessionIdParam, streamResponse]);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -322,17 +340,12 @@ export function PlannerShell() {
   const handleSend = () => sendMessage(input);
   const handleQuickReply = (text: string) => sendMessage(text);
 
-  const handleSetupContinue = (prefs: PlannerSetupPreferences) => {
-    try {
-      sessionStorage.setItem(plannerSetupStorageKey(topic), JSON.stringify(prefs));
-    } catch {
-      /* ignore */
-    }
-    setPlannerPreferences(prefs);
-    setSetupComplete(true);
-  };
-
-  const handleGenerate = () => {
+  const handleFinalizeGeneration = (config: {
+    theme: string;
+    imageSource: 'ai' | 'unsplash' | 'none';
+    artStyle: string;
+    slideCount: number;
+  }) => {
     const chatContext = messages
       .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
       .filter((block) => block.split(': ')[1]?.trim())
@@ -347,13 +360,22 @@ export function PlannerShell() {
 
     const outlineBlock = formatOutlineForContext(annotatedSlides);
     const prefsBlock = plannerPreferences
-      ? `[USER DECK PREFERENCES]\nSlides: ${plannerPreferences.slideCount}\nTheme: ${plannerPreferences.themeName}\nColors: ${plannerPreferences.colorPalette.join(', ')}`
-      : '';
+      ? `[USER DECK PREFERENCES]\nSlides: ${config.slideCount}\nTheme: ${config.theme}\nArt style: ${config.artStyle}\nImage source: ${config.imageSource}\nColors: ${plannerPreferences.colorPalette.join(', ')}`
+      : `[USER DECK PREFERENCES]\nSlides: ${config.slideCount}\nTheme: ${config.theme}\nArt style: ${config.artStyle}\nImage source: ${config.imageSource}`;
     const fullContext = [chatContext, prefsBlock, outlineBlock].filter(Boolean).join('\n\n');
 
-    const slideCountForGen =
-      plannerPreferences?.slideCount ??
-      (outlineSlides.length > 0 ? outlineSlides.length : undefined);
+    const slideCountForGen = config.slideCount;
+
+    if (plannerPreferences && topic) {
+      try {
+        sessionStorage.setItem(
+          plannerSetupStorageKey(topic),
+          JSON.stringify({ ...plannerPreferences, slideCount: config.slideCount }),
+        );
+      } catch {
+        /* ignore */
+      }
+    }
 
     setEditorState({
       copilotContext: fullContext,
@@ -361,20 +383,43 @@ export function PlannerShell() {
         topic,
         sessionId,
         outlineSlideCount: slideCountForGen,
-        targetSlideCount: plannerPreferences?.slideCount,
-        themeName: plannerPreferences?.themeName,
+        targetSlideCount: slideCountForGen,
+        themeName: config.theme,
         colorPalette: plannerPreferences?.colorPalette,
+        styleMode: config.artStyle,
+        imageSource: config.imageSource,
       },
     });
     router.push('/editor?copilot_approved=true');
+  };
+
+  const handleGenerateClick = () => {
+    setShowVisualsConfig(true);
   };
 
   if (!topic) {
     return <PlannerOnboarding />;
   }
 
-  if (!setupComplete || !plannerPreferences) {
-    return <PlannerSetup topic={topic} onContinue={handleSetupContinue} />;
+  if (!plannerPreferences) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
+      </div>
+    );
+  }
+
+  if (showVisualsConfig) {
+    const initialSlideCount =
+      plannerPreferences?.slideCount ??
+      (outlineSlides.length > 0 ? outlineSlides.length : DEFAULT_PLANNER_SLIDE_COUNT);
+
+    return (
+      <VisualsConfig
+        initialSlideCount={initialSlideCount}
+        onGenerate={(config) => handleFinalizeGeneration(config)}
+      />
+    );
   }
 
   return (
@@ -389,7 +434,7 @@ export function PlannerShell() {
         planTier={planTier}
         stepIndex={stepIndex}
         canGenerate={canGenerate}
-        onGenerate={handleGenerate}
+        onGenerate={handleGenerateClick}
       />
 
       <div className="flex shrink-0 border-b border-slate-200 bg-white px-4 py-2 md:hidden">
@@ -457,7 +502,7 @@ export function PlannerShell() {
             canGenerate={canGenerate}
             slideNotes={slideNotes}
             targetSlideCount={targetSlideCount}
-            onGenerate={handleGenerate}
+            onGenerate={handleGenerateClick}
             onReorder={setOutlineSlides}
             onUpdateSlideNotes={(num, notes) => setSlideNotes((p) => ({ ...p, [num]: notes }))}
           />

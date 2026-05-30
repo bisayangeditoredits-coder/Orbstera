@@ -57,6 +57,8 @@ function deriveGenerationUi(
         stepIndex: 4,
       };
     }
+    case 'syncing':
+      return { pct: 99, label: 'Saving to cloud', stepIndex: 4 };
     case 'connecting':
     default:
       return { pct: 4, label: 'Connecting to model', stepIndex: 0 };
@@ -91,7 +93,8 @@ function GenerationAssetsBanner() {
   const total = editor.generationImageJobsTotal;
   const done = Math.min(editor.generationImageJobsCompleted, total);
   const failed = editor.generationImageJobsFailed ?? 0;
-  if (total <= 0 || editor.generationPendingImages <= 0) return null;
+  if (!editor.isGenerating || total <= 0) return null;
+  if (done >= total && editor.generationPendingImages <= 0) return null;
 
   const pct = Math.round((done / total) * 100);
 
@@ -106,10 +109,10 @@ function GenerationAssetsBanner() {
     >
       <ImageIcon size={14} strokeWidth={1.85} className="shrink-0 text-primary" aria-hidden />
       <div className="flex flex-col gap-0.5 min-w-0">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-black/55">Live AI visuals</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-black/55">Live preview</span>
         <span className="text-[12px] font-semibold tracking-tight whitespace-nowrap">
-          {done}/{total} rendered
-          {failed > 0 ? ` · ${failed} failed` : ''} · streaming to canvas ({pct}%)
+          {done}/{total} visuals on canvas
+          {failed > 0 ? ` · ${failed} failed` : ''} · parallel render ({pct}%)
         </span>
       </div>
       <span className="relative h-1.5 w-24 overflow-hidden rounded-full bg-black/[0.07] shrink-0">
@@ -139,6 +142,12 @@ function GenerationLoader() {
     generationPendingImages,
   );
 
+  const displayLabel =
+    editor.orchestrationMessage?.trim() ||
+    (deckGenerationLifecycle === 'images' && generationImageJobsTotal > 0
+      ? `Generating AI visuals (${Math.min(generationImageJobsCompleted, generationImageJobsTotal)}/${generationImageJobsTotal})`
+      : label);
+
   const steps = [
     { label: 'Connect', min: 0 },
     { label: 'Compose slides', min: 1 },
@@ -148,22 +157,24 @@ function GenerationLoader() {
   ];
 
   const reasoningSteps = [
-    'Reading intent and emotional arc from your brief…',
-    'Shaping narrative rhythm and slide flow…',
-    'Applying layout, typography, and motion intelligence…',
-    'Tuning transitions for a keynote feel…',
-    'Locking cinematic polish before you edit…',
+    'Analyzing your brief and audience intent…',
+    'Mapping slide narrative and visual rhythm…',
+    'Building layout structure slide by slide…',
+    'Running quality polish pass…',
+    'Rendering cinematic AI visuals…',
   ];
 
   const currentStepIndex =
     deckGenerationLifecycle === 'idle' ? 0 : Math.min(stepIndex, steps.length - 1);
 
   const vizLine =
-    deckGenerationLifecycle === 'images' && generationImageJobsTotal > 0
-      ? `AI visuals ${Math.min(generationImageJobsCompleted, generationImageJobsTotal)}/${generationImageJobsTotal}`
-      : deckGenerationLifecycle === 'streaming'
-        ? `Slides streamed ${slideLen} / ~${generationTargetSlides || '?'}`
-        : null;
+    deckGenerationLifecycle === 'syncing'
+      ? 'Securing your deck in the cloud…'
+      : deckGenerationLifecycle === 'images' && generationImageJobsTotal > 0
+        ? `AI visuals ${Math.min(generationImageJobsCompleted, generationImageJobsTotal)}/${generationImageJobsTotal}`
+        : deckGenerationLifecycle === 'streaming'
+          ? `Slides streamed ${slideLen} / ~${generationTargetSlides || '?'}`
+          : null;
 
   const reduceMotion =
     typeof window !== 'undefined' &&
@@ -178,28 +189,39 @@ function GenerationLoader() {
       className="absolute inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-[#f0f2f5]"
     >
       {/* ── Shimmering Skeleton Grid Background ── */}
-      <div className="absolute inset-0 z-0 flex flex-wrap content-start justify-center gap-8 p-12 overflow-hidden opacity-60">
-        {Array.from({ length: 12 }).map((_, i) => (
+      <div className="absolute inset-0 z-0 flex flex-wrap content-start justify-center gap-8 p-12 overflow-hidden opacity-50">
+        {Array.from({ length: Math.min(generationTargetSlides || 6, 8) }).map((_, i) => (
           <motion.div
             key={i}
             initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
+            animate={{
+              opacity: slideLen > i ? 0.35 : 1,
+              scale: slideLen > i ? 1 : 0.95,
+            }}
             transition={{ delay: i * 0.05, duration: 0.6 }}
-            className="relative w-[320px] shrink-0 aspect-[16/9] bg-white rounded-2xl shadow-[0_4px_20px_-5px_rgba(0,0,0,0.05)] border border-slate-200/50 p-6 flex flex-col gap-4 overflow-hidden"
+            className={`relative w-[280px] shrink-0 aspect-[16/9] rounded-2xl shadow-[0_4px_20px_-5px_rgba(0,0,0,0.05)] border p-6 flex flex-col gap-4 overflow-hidden ${
+              slideLen > i
+                ? 'bg-indigo-50/80 border-indigo-200/60'
+                : 'bg-white border-slate-200/50'
+            }`}
           >
-            {/* Shimmer Effect */}
-            <motion.div 
-              className="absolute inset-0 z-10 bg-gradient-to-r from-transparent via-white/70 to-transparent skew-x-[-20deg]"
-              animate={{ x: ['-200%', '200%'] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'linear', delay: i * 0.1 }}
-            />
-            <div className="h-4 w-2/3 bg-slate-100 rounded-md" />
+            {slideLen <= i && (
+              <motion.div
+                className="absolute inset-0 z-10 bg-gradient-to-r from-transparent via-white/70 to-transparent skew-x-[-20deg]"
+                animate={{ x: ['-200%', '200%'] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'linear', delay: i * 0.1 }}
+              />
+            )}
+            <div className={`h-4 w-2/3 rounded-md ${slideLen > i ? 'bg-indigo-200/70' : 'bg-slate-100'}`} />
             <div className="space-y-2 mt-2">
-              <div className="h-2.5 w-full bg-slate-100 rounded-sm" />
-              <div className="h-2.5 w-5/6 bg-slate-100 rounded-sm" />
-              <div className="h-2.5 w-4/6 bg-slate-100 rounded-sm" />
+              <div className={`h-2.5 w-full rounded-sm ${slideLen > i ? 'bg-indigo-100' : 'bg-slate-100'}`} />
+              <div className={`h-2.5 w-5/6 rounded-sm ${slideLen > i ? 'bg-indigo-100' : 'bg-slate-100'}`} />
             </div>
-            <div className="mt-auto h-16 w-full bg-slate-100/50 rounded-lg" />
+            {slideLen > i && (
+              <div className="absolute top-3 right-3 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                Live
+              </div>
+            )}
           </motion.div>
         ))}
       </div>
@@ -233,18 +255,18 @@ function GenerationLoader() {
               Orchestrating Narrative
             </motion.div>
             <h2 className="text-[clamp(1.5rem,5vw,2.5rem)] font-semibold text-slate-900 tracking-tight leading-[1.1] text-balance px-1">
-              {label}
+              {displayLabel}
             </h2>
           </div>
 
           {/* Stepper Progress Bar */}
           <div className="relative w-full h-[3px] bg-slate-200/50 rounded-full mb-10">
-            <motion.div 
-              className="absolute h-full rounded-full" 
+            <motion.div
+              className="absolute h-full rounded-full"
               style={{ background: 'linear-gradient(90deg, #4f46e5, #a855f7, #ec4899)' }}
-              initial={{ width: "0%" }}
-              animate={{ width: `${(currentStepIndex + 1) * (100 / steps.length)}%` }}
-              transition={{ duration: 0.8, ease: "circOut" }}
+              initial={{ width: '0%' }}
+              animate={{ width: `${Math.max(4, pct)}%` }}
+              transition={{ duration: 0.8, ease: 'circOut' }}
             />
             <div className="absolute top-1/2 left-0 w-full flex justify-between -translate-y-1/2 px-0">
                 {steps.map((_, i) => (
@@ -273,10 +295,9 @@ function GenerationLoader() {
                   </p>
                 )}
                 <p className="text-[13px] font-medium text-slate-500 italic tracking-tight leading-relaxed text-center">
-                  {editor.reasoning 
-                    ? editor.reasoning.slice(-120) 
-                    : reasoningSteps[currentStepIndex]
-                  }
+                  {editor.reasoning?.trim()
+                    ? editor.reasoning.slice(-140)
+                    : editor.orchestrationMessage?.trim() || reasoningSteps[currentStepIndex]}
                   <span className="inline-block w-[2px] h-[14px] bg-indigo-500 ml-1.5 translate-y-[2px] animate-blink" />
                 </p>
               </motion.div>
@@ -379,7 +400,9 @@ export function CanvasArea() {
       ro.disconnect();
       window.removeEventListener('scroll', update, true);
     };
-  }, [pan, zoom]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // No pan/zoom dependency — ResizeObserver handles layout changes, not reactive state
+
 
   // Measure container before paint so centering uses real dimensions (main column + sidebars).
   useLayoutEffect(() => {
@@ -407,8 +430,13 @@ export function CanvasArea() {
     prevContainerSizeRef.current = { w, h };
     if (!prev) return;
     if (Math.abs(w - prev.w) < 12 && Math.abs(h - prev.h) < 12) return;
-    setEditorState({ pan: { x: 0, y: 0 } });
+    // Guard: only update if pan isn't already at origin (avoids new object → re-render cycle).
+    const currentPan = usePresentationStore.getState().editor.pan;
+    if (currentPan.x !== 0 || currentPan.y !== 0) {
+      setEditorState({ pan: { x: 0, y: 0 } });
+    }
   }, [containerSize, setEditorState]);
+
 
   const baseFitScale =
     containerSize.w <= PAD * 2 || containerSize.h <= PAD * 2

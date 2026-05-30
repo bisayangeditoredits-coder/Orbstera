@@ -63,7 +63,10 @@ export async function POST(req: Request) {
     if (
       eventType === 'subscription.active' ||
       eventType === 'subscription.renewed' ||
-      eventType === 'payment.succeeded'
+      eventType === 'subscription.created' ||
+      eventType === 'subscription.updated' ||
+      eventType === 'payment.succeeded' ||
+      eventType === 'checkout.session.completed'
     ) {
       const shouldProcess = await markWebhookEventProcessed(supabaseAdmin, eventId);
       if (!shouldProcess) {

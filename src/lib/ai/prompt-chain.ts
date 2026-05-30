@@ -2,6 +2,11 @@ import { extractJsonObject } from '@/lib/ai/openrouter';
 import { openRouterCompleteCascade } from '@/lib/ai/openrouter-cascade';
 import { getTextModelCascade, selectTextModel, shouldRunDeepReasoning } from '@/lib/ai/router';
 import { aiCacheGet, aiCacheSet, makeAiCacheKey } from '@/lib/ai/cache';
+import {
+  DIRECTOR_INTENT_SYSTEM,
+  DIRECTOR_STRUCTURE_SYSTEM,
+  DIRECTOR_REASON_SYSTEM,
+} from '@/lib/ai/deck-generation-skill';
 
 /** Human-readable progress only — never model IDs (shown in UI). */
 export type OrchestrationProgress = (phase: string, message: string) => void;
@@ -37,46 +42,11 @@ async function step(
   }
 }
 
-const S_INTENT = `You are the lead strategist and creative director for an automatic presentation engine.
+const S_INTENT = DIRECTOR_INTENT_SYSTEM;
 
-Output ONE raw JSON object only (no markdown):
-{
-  "intentSummary": "one sentence",
-  "presentationType": "startup_pitch | investor_deck | business_proposal | education | product_showcase | marketing | corporate | storytelling | data_story | portfolio | other",
-  "presentationCategory": "short string e.g. sales, classroom, boardroom, demo_day",
-  "audienceType": "board_members | investors | executives | managers | customers | classmates | conference_attendees | general_public",
-  "emotionalTone": "e.g. confident, urgent, warm, analytical",
-  "needsDeepReasoning": false,
-  "promptEnhancement": "single rich paragraph: infer missing context, sharpen storytelling, pacing, and emotional arc. Same language as the user. Under 1200 characters.",
-  "recommendedStyle": "apple_keynote | startup_pitch | minimal_dark | corporate | futuristic | luxury | glassmorphism | bento | editorial | creative | cinematic",
-  "visualMood": "short phrase for consistent imagery across slides",
-  "densityMode": "minimal | standard | rich",
-  "cinematicIntensity": "low | medium | high",
-  "successCriteria": ["2-5 bullets the final deck must satisfy"]
-}
+const S_STRUCTURE = DIRECTOR_STRUCTURE_SYSTEM;
 
-Set needsDeepReasoning to true ONLY if the deck needs heavy technical, mathematical, analytics, startup strategy, scientific, or legal-style argumentation. Otherwise false (most decks).
-
-promptEnhancement must feel like the user is deeply understood — do not merely repeat their words; improve clarity and narrative.`;
-
-const S_STRUCTURE = `You architect slide-by-slide narrative structure for a premium deck.
-
-You receive: the user's ask, parameters, and analyst JSON from a prior step.
-
-Output ONE raw JSON only (no markdown):
-{
-  "acts": [{"name": "act label", "beats": ["beat strings"]}],
-  "slideSpine": [
-    { "index": 1, "typeHint": "hero|split|content|quote|stats|closing|...", "headlineAngle": "what this slide must convey", "supportingPoints": ["up to 4 short notes"] }
-  ],
-  "flowNotes": "how tension and release should move across the deck",
-  "toneGuardrails": "what to avoid / voice consistency"
-}
-
-The slideSpine array MUST have exactly as many objects as the requested slide count (indices 1..N). Same language as the user.`;
-
-const S_REASON = `You are a strategic reasoning engine for a high-stakes deck.
-Output plain text (max 700 words): angles, proof, risks, persuasion logic, and how slides should land. No JSON, no markdown fences.`;
+const S_REASON = DIRECTOR_REASON_SYSTEM;
 
 function buildRefinedBrief(args: {
   rawUserPrompt: string;
@@ -94,10 +64,19 @@ function buildRefinedBrief(args: {
     enhancement || args.rawUserPrompt,
     `--- Original ask (verbatim) ---\n${args.rawUserPrompt}`,
     `--- Parameters ---\nSlides: ${args.meta.slideCount}, tone hint: ${args.meta.tone}, language: ${args.meta.language}`,
-    spine && `--- Approved slide spine (follow order & intent) ---\n${spine}`,
+    typeof args.intent.visualMood === 'string' && args.intent.visualMood
+      ? `--- Visual mood (ALL imagePrompts must match) ---\n${args.intent.visualMood}`
+      : '',
+    typeof args.intent.imageryPalette === 'string' && args.intent.imageryPalette
+      ? `--- Imagery palette ---\n${args.intent.imageryPalette}`
+      : '',
+    spine && `--- SLIDE ORDERS (slideSpine — execute 1:1, do NOT invent structure) ---\n${spine}`,
     args.reasonMemo && `--- Strategy / reasoning layer ---\n${args.reasonMemo}`,
     `--- Flow notes ---\n${typeof args.structure.flowNotes === 'string' ? args.structure.flowNotes : ''}`,
     `--- Tone guardrails ---\n${typeof args.structure.toneGuardrails === 'string' ? args.structure.toneGuardrails : ''}`,
+    typeof args.structure.imageryContinuity === 'string' && args.structure.imageryContinuity
+      ? `--- Imagery continuity ---\n${args.structure.imageryContinuity}`
+      : '',
   ].filter(Boolean);
   return parts.join('\n\n');
 }
@@ -180,6 +159,7 @@ function deriveDnaFromDirector(
     inferredAudience: intent.inferredAudience,
     emotionalTone: intent.emotionalTone,
     visualMood: intent.visualMood,
+    imageryPalette: intent.imageryPalette,
     successCriteria: intent.successCriteria,
     narrativeArc: Array.isArray(structure.acts)
       ? (structure.acts as { name?: string }[]).map((a) => a.name).filter(Boolean)
@@ -224,7 +204,7 @@ export async function runOpenRouterOrchestration(
 
   const baseCtx = `Original user request:\n${rawUserPrompt}\n\nParameters: exactly ${meta.slideCount} slides, tone=${meta.tone}, language=${meta.language}.`;
 
-  onProgress?.('understanding', 'Understanding your vision…');
+  onProgress?.('understanding', 'Director: analyzing your vision…');
   const intentModel = selectTextModel({
     plan: opts?.plan,
     task: 'deck_intent',
@@ -287,7 +267,7 @@ export async function runOpenRouterOrchestration(
     onProgress?.('reasoning', 'Skipping deep reasoning — fast path.');
   }
 
-  onProgress?.('structure', 'Structuring slides and flow…');
+  onProgress?.('structure', 'Architect: writing explicit slide orders…');
   const structureCascade = getTextModelCascade({
     plan: opts?.plan,
     task: 'deck_structure',
@@ -328,7 +308,7 @@ export async function runOpenRouterOrchestration(
     `DIRECTOR_DNA_PRESET:\n${JSON.stringify(dna, null, 2)}`,
   ].join('\n\n');
 
-  onProgress?.('synthesis', 'Brief locked — composing deck…');
+  onProgress?.('synthesis', 'Brief locked — composer executing orders…');
 
   void aiCacheSet(
     orchKey,

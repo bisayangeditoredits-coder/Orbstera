@@ -78,7 +78,7 @@ function HorizThumb({
           if (el.type === 'image' && el.src) {
             return (
               <img key={el.id} src={editorImageFetchUrl(el.src)} alt=""
-                style={{ position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height, objectFit: 'cover', opacity: el.opacity ?? 1 }}
+                style={{ position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height, objectFit: 'cover', maxWidth: 'none', opacity: el.opacity ?? 1 }}
               />
             );
           }

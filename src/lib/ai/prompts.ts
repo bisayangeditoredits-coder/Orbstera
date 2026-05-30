@@ -1,70 +1,23 @@
-/** Strict structured deck schema — NEVER HTML; frontend renders everything. */
-export const DECK_JSON_RULES = `
-OUTPUT: VALID RAW JSON ONLY. No markdown fences, no HTML, no explanations.
+/**
+ * Deck generation prompts — re-exports from deck-generation-skill (Gamma-style pipeline).
+ */
+export {
+  GAMMA_PHILOSOPHY,
+  SLIDE_TYPE_PLAYBOOK,
+  IMAGE_PROMPT_FORMULA,
+  HEADLINE_RULES,
+  DECK_JSON_SCHEMA,
+  COMPOSER_EXECUTION_RULES,
+  DIRECTOR_INTENT_SYSTEM,
+  DIRECTOR_STRUCTURE_SYSTEM,
+  DIRECTOR_REASON_SYSTEM,
+  POLISH_SYSTEM,
+  buildComposerSystemPrompt,
+  buildComposerUserPrompt,
+  buildFallbackImagePrompt,
+} from '@/lib/ai/deck-generation-skill';
 
-Root object MUST match:
-{
-  "title": "Deck title",
-  "theme": "glass-dark | industrial-minimal | tech-luxury | apple-keynote | editorial-magazine | startup-pitch | cinematic",
-  "presentationType": "startup_pitch | investor_deck | business_proposal | education | product_showcase | marketing | corporate | storytelling | futuristic | timeline | portfolio | data_story",
-  "styleMode": "apple_keynote | startup_pitch | minimal_dark | corporate | futuristic | luxury | glassmorphism | bento | editorial | creative | cinematic",
-  "colorPalette": ["#Background","#PrimaryText","#Accent","#SecondaryText"],
-  "fontPairing": {"heading":"Font Name","body":"Font Name"},
-  "animationStyle": "cinematic-reveal | minimal-fade | kinetic",
-  "defaultSlideTransition": "optional: fade | smoothSlide | zoom | blurReveal | parallaxFlow | morph | crossDissolve | glassSwipe | depth | dynamicScale | verticalFlow | horizontalCinematic | layerReveal | floating | keynote",
-  "cinematicPresenterEffects": true,
-  "slides": [ ... ]
-}
-
-Each slide:
-{
-  "id": "unique-id",
-  "type": "hero | split | media | quote | chart | stats | timeline | bullets | comparison | closing",
-  "layout": "full-bleed | split-image-left | split-image-right | bento | timeline | minimal | cinematic | keynote-title | magazine",
-  "title": "Short powerful headline",
-  "subtitle": "Optional supporting line",
-  "bullets": ["max 5 concise points unless stats slide"],
-  "content": { "bullets": ["optional nested — merged with bullets"] },
-  "visualStyle": "cinematic | glass | minimal | editorial",
-  "imagePrompt": "REQUIRED FOR EVERY SINGLE SLIDE. Detailed cinematic prompt for image models — mood-aligned. Cannot be empty.",
-  "visualDirection": "composition notes",
-  "backgroundStyle": "mesh-gradient | frosted-glass | radial-glow | pure-dark",
-  "slideTransition": "optional per-slide; same vocabulary as defaultSlideTransition",
-  "animation": {"entrance":"fadeSlideUp|fadeSlideLeft|slideRight|zoomIn|reveal|blurIn|parallaxDrift|verticalRise|glassBlur|depthRise|typewriterWords|staggerLines|cinematicImageZoom","duration":800},
-  "speakerNotes": "Delivery notes",
-  "chart": null
-}
-
-RULES:
-- Never repeat the same layout 3 times in a row.
-- Never repeat the same slide "type" 3 times in a row.
-- Keep bullets ≤5 per slide; prefer whitespace over clutter.
-- CRITICAL: EVERY SINGLE SLIDE MUST HAVE AN 'imagePrompt'. Never leave it empty or null.
-- imagePrompt must stay on-brand across slides (consistent lighting/mood).
-- Vary slide types for narrative rhythm (hook → tension → proof → vision → close).
-- Prefer defaultSlideTransition + slideTransition choices that feel cinematic (blurReveal, parallaxFlow, keynote, glassSwipe) where appropriate.
-- Choose animation.entrance per element gravity: hero reveals use cinematicImageZoom or blurIn; lists use staggerLines or verticalRise.
-- For decks with 6+ slides, include at least 5 distinct slide types.
-- For decks with 10+ slides, include at least 7 distinct slide types.
-- Use this narrative rhythm by default unless user says otherwise:
-  1) hero/opening, 2) context/problem, 3) framework, 4) evidence/data, 5) comparison/options, 6) timeline/plan, 7) CTA/closing.
-`;
-
-export function buildComposerSystemPrompt(preflightBlock: string): string {
-  return `You are Orbstera's Principal Presentation Architect — world-class narrative, typography rhythm, and spatial hierarchy.
-
-You are the final JSON composer in Orbstera’s hidden orchestration pipeline. The user does not pick templates, themes, or animation packs — YOU infer palette, typography, layout vocabulary, slide transitions, and per-slide animation from intent, audience, and emotional tone. Output must feel keynote / investor-ready: cinematic spacing, confident hierarchy, zero “AI slop” clichés.
-
-Never output HTML. Never output markdown. Only the structured JSON the Orbstera rendering engine consumes.
-
-${DECK_JSON_RULES}
-
-ORCHESTRATION CONTEXT (automatic brief + analysis — obey absolutely):
-${preflightBlock}
-
-Remember: JSON ONLY. Every slide needs a deliberate animation.entrance and coherent imagePrompt for the image pipeline.`;
-}
-
+/** @deprecated Use DIRECTOR_INTENT_SYSTEM via prompt-chain */
 export const PREFLIGHT_SYSTEM = `You are a strategic analyst. Output ONE raw JSON object only.
 
 Schema:
@@ -79,7 +32,7 @@ Schema:
     "visualDirection": "brand/visual direction",
     "toneDirection": "speaking/communication tone"
   },
-  "narrativeArc": ["act labels e.g. Hook", "Problem", ...],
+  "narrativeArc": ["act labels"],
   "outline": [{"segment":"section name","slideIdeas":["idea 1","idea 2"]}],
   "visualRules": {
     "density": "sparse | balanced | rich",
@@ -88,4 +41,7 @@ Schema:
   }
 }
 
-No markdown. No HTML. JSON only.`;
+No markdown. JSON only.`;
+
+/** Legacy alias — kept for imports that reference DECK_JSON_RULES */
+export { DECK_JSON_SCHEMA as DECK_JSON_RULES } from '@/lib/ai/deck-generation-skill';

@@ -21,7 +21,7 @@ import Konva from 'konva';
 import useImage from 'use-image';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { useShallow } from 'zustand/react/shallow';
-import type { EditorToolId, SlideElement } from '@/types';
+import type { EditorToolId, SlideElement, Slide } from '@/types';
 import { findDeckBackgroundElement } from '@/lib/slide-background';
 import { editorImageFetchUrl } from '@/lib/r2-public-url';
 import {
@@ -44,6 +44,7 @@ import {
 } from '@/hooks/canvas';
 import { GuidesOverlay } from './GuidesOverlay';
 import { useGenerationElementReveal } from '@/hooks/useGenerationElementReveal';
+import { EMPTY_STRING_ARRAY } from '@/lib/stable-refs';
 
 export { CANVAS_WIDTH, CANVAS_HEIGHT, STAGE_PADDING };
 
@@ -93,6 +94,8 @@ interface ElementNodeProps {
   onMultiDragEnd?: (dx: number, dy: number, sourceId: string) => void;
   generationRevealActive?: boolean;
   revealVisible?: boolean;
+  /** Present/export — same Konva paint path, no interaction */
+  readOnly?: boolean;
 }
 
 // Custom hook to load and play an HTML5 video for Konva
@@ -170,6 +173,7 @@ function ElementNode({
   onMultiDragEnd,
   generationRevealActive = false,
   revealVisible = true,
+  readOnly = false,
 }: ElementNodeProps) {
   const isPanningImage = usePresentationStore((s) => s.editor.isPanningImage);
   const panStartRef = useRef<{ pointerX: number; pointerY: number; cropX: number; cropY: number } | null>(null);
@@ -415,10 +419,10 @@ function ElementNode({
   }, [generationRevealActive, revealVisible, el.id, baseOpacity]);
 
   if (el.visible === false) return null;
-  if (generationRevealActive && !revealVisible) return null;
+  if (!readOnly && generationRevealActive && !revealVisible) return null;
 
-  const elementListening = activeTool === 'select';
-  const elementDraggable = activeTool === 'select' && !el.locked;
+  const elementListening = !readOnly && activeTool === 'select';
+  const elementDraggable = !readOnly && activeTool === 'select' && !el.locked;
 
   const groupTransformEnd = () => {
     const node = shapeRef.current!;
@@ -1193,18 +1197,20 @@ export function KonvaCanvas({ scale }: { scale: number }) {
       gridSize: s.editor.gridSize,
     })),
   );
-  const colorPalette = usePresentationStore((s) => s.presentation?.colorPalette ?? []);
+  const colorPalette = usePresentationStore(
+    (s) => s.presentation?.colorPalette ?? EMPTY_STRING_ARRAY,
+  );
   const generationBuildReveal = usePresentationStore((s) => s.editor.generationBuildReveal);
   const isGenerating = usePresentationStore((s) => s.editor.isGenerating);
   const generationRevealedSlides = usePresentationStore(
-    (s) => s.editor.generationRevealedSlides ?? [],
+    (s) => s.editor.generationRevealedSlides ?? EMPTY_STRING_ARRAY,
   );
 
   const revealEnabled = Boolean(generationBuildReveal && isGenerating && slide);
   const slideAlreadyRevealed = slide ? generationRevealedSlides.includes(slide.id) : false;
   const { isElementVisible } = useGenerationElementReveal({
     slideId: slide?.id ?? '',
-    elements: slide?.elements ?? [],
+    elements: slide?.elements ?? EMPTY_STRING_ARRAY,
     enabled: revealEnabled,
     slideAlreadyRevealed,
   });
@@ -1601,5 +1607,61 @@ export function KonvaCanvas({ scale }: { scale: number }) {
         );
       })()}
     </div>
+  );
+}
+
+/** Read-only Konva slide — pixel-identical to the editor canvas (present + thumbnails). */
+export function KonvaPresentSlideView({
+  slide,
+  colorPalette,
+}: {
+  slide: Slide;
+  colorPalette: string[];
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const bgEl = findDeckBackgroundElement(slide.elements);
+  const elements = (slide.elements || []).filter(
+    (el) => el.visible !== false && el !== bgEl,
+  );
+
+  if (!mounted) {
+    return (
+      <div
+        style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, background: colorPalette[0] || '#05050A' }}
+      />
+    );
+  }
+
+  const noop = () => {};
+
+  return (
+    <Stage width={CANVAS_WIDTH} height={CANVAS_HEIGHT} listening={false}>
+      <Layer clipX={0} clipY={0} clipWidth={CANVAS_WIDTH} clipHeight={CANVAS_HEIGHT}>
+        <SlideBackground
+          colors={colorPalette}
+          bgImageUrl={bgEl?.src}
+          bgImageOpacity={bgEl?.opacity}
+        />
+        {elements.map((el) => (
+          <ElementNode
+            key={el.id}
+            el={el}
+            isSelected={false}
+            onSelect={noop}
+            onChange={noop}
+            activeTool="select"
+            isEditingText={false}
+            onDblClickText={noop}
+            previewElementId={null}
+            snapToGrid={false}
+            gridSize={8}
+            onContextMenu={noop}
+            readOnly
+          />
+        ))}
+      </Layer>
+    </Stage>
   );
 }

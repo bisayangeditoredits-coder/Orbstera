@@ -1,5 +1,10 @@
 /** Shared deck theme presets (Design panel + Planner setup). */
 
+import {
+  DEFAULT_SLIDE_COUNT,
+  parseSlideCountParam,
+} from '@/lib/slide-count-options';
+
 export const PALETTE_LABELS = ['Background', 'Text', 'Accent', 'Secondary'] as const;
 
 export type PresentationTheme = {
@@ -22,11 +27,11 @@ export const PRESENTATION_THEMES: PresentationTheme[] = [
 export const PLANNER_SLIDE_COUNT_OPTIONS = [5, 8, 10, 15] as const;
 export type PlannerSlideCount = (typeof PLANNER_SLIDE_COUNT_OPTIONS)[number];
 
-export const DEFAULT_PLANNER_SLIDE_COUNT: PlannerSlideCount = 10;
+export const DEFAULT_PLANNER_SLIDE_COUNT = DEFAULT_SLIDE_COUNT;
 export const DEFAULT_PLANNER_THEME = PRESENTATION_THEMES[0];
 
 export type PlannerSetupPreferences = {
-  slideCount: PlannerSlideCount;
+  slideCount: number;
   themeName: string;
   colorPalette: string[];
 };
@@ -42,4 +47,28 @@ export function buildPlannerFirstMessage(topic: string, prefs: PlannerSetupPrefe
 
 export function plannerSetupStorageKey(topic: string): string {
   return `planner-setup:${topic}`;
+}
+
+export function parsePlannerSlideCountFromParam(raw: string | null | undefined): number {
+  return parseSlideCountParam(raw);
+}
+
+export function parsePlannerThemeFromParam(raw: string | null | undefined): PresentationTheme | null {
+  if (!raw?.trim()) return null;
+  const q = raw.trim().toLowerCase();
+  return PRESENTATION_THEMES.find((t) => t.name.toLowerCase() === q) ?? null;
+}
+
+/** Build deck prefs from URL (?slides=8&theme=Ember) or sensible defaults — skips duplicate setup screen. */
+export function resolvePlannerPreferencesFromParams(args: {
+  slidesParam?: string | null;
+  themeParam?: string | null;
+}): PlannerSetupPreferences {
+  const slideCount = parseSlideCountParam(args.slidesParam ?? null);
+  const theme = parsePlannerThemeFromParam(args.themeParam ?? null) ?? DEFAULT_PLANNER_THEME;
+  return {
+    slideCount,
+    themeName: theme.name,
+    colorPalette: [...theme.palette],
+  };
 }

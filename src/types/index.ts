@@ -241,7 +241,9 @@ export type DeckGenerationLifecycle =
   | 'building'
   | 'polishing'
   /** Deck JSON applied — optional AI visuals still hydrating */
-  | 'images';
+  | 'images'
+  /** Final persist to cloud before revealing the finished deck */
+  | 'syncing';
 
 /** Toolbar / canvas interaction mode */
 export type EditorToolId =
@@ -321,6 +323,7 @@ export interface EditorState {
     themeName?: string;
     colorPalette?: string[];
     styleMode?: string;
+    imageSource?: 'ai' | 'unsplash' | 'none';
   };
   /** One-shot Gamma-style element build animation during deck generation */
   generationBuildReveal?: boolean;

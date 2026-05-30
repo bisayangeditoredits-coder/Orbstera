@@ -17,6 +17,7 @@ import type { CreditState } from '@/hooks/useCredits';
 import { formatPlanLabel } from './dashboard-utils';
 import { cn } from '@/lib/cn';
 import { BrandKitSettings } from './BrandKitSettings';
+import { storePendingCheckout } from '@/lib/billing/confirm-subscription-client';
 
 type SettingsTab = 'profile' | 'billing' | 'brand';
 
@@ -95,8 +96,12 @@ export function DashboardSettings({ credits, className }: DashboardSettingsProps
         return;
       }
       const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else throw new Error(data.error);
+      if (data.url) {
+        if (data.planId && data.sig) {
+          storePendingCheckout(data.planId, data.sig);
+        }
+        window.location.href = data.url;
+      } else throw new Error(data.error);
     } catch {
       alert('Failed to initiate upgrade. Please try again.');
     } finally {

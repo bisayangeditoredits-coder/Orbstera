@@ -7,6 +7,7 @@ import {
   getGenerationRevealOrder,
   generationRevealDelayMs,
 } from '@/lib/generation-element-reveal';
+import { EMPTY_STRING_ARRAY } from '@/lib/stable-refs';
 
 type UseGenerationElementRevealArgs = {
   slideId: string;
@@ -33,7 +34,8 @@ export function useGenerationElementReveal({
   }, []);
 
   const markSlideRevealed = useCallback(() => {
-    const revealed = usePresentationStore.getState().editor.generationRevealedSlides ?? [];
+    const revealed =
+      usePresentationStore.getState().editor.generationRevealedSlides ?? EMPTY_STRING_ARRAY;
     if (revealed.includes(slideId)) return;
     setEditorState({ generationRevealedSlides: [...revealed, slideId] });
   }, [slideId, setEditorState]);
@@ -62,20 +64,26 @@ export function useGenerationElementReveal({
     const runId = ++runIdRef.current;
 
     if (!enabled || slideAlreadyRevealed) {
-      setVisibleElementIds(new Set(elements.map((el) => el.id)));
+      setVisibleElementIds((prev) => {
+        const nextIds = elements.map((el) => el.id);
+        if (prev.size === nextIds.length && nextIds.every(id => prev.has(id))) {
+          return prev;
+        }
+        return new Set(nextIds);
+      });
       setIsRevealing(false);
       return;
     }
 
     const ordered = getGenerationRevealOrder(elements);
     if (ordered.length === 0) {
-      setVisibleElementIds(new Set());
+      setVisibleElementIds((prev) => prev.size === 0 ? prev : new Set());
       setIsRevealing(false);
       markSlideRevealed();
       return;
     }
 
-    setVisibleElementIds(new Set());
+    setVisibleElementIds((prev) => prev.size === 0 ? prev : new Set());
     setIsRevealing(true);
 
     let cumulative = 0;
@@ -84,6 +92,7 @@ export function useGenerationElementReveal({
       const t = setTimeout(() => {
         if (runIdRef.current !== runId) return;
         setVisibleElementIds((prev) => {
+          if (prev.has(el.id)) return prev;
           const next = new Set(prev);
           next.add(el.id);
           return next;
@@ -107,11 +116,11 @@ export function useGenerationElementReveal({
     return () => {
       clearTimers();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     slideId,
     enabled,
     slideAlreadyRevealed,
-    elements,
     elementKey,
     clearTimers,
     markSlideRevealed,

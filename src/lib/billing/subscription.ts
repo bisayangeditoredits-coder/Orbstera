@@ -1,5 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getPlanMonthlyCredits } from '@/lib/billing/credits';
+import { syncCreditFastPathFromProfile } from '@/lib/billing/credit-redis';
+
+function monthKeyUTC(d = new Date()): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -93,6 +100,10 @@ export async function applySubscriptionUpgrade(
   });
   if (authError) {
     console.error('[billing] auth metadata error:', authError);
+  }
+
+  if (resetCredits) {
+    await syncCreditFastPathFromProfile(userId, monthKeyUTC(), 0);
   }
 
   return { ok: true };

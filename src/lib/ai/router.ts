@@ -19,10 +19,11 @@ export type AiTask =
   | 'magic_edit_text'
   | 'magic_edit_image'
   | 'genfill_image'
-  | 'image_generate';
+  | 'image_generate'
+  | 'deck_slide_image';
 
 export type TextProvider = 'openrouter';
-export type ImageProvider = 'openrouter' | 'claid' | 'pollinations';
+export type ImageProvider = 'leonardo' | 'openrouter' | 'claid' | 'pollinations';
 
 export type SpendState = {
   /** If true, aggressively downshift to low-cost models. */
@@ -85,12 +86,8 @@ function isCreatorTier(plan: PlanTier): boolean {
 }
 
 function resolveQualityTier(plan: PlanTier, economy: boolean, freeTaste?: boolean): QualityTier {
-  if (economy) return 'economy';
-  if (freeTaste) return 'student';
-  if (plan === 'free') return 'free';
-  if (isCreatorTier(plan)) return 'creator';
-  if (isPaid(plan)) return 'student';
-  return 'free';
+  // All tiers now use Creator Pro quality models
+  return 'creator';
 }
 
 function toSubscriptionTier(
@@ -142,23 +139,28 @@ function openRouterImageCascade(args: {
 
   // ── Standard image generation ─────────────────────────────────────
   if (args.tier === 'creator') {
-    if (isTypo) {
-      return uniqueModels([
-        IMAGE_MODELS.typographyPremium,
-        IMAGE_MODELS.typography,
-        IMAGE_MODELS.fluxCinematic,
-        IMAGE_MODELS.fallback,
-      ]);
-    }
     if (args.premium) {
+      if (isTypo) {
+        return capModelsToTier(
+          uniqueModels([
+            IMAGE_MODELS.typographyPremium,
+            IMAGE_MODELS.fluxCinematic,
+            IMAGE_MODELS.fluxUltra,
+            IMAGE_MODELS.flux,
+            IMAGE_MODELS.fallback,
+            IMAGE_MODELS.dalle,
+          ]),
+          'creator',
+        );
+      }
       return capModelsToTier(
         uniqueModels([
-          IMAGE_MODELS.dalle,
-          IMAGE_MODELS.imagen,
-          IMAGE_MODELS.fluxUltra,
           IMAGE_MODELS.fluxCinematic,
+          IMAGE_MODELS.fluxUltra,
           IMAGE_MODELS.flux,
+          IMAGE_MODELS.imagen,
           IMAGE_MODELS.fallback,
+          IMAGE_MODELS.dalle,
         ]),
         'creator',
       );
@@ -166,9 +168,10 @@ function openRouterImageCascade(args: {
     return capModelsToTier(
       uniqueModels([
         IMAGE_MODELS.fluxCinematic,
-        IMAGE_MODELS.dalle,
         IMAGE_MODELS.flux,
+        IMAGE_MODELS.fluxUltra,
         IMAGE_MODELS.fallback,
+        IMAGE_MODELS.dalle,
       ]),
       'creator',
     );
@@ -199,7 +202,8 @@ export function shouldRunDeepReasoning(args: {
   const planTier = normalizePlan(args.plan);
   if (!args.needsDeepReasoning) return false;
   if (args.spendState?.forcedEconomyMode) return false;
-  if (planTier === 'free' && !args.freeTaste) return false;
+  // All users have access to deep reasoning models now
+  // if (planTier === 'free' && !args.freeTaste) return false;
 
   const pt = String(args.presentationType || '').toLowerCase();
   if (pt.includes('school') || pt.includes('simple')) return false;
@@ -248,8 +252,11 @@ export function selectTextModel(args: {
 
   const labelForModel = (model: string): string => {
     if (model === AGENT_MODELS.claudeOpus) return TEXT_LABELS.opus;
+    if (model.includes('gemini')) {
+      return isFreeTaste ? `${TEXT_LABELS.economy} · Preview` : TEXT_LABELS.economy;
+    }
     if (model === AGENT_MODELS.gptOrchestrator || model === OR_MODELS.composerPrimary) {
-      return isFreeTaste ? `${TEXT_LABELS.gpt55} · Preview` : TEXT_LABELS.gpt55;
+      return TEXT_LABELS.economy;
     }
     if (model === AGENT_MODELS.claudeStructure) return TEXT_LABELS.sonnet;
     if (model === AGENT_MODELS.geminiPro) return TEXT_LABELS.geminiPro;
@@ -345,6 +352,7 @@ export function selectImageProvider(args: {
   task?: AiTask;
   freeTaste?: boolean;
   hasOpenRouterKey: boolean;
+  hasLeonardoKey: boolean;
   hasClaidKey: boolean;
   hasPollinationsKey: boolean;
 }): SelectedImageProvider {
@@ -354,21 +362,31 @@ export function selectImageProvider(args: {
     Boolean(args.spendState?.forcedEconomyMode),
     args.freeTaste,
   );
-  const premiumAllowed = isCreatorTier(planTier) && tier === 'creator';
+  const premiumAllowed = tier === 'creator';
   const premium = Boolean(args.premiumRequested && premiumAllowed);
-  const isTypo = args.visualProfile === 'typography';
   const isGenfill = args.task === 'genfill_image' || args.task === 'magic_edit_image';
+  const isDeckSlide = args.task === 'deck_slide_image';
 
   const labelForTier = (): string => {
     if (isGenfill) {
-      if (tier === 'creator') return 'Kontext Max · Gen Fill';
-      if (tier === 'student') return 'Kontext Pro · Gen Fill';
-      return 'Standard Gen Fill';
+      if (tier === 'creator') return 'Leonardo Kontext · Gen Fill';
+      if (tier === 'student') return 'Leonardo · Gen Fill';
+      return 'Leonardo · Gen Fill';
     }
-    if (tier === 'creator') return premium ? 'Cinematic HD' : 'Pro Studio';
-    if (tier === 'student') return 'Studio HD';
-    return 'Standard';
+    if (tier === 'creator') return premium ? 'Leonardo Cinematic HD' : 'Leonardo Pro Studio';
+    if (tier === 'student') return 'Leonardo Studio HD';
+    return 'Leonardo Standard';
   };
+
+  // Leonardo is the sole AI image provider for deck slides + gen fill + editor images.
+  if (args.hasLeonardoKey && (isGenfill || isDeckSlide || args.task === 'image_generate')) {
+    return {
+      provider: 'leonardo',
+      label: labelForTier(),
+      visualProfile: args.visualProfile,
+      premium,
+    };
+  }
 
   const cascade = openRouterImageCascade({
     tier,

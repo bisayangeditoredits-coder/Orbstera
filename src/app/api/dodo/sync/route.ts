@@ -4,19 +4,50 @@ import {
   isValidBillingUserId,
 } from '@/lib/billing/subscription';
 import { getServiceSupabase } from '@/lib/billing/supabase-admin';
+import {
+  isDodoPaymentStatusSuccess,
+  isDodoTestMode,
+  verifyCheckoutReturnSig,
+} from '@/lib/billing/dodo-sync-secret';
 
 export const dynamic = 'force-dynamic';
 
+function redirectUrls(appUrl: string) {
+  return {
+    settingsUrl: `${appUrl}/my-presentations?payment=success#settings`,
+    failedUrl: `${appUrl}/my-presentations?payment=failed#settings`,
+    failedSigUrl: `${appUrl}/my-presentations?payment=failed_sig#settings`,
+    errorUrl: `${appUrl}/my-presentations?payment=error#settings`,
+  };
+}
+
+async function runUpgrade(userId: string, planId: string) {
+  const supabaseAdmin = getServiceSupabase();
+  if (!supabaseAdmin) {
+    console.error('[Dodo Sync] Missing Supabase configuration');
+    return { ok: false as const, error: 'SUPABASE_NOT_CONFIGURED' };
+  }
+
+  return applySubscriptionUpgrade({
+    supabaseAdmin,
+    userId,
+    planId,
+    eventType: 'checkout_return',
+    resetCredits: true,
+  });
+}
+
+/** Browser redirect after Dodo checkout — applies plan + resets credits. */
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const userId = url.searchParams.get('userId');
     const planId = url.searchParams.get('planId');
     const sig = url.searchParams.get('sig');
+    const paymentStatus = url.searchParams.get('status');
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const settingsUrl = `${appUrl}/my-presentations?payment=success#settings`;
-    const failedUrl = `${appUrl}/my-presentations?payment=failed#settings`;
+    const { settingsUrl, failedUrl, failedSigUrl, errorUrl } = redirectUrls(appUrl);
 
     if (!userId || !planId || !sig) {
       return NextResponse.redirect(failedUrl);
@@ -27,43 +58,17 @@ export async function GET(req: Request) {
       return NextResponse.redirect(failedUrl);
     }
 
-    const crypto = await import('crypto');
-    const secret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET || '';
-    if (!secret || secret === 'dev') {
-      if (process.env.NODE_ENV === 'production') {
-        console.error('[Dodo Sync] Webhook secret not configured in production');
-        return NextResponse.redirect(failedUrl);
-      }
-    }
-    const expectedSig = crypto
-      .createHmac('sha256', secret || 'dev')
-      .update(`${userId}:${planId}`)
-      .digest('hex');
-
-    const expected = Buffer.from(expectedSig, 'utf8');
-    const provided = Buffer.from(sig, 'utf8');
-    const isValidSig =
-      expected.length === provided.length &&
-      crypto.timingSafeEqual(expected, provided);
-    if (!isValidSig) {
-      console.error('[Dodo Sync] Invalid signature mismatch');
-      return NextResponse.redirect(`${appUrl}/my-presentations?payment=failed_sig#settings`);
-    }
-
-    const supabaseAdmin = getServiceSupabase();
-    if (!supabaseAdmin) {
-      console.error('[Dodo Sync] Missing Supabase configuration');
+    if (!isDodoPaymentStatusSuccess(paymentStatus)) {
+      console.warn('[Dodo Sync] Payment status not successful:', paymentStatus);
       return NextResponse.redirect(failedUrl);
     }
 
-    const result = await applySubscriptionUpgrade({
-      supabaseAdmin,
-      userId,
-      planId,
-      eventType: 'checkout_return',
-      resetCredits: true,
-    });
+    if (!verifyCheckoutReturnSig(userId, planId, sig)) {
+      console.error('[Dodo Sync] Invalid signature mismatch');
+      return NextResponse.redirect(failedSigUrl);
+    }
 
+    const result = await runUpgrade(userId, planId);
     if (!result.ok) {
       console.error('[Dodo Sync] Upgrade failed:', result.error);
       return NextResponse.redirect(failedUrl);
@@ -73,6 +78,46 @@ export async function GET(req: Request) {
   } catch (error: unknown) {
     console.error('[Dodo Sync] Error:', error instanceof Error ? error.message : error);
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    return NextResponse.redirect(`${appUrl}/my-presentations?payment=error#settings`);
+    return NextResponse.redirect(redirectUrls(appUrl).errorUrl);
+  }
+}
+
+/** Authenticated fallback when redirect sync fails (test mode, webhook delay, etc.). */
+export async function POST(req: Request) {
+  try {
+    const { requireApiUser } = await import('@/lib/auth/server');
+    const auth = await requireApiUser();
+    if ('response' in auth) return auth.response;
+
+    const body = (await req.json().catch(() => ({}))) as { planId?: string; sig?: string };
+    const planId = String(body.planId || '').toLowerCase();
+    const sig = typeof body.sig === 'string' ? body.sig : '';
+    if (!planId || planId === 'free') {
+      return NextResponse.json({ ok: false, error: 'INVALID_PLAN' }, { status: 400 });
+    }
+
+    const userId = auth.user.id;
+    if (!isValidBillingUserId(userId)) {
+      return NextResponse.json({ ok: false, error: 'INVALID_USER' }, { status: 400 });
+    }
+
+    if (!sig || !verifyCheckoutReturnSig(userId, planId, sig)) {
+      return NextResponse.json({ ok: false, error: 'INVALID_SIGNATURE' }, { status: 403 });
+    }
+
+    const result = await runUpgrade(userId, planId);
+    if (!result.ok) {
+      console.error('[Dodo Sync] POST confirm failed:', result.error);
+      return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      plan: planId,
+      testMode: isDodoTestMode(),
+    });
+  } catch (error: unknown) {
+    console.error('[Dodo Sync] POST error:', error instanceof Error ? error.message : error);
+    return NextResponse.json({ ok: false, error: 'SYNC_FAILED' }, { status: 500 });
   }
 }

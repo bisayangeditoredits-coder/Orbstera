@@ -9,7 +9,8 @@ import {
 } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import type { Slide } from '@/types';
-import { PresentSlideView } from '@/components/present/PresentSlideView';
+import { KonvaPresentSlideView } from '@/components/editor/KonvaCanvas';
+import { GlobalFontLoader } from '@/components/editor/GlobalFontLoader';
 import {
   X,
   ChevronLeft,
@@ -294,6 +295,7 @@ export function PresentMode() {
 
   return (
     <AnimatePresence>
+      <GlobalFontLoader />
       <motion.div
         ref={shellRef}
         key="present-overlay"
@@ -380,12 +382,7 @@ export function PresentMode() {
               className="absolute inset-0"
               style={{ willChange: 'opacity, transform, filter', backfaceVisibility: 'hidden' }}
             >
-              <PresentSlideView
-                slide={slide}
-                palette={palette}
-                // "Motion" toggle should control element entrances even if OS prefers reduced motion.
-                animationsOn={animationsOn}
-              />
+              <KonvaPresentSlideView slide={slide} colorPalette={palette} />
             </motion.div>
           </AnimatePresence>
         </motion.div>

@@ -3,6 +3,7 @@
 import { Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
+import { storePendingCheckout } from '@/lib/billing/confirm-subscription-client';
 
 const tiers = [
   {
@@ -124,6 +125,9 @@ export function Pricing({ isStandalone = false }: PricingProps) {
 
       const data = await res.json();
       if (data.url) {
+        if (data.planId && data.sig) {
+          storePendingCheckout(data.planId, data.sig);
+        }
         window.location.href = data.url;
       } else {
         alert(data.error || 'Checkout failed');

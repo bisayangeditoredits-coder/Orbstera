@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import type { PresentationData } from '@/types';
-import { PresentSlideView } from '@/components/present/PresentSlideView';
+import { KonvaPresentSlideView } from '@/components/editor/KonvaCanvas';
 import {
   ChevronLeft,
   ChevronRight,
@@ -584,7 +584,7 @@ export function PublicViewer({
             className="absolute inset-0"
             style={{ willChange: 'opacity, transform, filter', backfaceVisibility: 'hidden' }}
           >
-            <PresentSlideView slide={slide} palette={palette} animationsOn={true} />
+            <KonvaPresentSlideView slide={slide} colorPalette={palette} />
           </motion.div>
         </AnimatePresence>
       </motion.div>

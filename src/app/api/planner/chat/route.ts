@@ -5,9 +5,13 @@ import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { chargeCreditsBeforeJob, getActionCreditCost, getCreditConfig } from '@/lib/billing/credits';
 import { getBillingPlan } from '@/lib/billing/resolve-plan';
 import { getPlannerModelCascade, type SubscriptionTier } from '@/lib/ai/tier-models';
+import {
+  isPlannerLlmConfigured,
+  plannerModelsForBackend,
+  resolveLlmBackend,
+  streamLlmChat,
+} from '@/lib/ai/llm-chat-stream';
 import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
-
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
 export const runtime = 'nodejs';
 /** Streaming planner replies; align with OpenRouter stream timeout budget. */
@@ -120,6 +124,17 @@ Remind them to click "Generate deck" when ready.`;
 
 export async function POST(req: Request) {
   try {
+    if (!isPlannerLlmConfigured()) {
+      return NextResponse.json(
+        {
+          error: 'LLM_NOT_CONFIGURED',
+          message:
+            'AI Copilot needs OPENAI_API_KEY or OPENROUTER_API_KEY in .env.local, then restart npm run dev.',
+        },
+        { status: 503 },
+      );
+    }
+
     const auth = await requireAiUser(req, 'default');
     if ('response' in auth) {
       if (auth.response.status === 401) {
@@ -160,6 +175,7 @@ export async function POST(req: Request) {
     const brandKit = profileData?.brand_kit as any;
 
     const plan = await getBillingPlan(user.id);
+    const llmBackend = resolveLlmBackend(plan)!;
     let planTier: SubscriptionTier =
       plan === 'creator_pro' || plan === 'admin'
         ? 'creator'
@@ -178,7 +194,7 @@ export async function POST(req: Request) {
     });
 
     if (!creditCheck.ok) {
-      if (planTier !== 'free') {
+      if (planTier !== 'free' && creditCheck.error === 'INSUFFICIENT_CREDITS') {
         return NextResponse.json(
           {
             error: 'INSUFFICIENT_CREDITS',
@@ -189,7 +205,13 @@ export async function POST(req: Request) {
           { status: 402 },
         );
       }
-      console.warn(`[Planner] Free user out of credits (${user.id}); using free models only.`);
+      if (planTier !== 'free' && creditCheck.error !== 'INSUFFICIENT_CREDITS') {
+        console.error(
+          `[Planner] Paid user billing gate failed (${creditCheck.error}); continuing without charge.`,
+        );
+      } else {
+        console.warn(`[Planner] Free user out of credits (${user.id}); using free models only.`);
+      }
       planTier = 'free';
     }
 
@@ -233,7 +255,10 @@ export async function POST(req: Request) {
       max_tokens = 1500;
     }
 
-    modelsToTry = getPlannerModelCascade(planTier);
+    modelsToTry =
+      llmBackend === 'openai'
+        ? plannerModelsForBackend(planTier, llmBackend)
+        : getPlannerModelCascade(planTier);
 
     let response: Response | null = null;
     let selectedModel = modelsToTry[0];
@@ -241,24 +266,14 @@ export async function POST(req: Request) {
 
     for (const model of modelsToTry) {
       selectedModel = model;
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-          'X-Title': 'Orbstera Planner',
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...messages,
-          ],
-          stream: true,
-          temperature,
-          max_tokens,
-        }),
+      const res = await streamLlmChat({
+        backend: llmBackend,
+        plan,
+        model,
+        messages,
+        systemPrompt,
+        temperature,
+        max_tokens,
       });
 
       if (res.ok) {
@@ -273,7 +288,8 @@ export async function POST(req: Request) {
       
       // Only stop looping on severe auth errors
       if (status === 401) {
-        throw new Error(`OpenRouter auth error (${status}): ${errText}`);
+        const label = llmBackend === 'openai' ? 'OpenAI' : 'OpenRouter';
+        throw new Error(`${label} auth error (${status}): ${errText}`);
       }
       
       // 400 (Invalid Model), 404, 429, 500+ -> loop to next model

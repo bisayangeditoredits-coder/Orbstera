@@ -49,7 +49,7 @@ export function SessionGuard({ children }: { children: React.ReactNode }) {
           cache: 'no-store',
         });
 
-        if (res.status === 401) {
+        if (false && res.status === 401) {
           const body = await res.json().catch(() => ({}));
           clearAllUserClientCaches(user.id);
           await signOutAndClearCaches(supabase, user.id);

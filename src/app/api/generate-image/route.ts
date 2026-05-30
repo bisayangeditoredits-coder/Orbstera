@@ -1,8 +1,5 @@
 import { NextResponse } from 'next/server';
-import { generateClaidImageUrl } from '@/lib/claid-image';
 import { generatePollinationsImageUrl } from '@/lib/pollinations-image';
-import { generateLeonardoImageUrl } from '@/lib/leonardo-image';
-import { openRouterImageGeneration } from '@/lib/ai/openrouter-image';
 import type { ImageVisualProfile } from '@/lib/ai/agent-models';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
@@ -17,6 +14,13 @@ import { addEstimatedSpend, getSpendState } from '@/lib/ai/spend';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
+import {
+  generateLeonardoImageUrl,
+  getLeonardoApiKey,
+  isLeonardoConfigured,
+  leonardoQualityForPlan,
+  leonardoUrlToDataUrl,
+} from '@/lib/leonardo-image';
 
 const POLISH_SUFFIX =
   ', editorial quality, sharp focus, balanced composition, clean professional look, no text overlays, no watermarks';
@@ -53,7 +57,7 @@ export async function POST(req: Request) {
       height?: number;
       polish?: boolean;
       visualProfile?: ImageVisualProfile;
-      task?: 'image_generate' | 'genfill_image' | 'magic_edit_image';
+      task?: 'image_generate' | 'genfill_image' | 'magic_edit_image' | 'deck_slide_image';
     };
 
     if (!prompt) {
@@ -69,6 +73,7 @@ export async function POST(req: Request) {
 
     const w = Math.max(256, Math.min(1536, Math.round(Number(width)) || 1024));
     const h = Math.max(256, Math.min(1536, Math.round(Number(height)) || 1024));
+    const isDeckSlide = task === 'deck_slide_image';
 
     const cookieStore = cookies();
     const supabase = createServerClient(
@@ -80,70 +85,126 @@ export async function POST(req: Request) {
     const plan = await getBillingPlan(user.id);
 
     const creditConfig = await getCreditConfig(supabase);
-    const isPaidPlan =
-      plan === 'student_pro' || plan === 'pro' || plan === 'creator_pro' || plan === 'admin';
-    const freeTaste = plan === 'free';
-    const premiumRequested =
-      visualProfile === 'cinematic' && (plan === 'creator_pro' || plan === 'admin');
+    const premiumRequested = visualProfile === 'cinematic' && (plan === 'creator_pro' || plan === 'admin');
     const imageAction = getImageCreditAction(plan, premiumRequested);
     const imageCost = getActionCreditCost(creditConfig, imageAction);
-    const credit = await chargeCreditsBeforeJob({
-      supabase,
-      userId: user.id,
-      action: imageAction,
-      cost: imageCost,
-      meta: { w, h, visualProfile },
-      idempotencyKey: requestId,
-    });
-    if (!credit.ok) {
-      return NextResponse.json(
-        { error: 'INSUFFICIENT_CREDITS', message: `Not enough credits for image generation.`, credits: credit.summary, required: imageCost },
-        { status: 402 },
-      );
+
+    let creditsCharged = false;
+    if (!isDeckSlide) {
+      const credit = await chargeCreditsBeforeJob({
+        supabase,
+        userId: user.id,
+        action: imageAction,
+        cost: imageCost,
+        meta: { w, h, visualProfile, provider: 'leonardo' },
+        idempotencyKey: requestId,
+      });
+      if (!credit.ok) {
+        return NextResponse.json(
+          {
+            error: 'INSUFFICIENT_CREDITS',
+            message: 'Not enough credits for image generation.',
+            credits: credit.summary,
+            required: imageCost,
+          },
+          { status: 402 },
+        );
+      }
+      creditsCharged = true;
+    } else {
+      const credit = await chargeCreditsBeforeJob({
+        supabase,
+        userId: user.id,
+        action: imageAction,
+        cost: imageCost,
+        meta: { w, h, visualProfile, deckSlide: true, provider: 'leonardo' },
+        idempotencyKey: requestId,
+      });
+      if (credit.ok) {
+        creditsCharged = true;
+      }
     }
 
-    const usdPerCredit = typeof creditConfig.usdPerCredit === 'number' ? creditConfig.usdPerCredit : 0;
-    if (usdPerCredit > 0) void addEstimatedSpend({ supabase, usdDelta: imageCost * usdPerCredit });
-
     const spend = await getSpendState({ supabase });
-    const spendState = { forcedEconomyMode: spend.forcedEconomyMode };
     const sel = selectImageProvider({
       plan,
       visualProfile,
       premiumRequested,
-      spendState,
+      spendState: { forcedEconomyMode: spend.forcedEconomyMode },
       task,
-      freeTaste,
-      hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY?.trim()),
-      hasClaidKey: Boolean(process.env.CLAID_API_KEY?.trim()),
-      hasPollinationsKey: Boolean(process.env.POLLINATIONS_API_KEY?.trim()),
+      freeTaste: plan === 'free',
+      hasOpenRouterKey: false,
+      hasLeonardoKey: isLeonardoConfigured(),
+      hasClaidKey: false,
+      hasPollinationsKey: true,
     });
 
-    const hasClaid = Boolean(process.env.CLAID_API_KEY?.trim());
-    const polishBool = Boolean(polish);
     const seed = Math.floor(Math.random() * 1_000_000);
-
     let url: string | undefined;
     let imageId: string | undefined;
+    let provider: string | undefined;
 
-    try {
-      const res = await generateLeonardoImageUrl({ prompt: text, width: w, height: h });
-      url = res.url;
-      imageId = res.imageId;
-    } catch (leoErr) {
-      console.error('Leonardo failed, falling back:', leoErr);
-      url =
-        sel.provider === 'claid' && hasClaid
-          ? await generateClaidImageUrl({ prompt: text, polish: polishBool, width: w, height: h })
-          : await generatePollinationsImageUrl({
-              prompt: text,
-              width: w,
-              height: h,
-              polish: polishBool,
-            });
+    if (isLeonardoConfigured()) {
+      try {
+        const quality = leonardoQualityForPlan({
+          plan,
+          task: isDeckSlide ? 'deck_slide_image' : task,
+          premiumRequested,
+        });
+        const result = await generateLeonardoImageUrl({
+          prompt: text,
+          width: w,
+          height: h,
+          quality,
+          visualProfile,
+          apiKey: getLeonardoApiKey() || undefined,
+        });
+        imageId = result.imageId;
+        provider = 'leonardo';
+
+        if (creditsCharged) {
+          const usdPerCredit = typeof creditConfig.usdPerCredit === 'number' ? creditConfig.usdPerCredit : 0;
+          if (usdPerCredit > 0) {
+            void addEstimatedSpend({ supabase, usdDelta: result.estimatedUsd });
+          }
+        }
+
+        if (isDeckSlide) {
+          url = await leonardoUrlToDataUrl(result.url);
+        } else {
+          url = result.url;
+        }
+      } catch (leonardoErr) {
+        console.error('[generate-image] Leonardo failed:', leonardoErr);
+        if (!isDeckSlide) {
+          throw leonardoErr;
+        }
+      }
     }
 
-    return NextResponse.json({ url, seed, imageId });
+    if (!url && isDeckSlide) {
+      try {
+        url = await generatePollinationsImageUrl({ prompt: text, width: w, height: h });
+        provider = 'pollinations';
+      } catch (pollErr) {
+        console.error('[generate-image] Pollinations fallback failed:', pollErr);
+      }
+    }
+
+    if (!url) {
+      return NextResponse.json(
+        { error: 'Image generation failed. Check LEONARDO_API_KEY configuration.' },
+        { status: 502 },
+      );
+    }
+
+    return NextResponse.json({
+      url,
+      seed,
+      imageId,
+      provider,
+      fallback: isDeckSlide && !creditsCharged && provider === 'pollinations',
+    });
   } catch (error) {
     console.error('Image Generation Error:', error);
     captureApiException(error, { requestId, route: 'POST /api/generate-image' });

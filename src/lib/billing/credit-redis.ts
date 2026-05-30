@@ -34,12 +34,10 @@ export async function syncCreditFastPathFromProfile(
   if (!redis || !FAST_PATH_ENABLED) return;
   const key = fastUsedKey(userId, monthKey);
   try {
-    const cur = await redis.get<number>(key);
-    const curNum = typeof cur === 'number' ? cur : Number(cur) || 0;
-    const next = Math.max(curNum, Math.max(0, profileUsed));
+    const next = Math.max(0, profileUsed);
     await redis.set(key, next, { ex: MONTH_TTL_SEC });
-  } catch {
-    /* ignore */
+  } catch (e) {
+    console.error('[CreditRedis] sync profile fail:', e);
   }
 }
 

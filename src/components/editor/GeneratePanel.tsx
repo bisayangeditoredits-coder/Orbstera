@@ -7,7 +7,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { SurveyModal } from './SurveyModal';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { PresentationData } from '@/types';
-import { normalizePresentationPayload } from '@/lib/ai/orchestration';
+import { mergeOrchestrationMetadata, normalizePresentationPayload } from '@/lib/ai/orchestration';
 import { createEditorGeneratingShell } from '@/lib/editor-generating-shell';
 import { extractDeckJsonFromModelOutput } from '@/lib/ai/openrouter';
 import {
@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useCredits } from '@/hooks/useCredits';
 import { pollJobUntilDone } from '@/lib/client/poll-job';
+import { resolveVisualTheme } from '@/lib/visual-themes';
 import { GenerationProgress } from './GenerationProgress';
 
 
@@ -42,6 +43,21 @@ async function waitForPendingDeckImages(epoch: number, timeoutMs = 120_000): Pro
     if (editor.generationEpoch !== epoch) return;
     if ((editor.generationPendingImages ?? 0) <= 0) return;
     await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
+async function waitForDeckReadyAndSync(epoch: number): Promise<void> {
+  await waitForPendingDeckImages(epoch);
+  const { setEditorState } = usePresentationStore.getState();
+  setEditorState({
+    deckGenerationLifecycle: 'syncing',
+    generationBlockingOverlay: true,
+    orchestrationMessage: 'Saving deck to cloud…',
+  });
+  const { flushPresentationCloudSave } = await import('@/lib/presentation-cloud-sync-client');
+  const result = await flushPresentationCloudSave({ retries: 2 });
+  if (!result.ok && result.code !== 'skipped') {
+    console.warn('[deck-generation] cloud sync failed:', result.error);
   }
 }
 
@@ -257,6 +273,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const generateAbortRef = useRef<AbortController | null>(null);
+  const orchestrationMetaRef = useRef<Record<string, unknown> | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -300,8 +317,10 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
   const setPresentation = usePresentationStore(s => s.setPresentation);
   const setActivePanel = usePresentationStore(s => s.setActivePanel);
   const setEditorState = usePresentationStore(s => s.setEditorState);
-  const editor = usePresentationStore(s => s.editor);
-  const isLoading = editor.isGenerating;
+  // Only subscribe to isGenerating — subscribing to the whole editor object causes a re-render
+  // on every setEditorState call (pan, zoom, reasoning, etc.), which can create an infinite loop
+  // during generation. All other editor fields are read imperatively via getState().
+  const isLoading = usePresentationStore(s => s.editor.isGenerating);
 
   const [isProfileLoading, setIsProfileLoading] = useState(true);
 
@@ -574,7 +593,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
 
       if (!bypassPlanner) {
         if (onClose) onClose();
-        router.push(`/planner?topic=${encodeURIComponent(trimmed)}`);
+        router.push(`/planner?topic=${encodeURIComponent(trimmed)}&slides=${slideCount}`);
         return;
       }
 
@@ -589,13 +608,20 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
 
       if (appendMode === 'replace') {
         usePresentationStore.getState().initGenerationPlaceholders(effectiveSlideCountAtStart);
-        if (handoffAtStart?.colorPalette?.length) {
+        const visualTheme = handoffAtStart?.themeName
+          ? resolveVisualTheme(handoffAtStart.themeName)
+          : null;
+        const palette =
+          visualTheme?.colorPalette ??
+          (handoffAtStart?.colorPalette?.length ? handoffAtStart.colorPalette : undefined);
+        if (palette?.length) {
           const pres = usePresentationStore.getState().presentation;
           if (pres) {
             usePresentationStore.getState().setPresentation({
               ...pres,
-              colorPalette: handoffAtStart.colorPalette,
-              theme: handoffAtStart.themeName || pres.theme,
+              colorPalette: [...palette],
+              theme: handoffAtStart?.themeName || pres.theme,
+              fontPairing: visualTheme?.fontPairing ?? pres.fontPairing,
             });
           }
         }
@@ -606,7 +632,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
       setEditorState({
         isGenerating: true,
         generationEpoch: nextEpoch,
-        generationBlockingOverlay: useBuildReveal ? false : true,
+        generationBlockingOverlay: true,
         generationBuildReveal: useBuildReveal,
         generationRevealedSlides: useBuildReveal ? [] : undefined,
         generationGalleryOpen: true,
@@ -624,6 +650,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
       setStreamedSlides([]);
       setInterviewSummary(null);
       setShowInterviewSummary(false);
+      orchestrationMetaRef.current = null;
 
       let createGenerationSucceeded = false;
       const storeSetPresentation = usePresentationStore.getState().setPresentation;
@@ -651,8 +678,13 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
             plannerSessionId: handoff?.sessionId ?? undefined,
             tone: selectedTone.toLowerCase().replace(/ & /g, '_'),
             theme: handoff?.themeName || selectedTheme,
-            colorPalette: handoff?.colorPalette,
+            colorPalette: handoff?.colorPalette?.length
+              ? handoff.colorPalette
+              : handoff?.themeName
+                ? [...resolveVisualTheme(handoff.themeName).colorPalette]
+                : undefined,
             styleMode: handoff?.styleMode,
+            imageSource: handoff?.imageSource,
             language: selectedLanguage,
           }),
           signal: ac.signal,
@@ -697,7 +729,10 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
             },
           });
           let finalData = normalizePresentationPayload(
-            (job.result || {}) as Record<string, unknown>,
+            mergeOrchestrationMetadata(
+              (job.result || {}) as Record<string, unknown>,
+              null,
+            ),
           );
           setEditorState({ orchestrationPhase: 'finishing', deckGenerationLifecycle: 'polishing' });
           try {
@@ -718,10 +753,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
             const commitEpoch = usePresentationStore.getState().editor.generationEpoch + 1;
             setEditorState({
               generationEpoch: commitEpoch,
-              generationPendingImages: 0,
-              generationImageJobsTotal: 0,
-              generationImageJobsCompleted: 0,
-        generationImageJobsFailed: 0,
+              generationBlockingOverlay: false,
             });
             if (appendMode === 'append') {
               const existingSlides = usePresentationStore.getState().presentation?.slides || [];
@@ -732,6 +764,10 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
               }
               storeSetPresentation(finalData);
             }
+            const imgJobs = usePresentationStore.getState().editor.generationImageJobsTotal;
+            setEditorState({
+              deckGenerationLifecycle: imgJobs > 0 ? 'images' : 'idle',
+            });
             createGenerationSucceeded = true;
           } else {
             throw new Error('Job completed without slides');
@@ -790,7 +826,18 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
                       ? { generationTargetSlides: orb.targetSlides }
                       : {}),
                   });
-                  if (orb.phase === 'preflight_complete') {
+                  if (phase === 'orchestration_locked') {
+                    if (orb.orchestrationMeta && typeof orb.orchestrationMeta === 'object') {
+                      orchestrationMetaRef.current = orb.orchestrationMeta as Record<string, unknown>;
+                    }
+                    const spine = orchestrationMetaRef.current?.slideSpine;
+                    if (Array.isArray(spine)) {
+                      setEditorState({
+                        reasoning: `Slide orders ready: ${spine.length} scenes mapped (hero → … → closing). Composer executing…`,
+                      });
+                    }
+                  }
+                  if (phase === 'preflight_complete') {
                     const summary: InterviewSummary = {
                       detectedIntent:
                         typeof orb.intent === 'string' ? orb.intent : undefined,
@@ -901,7 +948,9 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
             throw new Error('NO_JSON');
           }
 
-          let finalData = normalizePresentationPayload(parsedRaw);
+          let finalData = normalizePresentationPayload(
+            mergeOrchestrationMetadata(parsedRaw, orchestrationMetaRef.current),
+          );
 
           setEditorState({ orchestrationPhase: 'finishing', deckGenerationLifecycle: 'polishing' });
           try {
@@ -922,10 +971,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
             const commitEpoch = usePresentationStore.getState().editor.generationEpoch + 1;
             setEditorState({
               generationEpoch: commitEpoch,
-              generationPendingImages: 0,
-              generationImageJobsTotal: 0,
-              generationImageJobsCompleted: 0,
-        generationImageJobsFailed: 0,
+              generationBlockingOverlay: false,
             });
             if (appendMode === 'append') {
               const existingSlides = usePresentationStore.getState().presentation?.slides || [];
@@ -937,9 +983,10 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
               storeSetPresentation(finalData);
             }
             const imgJobs = usePresentationStore.getState().editor.generationImageJobsTotal;
+            const imgPending = usePresentationStore.getState().editor.generationPendingImages;
             setEditorState({
-              deckGenerationLifecycle: 'images',
-              ...(imgJobs > 0 ? { generationBlockingOverlay: false } : {}),
+              deckGenerationLifecycle: imgJobs > 0 || imgPending > 0 ? 'images' : 'polishing',
+              generationBlockingOverlay: false,
             });
           } else {
             throw new Error('JSON parsed but no slides array found.');
@@ -960,7 +1007,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
         if (activeTab === 'create') {
           setActiveJobId(null);
           if (createGenerationSucceeded) {
-            await waitForPendingDeckImages(usePresentationStore.getState().editor.generationEpoch);
+            await waitForDeckReadyAndSync(usePresentationStore.getState().editor.generationEpoch);
           }
           setEditorState({
             isGenerating: false,

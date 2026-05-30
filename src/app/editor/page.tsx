@@ -1,5 +1,7 @@
-﻿import { Suspense } from 'react';
-import EditorClient from './EditorClient';
+import { Suspense } from 'react';
+import dynamic from 'next/dynamic';
+
+const EditorClient = dynamic(() => import('./EditorClient'), { ssr: false });
 
 // This server component wraps the client editor in a Suspense boundary,
 // satisfying Next.js's requirement for useSearchParams() in static builds.

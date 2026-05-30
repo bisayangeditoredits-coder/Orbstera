@@ -1,7 +1,8 @@
 import type { PresentationData, PresentationDNA, Slide, SlideLayoutType } from '@/types';
 import { coerceSlideTransition } from '@/lib/presentationMotion';
+import { resolveVisualTheme } from '@/lib/visual-themes';
 import { openRouterComplete, extractJsonObject } from './openrouter';
-import { PREFLIGHT_SYSTEM, buildComposerSystemPrompt } from './prompts';
+import { PREFLIGHT_SYSTEM, buildComposerSystemPrompt, buildComposerUserPrompt, buildFallbackImagePrompt } from './prompts';
 import { AGENT_MODELS } from './agent-models';
 
 export interface PreflightResult {
@@ -55,30 +56,18 @@ export function buildComposerMessages(args: {
   tone: string;
   language: string;
   styleMode?: string;
+  imageSource?: 'ai' | 'unsplash' | 'none';
 }): { system: string; user: string } {
   const system = buildComposerSystemPrompt(args.preflightSummary);
-  const style =
-    args.styleMode && args.styleMode !== 'auto'
-      ? `\n- Style hint (optional): ${args.styleMode} — adapt layouts + typography if it helps; otherwise infer from orchestration context.`
-      : '';
-  const user = `Construct the full presentation JSON.
-
-Original user request:
-${args.userPrompt}
-
-Refined orchestration brief (prioritize this):
-${args.refinedBrief}
-
-Parameters:
-- Exactly ${args.slideCount} slides in the "slides" array.
-- Tone: ${args.tone}
-- Language: ${args.language}${style}
-- First slide should usually be type "hero" unless user requests otherwise.
-- Last slide should usually be type "closing" unless user requests otherwise.
-- Keep visual rhythm dynamic: alternate structures across adjacent slides.
-- Do not generate a deck where most slides are the same type.
-
-Final instruction: Return ONLY the JSON object for the full deck. No preamble.`;
+  const user = buildComposerUserPrompt({
+    userPrompt: args.userPrompt,
+    refinedBrief: args.refinedBrief,
+    slideCount: args.slideCount,
+    tone: args.tone,
+    language: args.language,
+    styleMode: args.styleMode,
+    imageSource: args.imageSource,
+  });
 
   return { system, user };
 }
@@ -105,6 +94,34 @@ function coerceSlideType(raw: string): SlideLayoutType {
   return 'content';
 }
 
+/** Merge director/architect metadata into composer JSON before normalization */
+export function mergeOrchestrationMetadata(
+  deckJson: Record<string, unknown>,
+  preflightSummary?: string | Record<string, unknown> | null,
+): Record<string, unknown> {
+  if (!preflightSummary) return deckJson;
+  try {
+    const pre =
+      typeof preflightSummary === 'string'
+        ? (JSON.parse(preflightSummary) as Record<string, unknown>)
+        : preflightSummary;
+    const intent = (pre.dna as Record<string, unknown> | undefined) ?? pre;
+    return {
+      ...deckJson,
+      slideSpine: deckJson.slideSpine ?? pre.slideSpine,
+      visualMood: deckJson.visualMood ?? pre.visualMood ?? intent.visualMood,
+      imageryPalette: deckJson.imageryPalette ?? pre.imageryPalette ?? intent.imageryPalette,
+      colorPaletteSuggestion:
+        deckJson.colorPaletteSuggestion ??
+        pre.colorPaletteSuggestion ??
+        intent.colorPaletteSuggestion,
+      fontSuggestion: deckJson.fontSuggestion ?? pre.fontSuggestion ?? intent.fontSuggestion,
+    };
+  } catch {
+    return deckJson;
+  }
+}
+
 /** Normalize AI quirks → PresentationData shape the editor expects */
 export function normalizePresentationPayload(input: Record<string, unknown>): PresentationData {
   const title =
@@ -123,7 +140,43 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
     const topBullets = Array.isArray(obj.bullets) ? (obj.bullets as string[]) : [];
     const bullets = Array.from(new Set([...topBullets, ...nestedBullets])).filter(Boolean);
 
-    const type = coerceSlideType(String(obj.type || 'content'));
+    let type = coerceSlideType(String(obj.type || 'content'));
+
+    let imagePrompt =
+      typeof obj.imagePrompt === 'string' && obj.imagePrompt.trim()
+        ? obj.imagePrompt.trim()
+        : undefined;
+
+    const visualMood =
+      typeof input.visualMood === 'string'
+        ? input.visualMood
+        : typeof (input as { preflight?: { visualMood?: string } }).preflight?.visualMood === 'string'
+          ? (input as { preflight?: { visualMood?: string } }).preflight!.visualMood
+          : undefined;
+    const imageryPalette =
+      typeof input.imageryPalette === 'string' ? input.imageryPalette : undefined;
+
+    if (!imagePrompt) {
+      const spineRaw = (input as { slideSpine?: unknown[] }).slideSpine;
+      const spineEntry =
+        Array.isArray(spineRaw) && spineRaw[i] && typeof spineRaw[i] === 'object'
+          ? (spineRaw[i] as { imageBrief?: string; typeHint?: string })
+          : null;
+      if (spineEntry?.imageBrief?.trim()) {
+        imagePrompt = spineEntry.imageBrief.trim();
+        if (visualMood) {
+          imagePrompt = `${imagePrompt} Visual mood: ${visualMood}.`;
+        }
+      }
+      if (!imagePrompt) {
+        imagePrompt = buildFallbackImagePrompt({
+          title: (obj.title as string) || undefined,
+          type,
+          visualMood,
+          imageryPalette,
+        });
+      }
+    }
 
     return {
       id: (obj.id as string) || `slide-${i}-${Date.now()}`,
@@ -131,7 +184,7 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
       title: (obj.title as string) || '',
       subtitle: obj.subtitle as string | undefined,
       bullets: bullets.length ? bullets : undefined,
-      imagePrompt: obj.imagePrompt as string | undefined,
+      imagePrompt,
       imageUrl: obj.imageUrl as string | undefined,
       animation: obj.animation as Slide['animation'],
       slideTransition: coerceSlideTransition(obj.slideTransition),
@@ -145,6 +198,22 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
       content: obj.content as Slide['content'],
     };
   });
+
+  // Rebalance from slideSpine orders when model ignored architect brief
+  const spineRaw = (input as { slideSpine?: { typeHint?: string; headlineAngle?: string }[] }).slideSpine;
+  if (Array.isArray(spineRaw) && spineRaw.length === slides.length) {
+    slides.forEach((slide, i) => {
+      const order = spineRaw[i];
+      if (!order || typeof order !== 'object') return;
+      if (order.typeHint) slide.type = coerceSlideType(String(order.typeHint));
+      if (
+        order.headlineAngle &&
+        (!slide.title?.trim() || slide.title.length < 3 || slide.title.toLowerCase() === 'untitled')
+      ) {
+        slide.title = String(order.headlineAngle).slice(0, 80);
+      }
+    });
+  }
 
   // If the model returns low variety, rebalance slide types for a less template-like deck.
   const typeSet = new Set(slides.map((s) => s.type));
@@ -160,7 +229,7 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
     }
     return false;
   })();
-  const lowVariety = slides.length >= 6 && typeSet.size <= 3;
+  const lowVariety = slides.length >= 4 && typeSet.size <= 2;
   if (slides.length >= 4 && (runsTooLong || lowVariety)) {
     const rhythm: SlideLayoutType[] = [
       'hero',
@@ -190,16 +259,30 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
 
   const dna = (input as { dna?: PresentationDNA }).dna;
 
+  const paletteFromIntent = (input as { colorPaletteSuggestion?: string[] }).colorPaletteSuggestion;
+  const fontFromIntent = (input as { fontSuggestion?: { heading?: string; body?: string } }).fontSuggestion;
+
+  const themeId = (input.theme as string) || undefined;
+  const visualPreset = resolveVisualTheme(themeId);
+
   return {
     id: (input.id as string) || undefined,
     title,
-    theme: (input.theme as string) || 'industrial-minimal',
+    theme: themeId || 'chimney-smoke',
     colorPalette: Array.isArray(input.colorPalette)
       ? (input.colorPalette as string[])
-      : ['#05050A', '#F8FAFC', '#38BDF8', '#94A3B8'],
+      : Array.isArray(paletteFromIntent) && paletteFromIntent.length >= 2
+        ? paletteFromIntent
+        : [...visualPreset.colorPalette],
     fontPairing: {
-      heading: (input.fontPairing as { heading?: string })?.heading || 'Space Grotesk',
-      body: (input.fontPairing as { body?: string })?.body || 'Inter',
+      heading:
+        (input.fontPairing as { heading?: string })?.heading ||
+        fontFromIntent?.heading ||
+        visualPreset.fontPairing.heading,
+      body:
+        (input.fontPairing as { body?: string })?.body ||
+        fontFromIntent?.body ||
+        visualPreset.fontPairing.body,
     },
     animationStyle: (input.animationStyle as string) || 'cinematic-reveal',
     defaultSlideTransition: coerceSlideTransition(input.defaultSlideTransition),

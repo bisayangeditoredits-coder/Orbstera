@@ -4,6 +4,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Plus, Trash2, Copy, GripVertical, ChevronUp, ChevronDown, Sparkles, Loader2 } from 'lucide-react';
 import { Slide } from '@/types';
 import { findDeckBackgroundElement } from '@/lib/slide-background';
@@ -104,7 +105,7 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
           src={editorImageFetchUrl(bgEl.src)}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ opacity: 0.18, pointerEvents: 'none' }}
+          style={{ opacity: 0.18, pointerEvents: 'none', maxWidth: 'none' }}
         />
       )}
       <div
@@ -184,6 +185,7 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
               width: el.width,
               height: el.height,
               objectFit: 'cover' as const,
+              maxWidth: 'none',
               transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
             };
 
@@ -387,14 +389,33 @@ type SidebarProps = {
 export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps) {
   const {
     presentation,
-    editor,
+    isGenerating,
+    deckGenerationLifecycle,
+    generationBuildReveal,
+    generationTargetSlides,
     currentSlideIndex,
     setCurrentSlideIndex,
     addSlide,
     removeSlide,
     duplicateSlide,
     reorderSlides,
-  } = usePresentationStore();
+  } = usePresentationStore(
+    useShallow((s) => ({
+      presentation: s.presentation,
+      isGenerating: s.editor.isGenerating,
+      deckGenerationLifecycle: s.editor.deckGenerationLifecycle,
+      generationBuildReveal: s.editor.generationBuildReveal,
+      generationTargetSlides: s.editor.generationTargetSlides,
+      currentSlideIndex: s.currentSlideIndex,
+      setCurrentSlideIndex: s.setCurrentSlideIndex,
+      addSlide: s.addSlide,
+      removeSlide: s.removeSlide,
+      duplicateSlide: s.duplicateSlide,
+      reorderSlides: s.reorderSlides,
+    }))
+  );
+
+  const editor = { isGenerating, deckGenerationLifecycle, generationBuildReveal, generationTargetSlides };
 
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const slides = presentation?.slides || [];
