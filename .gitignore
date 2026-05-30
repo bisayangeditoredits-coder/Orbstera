@@ -52,4 +52,4 @@ PUSH_TO_GITHUB.bat
 .env.sentry-build-plugin
 
 # Reference templates
-reference-templates/
+/reference-templates/
