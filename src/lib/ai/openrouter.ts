@@ -1,7 +1,7 @@
 import { OPENROUTER_TIMEOUT, openRouterFetch } from '@/lib/ai/openrouter-timeouts';
 import { resolveOpenRouterApiKey } from '@/lib/ai/openrouter-keys';
 
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
@@ -11,20 +11,31 @@ export interface OpenRouterOptions {
   temperature?: number;
   max_tokens?: number;
   stream?: boolean;
-  /** HTTP timeout; defaults differ for complete vs stream */
   timeoutMs?: number;
-  /** Optional plan tier for per-pool API keys */
   plan?: string | null;
 }
 
-function headers(appUrl: string, plan?: string | null): Record<string, string> {
-  const key = resolveOpenRouterApiKey(plan);
-  if (!key) throw new Error('OPENROUTER_API_KEY is not configured');
+function headers(): Record<string, string> {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error('ANTHROPIC_API_KEY is not configured');
   return {
-    Authorization: `Bearer ${key}`,
-    'Content-Type': 'application/json',
-    'HTTP-Referer': appUrl,
-    'X-Title': 'Orbstera',
+    'x-api-key': key,
+    'anthropic-version': '2023-06-01',
+    'content-type': 'application/json',
+  };
+}
+
+function mapToAnthropicPayload(opts: OpenRouterOptions) {
+  const systemMsg = opts.messages.find((m) => m.role === 'system')?.content || '';
+  const anthropicMessages = opts.messages.filter((m) => m.role !== 'system');
+  
+  return {
+    model: 'claude-3-5-sonnet-20241022',
+    system: systemMsg,
+    messages: anthropicMessages,
+    temperature: opts.temperature ?? 0.25,
+    max_tokens: opts.max_tokens ?? 8192,
+    stream: opts.stream ?? false,
   };
 }
 
@@ -34,41 +45,25 @@ export async function openRouterComplete(
   opts: OpenRouterOptions
 ): Promise<string> {
   const res = await openRouterFetch(
-    OPENROUTER_URL,
+    ANTHROPIC_URL,
     {
       method: 'POST',
-      headers: headers(appUrl, opts.plan),
-      body: JSON.stringify({
-        model: opts.model,
-        messages: opts.messages,
-        temperature: opts.temperature ?? 0.25,
-        max_tokens: opts.max_tokens ?? 8192,
-        stream: false,
-      }),
+      headers: headers(),
+      body: JSON.stringify(mapToAnthropicPayload(opts)),
     },
     opts.timeoutMs ?? OPENROUTER_TIMEOUT.complete,
   );
 
   if (!res.ok) {
     const t = await res.text();
-    
-    // Automatically fallback to a free model if credits are exhausted
-    if (res.status === 402 || (res.status === 403 && t.toLowerCase().includes('credit'))) {
-      const fallbackModel = 'meta-llama/llama-3.2-3b-instruct:free';
-      if (opts.model !== fallbackModel) {
-        console.warn(`[OpenRouter] Credits exhausted for ${opts.model}. Falling back to ${fallbackModel}.`);
-        return openRouterComplete(appUrl, { ...opts, model: fallbackModel });
-      }
-    }
-    
-    throw new Error(`OpenRouter ${opts.model}: ${res.status} ${t}`);
+    throw new Error(`Anthropic Error: ${res.status} ${t}`);
   }
 
   const json = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
+    content?: { text?: string }[];
   };
-  const text = json.choices?.[0]?.message?.content;
-  if (!text) throw new Error(`OpenRouter ${opts.model}: empty response`);
+  const text = json.content?.[0]?.text;
+  if (!text) throw new Error(`Anthropic empty response`);
   return text;
 }
 
@@ -78,36 +73,46 @@ export async function openRouterStream(
   opts: OpenRouterOptions
 ): Promise<Response> {
   const res = await openRouterFetch(
-    OPENROUTER_URL,
+    ANTHROPIC_URL,
     {
       method: 'POST',
-      headers: headers(appUrl, opts.plan),
-      body: JSON.stringify({
-        model: opts.model,
-        messages: opts.messages,
-        temperature: opts.temperature ?? 0.28,
-        max_tokens: opts.max_tokens ?? 24_000,
-        stream: true,
-      }),
+      headers: headers(),
+      body: JSON.stringify(mapToAnthropicPayload({ ...opts, stream: true })),
     },
     opts.timeoutMs ?? OPENROUTER_TIMEOUT.stream,
   );
 
   if (!res.ok) {
-    const clonedRes = res.clone();
-    const t = await clonedRes.text();
-    
-    // Automatically fallback to a free model if credits are exhausted
-    if (res.status === 402 || (res.status === 403 && t.toLowerCase().includes('credit'))) {
-      const fallbackModel = 'meta-llama/llama-3.2-3b-instruct:free';
-      if (opts.model !== fallbackModel) {
-        console.warn(`[OpenRouter] Credits exhausted for ${opts.model}. Falling back to ${fallbackModel}.`);
-        return openRouterStream(appUrl, { ...opts, model: fallbackModel });
-      }
-    }
+    return res;
   }
 
-  return res;
+  // Transform Anthropic SSE format into OpenAI SSE format for frontend compatibility
+  const transformStream = new TransformStream({
+    transform(chunk, controller) {
+      const text = new TextDecoder().decode(chunk);
+      const lines = text.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'content_block_delta' && data.delta?.text) {
+              const openAIChunk = {
+                choices: [{ delta: { content: data.delta.text } }]
+              };
+              controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(openAIChunk)}\n\n`));
+            }
+          } catch (e) {
+            // ignore JSON parse errors for incomplete chunks or other events
+          }
+        }
+      }
+    }
+  });
+
+  return new Response(res.body!.pipeThrough(transformStream), {
+    headers: res.headers,
+    status: res.status,
+  });
 }
 
 /**
