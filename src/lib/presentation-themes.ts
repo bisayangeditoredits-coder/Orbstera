@@ -20,14 +20,16 @@ export type PresentationTheme = {
 };
 
 export const PRESENTATION_THEMES: PresentationTheme[] = [
-  { name: 'Midnight', palette: ['#05050A', '#FFFFFF', '#38BDF8', '#94A3B8'], preview: ['#05050A', '#38BDF8'] },
-  { name: 'Ocean', palette: ['#0A1628', '#FFFFFF', '#0009fa', '#93C5FD'], preview: ['#0A1628', '#0009fa'] },
-  { name: 'Ember', palette: ['#0F0A00', '#FFFFFF', '#F97316', '#FED7AA'], preview: ['#0F0A00', '#F97316'] },
-  { name: 'Forest', palette: ['#071A0F', '#FFFFFF', '#22C55E', '#BBF7D0'], preview: ['#071A0F', '#22C55E'] },
-  { name: 'Rose', palette: ['#130A10', '#FFFFFF', '#EC4899', '#FBCFE8'], preview: ['#130A10', '#EC4899'] },
-  { name: 'Slate', palette: ['#0F172A', '#FFFFFF', '#64748B', '#CBD5E1'], preview: ['#0F172A', '#64748B'] },
-  { name: 'Gold', palette: ['#0D0900', '#FFFFFF', '#EAB308', '#FEF08A'], preview: ['#0D0900', '#EAB308'] },
-  { name: 'Arctic', palette: ['#F8FAFC', '#0F172A', '#0EA5E9', '#E0F2FE'], preview: ['#F8FAFC', '#0EA5E9'] },
+  { name: 'Corporate Modern', palette: ['#FFFFFF', '#44546A', '#FFC000', '#0563C1'], preview: ['#FFFFFF', '#FFC000'] },
+  { name: 'Health Tech', palette: ['#DBEFF9', '#17406D', '#0F6FC6', '#7CCA62'], preview: ['#DBEFF9', '#0F6FC6'] },
+  { name: 'Chimney Smoke', palette: ['#FFFFFF', '#1F2937', '#2563EB', '#6B7280'], preview: ['#FFFFFF', '#2563EB'] },
+  { name: 'Atacama', palette: ['#111111', '#F9FAFB', '#3B82F6', '#9CA3AF'], preview: ['#111111', '#3B82F6'] },
+  { name: 'Finesse', palette: ['#F5EDD8', '#3D2E1F', '#B45309', '#78716C'], preview: ['#F5EDD8', '#B45309'] },
+  { name: 'Piano', palette: ['#FFFFFF', '#000000', '#2563EB', '#525252'], preview: ['#FFFFFF', '#000000'] },
+  { name: 'Coal', palette: ['#1C1C1C', '#F5F5F0', '#6366F1', '#A3A3A3'], preview: ['#1C1C1C', '#6366F1'] },
+  { name: 'Leimoon', palette: ['#FDE8E8', '#4A3A3A', '#EC4899', '#9F7676'], preview: ['#FDE8E8', '#EC4899'] },
+  { name: 'Eco Sustain', palette: ['#FAFAF9', '#1C1917', '#16A34A', '#84CC16'], preview: ['#FAFAF9', '#16A34A'] },
+  { name: 'Bold Agency', palette: ['#09090B', '#FAFAF9', '#EAB308', '#71717A'], preview: ['#09090B', '#EAB308'] },
 ];
 
 export const PLANNER_SLIDE_COUNT_OPTIONS = [5, 8, 10, 15] as const;

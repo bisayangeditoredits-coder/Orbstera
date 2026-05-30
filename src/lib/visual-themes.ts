@@ -69,6 +69,42 @@ export const VISUAL_THEME_PRESETS: Record<string, VisualThemePreset> = {
     imageryMood: 'soft blush editorial, gentle warmth, feminine premium aesthetic',
     imageryPalette: 'blush pink, rose, soft mauve',
   },
+  'corporate-modern': {
+    id: 'corporate-modern',
+    name: 'Corporate Modern',
+    colorPalette: ['#FFFFFF', '#44546A', '#FFC000', '#0563C1'],
+    fontPairing: { heading: 'Montserrat', body: 'Inter' },
+    backgroundMode: 'light',
+    imageryMood: 'professional modern corporate, structured, clean geometric lines',
+    imageryPalette: 'crisp white, slate gray, energetic orange accents',
+  },
+  'healthcare-tech': {
+    id: 'healthcare-tech',
+    name: 'Health Tech',
+    colorPalette: ['#DBEFF9', '#17406D', '#0F6FC6', '#7CCA62'],
+    fontPairing: { heading: 'Montserrat', body: 'Inter' },
+    backgroundMode: 'light',
+    imageryMood: 'clean medical technology, airy, trustworthy, sterile but welcoming',
+    imageryPalette: 'soft light blue, deep navy, vibrant health green',
+  },
+  'eco-sustain': {
+    id: 'eco-sustain',
+    name: 'Eco Sustain',
+    colorPalette: ['#FAFAF9', '#1C1917', '#16A34A', '#84CC16'],
+    fontPairing: { heading: 'Lora', body: 'Inter' },
+    backgroundMode: 'light',
+    imageryMood: 'lush nature, sustainable architecture, clean earthy minimalism',
+    imageryPalette: 'leaf green, warm white, earthy brown accents',
+  },
+  'bold-agency': {
+    id: 'bold-agency',
+    name: 'Bold Agency',
+    colorPalette: ['#09090B', '#FAFAF9', '#EAB308', '#71717A'],
+    fontPairing: { heading: 'Space Grotesk', body: 'Inter' },
+    backgroundMode: 'dark',
+    imageryMood: 'high contrast brutalist, neon accents, hyper-modern typography',
+    imageryPalette: 'pitch black, bright cyber yellow, stark white',
+  },
 };
 
 export const ART_STYLE_IMAGE_HINTS: Record<string, string> = {

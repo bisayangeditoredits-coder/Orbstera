@@ -9,7 +9,7 @@ GAMMA MODE — how premium auto-decks are built:
 2. COMPOSER is an EXECUTOR — it does NOT freestyle structure. It fills each ordered slot with JSON.
 3. Every slide is a cinematic SCENE: headline + optional bullets + mandatory background imagePrompt.
 4. Visual continuity: one imageryMood family, one palette story, one typography pairing across the deck, but every slide gets a unique scene, crop, and composition.
-5. Headlines are punchy (3–8 words). Bullets are fragments, not paragraphs. Whitespace is luxury.
+5. Headlines are punchy (3–8 words). Bullets MUST be highly detailed, informative, and comprehensive (15-30 words each). Do NOT output short fragments. Ensure the user gets all the needed details.
 6. Zero generic AI slop: ban "revolutionary", "game-changing", "synergy", "leverage", "cutting-edge", lorem ipsum.
 7. No cheap template look: avoid pale grey washed backgrounds, default centered title slides, repeated white cards, and same-looking slide structure.
 `;
@@ -72,7 +72,7 @@ export const HEADLINE_RULES = `
 HEADLINE & COPY RULES:
 - title: 3–8 words, active voice, specific (not "Introduction" or "Overview").
 - subtitle: optional, ≤12 words.
-- bullets: ≤5 per slide, each ≤12 words, parallel grammar.
+- bullets: 3-6 per slide, highly detailed and informative, each 15-30 words, parallel grammar. Avoid short shallow statements.
 - speakerNotes: 2–4 sentences, conversational delivery cues.
 - Write in the user's requested language.
 `;
@@ -143,7 +143,7 @@ Output ONE raw JSON only:
       "typeHint": "hero|split|content|quote|stats|comparison|timeline|closing|media|bullets",
       "headlineAngle": "headline intent — 3–8 words",
       "subtitleAngle": "optional or null",
-      "supportingPoints": ["bullet intents"],
+      "supportingPoints": ["highly detailed and rich bullet point intents (20-30 words each)"],
       "layoutHint": "full-bleed | split-image-right | bento | editorial | cinematic",
       "imageBrief": "1–2 sentence FLUX background scene — REQUIRED",
       "emotionalBeat": "curiosity | tension | proof | relief | aspiration | action",

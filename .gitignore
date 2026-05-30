@@ -50,3 +50,6 @@ PUSH_TO_GITHUB.bat
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Reference templates
+reference-templates/

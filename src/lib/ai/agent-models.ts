@@ -7,18 +7,18 @@
 
 export const AGENT_MODELS = {
   /** Intent, merge, final polish, cinematic hierarchy */
-  gptOrchestrator: process.env.OPENROUTER_AGENT_GPT5 ?? 'anthropic/claude-sonnet-4.5',
+  gptOrchestrator: process.env.OPENROUTER_AGENT_GPT5 ?? 'openai/gpt-4o',
   /** Creator-tier orchestrator fallback */
   gptOrchestratorAlt:
-    process.env.OPENROUTER_AGENT_GPT5_ALT ?? 'google/gemini-3.5-flash',
+    process.env.OPENROUTER_AGENT_GPT5_ALT ?? 'anthropic/claude-3.5-sonnet',
   /** Slide spine, educational flow, long-form structure (Student Pro + fallback) */
-  claudeStructure: process.env.OPENROUTER_AGENT_CLAUDE ?? 'anthropic/claude-sonnet-4.5',
+  claudeStructure: process.env.OPENROUTER_AGENT_CLAUDE ?? 'anthropic/claude-3.5-sonnet',
   /** Creator Pro — structure, strategy, elite polish */
-  claudeOpus: process.env.OPENROUTER_AGENT_CLAUDE_OPUS ?? 'anthropic/claude-opus-4.8',
+  claudeOpus: process.env.OPENROUTER_AGENT_CLAUDE_OPUS ?? 'openai/gpt-4o',
   /** Optional — technical / analytical depth (retained for env overrides / legacy) */
   deepseekReason: process.env.OPENROUTER_AGENT_DEEPSEEK ?? 'deepseek/deepseek-r1',
   /** Long-context compose assist (Creator fallback) */
-  geminiPro: process.env.OPENROUTER_AGENT_GEMINI_PRO ?? 'google/gemini-3.5-flash',
+  geminiPro: process.env.OPENROUTER_AGENT_GEMINI_PRO ?? 'google/gemini-2.5-flash',
 } as const;
 
 export const IMAGE_MODELS = {

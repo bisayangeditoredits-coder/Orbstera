@@ -85,35 +85,43 @@ export function resolveDeckImagePrompt(
 const glassCard = (light: boolean) =>
   light
     ? {
-        fill: 'rgba(255, 255, 255, 0.88)',
-        stroke: 'rgba(0, 0, 0, 0.08)',
-        strokeWidth: 1,
-        cornerRadius: 20,
-        shadowColor: 'rgba(0,0,0,0.08)',
-        shadowBlur: 24,
+        fill: 'rgba(255, 255, 255, 0.96)',
+        stroke: 'rgba(255, 255, 255, 1)',
+        strokeWidth: 2,
+        cornerRadius: 32,
+        shadowColor: 'rgba(0, 30, 80, 0.08)',
+        shadowBlur: 48,
+        shadowOffsetY: 16,
       }
     : {
-        fill: 'rgba(255, 255, 255, 0.045)',
+        fill: 'rgba(255, 255, 255, 0.04)',
         stroke: 'rgba(255, 255, 255, 0.12)',
         strokeWidth: 1,
-        cornerRadius: 20,
-        shadowColor: 'rgba(0,0,0,0.45)',
-        shadowBlur: 40,
+        cornerRadius: 32,
+        shadowColor: 'rgba(0,0,0,0.6)',
+        shadowBlur: 64,
+        shadowOffsetY: 24,
       };
 
 const bulletPill = (light: boolean) =>
   light
     ? {
-        fill: 'rgba(255,255,255,0.92)',
-        stroke: 'rgba(0,0,0,0.06)',
+        fill: 'rgba(255, 255, 255, 0.98)',
+        stroke: 'rgba(0,0,0,0.03)',
         strokeWidth: 1,
-        cornerRadius: 14,
+        cornerRadius: 20,
+        shadowColor: 'rgba(0, 30, 80, 0.05)',
+        shadowBlur: 16,
+        shadowOffsetY: 6,
       }
     : {
-        fill: 'rgba(255,255,255,0.04)',
-        stroke: 'rgba(255,255,255,0.08)',
+        fill: 'rgba(255, 255, 255, 0.05)',
+        stroke: 'rgba(255, 255, 255, 0.1)',
         strokeWidth: 1,
-        cornerRadius: 14,
+        cornerRadius: 20,
+        shadowColor: 'rgba(0,0,0,0.4)',
+        shadowBlur: 24,
+        shadowOffsetY: 8,
       };
 
 function resolveContentVariant(category: DeckLayoutCategory, sIdx: number): 0 | 1 | 2 {
@@ -204,6 +212,39 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       shapeStyle: { fill: bgColor, stroke: 'transparent', strokeWidth: 0 },
       animation: { entrance: 'fadeIn', duration: 400, delay: 0 },
     });
+    
+    // Geometric accents for corporate & bento layouts
+    if (layoutCategory === 'corporate' || layoutCategory === 'bento') {
+      elements.unshift({
+        id: uid('el-bg-ribbon-1'),
+        type: 'shape',
+        shapeType: 'rect',
+        x: DECK_CANVAS_W - 450,
+        y: -300,
+        width: 160,
+        height: DECK_CANVAS_H + 600,
+        rotation: 25,
+        zIndex: 0,
+        visible: true,
+        shapeStyle: { fill: accent, opacity: light ? 0.06 : 0.15 },
+        animation: { entrance: 'fadeSlideLeft', duration: 1200, delay: 0 },
+      });
+      elements.unshift({
+        id: uid('el-bg-ribbon-2'),
+        type: 'shape',
+        shapeType: 'rect',
+        x: DECK_CANVAS_W - 220,
+        y: -300,
+        width: 50,
+        height: DECK_CANVAS_H + 600,
+        rotation: 25,
+        zIndex: 0,
+        visible: true,
+        shapeStyle: { fill: textPrimary, opacity: light ? 0.03 : 0.08 },
+        animation: { entrance: 'fadeSlideLeft', duration: 1000, delay: 100 },
+      });
+    }
+
     currentZ = Math.max(currentZ, 1);
   };
 
@@ -302,7 +343,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         visible: true,
         textStyle: {
           fontFamily: bodyFont,
-          fontSize: 26,
+          fontSize: 34,
           fontWeight: 'normal',
           color: textMuted,
           textAlign: 'center',
@@ -403,11 +444,11 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         visible: true,
         textStyle: {
           fontFamily: bodyFont,
-          fontSize: 19,
+          fontSize: 27,
           fontWeight: 'normal',
           color: textMuted,
           textAlign: 'left',
-          lineHeight: 1.4,
+          lineHeight: 1.6,
         },
         animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 320 + i * 70 },
       });
@@ -479,12 +520,12 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         visible: true,
         textStyle: {
           fontFamily: headingFont,
-          fontSize: 48,
+          fontSize: 58,
           fontWeight: 'normal',
           fontStyle: 'italic',
           color: textPrimary,
           textAlign: 'center',
-          lineHeight: 1.35,
+          lineHeight: 1.55,
         },
         animation: { entrance: 'fadeIn', duration: 1000, delay: 200 },
       });
@@ -502,7 +543,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         visible: true,
         textStyle: {
           fontFamily: bodyFont,
-          fontSize: 22,
+          fontSize: 30,
           fontWeight: 'bold',
           color: accent,
           textAlign: 'center',
@@ -526,7 +567,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         visible: true,
         textStyle: {
           fontFamily: headingFont,
-          fontSize: 56,
+          fontSize: 68,
           fontWeight: 'bold',
           color: textPrimary,
           textAlign: 'center',
@@ -548,7 +589,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         visible: true,
         textStyle: {
           fontFamily: bodyFont,
-          fontSize: 22,
+          fontSize: 30,
           color: textMuted,
           textAlign: 'center',
           letterSpacing: 1.5,
@@ -571,7 +612,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         visible: true,
         textStyle: {
           fontFamily: headingFont,
-          fontSize: 40,
+          fontSize: 50,
           fontWeight: 'bold',
           color: textPrimary,
           textAlign: 'left',
@@ -611,7 +652,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         visible: true,
         textStyle: {
           fontFamily: headingFont,
-          fontSize: 56,
+          fontSize: 68,
           fontWeight: 'bold',
           color: accent,
           textAlign: 'left',
@@ -632,10 +673,10 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
           visible: true,
           textStyle: {
             fontFamily: bodyFont,
-            fontSize: 18,
+            fontSize: 26,
             color: textMuted,
             textAlign: 'left',
-            lineHeight: 1.4,
+            lineHeight: 1.6,
           },
           animation: { entrance: 'fadeIn', duration: 450, delay: 240 + i * 90 },
         });
@@ -656,7 +697,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         visible: true,
         textStyle: {
           fontFamily: headingFont,
-          fontSize: 36,
+          fontSize: 46,
           fontWeight: 'bold',
           color: textPrimary,
           textAlign: 'left',
@@ -706,10 +747,10 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         visible: true,
         textStyle: {
           fontFamily: bodyFont,
-          fontSize: 16,
+          fontSize: 24,
           color: textMuted,
           textAlign: 'center',
-          lineHeight: 1.35,
+          lineHeight: 1.55,
         },
         animation: { entrance: 'fadeIn', duration: 450, delay: 280 + i * 80 },
       });
@@ -729,7 +770,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         visible: true,
         textStyle: {
           fontFamily: headingFont,
-          fontSize: 36,
+          fontSize: 46,
           fontWeight: 'bold',
           color: textPrimary,
           textAlign: 'center',
@@ -771,10 +812,10 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
           visible: true,
           textStyle: {
             fontFamily: bodyFont,
-            fontSize: 20,
+            fontSize: 28,
             color: textMuted,
             textAlign: 'left',
-            lineHeight: 1.4,
+            lineHeight: 1.6,
           },
           animation: { entrance: 'fadeIn', duration: 450, delay: 200 + i * 70 },
         });
@@ -799,7 +840,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         visible: true,
         textStyle: {
           fontFamily: headingFont,
-          fontSize: 42,
+          fontSize: 52,
           fontWeight: 'bold',
           color: textPrimary,
           textAlign: 'left',
@@ -834,7 +875,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         visible: true,
         textStyle: {
           fontFamily: bodyFont,
-          fontSize: 22,
+          fontSize: 30,
           color: textMuted,
           textAlign: 'left',
         },
@@ -934,11 +975,11 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
             visible: true,
             textStyle: {
               fontFamily: bodyFont,
-              fontSize: 23,
+              fontSize: 31,
               fontWeight: 'normal',
               color: textMuted,
               textAlign: 'left',
-              lineHeight: 1.45,
+              lineHeight: 1.65,
             },
             animation: { entrance: 'fadeSlideLeft', duration: 480, delay: 280 + i * 75 },
           });
@@ -975,11 +1016,11 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
             visible: true,
             textStyle: {
               fontFamily: bodyFont,
-              fontSize: 20,
+              fontSize: 28,
               fontWeight: 'normal',
               color: textMuted,
               textAlign: 'left',
-              lineHeight: 1.4,
+              lineHeight: 1.6,
             },
             animation: { entrance: 'fadeIn', duration: 450, delay: 300 + i * 90 },
           });
@@ -1021,7 +1062,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
             visible: true,
             textStyle: {
               fontFamily: headingFont,
-              fontSize: 14,
+              fontSize: 22,
               fontWeight: 'bold',
               color: accent,
               textAlign: 'left',
@@ -1044,7 +1085,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
               fontWeight: 'normal',
               color: textMuted,
               textAlign: 'left',
-              lineHeight: 1.45,
+              lineHeight: 1.65,
             },
             animation: { entrance: 'fadeIn', duration: 500, delay: 320 + i * 90 },
           });

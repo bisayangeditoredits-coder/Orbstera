@@ -51,12 +51,16 @@ interface ArtStyleDefinition {
 }
 
 const VISUAL_THEME_ORDER = [
+  'corporate-modern',
+  'healthcare-tech',
   'chimney-smoke',
   'atacama',
   'finesse',
   'piano',
   'coal',
   'leimoon',
+  'eco-sustain',
+  'bold-agency',
 ] as const;
 
 const THEMES: ThemeDefinition[] = VISUAL_THEME_ORDER.map((id) => ({
@@ -307,7 +311,7 @@ export default function VisualsConfig({ initialSlideCount, onGenerate }: Visuals
             Use one of our popular themes below or view more.
           </p>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
             {THEMES.map((theme) => {
               const isSelected = selectedTheme === theme.id;
 
