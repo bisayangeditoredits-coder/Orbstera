@@ -1,48 +1,157 @@
-/**
- * ORBSTERA — Improved buildDeckSlideElements
- *
- * KEY FIXES vs the original:
- * 1. `content` slide type is now EXPLICITLY handled with 3 distinct, properly designed layouts
- *    (editorial-left, bento-grid, cinematic-overlay) instead of falling into the `else` branch.
- * 2. Bullet overflow protection — all bullet loops now compute a `safeMaxBullets` so content
- *    never clips outside the 720px canvas height.
- * 3. `split` layout: gap is calculated precisely so text panel and image panel never overlap.
- * 4. Image aspect ratio for split slides: Leonardo pixels are forced to a clean portrait ratio
- *    (9:16 portrait or 2:3) instead of the previous near-square that caused stretching in pptxgenjs.
- * 5. `resolveContentVariant` result is now consumed meaningfully — each variant renders a
- *    visually distinct layout, not just minor x/fontSize tweaks.
- * 6. `bullets` slide: startY is computed from actual title height, not a magic constant.
- * 7. Stats slide: stat cards are vertically centered in the available space below the title.
- * 8. Timeline: dots are centered on the line (y offset corrected from 328 → lineY - dotR).
- * 9. Comparison slide: each column gets a colored header badge to distinguish left vs right.
- * 10. Closing slide: CTA button shape added below subtitle for a more polished feel.
- *
- * Drop-in replacement for the `buildDeckSlideElements` function in
- * `src/lib/deck-slide-layout.ts` (or wherever it currently lives).
- * All helper imports (glassCard, bulletPill, estimateTextBlockHeight,
- * regionToLeonardoPixels, resolveDeckImagePrompt, etc.) remain unchanged.
- */
+import type { DeckLayoutCategory, SlideElement } from '@/types';
+import type { DeckImageTask } from '@/lib/deck-image-generation';
+import { buildDeckImagePrompt } from '@/lib/ai/deck-generation-skill';
+import type { VisualBackgroundMode } from '@/lib/visual-themes';
+import {
+  DEFAULT_DECK_LAYOUT_CATEGORY,
+  getDeckLayoutCategoryOption,
+  normalizeDeckLayoutCategory,
+} from '@/lib/deck-layout-categories';
+import { regionToLeonardoPixels } from '@/lib/leonardo-dimensions';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const DECK_CANVAS_W = 1280;
-const DECK_CANVAS_H = 720;
+export const DECK_CANVAS_W = 1280;
+export const DECK_CANVAS_H = 720;
 
-// Safe rendering zone — elements should never exceed this bottom edge
-const SAFE_BOTTOM = DECK_CANVAS_H - 40;
-
-// Padding / gutter used throughout
-const PAD = 64;         // outer horizontal padding
-const INNER_PAD = 32;   // padding inside cards/panels
-const GAP = 24;         // gap between rows/columns
-
-// ─── Utility: clamp bullet count so items never overflow the canvas ───────────
-function safeMaxBullets(startY: number, itemHeight: number, gap: number, hardMax = 6): number {
-  const available = SAFE_BOTTOM - startY;
-  const fits = Math.floor(available / (itemHeight + gap));
-  return Math.max(1, Math.min(fits, hardMax));
+/** Estimate Konva/PPTX-safe text box height from content length. */
+export function estimateTextBlockHeight(
+  text: string,
+  fontSize: number,
+  width: number,
+  lineHeight = 1.15,
+  minH = 72,
+  maxH = 180,
+): number {
+  const trimmed = text.trim();
+  if (!trimmed) return minH;
+  const charsPerLine = Math.max(10, Math.floor(width / (fontSize * 0.52)));
+  const lines = Math.max(1, Math.ceil(trimmed.length / charsPerLine));
+  return Math.min(maxH, Math.max(minH, Math.round(lines * fontSize * lineHeight + 6)));
 }
 
-// ─── Main export ──────────────────────────────────────────────────────────────
+export type AiSlideInput = {
+  id: string;
+  type?: string;
+  title?: string;
+  subtitle?: string;
+  bullets?: string[];
+  content?: { bullets?: string[] };
+  imagePrompt?: string;
+};
+
+export type BuildDeckSlideLayoutArgs = {
+  slide: AiSlideInput;
+  sIdx: number;
+  slideCount?: number;
+  layoutCategory?: DeckLayoutCategory | string;
+  palette: string[];
+  headingFont: string;
+  bodyFont: string;
+  uid: (prefix: string) => string;
+  existingElements?: SlideElement[];
+  backgroundMode?: VisualBackgroundMode;
+};
+
+export type BuildDeckSlideLayoutResult = {
+  elements: SlideElement[];
+  imageTasks: DeckImageTask[];
+};
+
+export function resolveDeckImagePrompt(
+  slide: AiSlideInput,
+  ctx?: {
+    slideIndex?: number;
+    slideCount?: number;
+    layoutHint?: string;
+    layoutCategory?: DeckLayoutCategory | string;
+    visualMood?: string;
+    imageryPalette?: string;
+    presentationType?: string;
+  },
+): string {
+  const explicit = typeof slide.imagePrompt === 'string' ? slide.imagePrompt.trim() : '';
+  return buildDeckImagePrompt({
+    basePrompt: explicit || undefined,
+    title: slide.title,
+    type: slide.type,
+    slideIndex: ctx?.slideIndex,
+    slideCount: ctx?.slideCount,
+    layoutHint: ctx?.layoutHint || slide.type,
+    layoutCategory: ctx?.layoutCategory,
+    visualMood: ctx?.visualMood,
+    imageryPalette: ctx?.imageryPalette,
+    presentationType: ctx?.presentationType,
+  });
+}
+
+const glassCard = (light: boolean) =>
+  light
+    ? {
+        fill: 'rgba(255, 255, 255, 0.96)',
+        stroke: 'rgba(255, 255, 255, 1)',
+        strokeWidth: 2,
+        cornerRadius: 32,
+        shadowColor: 'rgba(0, 30, 80, 0.08)',
+        shadowBlur: 48,
+        shadowOffsetY: 16,
+      }
+    : {
+        fill: 'rgba(255, 255, 255, 0.04)',
+        stroke: 'rgba(255, 255, 255, 0.12)',
+        strokeWidth: 1,
+        cornerRadius: 32,
+        shadowColor: 'rgba(0,0,0,0.6)',
+        shadowBlur: 64,
+        shadowOffsetY: 24,
+      };
+
+const bulletPill = (light: boolean) =>
+  light
+    ? {
+        fill: 'rgba(255, 255, 255, 0.98)',
+        stroke: 'rgba(0,0,0,0.03)',
+        strokeWidth: 1,
+        cornerRadius: 20,
+        shadowColor: 'rgba(0, 30, 80, 0.05)',
+        shadowBlur: 16,
+        shadowOffsetY: 6,
+      }
+    : {
+        fill: 'rgba(255, 255, 255, 0.05)',
+        stroke: 'rgba(255, 255, 255, 0.1)',
+        strokeWidth: 1,
+        cornerRadius: 20,
+        shadowColor: 'rgba(0,0,0,0.4)',
+        shadowBlur: 24,
+        shadowOffsetY: 8,
+      };
+
+function resolveContentVariant(category: DeckLayoutCategory, sIdx: number): 0 | 1 | 2 {
+  const rhythms: Record<DeckLayoutCategory, (0 | 1 | 2)[]> = {
+    editorial: [0, 2, 1, 0, 2],
+    bento: [2, 2, 1, 2, 0],
+    cinematic: [0, 0, 2, 0, 1],
+    corporate: [1, 2, 1, 1, 2],
+    pitch: [0, 2, 1, 2, 0],
+    product: [0, 2, 0, 1, 2],
+    data_story: [2, 1, 2, 2, 1],
+    timeline: [1, 2, 1, 0, 2],
+    minimal: [1, 1, 0, 1, 2],
+    luxury: [0, 1, 0, 2, 0],
+  };
+  const rhythm = rhythms[category] || rhythms[DEFAULT_DECK_LAYOUT_CATEGORY];
+  return rhythm[sIdx % rhythm.length];
+}
+
+function prefersImageBackground(category: DeckLayoutCategory, slideType?: string): boolean {
+  if (slideType === 'hero' || slideType === 'quote' || slideType === 'closing' || slideType === 'media') return true;
+  if (category === 'cinematic' || category === 'luxury' || category === 'product') return true;
+  if (category === 'corporate' || category === 'minimal' || category === 'data_story') return false;
+  return true;
+}
+
+/**
+ * Gamma-style slide layouts: full-bleed backgrounds, glass cards, editorial hierarchy.
+ */
 export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDeckSlideLayoutResult {
   const { slide, sIdx, slideCount, palette, headingFont, bodyFont, uid } = args;
   const layoutCategory = normalizeDeckLayoutCategory(args.layoutCategory);
