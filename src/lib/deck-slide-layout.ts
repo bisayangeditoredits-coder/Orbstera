@@ -329,15 +329,6 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
 
     if (slide.title) {
       elements.push({
-        id: uid('el-title-scrim'),
-        type: 'shape', shapeType: 'rect',
-        x: 48, y: titleY - 28,
-        width: DECK_CANVAS_W - 96, height: heroScrimH,
-        zIndex: currentZ++, visible: true,
-        shapeStyle: glassCard(light),
-        animation: { entrance: 'fadeIn', duration: 600, delay: 0 },
-      });
-      elements.push({
         id: uid('el-title'),
         type: 'text',
         x: 96, y: titleY, width: titleW, height: titleHeight,
