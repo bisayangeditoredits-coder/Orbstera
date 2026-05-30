@@ -2,23 +2,23 @@
  * Hidden orchestration stack — OpenRouter only. IDs overridable via env.
  * User-facing UI never exposes these names.
  *
- * Updated May 2026 — all model IDs verified against OpenRouter's live catalog.
+ * Updated May 2026 — model IDs verified against OpenRouter's live catalog.
  */
 
 export const AGENT_MODELS = {
   /** Intent, merge, final polish, cinematic hierarchy */
-  gptOrchestrator: process.env.OPENROUTER_AGENT_GPT5 ?? 'google/gemini-2.5-flash',
+  gptOrchestrator: process.env.OPENROUTER_AGENT_GPT5 ?? 'anthropic/claude-sonnet-4.5',
   /** Creator-tier orchestrator fallback */
   gptOrchestratorAlt:
-    process.env.OPENROUTER_AGENT_GPT5_ALT ?? 'anthropic/claude-sonnet-4.6',
+    process.env.OPENROUTER_AGENT_GPT5_ALT ?? 'google/gemini-3.5-flash',
   /** Slide spine, educational flow, long-form structure (Student Pro + fallback) */
-  claudeStructure: process.env.OPENROUTER_AGENT_CLAUDE ?? 'anthropic/claude-sonnet-4.6',
+  claudeStructure: process.env.OPENROUTER_AGENT_CLAUDE ?? 'anthropic/claude-sonnet-4.5',
   /** Creator Pro — structure, strategy, elite polish */
-  claudeOpus: process.env.OPENROUTER_AGENT_CLAUDE_OPUS ?? 'anthropic/claude-sonnet-4.6',
+  claudeOpus: process.env.OPENROUTER_AGENT_CLAUDE_OPUS ?? 'anthropic/claude-opus-4.8',
   /** Optional — technical / analytical depth (retained for env overrides / legacy) */
   deepseekReason: process.env.OPENROUTER_AGENT_DEEPSEEK ?? 'deepseek/deepseek-r1',
   /** Long-context compose assist (Creator fallback) */
-  geminiPro: process.env.OPENROUTER_AGENT_GEMINI_PRO ?? 'google/gemini-2.5-pro',
+  geminiPro: process.env.OPENROUTER_AGENT_GEMINI_PRO ?? 'google/gemini-3.5-flash',
 } as const;
 
 export const IMAGE_MODELS = {

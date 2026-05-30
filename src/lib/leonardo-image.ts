@@ -156,6 +156,7 @@ export async function generateLeonardoImageUrl(params: {
   quality?: LeonardoQuality;
   visualProfile?: 'cinematic' | 'typography';
   apiKey?: string;
+  enhancePrompt?: boolean;
 }): Promise<GenerationResult> {
   const token = params.apiKey || getLeonardoApiKey();
   if (!token) {
@@ -168,6 +169,10 @@ export async function generateLeonardoImageUrl(params: {
     quality: params.quality ?? 'standard',
     visualProfile: params.visualProfile,
   });
+  const shouldEnhancePrompt =
+    typeof params.enhancePrompt === 'boolean'
+      ? params.enhancePrompt
+      : params.visualProfile !== 'typography' && (params.quality ?? 'standard') !== 'economy';
 
   const reqBody: Record<string, unknown> = {
     prompt: params.prompt,
@@ -176,7 +181,7 @@ export async function generateLeonardoImageUrl(params: {
     height: h,
     num_images: 1,
     alchemy: profile.alchemy,
-    enhancePrompt: false,
+    enhancePrompt: shouldEnhancePrompt,
   };
 
   if (profile.contrast != null) reqBody.contrast = profile.contrast;

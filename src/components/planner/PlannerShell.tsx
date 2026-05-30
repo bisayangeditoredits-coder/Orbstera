@@ -23,6 +23,7 @@ import {
   resolvePlannerPreferencesFromParams,
   type PlannerSetupPreferences,
 } from '@/lib/presentation-themes';
+import { DEFAULT_DECK_LAYOUT_CATEGORY } from '@/lib/deck-layout-categories';
 import { cn } from '@/lib/cn';
 
 type Message = { role: string; content: string };
@@ -34,7 +35,12 @@ function loadStoredSetup(topic: string): PlannerSetupPreferences | null {
     const raw = sessionStorage.getItem(plannerSetupStorageKey(topic));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PlannerSetupPreferences;
-    if (parsed.slideCount && parsed.colorPalette?.length) return parsed;
+    if (parsed.slideCount && parsed.colorPalette?.length) {
+      return {
+        ...parsed,
+        layoutCategory: parsed.layoutCategory || DEFAULT_DECK_LAYOUT_CATEGORY,
+      };
+    }
   } catch {
     /* ignore */
   }
@@ -48,6 +54,7 @@ export function PlannerShell() {
   const sessionIdParam = searchParams.get('sessionId')?.trim() || null;
   const slidesParam = searchParams.get('slides');
   const themeParam = searchParams.get('theme');
+  const layoutParam = searchParams.get('layout');
 
   const setEditorState = usePresentationStore((s) => s.setEditorState);
 
@@ -85,14 +92,14 @@ export function PlannerShell() {
       setPlannerPreferences(stored);
       return;
     }
-    const prefs = resolvePlannerPreferencesFromParams({ slidesParam, themeParam });
+    const prefs = resolvePlannerPreferencesFromParams({ slidesParam, themeParam, layoutParam });
     setPlannerPreferences(prefs);
     try {
       sessionStorage.setItem(plannerSetupStorageKey(topic), JSON.stringify(prefs));
     } catch {
       /* ignore */
     }
-  }, [topic, slidesParam, themeParam]);
+  }, [topic, slidesParam, themeParam, layoutParam]);
 
   // Sticky outline: merge across messages, never flash empty while loading
   useEffect(() => {
@@ -133,6 +140,7 @@ export function PlannerShell() {
                   slideCount: prefs.slideCount,
                   colorPalette: prefs.colorPalette,
                   themeName: prefs.themeName,
+                  layoutCategory: prefs.layoutCategory,
                 }
               : undefined,
           }),
@@ -285,6 +293,7 @@ export function PlannerShell() {
                 slideCount: DEFAULT_PLANNER_SLIDE_COUNT,
                 themeName: DEFAULT_PLANNER_THEME.name,
                 colorPalette: [...DEFAULT_PLANNER_THEME.palette],
+                layoutCategory: plannerPreferences?.layoutCategory || DEFAULT_DECK_LAYOUT_CATEGORY,
               },
             );
             return;
@@ -360,7 +369,7 @@ export function PlannerShell() {
 
     const outlineBlock = formatOutlineForContext(annotatedSlides);
     const prefsBlock = plannerPreferences
-      ? `[USER DECK PREFERENCES]\nSlides: ${config.slideCount}\nTheme: ${config.theme}\nArt style: ${config.artStyle}\nImage source: ${config.imageSource}\nColors: ${plannerPreferences.colorPalette.join(', ')}`
+      ? `[USER DECK PREFERENCES]\nSlides: ${config.slideCount}\nTheme: ${config.theme}\nLayout category: ${plannerPreferences.layoutCategory}\nArt style: ${config.artStyle}\nImage source: ${config.imageSource}\nColors: ${plannerPreferences.colorPalette.join(', ')}`
       : `[USER DECK PREFERENCES]\nSlides: ${config.slideCount}\nTheme: ${config.theme}\nArt style: ${config.artStyle}\nImage source: ${config.imageSource}`;
     const fullContext = [chatContext, prefsBlock, outlineBlock].filter(Boolean).join('\n\n');
 
@@ -370,7 +379,7 @@ export function PlannerShell() {
       try {
         sessionStorage.setItem(
           plannerSetupStorageKey(topic),
-          JSON.stringify({ ...plannerPreferences, slideCount: config.slideCount }),
+          JSON.stringify({ ...plannerPreferences, slideCount: config.slideCount, layoutCategory: plannerPreferences.layoutCategory }),
         );
       } catch {
         /* ignore */
@@ -386,6 +395,7 @@ export function PlannerShell() {
         targetSlideCount: slideCountForGen,
         themeName: config.theme,
         colorPalette: plannerPreferences?.colorPalette,
+        layoutCategory: plannerPreferences?.layoutCategory,
         styleMode: config.artStyle,
         imageSource: config.imageSource,
       },

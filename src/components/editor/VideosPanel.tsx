@@ -267,7 +267,7 @@ export function VideosPanel({ onClose }: { onClose?: () => void }) {
             </div>
             <p className="text-[13px] font-bold text-neutral-600">No videos found</p>
             <p className="text-[11px] text-neutral-400 mt-1 max-w-[180px] mx-auto">
-              Try searching for "abstract", "nature", or "office".
+               Try searching for &quot;abstract&quot;, &quot;nature&quot;, or &quot;office&quot;.
             </p>
           </div>
         ) : (

@@ -252,14 +252,17 @@ export function selectTextModel(args: {
 
   const labelForModel = (model: string): string => {
     if (model === AGENT_MODELS.claudeOpus) return TEXT_LABELS.opus;
+    if (model === AGENT_MODELS.claudeStructure) return TEXT_LABELS.sonnet;
+    if (model === AGENT_MODELS.geminiPro) return TEXT_LABELS.geminiPro;
+    if (model.includes('claude-sonnet')) return TEXT_LABELS.sonnet;
+    if (model.includes('claude-opus')) return TEXT_LABELS.opus;
+    if (model.includes('gemini-2.5-pro') || model.includes('gemini-3.5')) return TEXT_LABELS.geminiPro;
     if (model.includes('gemini')) {
       return isFreeTaste ? `${TEXT_LABELS.economy} · Preview` : TEXT_LABELS.economy;
     }
     if (model === AGENT_MODELS.gptOrchestrator || model === OR_MODELS.composerPrimary) {
       return TEXT_LABELS.economy;
     }
-    if (model === AGENT_MODELS.claudeStructure) return TEXT_LABELS.sonnet;
-    if (model === AGENT_MODELS.geminiPro) return TEXT_LABELS.geminiPro;
     return TEXT_LABELS.economy;
   };
 

@@ -24,6 +24,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { globalRateLimit } from '@/lib/rate-limit';
 import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 import { buildVisualCurationBlock, resolveVisualTheme } from '@/lib/visual-themes';
+import { buildDeckLayoutCategoryPrompt, normalizeDeckLayoutCategory } from '@/lib/deck-layout-categories';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -80,6 +81,7 @@ export async function POST(req: Request) {
       tone = 'professional',
       language = 'English',
       styleMode,
+      layoutCategory: rawLayoutCategory,
       theme,
       colorPalette,
       imageSource,
@@ -91,10 +93,12 @@ export async function POST(req: Request) {
       tone?: string;
       language?: string;
       styleMode?: string;
+      layoutCategory?: string;
       theme?: string;
       colorPalette?: string[];
       imageSource?: 'ai' | 'unsplash' | 'none';
     };
+    const layoutCategory = normalizeDeckLayoutCategory(rawLayoutCategory || styleMode);
 
     const cookieStore = cookies();
     const supabase = createServerClient(
@@ -197,6 +201,8 @@ export async function POST(req: Request) {
           tone,
           language,
           styleMode,
+          layoutCategory,
+          imageSource,
           plan,
           estimatedCredits: deckCreditCost,
           deckCreditAction,
@@ -287,10 +293,12 @@ export async function POST(req: Request) {
             const preset = resolveVisualTheme(theme.trim());
             finalPrompt += `\n\n[USER COLOR PALETTE]\nUse exactly this colorPalette array in the deck JSON: ${JSON.stringify(preset.colorPalette)}`;
           }
+          finalPrompt += `\n\n[USER LAYOUT CATEGORY]\nRoot layoutCategory must be "${layoutCategory}". ${buildDeckLayoutCategoryPrompt(layoutCategory)} This must change slide structures and layout rhythm, not just colors.`;
           if (typeof theme === 'string' && theme.trim()) {
             finalPrompt += `\n\n${buildVisualCurationBlock({
               themeId: theme.trim(),
               artStyle: styleMode ? String(styleMode) : undefined,
+              layoutCategory,
               imageSource: imageSource ?? 'ai',
             })}`;
           }
@@ -343,6 +351,7 @@ export async function POST(req: Request) {
             tone: String(tone),
             language: String(language),
             styleMode: styleMode ? String(styleMode) : undefined,
+            layoutCategory,
             imageSource: imageSource ?? 'ai',
           });
 

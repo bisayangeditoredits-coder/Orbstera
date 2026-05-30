@@ -6,9 +6,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { SurveyModal } from './SurveyModal';
 import { usePresentationStore } from '@/store/usePresentationStore';
-import { PresentationData } from '@/types';
+import type { DeckLayoutCategory, PresentationData } from '@/types';
 import { mergeOrchestrationMetadata, normalizePresentationPayload } from '@/lib/ai/orchestration';
 import { createEditorGeneratingShell } from '@/lib/editor-generating-shell';
+import {
+  DECK_LAYOUT_CATEGORIES,
+  DEFAULT_DECK_LAYOUT_CATEGORY,
+  normalizeDeckLayoutCategory,
+} from '@/lib/deck-layout-categories';
 import { extractDeckJsonFromModelOutput } from '@/lib/ai/openrouter';
 import {
   createEditorSpeechRecognition,
@@ -23,7 +28,7 @@ import {
   Crown, Globe, ArrowRight,
   Save, Trash2, Download, AlertCircle, Plus, Mic, MicOff,
   Briefcase, Palette, Zap, Minus, BookOpen, FlaskConical,
-  Layers, Image as ImageIcon, Info, Maximize2, Minimize2
+  Layers, LayoutGrid, Image as ImageIcon, Info, Maximize2, Minimize2
 } from 'lucide-react';
 import { useCredits } from '@/hooks/useCredits';
 import { pollJobUntilDone } from '@/lib/client/poll-job';
@@ -52,7 +57,7 @@ async function waitForDeckReadyAndSync(epoch: number): Promise<void> {
   setEditorState({
     deckGenerationLifecycle: 'syncing',
     generationBlockingOverlay: true,
-    orchestrationMessage: 'Saving deck to cloud…',
+    orchestrationMessage: 'Saving changes…',
   });
   const { flushPresentationCloudSave } = await import('@/lib/presentation-cloud-sync-client');
   const result = await flushPresentationCloudSave({ retries: 2 });
@@ -100,6 +105,11 @@ const LANGUAGE_OPTIONS = [
   { code: 'ja', label: 'Japanese',  flag: '🇯🇵' },
   { code: 'ar', label: 'Arabic',    flag: '🇸🇦' },
 ];
+
+const LAYOUT_CATEGORY_OPTIONS = DECK_LAYOUT_CATEGORIES.map((category) => ({
+  ...category,
+  Icon: LayoutGrid,
+}));
 
 function CollapsibleSection({
   title,
@@ -282,6 +292,11 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
     };
   }, []);
 
+  useEffect(() => {
+    const layoutParam = searchParams.get('layout');
+    if (layoutParam) setSelectedLayoutCategory(normalizeDeckLayoutCategory(layoutParam));
+  }, [searchParams]);
+
   const isPaid = userPlan === 'student_pro' || userPlan === 'pro' || userPlan === 'creator_pro';
   const isCreatorPro = userPlan === 'creator_pro';
   // Plan-based max slides (mirrors server MAX_SLIDES)
@@ -299,6 +314,8 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
   const [activeTab, setActiveTab] = useState<'create' | 'enhance'>('create');
   const [isPromptExpanded, setIsPromptExpanded] = useState(false);
   const [expandDensity, setExpandDensity] = useState(true);
+  const [expandLayout, setExpandLayout] = useState(true);
+  const [selectedLayoutCategory, setSelectedLayoutCategory] = useState<DeckLayoutCategory>(DEFAULT_DECK_LAYOUT_CATEGORY);
   const [selectedTone, setSelectedTone] = useState('Professional');
   const [expandTone, setExpandTone] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState('Obsidian Night');
@@ -593,7 +610,9 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
 
       if (!bypassPlanner) {
         if (onClose) onClose();
-        router.push(`/planner?topic=${encodeURIComponent(trimmed)}&slides=${slideCount}`);
+        router.push(
+          `/planner?topic=${encodeURIComponent(trimmed)}&slides=${slideCount}&layout=${selectedLayoutCategory}`,
+        );
         return;
       }
 
@@ -621,6 +640,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
               ...pres,
               colorPalette: [...palette],
               theme: handoffAtStart?.themeName || pres.theme,
+              layoutCategory: handoffAtStart?.layoutCategory || selectedLayoutCategory,
               fontPairing: visualTheme?.fontPairing ?? pres.fontPairing,
             });
           }
@@ -678,6 +698,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
             plannerSessionId: handoff?.sessionId ?? undefined,
             tone: selectedTone.toLowerCase().replace(/ & /g, '_'),
             theme: handoff?.themeName || selectedTheme,
+            layoutCategory: handoff?.layoutCategory || selectedLayoutCategory,
             colorPalette: handoff?.colorPalette?.length
               ? handoff.colorPalette
               : handoff?.themeName
@@ -936,6 +957,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
               parsedRaw = {
                 title: inferredTitle,
                 theme: streamed?.theme || 'modern-dark',
+                layoutCategory: streamed?.layoutCategory || handoff?.layoutCategory || selectedLayoutCategory,
                 colorPalette: streamed?.colorPalette || ['#05050A', '#F8FAFC', '#38BDF8', '#94A3B8'],
                 fontPairing: streamed?.fontPairing || { heading: 'Space Grotesk', body: 'Inter' },
                 animationStyle: streamed?.animationStyle || 'cinematic-reveal',
@@ -1150,7 +1172,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
                   Unlock the full power of AI
                 </h2>
                 <p className="text-[14.5px] text-slate-500 text-center leading-relaxed mb-8 max-w-sm">
-                  You've reached your free plan limit. Upgrade now to keep generating cinematic presentations instantly.
+                  You&apos;ve reached your free plan limit. Upgrade now to keep generating cinematic presentations instantly.
                 </p>
 
                 <div className="w-full space-y-3 mb-10">
@@ -1464,6 +1486,40 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
             </div>
 
 
+
+            <CollapsibleSection
+              title="Layout (Structure)"
+              summary={LAYOUT_CATEGORY_OPTIONS.find((o) => o.id === selectedLayoutCategory)?.label || 'Editorial'}
+              expanded={expandLayout}
+              onToggle={() => setExpandLayout((v) => !v)}
+            >
+              <div className="grid grid-cols-2 gap-1.5">
+                {LAYOUT_CATEGORY_OPTIONS.map(({ id, label, shortLabel, description, Icon }) => {
+                  const active = selectedLayoutCategory === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setSelectedLayoutCategory(id)}
+                      title={description}
+                      className={`min-h-[58px] rounded-xl border px-2.5 py-2 text-left transition-all ${
+                        active
+                          ? 'border-primary bg-primary/[0.07] text-primary shadow-sm'
+                          : 'border-black/[0.07] bg-white text-neutral-700 hover:border-primary/30 hover:bg-primary/[0.03]'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Icon size={14} strokeWidth={1.9} className={active ? 'text-primary' : 'text-neutral-400'} />
+                        <span className="text-[11px] font-bold leading-none">{label}</span>
+                      </span>
+                      <span className="mt-1.5 block text-[9.5px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
+                        {shortLabel}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </CollapsibleSection>
 
             <CollapsibleSection
               title="Density (Slides)"

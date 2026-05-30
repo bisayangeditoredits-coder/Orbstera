@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useState } from 'react';
-import { ArrowRight, Check, Presentation, SwatchBook } from 'lucide-react';
+import { ArrowRight, Check, LayoutGrid, Presentation, SwatchBook } from 'lucide-react';
 import { ColorPicker } from '@/components/editor/ColorPicker';
 import {
   PRESENTATION_THEMES,
@@ -12,6 +12,10 @@ import {
   type PlannerSetupPreferences,
   type PlannerSlideCount,
 } from '@/lib/presentation-themes';
+import {
+  DECK_LAYOUT_CATEGORIES,
+  DEFAULT_DECK_LAYOUT_CATEGORY,
+} from '@/lib/deck-layout-categories';
 import { cn } from '@/lib/cn';
 
 type PlannerSetupProps = {
@@ -29,6 +33,7 @@ export function PlannerSetup({ topic, onContinue }: PlannerSetupProps) {
   const [slideCount, setSlideCount] = useState<PlannerSlideCount>(DEFAULT_PLANNER_SLIDE_COUNT);
   const [selectedThemeName, setSelectedThemeName] = useState(DEFAULT_PLANNER_THEME.name);
   const [colorPalette, setColorPalette] = useState<string[]>([...DEFAULT_PLANNER_THEME.palette]);
+  const [layoutCategory, setLayoutCategory] = useState(DEFAULT_DECK_LAYOUT_CATEGORY);
   const [colorsExpanded, setColorsExpanded] = useState(false);
 
   const applyTheme = (theme: (typeof PRESENTATION_THEMES)[0]) => {
@@ -49,6 +54,7 @@ export function PlannerSetup({ topic, onContinue }: PlannerSetupProps) {
       slideCount,
       themeName: selectedThemeName,
       colorPalette,
+      layoutCategory,
     });
   };
 
@@ -107,6 +113,32 @@ export function PlannerSetup({ topic, onContinue }: PlannerSetupProps) {
                     {n}
                   </button>
                 ))}
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <SectionLabel>Layout</SectionLabel>
+              <div className="grid grid-cols-2 gap-2">
+                {DECK_LAYOUT_CATEGORIES.map((category) => {
+                  const selected = layoutCategory === category.id;
+                  return (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => setLayoutCategory(category.id)}
+                      title={category.description}
+                      className={cn(
+                        'flex min-h-[48px] items-center gap-2 rounded-[12px] border px-3 text-left transition-all',
+                        selected
+                          ? 'border-slate-900 bg-slate-900 text-white'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300',
+                      )}
+                    >
+                      <LayoutGrid size={14} strokeWidth={1.75} />
+                      <span className="text-[12px] font-semibold">{category.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </section>
 

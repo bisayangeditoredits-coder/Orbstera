@@ -159,7 +159,7 @@ export function GiphyPanel({ onClose }: { onClose?: () => void }) {
             </div>
             <p className="text-[13px] font-bold text-neutral-600">No {mode} found</p>
             <p className="text-[11px] text-neutral-400 mt-1 max-w-[180px] mx-auto">
-              Try searching for something else like "happy" or "confetti".
+               Try searching for something else like &quot;happy&quot; or &quot;confetti&quot;.
             </p>
           </div>
         ) : (

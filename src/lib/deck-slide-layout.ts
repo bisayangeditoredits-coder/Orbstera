@@ -1,7 +1,12 @@
-import type { SlideElement } from '@/types';
+import type { DeckLayoutCategory, SlideElement } from '@/types';
 import type { DeckImageTask } from '@/lib/deck-image-generation';
-import { buildFallbackImagePrompt } from '@/lib/ai/deck-generation-skill';
+import { buildDeckImagePrompt } from '@/lib/ai/deck-generation-skill';
 import type { VisualBackgroundMode } from '@/lib/visual-themes';
+import {
+  DEFAULT_DECK_LAYOUT_CATEGORY,
+  getDeckLayoutCategoryOption,
+  normalizeDeckLayoutCategory,
+} from '@/lib/deck-layout-categories';
 
 export const DECK_CANVAS_W = 1280;
 export const DECK_CANVAS_H = 720;
@@ -35,6 +40,8 @@ export type AiSlideInput = {
 export type BuildDeckSlideLayoutArgs = {
   slide: AiSlideInput;
   sIdx: number;
+  slideCount?: number;
+  layoutCategory?: DeckLayoutCategory | string;
   palette: string[];
   headingFont: string;
   bodyFont: string;
@@ -48,12 +55,30 @@ export type BuildDeckSlideLayoutResult = {
   imageTasks: DeckImageTask[];
 };
 
-export function resolveDeckImagePrompt(slide: AiSlideInput): string {
+export function resolveDeckImagePrompt(
+  slide: AiSlideInput,
+  ctx?: {
+    slideIndex?: number;
+    slideCount?: number;
+    layoutHint?: string;
+    layoutCategory?: DeckLayoutCategory | string;
+    visualMood?: string;
+    imageryPalette?: string;
+    presentationType?: string;
+  },
+): string {
   const explicit = typeof slide.imagePrompt === 'string' ? slide.imagePrompt.trim() : '';
-  if (explicit) return explicit;
-  return buildFallbackImagePrompt({
+  return buildDeckImagePrompt({
+    basePrompt: explicit || undefined,
     title: slide.title,
     type: slide.type,
+    slideIndex: ctx?.slideIndex,
+    slideCount: ctx?.slideCount,
+    layoutHint: ctx?.layoutHint || slide.type,
+    layoutCategory: ctx?.layoutCategory,
+    visualMood: ctx?.visualMood,
+    imageryPalette: ctx?.imageryPalette,
+    presentationType: ctx?.presentationType,
   });
 }
 
@@ -91,11 +116,37 @@ const bulletPill = (light: boolean) =>
         cornerRadius: 14,
       };
 
+function resolveContentVariant(category: DeckLayoutCategory, sIdx: number): 0 | 1 | 2 {
+  const rhythms: Record<DeckLayoutCategory, (0 | 1 | 2)[]> = {
+    editorial: [0, 2, 1, 0, 2],
+    bento: [2, 2, 1, 2, 0],
+    cinematic: [0, 0, 2, 0, 1],
+    corporate: [1, 2, 1, 1, 2],
+    pitch: [0, 2, 1, 2, 0],
+    product: [0, 2, 0, 1, 2],
+    data_story: [2, 1, 2, 2, 1],
+    timeline: [1, 2, 1, 0, 2],
+    minimal: [1, 1, 0, 1, 2],
+    luxury: [0, 1, 0, 2, 0],
+  };
+  const rhythm = rhythms[category] || rhythms[DEFAULT_DECK_LAYOUT_CATEGORY];
+  return rhythm[sIdx % rhythm.length];
+}
+
+function prefersImageBackground(category: DeckLayoutCategory, slideType?: string): boolean {
+  if (slideType === 'hero' || slideType === 'quote' || slideType === 'closing' || slideType === 'media') return true;
+  if (category === 'cinematic' || category === 'luxury' || category === 'product') return true;
+  if (category === 'corporate' || category === 'minimal' || category === 'data_story') return false;
+  return true;
+}
+
 /**
  * Gamma-style slide layouts: full-bleed backgrounds, glass cards, editorial hierarchy.
  */
 export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDeckSlideLayoutResult {
-  const { slide, sIdx, palette, headingFont, bodyFont, uid } = args;
+  const { slide, sIdx, slideCount, palette, headingFont, bodyFont, uid } = args;
+  const layoutCategory = normalizeDeckLayoutCategory(args.layoutCategory);
+  const layoutOption = getDeckLayoutCategoryOption(layoutCategory);
   const imageTasks: DeckImageTask[] = [];
   const elements: SlideElement[] = [...(args.existingElements || [])];
   let currentZ = elements.length + 1;
@@ -116,8 +167,16 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
   const isTimeline = slide.type === 'timeline';
   const isComparison = slide.type === 'comparison';
   const isBullets = slide.type === 'bullets';
-  const flipSplit = sIdx % 2 === 1;
-  const imagePrompt = resolveDeckImagePrompt(slide);
+  const flipSplit =
+    layoutCategory === 'product' || layoutCategory === 'cinematic'
+      ? sIdx % 3 === 1
+      : sIdx % 2 === 1;
+  const imagePrompt = resolveDeckImagePrompt(slide, {
+    slideIndex: sIdx,
+    slideCount,
+    layoutHint: `${layoutOption.label} ${slide.type || 'content'} layout`,
+    layoutCategory,
+  });
   const accent = palette[2] || '#7B61FF';
 
   const pushImageTask = (task: Omit<DeckImageTask, 'prompt' | 'slideId'> & { prompt?: string }) => {
@@ -150,6 +209,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
 
   const addFullBleedBackground = (bgOpacity: number, visualProfile: 'cinematic' | 'typography') => {
     const bgId = uid('el-bg-image');
+    const imageOpacity = light ? Math.max(0.72, bgOpacity) : bgOpacity;
     elements.unshift({
       id: bgId,
       type: 'image',
@@ -160,7 +220,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       height: DECK_CANVAS_H,
       zIndex: 0,
       visible: true,
-      opacity: bgOpacity,
+      opacity: imageOpacity,
       aiImagePending: true,
       animation: { entrance: 'fadeIn', duration: 1200, delay: 0 },
     });
@@ -170,28 +230,36 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       h: 720,
       visualProfile,
     });
-    elements.push({
-      id: uid('el-bg-overlay'),
-      type: 'shape',
-      shapeType: 'rect',
-      x: 0,
-      y: 0,
-      width: DECK_CANVAS_W,
-      height: DECK_CANVAS_H,
-      zIndex: 1,
-      visible: true,
-      shapeStyle: {
-        fill: light ? 'rgba(255, 255, 255, 0.55)' : 'rgba(5, 5, 12, 0.62)',
-        stroke: 'transparent',
-        strokeWidth: 0,
-      },
-      animation: { entrance: 'fadeIn', duration: 800, delay: 0 },
-    });
-    currentZ = Math.max(currentZ, 2);
+    if (!light) {
+      elements.push({
+        id: uid('el-bg-overlay'),
+        type: 'shape',
+        shapeType: 'rect',
+        x: 0,
+        y: 0,
+        width: DECK_CANVAS_W,
+        height: DECK_CANVAS_H,
+        zIndex: 1,
+        visible: true,
+        shapeStyle: {
+          fill: 'rgba(5, 5, 12, 0.3)',
+          stroke: 'transparent',
+          strokeWidth: 0,
+        },
+        animation: { entrance: 'fadeIn', duration: 800, delay: 0 },
+      });
+      currentZ = Math.max(currentZ, 2);
+    } else {
+      currentZ = Math.max(currentZ, 1);
+    }
   };
 
   if (isHero) {
-    addFullBleedBackground(0.32, 'typography');
+    if (layoutCategory === 'minimal' || layoutCategory === 'corporate') {
+      addSolidBackground();
+    } else {
+      addFullBleedBackground(layoutCategory === 'cinematic' ? 0.48 : 0.42, 'typography');
+    }
     const titleText = slide.title?.trim() ?? '';
     const titleFontSize = titleText.length > 42 ? 64 : titleText.length > 28 ? 76 : 88;
     const estLines = Math.max(1, Math.ceil(titleText.length / (titleFontSize > 76 ? 18 : 22)));
@@ -384,7 +452,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       visualProfile: 'cinematic',
     });
   } else if (isQuote) {
-    addFullBleedBackground(0.28, 'cinematic');
+    addFullBleedBackground(0.36, 'cinematic');
     elements.push({
       id: uid('el-quote-glass'),
       type: 'shape',
@@ -444,7 +512,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       });
     }
   } else if (isClosing) {
-    addFullBleedBackground(0.3, 'cinematic');
+    addFullBleedBackground(0.38, 'cinematic');
     if (slide.title) {
       elements.push({
         id: uid('el-close-title'),
@@ -574,7 +642,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       }
     });
   } else if (isTimeline) {
-    addFullBleedBackground(0.22, 'cinematic');
+    addFullBleedBackground(0.3, 'cinematic');
     if (slide.title) {
       elements.push({
         id: uid('el-title'),
@@ -713,7 +781,11 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       });
     });
   } else if (isBullets) {
-    addFullBleedBackground(0.2, 'typography');
+    if (layoutCategory === 'corporate' || layoutCategory === 'minimal' || layoutCategory === 'data_story') {
+      addSolidBackground();
+    } else {
+      addFullBleedBackground(0.28, 'typography');
+    }
     if (slide.title) {
       elements.push({
         id: uid('el-title'),
@@ -770,11 +842,11 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       });
     });
   } else {
-    const contentVariant = sIdx % 3;
-    if (contentVariant === 1) {
+    const contentVariant = resolveContentVariant(layoutCategory, sIdx);
+    if (contentVariant === 1 || !prefersImageBackground(layoutCategory, slide.type)) {
       addSolidBackground();
     } else {
-      addFullBleedBackground(contentVariant === 2 ? 0.18 : 0.24, 'cinematic');
+      addFullBleedBackground(contentVariant === 2 ? 0.22 : 0.28, 'cinematic');
     }
 
     if (slide.title) {

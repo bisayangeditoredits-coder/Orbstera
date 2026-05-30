@@ -20,7 +20,7 @@ function slidesHistorySignature(slides: Slide[]): string {
 }
 
 function historyEntrySignature(entry: HistoryEntry): string {
-  return `${entry.theme}:${slidesHistorySignature(entry.slides)}`;
+  return `${entry.theme}:${entry.layoutCategory || ''}:${slidesHistorySignature(entry.slides)}`;
 }
 
 /** Deck content only — excludes editor UI, generation flags, sync metadata, etc. */
@@ -28,6 +28,7 @@ function captureHistorySnapshot(presentation: PresentationData): HistoryEntry {
   return {
     slides: structuredClone(presentation.slides),
     theme: presentation.theme || 'dark',
+    layoutCategory: presentation.layoutCategory,
     timestamp: Date.now(),
   };
 }
@@ -114,19 +115,17 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
   setCurrentSlideIndex: (index) => set({ currentSlideIndex: index }),
 
   addSlide: (slide) => {
-    get().pushHistory();
     set((state) => {
-      console.log('ZUSTAND SET:', new Error().stack?.split('\n').slice(1,4).join('\n'));
       if (!state.presentation) return state;
       return {
         presentation: { ...state.presentation, slides: [...state.presentation.slides, slide] },
         currentSlideIndex: state.presentation.slides.length,
       };
     });
+    get().pushHistory();
   },
 
   removeSlide: (slideId) => {
-    get().pushHistory();
     set((state) => {
       if (!state.presentation) return state;
       const slides = state.presentation.slides.filter((s) => s.id !== slideId);
@@ -135,10 +134,10 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         currentSlideIndex: Math.max(0, state.currentSlideIndex - 1),
       };
     });
+    get().pushHistory();
   },
 
   updateSlide: (slideId, updates, saveHistory = false) => {
-    if (saveHistory) get().pushHistory();
     set((state) => {
       if (!state.presentation) return state;
       return {
@@ -148,10 +147,10 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         },
       };
     });
+    if (saveHistory) get().pushHistory();
   },
 
   duplicateSlide: (slideId) => {
-    get().pushHistory();
     set((state) => {
       if (!state.presentation) return state;
       const idx = state.presentation.slides.findIndex((s) => s.id === slideId);
@@ -166,10 +165,10 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       slides.splice(idx + 1, 0, copy);
       return { presentation: { ...state.presentation, slides }, currentSlideIndex: idx + 1 };
     });
+    get().pushHistory();
   },
 
   reorderSlides: (fromIndex, toIndex) => {
-    get().pushHistory();
     set((state) => {
       if (!state.presentation) return state;
       const slides = [...state.presentation.slides];
@@ -177,10 +176,10 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       slides.splice(toIndex, 0, moved);
       return { presentation: { ...state.presentation, slides }, currentSlideIndex: toIndex };
     });
+    get().pushHistory();
   },
 
   addElement: (slideId, element) => {
-    get().pushHistory();
     set((state) => {
       if (!state.presentation) return state;
       return {
@@ -192,10 +191,10 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         },
       };
     });
+    get().pushHistory();
   },
 
   updateElement: (slideId, elementId, updates, saveHistory = false) => {
-    if (saveHistory) get().pushHistory();
     set((state) => {
       if (!state.presentation) return state;
       const clearPending =
@@ -223,10 +222,10 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         },
       };
     });
+    if (saveHistory) get().pushHistory();
   },
 
   removeElement: (slideId, elementId) => {
-    get().pushHistory();
     set((state) => {
       if (!state.presentation) return state;
       return {
@@ -238,10 +237,10 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         },
       };
     });
+    get().pushHistory();
   },
 
   reorderElements: (slideId, elementId, direction, saveHistory = false) => {
-    if (saveHistory) get().pushHistory();
     set((state) => {
       if (!state.presentation) return state;
       return {
@@ -263,6 +262,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         },
       };
     });
+    if (saveHistory) get().pushHistory();
   },
 
   setElementsOrder: (slideId, orderedIdsTopFirst, saveHistory = false) => {
@@ -281,7 +281,6 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     const newStorageOrder = [...orderedIdsTopFirst].reverse().map((id) => byId.get(id)!);
     const changed = newStorageOrder.some((el, i) => el.id !== current[i].id);
     if (!changed) return;
-    if (saveHistory) get().pushHistory();
     set((state) => {
       if (!state.presentation) return state;
       return {
@@ -293,6 +292,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         },
       };
     });
+    if (saveHistory) get().pushHistory();
   },
 
   copyElement: () => {
@@ -476,6 +476,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         ...state.presentation,
         slides: structuredClone(entry.slides),
         theme: entry.theme,
+        layoutCategory: entry.layoutCategory,
       },
       historyIndex: newIndex,
     });
@@ -490,6 +491,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         ...state.presentation,
         slides: structuredClone(entry.slides),
         theme: entry.theme,
+        layoutCategory: entry.layoutCategory,
       },
       historyIndex: newIndex,
     });
@@ -514,6 +516,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       presentation: {
         title: titleFromHandoff,
         theme: base?.theme || handoff?.themeName || 'modern-dark',
+        layoutCategory: base?.layoutCategory || handoff?.layoutCategory,
         colorPalette: palette,
         fontPairing: base?.fontPairing || { heading: 'Space Grotesk', body: 'Inter' },
         animationStyle: base?.animationStyle || 'cinematic-reveal',
@@ -608,6 +611,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
         presentation: {
           title,
           theme: handoff?.themeName || 'modern-dark',
+          layoutCategory: handoff?.layoutCategory,
           colorPalette: handoff?.colorPalette?.length
             ? handoff.colorPalette
             : ['#05050A', '#FFFFFF', '#0009fa', '#94A3B8'],
@@ -650,6 +654,8 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       bodyFont,
       uid,
       backgroundMode,
+      slideCount: currentPres.slides.length,
+      layoutCategory: currentPres.layoutCategory,
     });
 
     const rawSlide: Slide = {

@@ -4,6 +4,12 @@ import {
   DEFAULT_SLIDE_COUNT,
   parseSlideCountParam,
 } from '@/lib/slide-count-options';
+import type { DeckLayoutCategory } from '@/types';
+import {
+  DEFAULT_DECK_LAYOUT_CATEGORY,
+  getDeckLayoutCategoryOption,
+  normalizeDeckLayoutCategory,
+} from '@/lib/deck-layout-categories';
 
 export const PALETTE_LABELS = ['Background', 'Text', 'Accent', 'Secondary'] as const;
 
@@ -34,13 +40,16 @@ export type PlannerSetupPreferences = {
   slideCount: number;
   themeName: string;
   colorPalette: string[];
+  layoutCategory: DeckLayoutCategory;
 };
 
 export function buildPlannerFirstMessage(topic: string, prefs: PlannerSetupPreferences): string {
+  const layout = getDeckLayoutCategoryOption(prefs.layoutCategory);
   return [
     `I want to create a presentation about: "${topic}".`,
     `Target length: ${prefs.slideCount} slides.`,
     `Theme: ${prefs.themeName}. Brand colors: ${prefs.colorPalette.join(', ')}.`,
+    `Layout category: ${layout.label}. ${layout.promptHint}`,
     `Please build a slide-by-slide outline for exactly ${prefs.slideCount} slides.`,
   ].join('\n');
 }
@@ -63,6 +72,7 @@ export function parsePlannerThemeFromParam(raw: string | null | undefined): Pres
 export function resolvePlannerPreferencesFromParams(args: {
   slidesParam?: string | null;
   themeParam?: string | null;
+  layoutParam?: string | null;
 }): PlannerSetupPreferences {
   const slideCount = parseSlideCountParam(args.slidesParam ?? null);
   const theme = parsePlannerThemeFromParam(args.themeParam ?? null) ?? DEFAULT_PLANNER_THEME;
@@ -70,5 +80,8 @@ export function resolvePlannerPreferencesFromParams(args: {
     slideCount,
     themeName: theme.name,
     colorPalette: [...theme.palette],
+    layoutCategory: args.layoutParam
+      ? normalizeDeckLayoutCategory(args.layoutParam)
+      : DEFAULT_DECK_LAYOUT_CATEGORY,
   };
 }

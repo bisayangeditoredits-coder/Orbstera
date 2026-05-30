@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ImageIcon, Sparkles } from 'lucide-react';
+import { ImageIcon } from 'lucide-react';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import type { DeckGenerationLifecycle } from '@/types';
 import { KonvaCanvas, CANVAS_WIDTH, CANVAS_HEIGHT } from './KonvaCanvas';
@@ -42,9 +42,9 @@ function deriveGenerationUi(
       };
     }
     case 'building':
-      return { pct: 71, label: 'Parsing deck JSON', stepIndex: 2 };
+      return { pct: 71, label: 'Structuring deck', stepIndex: 2 };
     case 'polishing':
-      return { pct: 78, label: 'Elite polish pass', stepIndex: 3 };
+      return { pct: 78, label: 'Refining deck', stepIndex: 3 };
     case 'images': {
       if (imgTot <= 0) {
         return { pct: Math.min(99, 96), label: 'Finalizing deck', stepIndex: 4 };
@@ -53,15 +53,15 @@ function deriveGenerationUi(
       const pct = Math.round(78 + frac * 21);
       return {
         pct: Math.min(99, pct),
-        label: 'AI visuals',
+        label: 'Preparing visuals',
         stepIndex: 4,
       };
     }
     case 'syncing':
-      return { pct: 99, label: 'Saving to cloud', stepIndex: 4 };
+      return { pct: 99, label: 'Saving changes', stepIndex: 4 };
     case 'connecting':
     default:
-      return { pct: 4, label: 'Connecting to model', stepIndex: 0 };
+      return { pct: 4, label: 'Connecting', stepIndex: 0 };
   }
 }
 
@@ -148,190 +148,101 @@ function GenerationLoader() {
       ? `Generating AI visuals (${Math.min(generationImageJobsCompleted, generationImageJobsTotal)}/${generationImageJobsTotal})`
       : label);
 
-  const steps = [
-    { label: 'Connect', min: 0 },
-    { label: 'Compose slides', min: 1 },
-    { label: 'Parse JSON', min: 2 },
-    { label: 'Polish', min: 3 },
-    { label: 'AI visuals', min: 4 },
-  ];
+  const steps = ['Connect', 'Compose', 'Structure', 'Refine', 'Sync'] as const;
 
   const reasoningSteps = [
-    'Analyzing your brief and audience intent…',
-    'Mapping slide narrative and visual rhythm…',
-    'Building layout structure slide by slide…',
-    'Running quality polish pass…',
-    'Rendering cinematic AI visuals…',
+    'Analyzing your brief…',
+    'Structuring the deck…',
+    'Building slides…',
+    'Refining the result…',
+    'Finalizing and syncing…',
   ];
 
   const currentStepIndex =
     deckGenerationLifecycle === 'idle' ? 0 : Math.min(stepIndex, steps.length - 1);
+  const currentStepLabel = steps[currentStepIndex] ?? 'Connect';
 
   const vizLine =
     deckGenerationLifecycle === 'syncing'
-      ? 'Securing your deck in the cloud…'
+      ? 'Saving changes to the cloud…'
       : deckGenerationLifecycle === 'images' && generationImageJobsTotal > 0
         ? `AI visuals ${Math.min(generationImageJobsCompleted, generationImageJobsTotal)}/${generationImageJobsTotal}`
         : deckGenerationLifecycle === 'streaming'
           ? `Slides streamed ${slideLen} / ~${generationTargetSlides || '?'}`
           : null;
 
-  const reduceMotion =
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-[#f0f2f5]"
+      className="absolute inset-0 z-[100] flex items-center justify-center overflow-hidden bg-slate-950/15 backdrop-blur-sm"
     >
-      {/* ── Shimmering Skeleton Grid Background ── */}
-      <div className="absolute inset-0 z-0 flex flex-wrap content-start justify-center gap-8 p-12 overflow-hidden opacity-50">
-        {Array.from({ length: Math.min(generationTargetSlides || 6, 8) }).map((_, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{
-              opacity: slideLen > i ? 0.35 : 1,
-              scale: slideLen > i ? 1 : 0.95,
-            }}
-            transition={{ delay: i * 0.05, duration: 0.6 }}
-            className={`relative w-[280px] shrink-0 aspect-[16/9] rounded-2xl shadow-[0_4px_20px_-5px_rgba(0,0,0,0.05)] border p-6 flex flex-col gap-4 overflow-hidden ${
-              slideLen > i
-                ? 'bg-indigo-50/80 border-indigo-200/60'
-                : 'bg-white border-slate-200/50'
-            }`}
-          >
-            {slideLen <= i && (
-              <motion.div
-                className="absolute inset-0 z-10 bg-gradient-to-r from-transparent via-white/70 to-transparent skew-x-[-20deg]"
-                animate={{ x: ['-200%', '200%'] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'linear', delay: i * 0.1 }}
-              />
-            )}
-            <div className={`h-4 w-2/3 rounded-md ${slideLen > i ? 'bg-indigo-200/70' : 'bg-slate-100'}`} />
-            <div className="space-y-2 mt-2">
-              <div className={`h-2.5 w-full rounded-sm ${slideLen > i ? 'bg-indigo-100' : 'bg-slate-100'}`} />
-              <div className={`h-2.5 w-5/6 rounded-sm ${slideLen > i ? 'bg-indigo-100' : 'bg-slate-100'}`} />
-            </div>
-            {slideLen > i && (
-              <div className="absolute top-3 right-3 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
-                Live
-              </div>
-            )}
-          </motion.div>
-        ))}
-      </div>
-
-      {/* ── Premium Glass Overlay Panel ── */}
-      <div className="relative z-10 w-full max-w-2xl px-6">
-        <motion.div 
-          initial={{ y: 20, opacity: 0 }}
+      <div className="relative z-10 w-full max-w-[560px] px-4 sm:px-6">
+        <motion.div
+          initial={{ y: 14, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 200, delay: 0.2 }}
-          className="bg-white/95 backdrop-blur-md border border-white shadow-[0_30px_60px_-15px_rgba(99,102,241,0.2)] rounded-[2.5rem] p-8 sm:p-12 w-full text-center"
+          transition={{ type: 'spring', damping: 28, stiffness: 240, delay: 0.05 }}
+          className="rounded-[28px] border border-black/[0.06] bg-white px-6 py-7 shadow-[0_24px_80px_-28px_rgba(15,23,42,0.22)] sm:px-8 sm:py-8"
         >
-          {/* Animated Percentage Badge */}
-          <div className="flex justify-center mb-6">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="inline-flex items-center gap-2.5 rounded-full border border-indigo-100 bg-indigo-50/50 px-5 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-700 shadow-sm sm:text-xs"
-            >
-              <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)] animate-pulse" aria-hidden />
-              <span className="tabular-nums text-center">{Math.round(pct)}% complete</span>
-            </motion.div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
+              <span className="h-2 w-2 rounded-full bg-primary" aria-hidden />
+              {Math.round(pct)}% complete
+            </div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+              {currentStepLabel}
+            </div>
           </div>
 
-          <div className="space-y-2 mb-8">
-            <motion.div 
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="text-[10.5px] font-semibold text-indigo-500 uppercase tracking-[0.3em]"
-            >
-              Orchestrating Narrative
-            </motion.div>
-            <h2 className="text-[clamp(1.5rem,5vw,2.5rem)] font-semibold text-slate-900 tracking-tight leading-[1.1] text-balance px-1">
+          <div className="mt-5">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-neutral-400">
+              Cloud sync
+            </div>
+            <h2 className="mt-2 text-[clamp(1.55rem,4vw,2.3rem)] font-semibold tracking-tight text-neutral-950 leading-[1.08] text-balance">
               {displayLabel}
             </h2>
+            <p className="mt-3 max-w-[38ch] text-[13px] leading-relaxed text-neutral-500">
+              Your latest changes are being secured and synced without interrupting your flow.
+            </p>
           </div>
 
-          {/* Stepper Progress Bar */}
-          <div className="relative w-full h-[3px] bg-slate-200/50 rounded-full mb-10">
-            <motion.div
-              className="absolute h-full rounded-full"
-              style={{ background: 'linear-gradient(90deg, #4f46e5, #a855f7, #ec4899)' }}
-              initial={{ width: '0%' }}
-              animate={{ width: `${Math.max(4, pct)}%` }}
-              transition={{ duration: 0.8, ease: 'circOut' }}
-            />
-            <div className="absolute top-1/2 left-0 w-full flex justify-between -translate-y-1/2 px-0">
-                {steps.map((_, i) => (
-                  <div 
-                    key={i} 
-                    className={`w-2 h-2 rounded-full border-2 transition-all duration-500 ${
-                      i <= currentStepIndex ? 'bg-white border-purple-500 scale-125 shadow-[0_0_10px_rgba(168,85,247,0.5)]' : 'bg-slate-100 border-transparent'
-                    }`} 
-                  />
-                ))}
+          <div className="mt-7">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
+              <motion.div
+                className="h-full rounded-full bg-primary"
+                initial={{ width: '0%' }}
+                animate={{ width: `${Math.max(4, pct)}%` }}
+                transition={{ duration: 0.8, ease: 'easeOut' }}
+              />
+            </div>
+            <div className="mt-3 flex items-center justify-between text-[11px] text-neutral-500">
+              <span>{vizLine || reasoningSteps[currentStepIndex]}</span>
+              <span className="tabular-nums">{Math.round(pct)}%</span>
             </div>
           </div>
 
-          <div className="min-h-[50px] flex flex-col items-center justify-center mb-8">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={editor.reasoning ? 'real' : 'fake'}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                className="flex flex-col items-center max-w-lg"
-              >
-                {vizLine && (
-                  <p className="text-[12px] font-bold text-indigo-600 tracking-tight mb-2 bg-indigo-50 px-3 py-1 rounded-full">
-                    {vizLine}
-                  </p>
-                )}
-                <p className="text-[13px] font-medium text-slate-500 italic tracking-tight leading-relaxed text-center">
-                  {editor.reasoning?.trim()
-                    ? editor.reasoning.slice(-140)
-                    : editor.orchestrationMessage?.trim() || reasoningSteps[currentStepIndex]}
-                  <span className="inline-block w-[2px] h-[14px] bg-indigo-500 ml-1.5 translate-y-[2px] animate-blink" />
-                </p>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          <div className="grid grid-cols-1 xs:grid-cols-3 gap-4 xs:gap-8 pt-6 border-t border-slate-200/50 w-full mx-auto">
+          <div className="mt-6 grid grid-cols-3 gap-3 border-t border-neutral-100 pt-5">
             {[
               { label: 'Progress', value: `${Math.round(pct)}%` },
+              { label: 'Stage', value: currentStepLabel },
               {
-                label: 'Engine',
-                value: editor.orchestrationPhase
-                  ? String(editor.orchestrationPhase)
-                      .replace(/_/g, ' ')
-                      .replace(/^\w/, (c) => c.toUpperCase())
-                  : 'Orbstera AI',
+                label: 'Status',
+                value: 'Active',
+                valueClass: 'text-emerald-600',
               },
-              { label: 'Status', value: 'ACTIVE', color: 'text-emerald-500' },
-            ].map((stat, i) => (
-              <div key={i} className="flex flex-col gap-1">
-                  <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest">{stat.label}</span>
-                  <span className={`text-[15px] font-bold tracking-tight ${stat.color || 'text-slate-800'}`}>{stat.value}</span>
+            ].map((stat) => (
+              <div key={stat.label} className="min-w-0">
+                <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
+                  {stat.label}
+                </div>
+                <div className={`mt-1 truncate text-[14px] font-semibold tracking-tight text-neutral-900 ${stat.valueClass ?? ''}`}>
+                  {stat.value}
+                </div>
               </div>
             ))}
           </div>
         </motion.div>
-      </div>
-
-      {/* Brand Credit */}
-      <div className="absolute bottom-[max(2rem,env(safe-area-inset-bottom))] left-0 right-0 flex justify-center opacity-40 px-4">
-        <span className="text-[10px] font-semibold tracking-[0.4em] text-slate-500 uppercase text-center flex items-center gap-2">
-          <Sparkles size={12} className="text-indigo-400" />
-          Orbstera Presentation Engine
-        </span>
       </div>
     </motion.div>
   );

@@ -420,7 +420,7 @@ function PropertyInspector({ element, slideId }: { element: SlideElement; slideI
         </div>
         {element.rotation !== undefined && element.rotation !== 0 && (
           <div className="flex items-center gap-2">
-            <Slider label="Rotation" value={element.rotation || 0} min={-180} max={180} unit="Â°"
+            <Slider label="Rotation" value={element.rotation || 0} min={-180} max={180} unit="°"
               onChange={(v) => upd({ rotation: v })} />
             <button
               type="button"

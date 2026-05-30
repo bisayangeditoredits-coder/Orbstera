@@ -142,7 +142,7 @@ export default function FeaturesPage() {
           </div>
           <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Our Core Services</h2>
           <p className="text-slate-500 max-w-md mx-auto">
-            Discover the powerful engines that drive Orbstera's capabilities.
+            Discover the powerful engines that drive Orbstera&apos;s capabilities.
           </p>
         </div>
 

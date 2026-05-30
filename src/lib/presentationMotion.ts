@@ -570,7 +570,6 @@ export function inferSlideTransition(slide: Slide, ctx: MotionContext): SlideTra
     case 'timeline':
       return 'layerReveal';
     case 'stats':
-    case 'stats':
       return 'depth';
     case 'quote':
       return 'blurReveal';

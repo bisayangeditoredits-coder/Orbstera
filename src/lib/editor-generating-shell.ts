@@ -1,7 +1,8 @@
-import type { PresentationData } from '@/types';
+import type { DeckLayoutCategory, PresentationData } from '@/types';
 
 type GeneratingShellOptions = {
   themeName?: string;
+  layoutCategory?: DeckLayoutCategory;
   colorPalette?: string[];
 };
 
@@ -10,6 +11,7 @@ export function createEditorGeneratingShell(options?: GeneratingShellOptions): P
   return {
     title: 'Generating...',
     theme: options?.themeName || 'modern-dark',
+    layoutCategory: options?.layoutCategory,
     colorPalette: options?.colorPalette?.length
       ? options.colorPalette
       : ['#05050A', '#FFFFFF', '#0009fa', '#94A3B8'],

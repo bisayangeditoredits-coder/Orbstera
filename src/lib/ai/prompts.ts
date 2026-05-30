@@ -14,6 +14,7 @@ export {
   POLISH_SYSTEM,
   buildComposerSystemPrompt,
   buildComposerUserPrompt,
+  buildDeckImagePrompt,
   buildFallbackImagePrompt,
 } from '@/lib/ai/deck-generation-skill';
 

@@ -261,7 +261,7 @@ function LoginContent() {
           </motion.div>
 
           <div className="absolute bottom-6 left-0 right-0 text-center px-8">
-            <p className="text-[12px] text-slate-400 font-medium">Â© 2026 Orbstera, Inc.</p>
+            <p className="text-[12px] text-slate-400 font-medium">&copy; 2026 Orbstera, Inc.</p>
           </div>
         </div>
 

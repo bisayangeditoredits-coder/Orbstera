@@ -59,7 +59,7 @@ export default function FAQPage() {
           <div className="mt-24 text-center bg-gradient-to-br from-indigo-50 to-blue-50 rounded-3xl p-12 border border-indigo-100">
             <h2 className="text-2xl font-bold text-slate-900 mb-4">Still have questions?</h2>
             <p className="text-slate-600 mb-8 font-medium">
-              Can't find the answer you're looking for? Please chat to our friendly team.
+              Can&apos;t find the answer you&apos;re looking for? Please chat to our friendly team.
             </p>
             <Link 
               href="/contact"

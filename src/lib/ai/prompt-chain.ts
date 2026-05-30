@@ -65,7 +65,7 @@ function buildRefinedBrief(args: {
     `--- Original ask (verbatim) ---\n${args.rawUserPrompt}`,
     `--- Parameters ---\nSlides: ${args.meta.slideCount}, tone hint: ${args.meta.tone}, language: ${args.meta.language}`,
     typeof args.intent.visualMood === 'string' && args.intent.visualMood
-      ? `--- Visual mood (ALL imagePrompts must match) ---\n${args.intent.visualMood}`
+      ? `--- Visual mood family ---\n${args.intent.visualMood}\nKeep the deck in this family, but vary scene, crop, and composition by slide.`
       : '',
     typeof args.intent.imageryPalette === 'string' && args.intent.imageryPalette
       ? `--- Imagery palette ---\n${args.intent.imageryPalette}`

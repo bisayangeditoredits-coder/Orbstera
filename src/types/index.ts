@@ -12,6 +12,18 @@ export type SlideLayoutType =
   | 'stats'
   | 'comparison';
 
+export type DeckLayoutCategory =
+  | 'editorial'
+  | 'bento'
+  | 'cinematic'
+  | 'corporate'
+  | 'pitch'
+  | 'product'
+  | 'data_story'
+  | 'timeline'
+  | 'minimal'
+  | 'luxury';
+
 // ─── Slide transition (present mode & export hints) ──────────────────────────
 export type SlideTransition =
   | 'fade'
@@ -195,6 +207,7 @@ export interface PresentationData {
   id?: string;
   title: string;
   theme: string;
+  layoutCategory?: DeckLayoutCategory;
   colorPalette: string[];
   fontPairing: FontPairing;
   animationStyle: string;
@@ -230,6 +243,7 @@ export interface PresentationData {
 export interface HistoryEntry {
   slides: Slide[];
   theme: string;
+  layoutCategory?: DeckLayoutCategory;
   timestamp: number;
 }
 
@@ -321,6 +335,7 @@ export interface EditorState {
     outlineSlideCount?: number;
     targetSlideCount?: number;
     themeName?: string;
+    layoutCategory?: DeckLayoutCategory;
     colorPalette?: string[];
     styleMode?: string;
     imageSource?: 'ai' | 'unsplash' | 'none';

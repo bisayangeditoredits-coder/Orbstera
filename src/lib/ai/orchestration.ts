@@ -1,8 +1,9 @@
 import type { PresentationData, PresentationDNA, Slide, SlideLayoutType } from '@/types';
 import { coerceSlideTransition } from '@/lib/presentationMotion';
 import { resolveVisualTheme } from '@/lib/visual-themes';
+import { normalizeDeckLayoutCategory, getDeckLayoutCategoryOption } from '@/lib/deck-layout-categories';
 import { openRouterComplete, extractJsonObject } from './openrouter';
-import { PREFLIGHT_SYSTEM, buildComposerSystemPrompt, buildComposerUserPrompt, buildFallbackImagePrompt } from './prompts';
+import { PREFLIGHT_SYSTEM, buildComposerSystemPrompt, buildComposerUserPrompt, buildDeckImagePrompt } from './prompts';
 import { AGENT_MODELS } from './agent-models';
 
 export interface PreflightResult {
@@ -56,6 +57,7 @@ export function buildComposerMessages(args: {
   tone: string;
   language: string;
   styleMode?: string;
+  layoutCategory?: string;
   imageSource?: 'ai' | 'unsplash' | 'none';
 }): { system: string; user: string } {
   const system = buildComposerSystemPrompt(args.preflightSummary);
@@ -66,6 +68,7 @@ export function buildComposerMessages(args: {
     tone: args.tone,
     language: args.language,
     styleMode: args.styleMode,
+    layoutCategory: args.layoutCategory,
     imageSource: args.imageSource,
   });
 
@@ -130,6 +133,21 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
     'Untitled Presentation';
 
   const slidesRaw = Array.isArray(input.slides) ? input.slides : [];
+  const visualMood =
+    typeof input.visualMood === 'string'
+      ? input.visualMood
+      : typeof (input as { preflight?: { visualMood?: string } }).preflight?.visualMood === 'string'
+        ? (input as { preflight?: { visualMood?: string } }).preflight!.visualMood
+        : undefined;
+  const imageryPalette =
+    typeof input.imageryPalette === 'string' ? input.imageryPalette : undefined;
+  const layoutCategory = normalizeDeckLayoutCategory(
+    input.layoutCategory ||
+      input.recommendedStyle ||
+      input.styleMode ||
+      input.presentationType,
+  );
+  const layoutOption = getDeckLayoutCategoryOption(layoutCategory);
 
   const slides: Slide[] = slidesRaw.map((s, i) => {
     const obj = (typeof s === 'object' && s !== null ? s : {}) as Record<string, unknown>;
@@ -147,15 +165,6 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
         ? obj.imagePrompt.trim()
         : undefined;
 
-    const visualMood =
-      typeof input.visualMood === 'string'
-        ? input.visualMood
-        : typeof (input as { preflight?: { visualMood?: string } }).preflight?.visualMood === 'string'
-          ? (input as { preflight?: { visualMood?: string } }).preflight!.visualMood
-          : undefined;
-    const imageryPalette =
-      typeof input.imageryPalette === 'string' ? input.imageryPalette : undefined;
-
     if (!imagePrompt) {
       const spineRaw = (input as { slideSpine?: unknown[] }).slideSpine;
       const spineEntry =
@@ -163,19 +172,42 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
           ? (spineRaw[i] as { imageBrief?: string; typeHint?: string })
           : null;
       if (spineEntry?.imageBrief?.trim()) {
-        imagePrompt = spineEntry.imageBrief.trim();
-        if (visualMood) {
-          imagePrompt = `${imagePrompt} Visual mood: ${visualMood}.`;
-        }
-      }
-      if (!imagePrompt) {
-        imagePrompt = buildFallbackImagePrompt({
+        imagePrompt = buildDeckImagePrompt({
+          basePrompt: spineEntry.imageBrief.trim(),
           title: (obj.title as string) || undefined,
           type,
+          slideIndex: i,
+          slideCount: slidesRaw.length || undefined,
+          layoutHint: spineEntry.typeHint || type,
+          layoutCategory,
           visualMood,
           imageryPalette,
         });
       }
+      if (!imagePrompt) {
+        imagePrompt = buildDeckImagePrompt({
+          title: (obj.title as string) || undefined,
+          type,
+          slideIndex: i,
+          slideCount: slidesRaw.length || undefined,
+          layoutHint: type,
+          layoutCategory,
+          visualMood,
+          imageryPalette,
+        });
+      }
+    } else {
+      imagePrompt = buildDeckImagePrompt({
+        basePrompt: imagePrompt,
+        title: (obj.title as string) || undefined,
+        type,
+        slideIndex: i,
+        slideCount: slidesRaw.length || undefined,
+        layoutHint: type,
+        layoutCategory,
+        visualMood,
+        imageryPalette,
+      });
     }
 
     return {
@@ -231,17 +263,9 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
   })();
   const lowVariety = slides.length >= 4 && typeSet.size <= 2;
   if (slides.length >= 4 && (runsTooLong || lowVariety)) {
-    const rhythm: SlideLayoutType[] = [
-      'hero',
-      'content',
-      'split',
-      'quote',
-      'comparison',
-      'timeline',
-      'stats',
-      'media',
-      'bullets',
-    ];
+    const rhythm: SlideLayoutType[] = layoutOption.rhythm.length
+      ? layoutOption.rhythm
+      : ['hero', 'content', 'split', 'quote', 'comparison', 'timeline', 'stats', 'media', 'bullets'];
     const lastIndex = slides.length - 1;
     slides.forEach((slide, i) => {
       if (i === 0) {
@@ -254,6 +278,19 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
       }
       const mapped = rhythm[Math.min(i, rhythm.length - 1)];
       slide.type = mapped;
+    });
+    slides.forEach((slide, i) => {
+      slide.imagePrompt = buildDeckImagePrompt({
+        basePrompt: slide.imagePrompt,
+        title: slide.title,
+        type: slide.type,
+        slideIndex: i,
+        slideCount: slides.length,
+        layoutHint: slide.layout || `${layoutOption.label} ${slide.type}`,
+        layoutCategory,
+        visualMood,
+        imageryPalette,
+      });
     });
   }
 
@@ -269,6 +306,7 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
     id: (input.id as string) || undefined,
     title,
     theme: themeId || 'chimney-smoke',
+    layoutCategory,
     colorPalette: Array.isArray(input.colorPalette)
       ? (input.colorPalette as string[])
       : Array.isArray(paletteFromIntent) && paletteFromIntent.length >= 2

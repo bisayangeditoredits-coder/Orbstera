@@ -63,8 +63,8 @@ export function DesktopDownload() {
           )}
 
           <div className="flex flex-wrap items-center justify-center gap-3 text-xs font-semibold uppercase tracking-widest text-white/35">
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-white/50">macOS � coming soon</span>
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-white/50">Linux � coming soon</span>
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-white/50">macOS &middot; coming soon</span>
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-white/50">Linux &middot; coming soon</span>
           </div>
         </div>
       </div>

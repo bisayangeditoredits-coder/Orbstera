@@ -285,6 +285,7 @@ export default function EditorClient() {
         st.setPresentation(
           createEditorGeneratingShell({
             themeName: handoff?.themeName,
+            layoutCategory: handoff?.layoutCategory,
             colorPalette: handoff?.colorPalette,
           }),
         );
@@ -296,14 +297,9 @@ export default function EditorClient() {
     if (st.editor.isGenerating) return;
 
     st.setPresentation({
+      ...createEditorGeneratingShell(),
       id: 'mock123',
-      title: 'Mock',
-      theme: 'light',
-      fontPairing: { heading: 'Inter', body: 'Inter' },
-      animationStyle: 'fade',
-      slides: [],
-      colorPalette: [],
-      userId: 'mock'
+      userId: 'mock',
     });
     
     // Auto-open generate panel for the default empty presentation

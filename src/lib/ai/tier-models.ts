@@ -20,24 +20,24 @@ export const STUDENT_PREMIUM_IMAGE_MODELS = new Set<string>();
 
 export const PLANNER_MODELS = {
   creator: {
-    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'google/gemini-2.5-flash',
+    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-sonnet-4.5',
     fallbacks: [
-      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'anthropic/claude-sonnet-4.6',
-      'google/gemini-2.5-pro',
+      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-3.5-flash',
+      'anthropic/claude-opus-4.8',
     ],
   },
   student: {
-    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'google/gemini-2.5-flash',
+    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-sonnet-4.5',
     fallbacks: [
-      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'anthropic/claude-sonnet-4.6',
-      'google/gemini-2.5-pro',
+      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-3.5-flash',
+      'anthropic/claude-opus-4.8',
     ],
   },
   free: {
-    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'google/gemini-2.5-flash',
+    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-sonnet-4.5',
     fallbacks: [
-      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'anthropic/claude-sonnet-4.6',
-      'google/gemini-2.5-pro',
+      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-3.5-flash',
+      'anthropic/claude-opus-4.8',
     ],
   },
 } as const;
@@ -45,13 +45,14 @@ export const PLANNER_MODELS = {
 // ── Deck orchestration (intent / structure / compose) ────────────────────────
 
 const CREATOR_TIER_TEXT = {
-  intent: AGENT_MODELS.gptOrchestrator,
+  intent: AGENT_MODELS.claudeStructure,
   structure: AGENT_MODELS.claudeStructure,
   reason: AGENT_MODELS.claudeStructure,
   compose: OR_MODELS.composerPrimary,
   polish: OR_MODELS.refineOpus,
-  magicEdit: AGENT_MODELS.gptOrchestrator,
+  magicEdit: AGENT_MODELS.claudeStructure,
   composeFallbacks: [
+    OR_MODELS.composerElite,
     OR_MODELS.composerFallback,
     AGENT_MODELS.claudeStructure,
     AGENT_MODELS.geminiPro,

@@ -1,5 +1,7 @@
 /** Visual theme presets from VisualsConfig — palettes, typography, imagery mood. */
 
+import { buildDeckLayoutCategoryPrompt, normalizeDeckLayoutCategory } from '@/lib/deck-layout-categories';
+
 export type VisualBackgroundMode = 'light' | 'dark';
 
 export type VisualThemePreset = {
@@ -80,7 +82,28 @@ export const ART_STYLE_IMAGE_HINTS: Record<string, string> = {
 export function resolveVisualTheme(themeId?: string | null): VisualThemePreset {
   if (!themeId) return VISUAL_THEME_PRESETS['chimney-smoke'];
   const key = themeId.trim().toLowerCase();
-  return VISUAL_THEME_PRESETS[key] ?? VISUAL_THEME_PRESETS['chimney-smoke'];
+  const aliases: Record<string, keyof typeof VISUAL_THEME_PRESETS> = {
+    dark: 'coal',
+    'modern-dark': 'coal',
+    'obsidian-night': 'coal',
+    'obsidian night': 'coal',
+    midnight: 'coal',
+    corporate: 'piano',
+    'executive-blue': 'piano',
+    'executive blue': 'piano',
+    gradient: 'atacama',
+    aurora: 'atacama',
+    minimal: 'piano',
+    'paper-white': 'piano',
+    'paper white': 'piano',
+    warm: 'finesse',
+    'sunset-gold': 'finesse',
+    'sunset gold': 'finesse',
+    tech: 'atacama',
+    'cyber-grid': 'atacama',
+    'cyber grid': 'atacama',
+  };
+  return VISUAL_THEME_PRESETS[key] ?? VISUAL_THEME_PRESETS[aliases[key]] ?? VISUAL_THEME_PRESETS['chimney-smoke'];
 }
 
 export function resolveArtStyleHint(artStyle?: string | null): string {
@@ -92,10 +115,13 @@ export function resolveArtStyleHint(artStyle?: string | null): string {
 export function buildVisualCurationBlock(args: {
   themeId?: string;
   artStyle?: string;
+  layoutCategory?: string;
   imageSource?: 'ai' | 'unsplash' | 'none';
 }): string {
   const theme = resolveVisualTheme(args.themeId);
   const artHint = resolveArtStyleHint(args.artStyle);
+  const layoutCategory = normalizeDeckLayoutCategory(args.layoutCategory);
+  const layoutPrompt = buildDeckLayoutCategoryPrompt(layoutCategory);
   const source =
     args.imageSource === 'unsplash'
       ? 'Use Unsplash-style realistic stock photography descriptions in imagePrompt.'
@@ -108,11 +134,13 @@ Theme: ${theme.name} (${theme.id})
 Palette (use as colorPalette): ${JSON.stringify(theme.colorPalette)}
 Typography: heading="${theme.fontPairing.heading}", body="${theme.fontPairing.body}"
 Background mode: ${theme.backgroundMode}
-Imagery mood (ALL slides): ${theme.imageryMood}
+Imagery mood family: ${theme.imageryMood}
 Color/lighting keywords: ${theme.imageryPalette}
 Art style: ${artHint}
 Image source: ${args.imageSource ?? 'ai'} — ${source}
-Layout: premium Gamma-class — vary slide types, never repeat the same layout 3× in a row.`;
+Layout category: ${layoutCategory} — ${layoutPrompt}
+Layout: premium Gamma-class — category changes actual slide structure, not just colors; vary slide types, never repeat the same layout 3× in a row.
+Rhythm: keep the same mood family, but make every slide image feel like a new scene with a different crop, camera distance, or focal subject.`;
 }
 
 /** SVG gradient placeholder when image generation fails — avoids infinite loading spinners. */

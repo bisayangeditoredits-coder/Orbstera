@@ -14,6 +14,24 @@ export const setPresentationAction = (set: any, get: any, data: any) => {
 
     const safeString = (v: unknown, fallback: string) => (typeof v === 'string' ? v : fallback);
 
+    const isFullCanvasWashLayer = (el: SlideElement) => {
+      if (el.type !== 'shape' || el.shapeType !== 'rect') return false;
+      const fullCanvas =
+        Math.abs((el.x ?? 0)) <= 2 &&
+        Math.abs((el.y ?? 0)) <= 2 &&
+        (el.width ?? 0) >= 1270 &&
+        (el.height ?? 0) >= 710;
+      if (!fullCanvas) return false;
+      const fill = String(el.shapeStyle?.fill || '').trim().toLowerCase();
+      const z = typeof el.zIndex === 'number' ? el.zIndex : Number(el.zIndex || 0);
+      const explicitOverlay = /(^|-)overlay($|-)|bg-overlay|wash|scrim/.test(el.id.toLowerCase());
+      const paleFill =
+        fill.includes('rgba(255, 255, 255') ||
+        fill.includes('rgba(255,255,255') ||
+        /^#(f[0-9a-f]{5}|e[0-9a-f]{5}|d[0-9a-f]{5})$/i.test(fill);
+      return explicitOverlay || (z > 0 && paleFill);
+    };
+
     const normalize = (raw: any) => {
       const slidesRaw = Array.isArray(raw?.slides) ? raw.slides : [];
       const paletteRaw = Array.isArray(raw?.colorPalette) ? raw.colorPalette.filter((c: any) => typeof c === 'string' && c.trim()) : [];
@@ -47,7 +65,8 @@ export const setPresentationAction = (set: any, get: any, data: any) => {
             zIndex: safeNumber(el.zIndex, undefined as any),
             src: typeof el.src === 'string' ? el.src : '',
             content: typeof el.content === 'string' ? el.content : el.content == null ? '' : String(el.content),
-          }));
+          }))
+          .filter((el: SlideElement) => !isFullCanvasWashLayer(el));
 
         return {
           ...s,
@@ -65,6 +84,7 @@ export const setPresentationAction = (set: any, get: any, data: any) => {
         id,
         title: safeString(raw?.title, 'Untitled Presentation'),
         theme: safeString(raw?.theme, 'dark'),
+        layoutCategory: safeString(raw?.layoutCategory, safeString(raw?.styleMode, 'editorial')),
         colorPalette,
         fontPairing,
         animationStyle: safeString(raw?.animationStyle, 'cinematic-reveal'),
@@ -79,7 +99,7 @@ export const setPresentationAction = (set: any, get: any, data: any) => {
       normalized.slides.length === 0;
     if (!Array.isArray(normalized.slides) || normalized.slides.length === 0) {
       if (!isGenerationReset) {
-        console.error('Invalid presentation data received (no slides):', data);
+        console.warn('Ignored presentation data with no slides:', data);
         set({ presentation: null, currentSlideIndex: 0, history: [], historyIndex: -1 });
         return;
       }
@@ -135,12 +155,22 @@ export const setPresentationAction = (set: any, get: any, data: any) => {
       defaultSlideTransition: normalized.defaultSlideTransition,
     };
 
-    const collectPendingImageTasks = (motionSlide: Slide, sourceSlide: Slide): DeckImageTask[] => {
+    const collectPendingImageTasks = (
+      motionSlide: Slide,
+      sourceSlide: Slide,
+      slideIndex: number,
+      slideCount: number,
+    ): DeckImageTask[] => {
       const prompt = resolveDeckImagePrompt({
         id: sourceSlide.id,
         type: sourceSlide.type,
         title: sourceSlide.title,
         imagePrompt: (sourceSlide as { imagePrompt?: string }).imagePrompt,
+      }, {
+        slideIndex,
+        slideCount,
+        layoutHint: sourceSlide.type,
+        layoutCategory: normalized.layoutCategory,
       });
       const tasks: DeckImageTask[] = [];
       for (const el of motionSlide.elements || []) {
@@ -175,7 +205,7 @@ export const setPresentationAction = (set: any, get: any, data: any) => {
           { ...slide, title: '', subtitle: '', bullets: [] },
           motionCtx,
         );
-        const pendingTasks = collectPendingImageTasks(motionSlide, slide);
+        const pendingTasks = collectPendingImageTasks(motionSlide, slide, sIdx, normalized.slides.length);
         const carried = carryOverRenderedImages(motionSlide, pendingTasks, sIdx);
         imageTasks.push(...carried.tasks);
         return carried.slide;
@@ -201,6 +231,8 @@ export const setPresentationAction = (set: any, get: any, data: any) => {
         uid,
         existingElements: slide.elements,
         backgroundMode,
+        slideCount: normalized.slides.length,
+        layoutCategory: normalized.layoutCategory,
       });
       const motionSlide = finalizeSlideMotion(
         { ...slide, elements, title: '', subtitle: '', bullets: [] },

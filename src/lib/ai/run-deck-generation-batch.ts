@@ -4,6 +4,7 @@ import { extractDeckJsonFromModelOutput } from '@/lib/ai/openrouter';
 import { openRouterCompleteCascade } from '@/lib/ai/openrouter-cascade';
 import { getTextModelCascade, selectTextModel } from '@/lib/ai/router';
 import { getSpendState } from '@/lib/ai/spend';
+import { buildDeckLayoutCategoryPrompt, normalizeDeckLayoutCategory } from '@/lib/deck-layout-categories';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type DeckGenerationJobBody = {
@@ -12,6 +13,8 @@ export type DeckGenerationJobBody = {
   tone: string;
   language: string;
   styleMode?: string;
+  layoutCategory?: string;
+  imageSource?: 'ai' | 'unsplash' | 'none';
   plan: string;
   plannerSessionId?: string;
   outlineSlideCount?: number;
@@ -27,6 +30,7 @@ export async function runDeckGenerationBatch(args: {
   const { appUrl, supabase, userId, body, onProgress } = args;
   const userPrompt = String(body.prompt || '').trim();
   if (!userPrompt) throw new Error('Prompt is required');
+  const layoutCategory = normalizeDeckLayoutCategory(body.layoutCategory || body.styleMode);
 
   onProgress?.(5, 'Starting orchestration…');
   const spend = await getSpendState({ supabase });
@@ -42,6 +46,7 @@ export async function runDeckGenerationBatch(args: {
   if (brandKit && brandKit.primary_color) {
     finalPrompt += `\n\n[USER BRAND KIT]\nPrimary Color: ${brandKit.primary_color}\nFont: ${brandKit.font || 'Default'}\nBrand: ${brandKit.name || 'User Company'}`;
   }
+  finalPrompt += `\n\n[USER LAYOUT CATEGORY]\nRoot layoutCategory must be "${layoutCategory}". ${buildDeckLayoutCategoryPrompt(layoutCategory)} This must change slide structures and layout rhythm, not just colors.`;
 
   const { dossierText, refinedBrief, preflightSummary } = await runOpenRouterOrchestration(
     appUrl,
@@ -64,6 +69,8 @@ export async function runDeckGenerationBatch(args: {
     tone: String(body.tone),
     language: String(body.language),
     styleMode: body.styleMode ? String(body.styleMode) : undefined,
+    layoutCategory,
+    imageSource: body.imageSource,
   });
 
   const composerPrimary = selectTextModel({

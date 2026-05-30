@@ -49,10 +49,10 @@ export function SessionGuard({ children }: { children: React.ReactNode }) {
           cache: 'no-store',
         });
 
-        if (false && res.status === 401) {
+        if (res.status === 401) {
           const body = await res.json().catch(() => ({}));
-          clearAllUserClientCaches(user!.id);
-          await signOutAndClearCaches(supabase, user!.id);
+          clearAllUserClientCaches(user.id);
+          await signOutAndClearCaches(supabase, user.id);
           const reason =
             body?.error === 'session_expired' ? 'session_expired' : 'session_invalid';
           router.replace(`/login?error=${reason}`);

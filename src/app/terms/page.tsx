@@ -21,7 +21,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-2xl font-semibold text-slate-900 mb-4">2. Description of Service</h2>
             <p>
-              Orbstera provides an AI-powered presentation generation and editing platform. The service is provided "as is" and we reserve the right to modify, suspend, or discontinue any part of the service at any time without prior notice.
+              Orbstera provides an AI-powered presentation generation and editing platform. The service is provided &quot;as is&quot; and we reserve the right to modify, suspend, or discontinue any part of the service at any time without prior notice.
             </p>
           </section>
 

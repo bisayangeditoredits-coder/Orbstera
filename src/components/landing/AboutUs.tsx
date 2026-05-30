@@ -5,7 +5,7 @@ import { Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 const STATS = [
-  { value: '10�', label: 'Faster than traditional tools' },
+  { value: '10x', label: 'Faster than traditional tools' },
   { value: '50K+', label: 'Decks created worldwide' },
   { value: '98%', label: 'Would recommend Orbstera' },
 ];
@@ -60,7 +60,7 @@ export function AboutUs() {
               Orbstera was born from a simple frustration: brilliant ideas buried under ugly slides,
               endless formatting, and tools that treat design as an afterthought. We believe every
               founder, student, and creative deserves a deck that looks like it came from a world-class
-              agency�without the world-class budget.
+               agency without the world-class budget.
             </p>
 
             <p
