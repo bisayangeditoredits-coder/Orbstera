@@ -329,6 +329,15 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
 
     if (slide.title) {
       elements.push({
+        id: uid('el-title-scrim'),
+        type: 'shape', shapeType: 'rect',
+        x: 48, y: titleY - 28,
+        width: DECK_CANVAS_W - 96, height: heroScrimH,
+        zIndex: currentZ++, visible: true,
+        shapeStyle: glassCard(light),
+        animation: { entrance: 'fadeIn', duration: 600, delay: 0 },
+      });
+      elements.push({
         id: uid('el-title'),
         type: 'text',
         x: 96, y: titleY, width: titleW, height: titleHeight,
@@ -492,7 +501,15 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
   } else if (isQuote) {
     addFullBleedBackground(0.36, 'cinematic');
 
-
+    elements.push({
+      id: uid('el-quote-glass'),
+      type: 'shape', shapeType: 'rect',
+      x: 120, y: 120,
+      width: DECK_CANVAS_W - 240, height: DECK_CANVAS_H - 240,
+      zIndex: currentZ++, visible: true,
+      shapeStyle: glassCard(light),
+      animation: { entrance: 'zoomIn', duration: 800, delay: 0 },
+    });
 
     const quoteFontSize = 58;
     const quoteW        = DECK_CANVAS_W - 320;
@@ -1202,3 +1219,4 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
 
   return { elements, imageTasks };
 }
+
