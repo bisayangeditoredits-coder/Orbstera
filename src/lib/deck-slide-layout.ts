@@ -152,6 +152,25 @@ function prefersImageBackground(category: DeckLayoutCategory, slideType?: string
 /**
  * Gamma-style slide layouts: full-bleed backgrounds, glass cards, editorial hierarchy.
  */
+// ─── Constants ────────────────────────────────────────────────────────────────
+const DECK_CANVAS_W = 1280;
+const DECK_CANVAS_H = 720;
+
+// Safe rendering zone — elements should never exceed this bottom edge
+const SAFE_BOTTOM = DECK_CANVAS_H - 40;
+
+// Padding / gutter used throughout
+const PAD = 64;         // outer horizontal padding
+const INNER_PAD = 32;   // padding inside cards/panels
+const GAP = 24;         // gap between rows/columns
+
+// ─── Utility: clamp bullet count so items never overflow the canvas ───────────
+function safeMaxBullets(startY: number, itemHeight: number, gap: number, hardMax = 6): number {
+  const available = SAFE_BOTTOM - startY;
+  const fits = Math.floor(available / (itemHeight + gap));
+  return Math.max(1, Math.min(fits, hardMax));
+}
+
 export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDeckSlideLayoutResult {
   const { slide, sIdx, slideCount, palette, headingFont, bodyFont, uid } = args;
   const layoutCategory = normalizeDeckLayoutCategory(args.layoutCategory);
