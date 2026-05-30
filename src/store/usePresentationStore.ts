@@ -4,6 +4,7 @@ import { PresentationData, Slide, SlideElement, HistoryEntry, EditorState } from
 import { finalizeSlideMotion } from '@/lib/presentationMotion';
 import { runDeckImageTasks } from '@/lib/deck-image-generation';
 import { buildDeckSlideElements } from '@/lib/deck-slide-layout';
+import { buildSlideFromReferenceTemplate } from '@/lib/reference-templates/build-slide';
 import { resolveVisualTheme } from '@/lib/visual-themes';
 
 /** Cap undo stack size to limit RAM on large decks (structured clones per step). */
@@ -638,25 +639,40 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     const slideId =
       slideData.id || (placeholderIdx >= 0 ? currentPres.slides[placeholderIdx].id : `slide-${sIdx}`);
 
-    const { elements, imageTasks } = buildDeckSlideElements({
-      slide: {
-        id: slideId,
-        type: slideData.type,
-        title: slideData.title,
-        subtitle: slideData.subtitle,
-        bullets: mergedBullets.length ? mergedBullets : slideData.bullets,
-        content: slideData.content,
-        imagePrompt: slideData.imagePrompt,
-      },
-      sIdx,
-      palette,
-      headingFont,
-      bodyFont,
-      uid,
-      backgroundMode,
-      slideCount: currentPres.slides.length,
-      layoutCategory: currentPres.layoutCategory,
-    });
+    const refPack = get().editor.referenceTemplatePack;
+    const { elements, imageTasks } = refPack?.slides?.length
+      ? buildSlideFromReferenceTemplate({
+          pack: refPack,
+          slideIndex: sIdx,
+          ai: {
+            id: slideId,
+            type: slideData.type,
+            title: slideData.title,
+            subtitle: slideData.subtitle,
+            bullets: mergedBullets.length ? mergedBullets : slideData.bullets,
+            content: slideData.content,
+          },
+          uid,
+        })
+      : buildDeckSlideElements({
+          slide: {
+            id: slideId,
+            type: slideData.type,
+            title: slideData.title,
+            subtitle: slideData.subtitle,
+            bullets: mergedBullets.length ? mergedBullets : slideData.bullets,
+            content: slideData.content,
+            imagePrompt: slideData.imagePrompt,
+          },
+          sIdx,
+          palette,
+          headingFont,
+          bodyFont,
+          uid,
+          backgroundMode,
+          slideCount: currentPres.slides.length,
+          layoutCategory: currentPres.layoutCategory,
+        });
 
     const rawSlide: Slide = {
       ...slideData,

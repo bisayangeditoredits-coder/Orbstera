@@ -1,4 +1,4 @@
-﻿/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState } from 'react';
@@ -17,16 +17,27 @@ export function AIPanel({ onClose }: { onClose?: () => void }) {
   const generateImage = async () => {
     if (!prompt.trim()) return;
     setLoading(true);
-    const imageUrl = `/api/pollinations?prompt=${encodeURIComponent(prompt.trim())}`;
     try {
-      const res = await fetch(imageUrl);
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      const blob = await res.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      setPreviewUrl(objectUrl);
-    } catch (err) {
+      const res = await fetch('/api/generate/image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: prompt.trim(),
+          width: 1024,
+          height: 1024,
+          task: 'image_generate',
+          visualProfile: 'cinematic',
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to generate image');
+      }
+      const data = await res.json();
+      setPreviewUrl(data.url);
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to generate image. Please try again.');
+      alert(err.message || 'Failed to generate image. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -63,7 +74,7 @@ export function AIPanel({ onClose }: { onClose?: () => void }) {
             </div>
             <div>
               <h2 className="text-[14px] font-semibold text-neutral-900 leading-tight">AI Image Gen</h2>
-              <p className="text-[11px] text-neutral-400 mt-0.5">Powered by Pollinations · Free</p>
+              <p className="text-[11px] text-neutral-400 mt-0.5">Powered by Leonardo AI</p>
             </div>
           </div>
           {onClose && (

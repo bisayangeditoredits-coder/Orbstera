@@ -22,7 +22,7 @@ import useImage from 'use-image';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { EditorToolId, SlideElement, Slide } from '@/types';
-import { findDeckBackgroundElement } from '@/lib/slide-background';
+import { findDeckBackgroundElement, isSlideDeckBackgroundImage } from '@/lib/slide-background';
 import { editorImageFetchUrl } from '@/lib/r2-public-url';
 import {
   elementAnimationDurationMs,
@@ -257,7 +257,7 @@ function ElementNode({
       }
     }
 
-    if (spinnerRef.current && glowRef.current) {
+    if (spinnerRef.current) {
       const sNode = spinnerRef.current;
       const gNode = glowRef.current;
       const layer = sNode.getLayer();
@@ -265,9 +265,11 @@ function ElementNode({
         spinnerAnim = new Konva.Animation((frame) => {
           const t = frame?.time ?? 0;
           sNode.rotation((t / 800) * 360);
-          const scale = 1 + Math.sin(t / 200) * 0.15;
-          gNode.scale({ x: scale, y: scale });
-          gNode.opacity(0.4 + Math.sin(t / 200) * 0.2);
+          if (gNode) {
+            const scale = 1 + Math.sin(t / 200) * 0.15;
+            gNode.scale({ x: scale, y: scale });
+            gNode.opacity(0.4 + Math.sin(t / 200) * 0.2);
+          }
         }, layer);
         spinnerAnim.start();
       }
@@ -624,6 +626,12 @@ function ElementNode({
     if (el.type === 'image') {
       const awaitingPrompt = !el.src?.trim();
       const aiSlot = !!(awaitingPrompt && el.aiImagePending);
+      const isFullBleedDeckBg = aiSlot && isSlideDeckBackgroundImage(el);
+
+      // Scale up placeholder UI for large regions; full-bleed deck bg uses a corner pill only
+      const isLarge = el.width >= 800;
+      const scaleMult = isLarge && !isFullBleedDeckBg ? 2.5 : 1;
+
       const statusTitle = awaitingPrompt ? (aiSlot ? 'Generating masterpiece...' : 'Generative fill') : 'Rendering';
       const statusSub = awaitingPrompt
         ? aiSlot
@@ -631,10 +639,13 @@ function ElementNode({
           : 'Describe content in the panel below'
         : 'Loading image…';
 
+      const loadingOverlayOpacity = isFullBleedDeckBg ? 0.22 : 0.95;
+
       return (
         <Group
           ref={shapeRef as React.RefObject<Konva.Group>}
           {...commonProps}
+          opacity={(!activeMedia && (activeMediaStatus !== 'failed' || awaitingPrompt)) ? 1 : (el.opacity ?? 1)}
           clipFunc={(ctx) => {
             if (!el.maskType || el.maskType === 'none') {
               ctx.rect(0, 0, el.width, el.height);
@@ -658,45 +669,79 @@ function ElementNode({
           }}
         >
           <Rect x={0} y={0} width={el.width} height={el.height} fill="transparent" listening={elementListening} />
-          {!activeMedia && activeMediaStatus !== 'failed' && (
+          {!activeMedia && (activeMediaStatus !== 'failed' || awaitingPrompt) && (
             <Group listening={false}>
               <Rect
                 x={0}
                 y={0}
                 width={el.width}
                 height={el.height}
-                fill="rgba(241, 245, 249, 0.95)"
+                fill={`rgba(241, 245, 249, ${loadingOverlayOpacity})`}
                 shadowColor="rgba(15,23,42,0.08)"
-                shadowBlur={16}
-                shadowOffsetY={4}
+                shadowBlur={isFullBleedDeckBg ? 0 : 16}
+                shadowOffsetY={isFullBleedDeckBg ? 0 : 4}
                 cornerRadius={!el.maskType || el.maskType === 'square' || el.maskType === 'none' ? 12 : 0}
               />
-              <Rect
-                ref={genFillBorderRef}
-                x={0}
-                y={0}
-                width={el.width}
-                height={el.height}
-                fill="transparent"
-                stroke="#5B7CFF"
-                strokeWidth={1.5}
-                opacity={0.7}
-                cornerRadius={!el.maskType || el.maskType === 'square' || el.maskType === 'none' ? 12 : 0}
-                dash={[6, 6]}
-              />
-              {aiSlot ? (
-                <Group x={el.width / 2} y={el.height / 2 - 20}>
+              {!isFullBleedDeckBg && (
+                <Rect
+                  ref={genFillBorderRef}
+                  x={0}
+                  y={0}
+                  width={el.width}
+                  height={el.height}
+                  fill="transparent"
+                  stroke="#5B7CFF"
+                  strokeWidth={1.5}
+                  opacity={0.7}
+                  cornerRadius={!el.maskType || el.maskType === 'square' || el.maskType === 'none' ? 12 : 0}
+                  dash={[6, 6]}
+                />
+              )}
+              {isFullBleedDeckBg ? (
+                <Group x={el.width - 56 * scaleMult} y={el.height - 48 * scaleMult}>
+                  <Rect
+                    x={-72 * scaleMult}
+                    y={-20 * scaleMult}
+                    width={144 * scaleMult}
+                    height={40 * scaleMult}
+                    fill="rgba(15,23,42,0.72)"
+                    cornerRadius={20 * scaleMult}
+                  />
+                  <Group x={-58 * scaleMult} y={-2 * scaleMult}>
+                    <Arc
+                      ref={spinnerRef as React.RefObject<Konva.Arc>}
+                      innerRadius={6 * scaleMult}
+                      outerRadius={9 * scaleMult}
+                      angle={270}
+                      fill="#38BDF8"
+                      lineCap="round"
+                    />
+                  </Group>
+                  <Text
+                    x={-44 * scaleMult}
+                    y={-7 * scaleMult}
+                    width={100 * scaleMult}
+                    text="Generating…"
+                    fill="rgba(255,255,255,0.92)"
+                    fontSize={11 * scaleMult}
+                    align="left"
+                    fontFamily="Inter"
+                    fontStyle="600"
+                  />
+                </Group>
+              ) : aiSlot ? (
+                <Group x={el.width / 2} y={el.height / 2 - (20 * scaleMult)}>
                   <Circle
                     ref={glowRef as React.RefObject<Konva.Circle>}
-                    radius={16}
+                    radius={16 * scaleMult}
                     fill="rgba(91,124,255,0.15)"
-                    shadowBlur={20}
+                    shadowBlur={20 * scaleMult}
                     shadowColor="#5B7CFF"
                   />
                   <Arc
                     ref={spinnerRef as React.RefObject<Konva.Arc>}
-                    innerRadius={8}
-                    outerRadius={11}
+                    innerRadius={8 * scaleMult}
+                    outerRadius={11 * scaleMult}
                     angle={270}
                     fill="#5B7CFF"
                     lineCap="round"
@@ -705,36 +750,40 @@ function ElementNode({
               ) : (
                 <Text
                   x={0}
-                  y={el.height / 2 - 26}
+                  y={el.height / 2 - (26 * scaleMult)}
                   width={el.width}
                   text="✦"
                   fill="#5B7CFF"
-                  fontSize={20}
+                  fontSize={20 * scaleMult}
                   align="center"
                   fontFamily="Inter"
                 />
               )}
-              <Text
-                x={0}
-                y={el.height / 2 - 2}
-                width={el.width}
-                text={statusTitle}
-                fill="rgba(15,23,42,0.9)"
-                fontSize={13}
-                align="center"
-                fontFamily="Inter"
-                fontStyle="600"
-              />
-              <Text
-                x={0}
-                y={el.height / 2 + 18}
-                width={el.width}
-                text={statusSub}
-                fill="rgba(100,116,139,0.8)"
-                fontSize={10}
-                align="center"
-                fontFamily="Inter"
-              />
+              {!isFullBleedDeckBg && (
+                <>
+                  <Text
+                    x={0}
+                    y={el.height / 2 - 2}
+                    width={el.width}
+                    text={statusTitle}
+                    fill="rgba(15,23,42,0.9)"
+                    fontSize={13 * scaleMult}
+                    align="center"
+                    fontFamily="Inter"
+                    fontStyle="600"
+                  />
+                  <Text
+                    x={0}
+                    y={el.height / 2 + (18 * scaleMult)}
+                    width={el.width}
+                    text={statusSub}
+                    fill="rgba(100,116,139,0.8)"
+                    fontSize={10 * scaleMult}
+                    align="center"
+                    fontFamily="Inter"
+                  />
+                </>
+              )}
             </Group>
           )}
           {!activeMedia && activeMediaStatus === 'failed' && displayImgSrc && (
@@ -1358,7 +1407,12 @@ export function KonvaCanvas({ scale }: { scale: number }) {
   };
 
   const bgEl = slide ? findDeckBackgroundElement(slide.elements) : undefined;
-  const elements = (slide?.elements || []).filter((el) => el !== bgEl);
+  const elements = (slide?.elements || []).filter((el) => {
+    if (el === bgEl) {
+      return !!el.aiImagePending || !el.src?.trim();
+    }
+    return true;
+  });
 
   useEffect(() => {
     if (trRef.current && stageRef.current) {
@@ -1623,7 +1677,7 @@ export function KonvaPresentSlideView({
 
   const bgEl = findDeckBackgroundElement(slide.elements);
   const elements = (slide.elements || []).filter(
-    (el) => el.visible !== false && el !== bgEl,
+    (el) => el.visible !== false && (el !== bgEl || !!el.aiImagePending || !el.src?.trim()),
   );
 
   if (!mounted) {

@@ -33,6 +33,7 @@ import {
 import { useCredits } from '@/hooks/useCredits';
 import { pollJobUntilDone } from '@/lib/client/poll-job';
 import { resolveVisualTheme } from '@/lib/visual-themes';
+import { fetchReferenceTemplatePack } from '@/lib/reference-templates/fetch-client';
 import { GenerationProgress } from './GenerationProgress';
 
 
@@ -687,6 +688,24 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
             : handoff?.outlineSlideCount && handoff.outlineSlideCount > 0
               ? handoff.outlineSlideCount
               : slideCount;
+
+        const layoutCategory = handoff?.layoutCategory || selectedLayoutCategory;
+        let referenceTemplatePack = null;
+        try {
+          referenceTemplatePack = await fetchReferenceTemplatePack({
+            prompt: trimmed,
+            layoutCategory,
+            signal: ac.signal,
+          });
+        } catch {
+          referenceTemplatePack = null;
+        }
+        setEditorState({
+          referenceTemplatePack,
+          orchestrationMessage: referenceTemplatePack
+            ? `Using "${referenceTemplatePack.packId.replace(/-/g, ' ')}" template layouts…`
+            : 'Connecting to AI…',
+        });
 
         const res = await fetch('/api/generate', {
           method: 'POST',

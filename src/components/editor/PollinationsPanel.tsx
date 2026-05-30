@@ -1,4 +1,4 @@
-﻿/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState } from 'react';
@@ -16,10 +16,7 @@ const STYLES = [
   { label: 'Minimal', value: 'minimalist design, clean, white background, simple' },
 ];
 
-function buildPollinationsUrl(prompt: string, style: string, seed: number) {
-  const full = encodeURIComponent(`${prompt}, ${style}`);
-  return `https://image.pollinations.ai/prompt/${full}?width=1280&height=720&seed=${seed}`;
-}
+
 
 export function PollinationsPanel({ onClose }: { onClose?: () => void }) {
   const { prompt, selectedStyleValue, imageUrl, seed } = usePanelStore((s) => s.pollinations);
@@ -32,25 +29,37 @@ export function PollinationsPanel({ onClose }: { onClose?: () => void }) {
   const presentation = usePresentationStore((s) => s.presentation);
   const updateSlide = usePresentationStore((s) => s.updateSlide);
 
-  const generate = () => {
+  const generateImage = async () => {
     if (!prompt.trim()) return;
-    const newSeed = Math.floor(Math.random() * 99999);
     setLoading(true);
-    patchPollinations({
-      seed: newSeed,
-      imageUrl: buildPollinationsUrl(prompt, selectedStyle.value, newSeed),
-    });
+    patchPollinations({ imageUrl: null });
+    try {
+      const res = await fetch('/api/generate/image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `${prompt}, ${selectedStyle.value}`,
+          width: 1280,
+          height: 720,
+          task: 'image_generate',
+          visualProfile: 'cinematic',
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to generate image');
+      }
+      const data = await res.json();
+      patchPollinations({ imageUrl: data.url });
+    } catch (err: any) {
+      alert(err.message || 'Failed to generate image.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const regenerate = () => {
-    if (!imageUrl) return;
-    const newSeed = Math.floor(Math.random() * 99999);
-    setLoading(true);
-    patchPollinations({
-      seed: newSeed,
-      imageUrl: buildPollinationsUrl(prompt, selectedStyle.value, newSeed),
-    });
-  };
+  const generate = generateImage;
+  const regenerate = generateImage;
 
   const handleAddAsBackground = () => {
     if (!imageUrl || currentSlideIndex === null || !presentation) return;
@@ -96,7 +105,7 @@ export function PollinationsPanel({ onClose }: { onClose?: () => void }) {
           </div>
           <div>
             <h2 className="text-[14px] font-semibold text-neutral-900 leading-tight">AI Image Gen</h2>
-            <p className="text-[11px] text-neutral-400 mt-0.5">Powered by Pollinations · 100% Free</p>
+            <p className="text-[11px] text-neutral-400 mt-0.5">Powered by Leonardo AI</p>
           </div>
         </div>
         {onClose && (

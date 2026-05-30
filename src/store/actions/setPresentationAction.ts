@@ -2,6 +2,7 @@ import { PresentationData, Slide, SlideElement } from '@/types';
 import { finalizeSlideMotion } from '@/lib/presentationMotion';
 import { runDeckImageTasks, type DeckImageTask } from '@/lib/deck-image-generation';
 import { buildDeckSlideElements, resolveDeckImagePrompt } from '@/lib/deck-slide-layout';
+import { buildSlideFromReferenceTemplate } from '@/lib/reference-templates/build-slide';
 import { resolveVisualTheme } from '@/lib/visual-themes';
 
 export const setPresentationAction = (set: any, get: any, data: any) => {
@@ -214,26 +215,41 @@ export const setPresentationAction = (set: any, get: any, data: any) => {
       const uid = (prefix: string) =>
         `${prefix}-${sIdx}-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
 
-      const { elements, imageTasks: slideImageTasks } = buildDeckSlideElements({
-        slide: {
-          id: slide.id,
-          type: slide.type,
-          title: slide.title,
-          subtitle: slide.subtitle,
-          bullets: slide.bullets,
-          content: slide.content,
-          imagePrompt: (slide as { imagePrompt?: string }).imagePrompt,
-        },
-        sIdx,
-        palette,
-        headingFont,
-        bodyFont,
-        uid,
-        existingElements: slide.elements,
-        backgroundMode,
-        slideCount: normalized.slides.length,
-        layoutCategory: normalized.layoutCategory,
-      });
+      const refPack = get().editor.referenceTemplatePack;
+      const { elements, imageTasks: slideImageTasks } = refPack?.slides?.length
+        ? buildSlideFromReferenceTemplate({
+            pack: refPack,
+            slideIndex: sIdx,
+            ai: {
+              id: slide.id,
+              type: slide.type,
+              title: slide.title,
+              subtitle: slide.subtitle,
+              bullets: slide.bullets,
+              content: slide.content,
+            },
+            uid,
+          })
+        : buildDeckSlideElements({
+            slide: {
+              id: slide.id,
+              type: slide.type,
+              title: slide.title,
+              subtitle: slide.subtitle,
+              bullets: slide.bullets,
+              content: slide.content,
+              imagePrompt: (slide as { imagePrompt?: string }).imagePrompt,
+            },
+            sIdx,
+            palette,
+            headingFont,
+            bodyFont,
+            uid,
+            existingElements: slide.elements,
+            backgroundMode,
+            slideCount: normalized.slides.length,
+            layoutCategory: normalized.layoutCategory,
+          });
       const motionSlide = finalizeSlideMotion(
         { ...slide, elements, title: '', subtitle: '', bullets: [] },
         motionCtx,

@@ -1,3 +1,5 @@
+import type { ReferenceTemplateId } from '@/lib/reference-templates/catalog';
+
 // ─── Slide Layout Types ───────────────────────────────────────────────────────
 export type SlideLayoutType =
   | 'hero'
@@ -340,6 +342,11 @@ export interface EditorState {
     styleMode?: string;
     imageSource?: 'ai' | 'unsplash' | 'none';
   };
+  /** Loaded PPTX reference pack — AI fills text; layout/images come from template slides */
+  referenceTemplatePack?: {
+    packId: ReferenceTemplateId;
+    slides: Slide[];
+  } | null;
   /** One-shot Gamma-style element build animation during deck generation */
   generationBuildReveal?: boolean;
   /** Slide ids that finished the build reveal animation */

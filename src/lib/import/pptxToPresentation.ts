@@ -138,6 +138,7 @@ async function parseSlideXml(
   slideCx: number,
   slideCy: number,
   warnings: string[],
+  assetUrlFor?: (mediaPath: string) => string,
 ): Promise<{ elements: SlideElement[]; plainText: string }> {
   const relMap = relsXml ? parseRelsMap(relsXml) : new Map<string, string>();
   const elements: SlideElement[] = [];
@@ -166,7 +167,7 @@ async function parseSlideXml(
       continue;
     }
     const buf = await file.async('nodebuffer');
-    if (buf.length > MAX_IMAGE_BYTES) {
+    if (buf.length > MAX_IMAGE_BYTES && !assetUrlFor) {
       pushWarn(`Skipped large image (${mediaPath})`);
       continue;
     }
@@ -179,8 +180,17 @@ async function parseSlideXml(
           : ext === 'webp'
             ? 'image/webp'
             : 'image/png';
-    const b64 = buf.toString('base64');
-    const src = `data:${mime};base64,${b64}`;
+
+    let src: string;
+    if (assetUrlFor) {
+      src = assetUrlFor(mediaPath);
+    } else {
+      if (buf.length > MAX_IMAGE_BYTES) {
+        pushWarn(`Skipped large image (${mediaPath})`);
+        continue;
+      }
+      src = `data:${mime};base64,${buf.toString('base64')}`;
+    }
 
     const geo = emuBoxToCanvas(box, slideCx, slideCy);
     elements.push({
@@ -254,7 +264,7 @@ function listSlidePaths(zip: JSZip): string[] {
  */
 export async function convertPptxBufferToPresentation(
   buffer: Buffer,
-  opts: { fileName?: string } = {},
+  opts: { fileName?: string; assetUrlFor?: (mediaPath: string) => string } = {},
 ): Promise<PptxImportResult> {
   const warnings: string[] = [];
 
@@ -288,7 +298,15 @@ export async function convertPptxBufferToPresentation(
     const relFile = zip.file(relPath);
     const relsXml = relFile ? await relFile.async('text') : null;
 
-    const { elements, plainText } = await parseSlideXml(slideXml, relsXml, zip, slideCx, slideCy, warnings);
+    const { elements, plainText } = await parseSlideXml(
+      slideXml,
+      relsXml,
+      zip,
+      slideCx,
+      slideCy,
+      warnings,
+      opts.assetUrlFor,
+    );
     const titleText = plainText.split('\n')[0]?.slice(0, 200) || `Slide ${i + 1}`;
 
     slides.push({

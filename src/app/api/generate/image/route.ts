@@ -13,6 +13,7 @@ import {
   leonardoQualityForPlan,
   leonardoUrlToDataUrl,
 } from '@/lib/leonardo-image';
+import { regionToLeonardoPixels } from '@/lib/leonardo-dimensions';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -130,16 +131,17 @@ export async function POST(req: Request) {
       );
     }
 
-    let w = 1024;
-    let h = 1024;
+    let rawW = 1024;
+    let rawH = 1024;
     if (typeof width === 'number' && typeof height === 'number' && width > 0 && height > 0) {
-      w = Math.min(1536, Math.max(256, Math.round(width)));
-      h = Math.min(1536, Math.max(256, Math.round(height)));
+      rawW = Math.min(1536, Math.max(256, Math.round(width)));
+      rawH = Math.min(1536, Math.max(256, Math.round(height)));
     } else if (typeof sizeIn === 'string' && sizeIn.includes('x')) {
       const [sw, sh] = sizeIn.split('x').map((n) => parseInt(n, 10));
-      if (sw > 0) w = sw;
-      if (sh > 0) h = sh;
+      if (sw > 0) rawW = sw;
+      if (sh > 0) rawH = sh;
     }
+    const { width: w, height: h } = regionToLeonardoPixels(rawW, rawH);
 
     const spend = await getSpendState({ supabase });
     const imgSel = selectImageProvider({

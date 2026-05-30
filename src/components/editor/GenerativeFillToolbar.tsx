@@ -5,41 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { Sparkles, Loader2, X, Wand2, Trash2 } from 'lucide-react';
 import { persistGeneratedImage } from '@/lib/client/persist-generated-image';
-
-function regionToImagePixels(regionW: number, regionH: number) {
-  // Preserve the exact aspect ratio of the drawn rectangle.
-  // Scale up so the shortest side is at least 512px (needed for AI quality),
-  // and cap the longest side at 1536px (provider limit).
-  const aspectRatio = regionW / regionH;
-  let w: number;
-  let h: number;
-
-  if (regionW >= regionH) {
-    // Landscape or square
-    w = Math.min(1536, Math.max(512, Math.round(regionW)));
-    h = Math.round(w / aspectRatio);
-    if (h > 1536) { h = 1536; w = Math.round(h * aspectRatio); }
-  } else {
-    // Portrait
-    h = Math.min(1536, Math.max(512, Math.round(regionH)));
-    w = Math.round(h * aspectRatio);
-    if (w > 1536) { w = 1536; h = Math.round(w / aspectRatio); }
-  }
-
-  // Scale up proportionally if either dimension is below 256
-  // (never clamp independently — that breaks the aspect ratio)
-  if (w < 256 || h < 256) {
-    const minScale = Math.max(256 / w, 256 / h);
-    w = Math.round(w * minScale);
-    h = Math.round(h * minScale);
-  }
-
-  // Round to nearest multiple of 8 — diffusion models produce sharper output on aligned grids
-  w = Math.max(8, Math.round(w / 8) * 8);
-  h = Math.max(8, Math.round(h / 8) * 8);
-
-  return { width: w, height: h };
-}
+import { regionToLeonardoPixels } from '@/lib/leonardo-dimensions';
 
 const QUICK_PROMPTS = [
   'Cinematic glassmorphism card with subtle brand gradient',
@@ -133,7 +99,7 @@ export function GenerativeFillToolbar() {
       setPhase('render');
       // Mark as AI-driven slot so the canvas placeholder reflects realtime rendering.
       updateElement(slide.id, el.id, { aiImagePending: true, src: '' });
-      const { width, height } = regionToImagePixels(el.width, el.height);
+      const { width, height } = regionToLeonardoPixels(el.width, el.height);
       const res = await fetch('/api/generate/image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

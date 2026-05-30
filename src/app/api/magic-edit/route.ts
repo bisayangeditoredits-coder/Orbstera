@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { SlideElement } from '@/types';
 import { generateClaidImageUrl } from '@/lib/claid-image';
-import { generatePollinationsImageUrl } from '@/lib/pollinations-image';
 import { openRouterImageGeneration } from '@/lib/ai/openrouter-image';
 import { openRouterCompleteCascade } from '@/lib/ai/openrouter-cascade';
 import { getMagicEditTextModels, selectImageProvider } from '@/lib/ai/router';
@@ -14,12 +13,18 @@ import {
   getCreditConfig,
   getGenfillCreditAction,
 } from '@/lib/billing/credits';
-import { isPaidPlan } from '@/lib/billing/free-genfill-redis';
 import { getBillingPlan } from '@/lib/billing/resolve-plan';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import { pollinationsChat } from '@/lib/pollinations-text';
 import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
+import { regionToLeonardoPixels } from '@/lib/leonardo-dimensions';
+import {
+  generateLeonardoImageUrl,
+  isLeonardoConfigured,
+  leonardoQualityForPlan,
+  leonardoUrlToDataUrl,
+} from '@/lib/leonardo-image';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
@@ -58,16 +63,78 @@ function parseElementJson(raw: string): Record<string, unknown> {
   }
 }
 
-function toPollinationPixels(w: number, h: number) {
-  const ew = Math.max(32, w || 1024);
-  const eh = Math.max(32, h || 1024);
-  const maxEdge = 1024;
-  const scale = Math.min(maxEdge / ew, maxEdge / eh);
-  let pw = Math.round(ew * scale);
-  let ph = Math.round(eh * scale);
-  pw = Math.max(256, Math.min(1024, pw));
-  ph = Math.max(256, Math.min(1024, ph));
-  return { width: pw, height: ph };
+async function resolvePromptImageSrc(args: {
+  promptText: string;
+  element: SlideElement;
+  sourceElement?: SlideElement;
+  plan: string;
+  spendState: { forcedEconomyMode: boolean };
+}): Promise<string> {
+  const sourceEl = args.sourceElement ?? args.element;
+  const { width, height } = regionToLeonardoPixels(
+    Number(args.element.width) || Number(sourceEl.width) || 1024,
+    Number(args.element.height) || Number(sourceEl.height) || 1024,
+  );
+  const hasLeonardo = isLeonardoConfigured();
+  const hasClaid = Boolean(process.env.CLAID_API_KEY?.trim());
+  const hasOpenRouter = Boolean(process.env.OPENROUTER_API_KEY?.trim());
+
+  if (!hasLeonardo && !hasOpenRouter && !hasClaid) {
+    throw new Error('Image generation is not configured. Set LEONARDO_API_KEY.');
+  }
+
+  const imgSel = selectImageProvider({
+    plan: args.plan,
+    visualProfile: 'cinematic',
+    premiumRequested: args.plan === 'creator_pro' || args.plan === 'admin',
+    spendState: args.spendState,
+    task: 'magic_edit_image',
+    hasOpenRouterKey: hasOpenRouter,
+    hasLeonardoKey: hasLeonardo,
+    hasClaidKey: hasClaid,
+    hasPollinationsKey: false,
+  });
+
+  if (imgSel.provider === 'leonardo' && hasLeonardo) {
+    const quality = leonardoQualityForPlan({ plan: args.plan, task: 'magic_edit_image' });
+    const result = await generateLeonardoImageUrl({
+      prompt: args.promptText,
+      width,
+      height,
+      quality,
+      visualProfile: 'cinematic',
+    });
+    return leonardoUrlToDataUrl(result.url);
+  }
+
+  if (imgSel.provider === 'openrouter' && hasOpenRouter) {
+    const sourceForEdit =
+      typeof sourceEl.src === 'string' && sourceEl.src.trim().startsWith('data:')
+        ? sourceEl.src
+        : typeof sourceEl.src === 'string' && sourceEl.src.startsWith('http')
+          ? sourceEl.src
+          : undefined;
+
+    const result = await openRouterImageGeneration({
+      prompt: args.promptText,
+      size: `${width}x${height}`,
+      visualProfile: 'cinematic',
+      model: imgSel.model,
+      modelCascade: imgSel.modelCascade,
+      qualityBoost: true,
+      sourceImage: sourceForEdit,
+      plan: args.plan,
+    });
+    if (result.ok && result.url) {
+      return result.url;
+    }
+  }
+
+  if (hasClaid) {
+    return generateClaidImageUrl({ prompt: args.promptText, polish: true, width, height });
+  }
+
+  throw new Error('Failed to generate image for Magic Edit.');
 }
 
 export const runtime = 'nodejs';
@@ -110,7 +177,6 @@ export async function POST(req: Request) {
     );
 
     const plan = await getBillingPlan(userId);
-    const paid = isPaidPlan(plan);
     const isImageElement = element.type === 'image';
 
     const creditConfig = await getCreditConfig(supabase);
@@ -206,14 +272,20 @@ Return the modified element JSON only.`;
         // Handle image gen-fill prompt inside fallback result
         if (updatedElementFromFallback.type === 'image' && (updatedElementFromFallback as { src?: string }).src?.startsWith('PROMPT:')) {
           const promptText = ((updatedElementFromFallback as { src?: string }).src ?? '').replace(/^PROMPT:\s*/i, '').trim();
-          const { width: fw, height: fh } = toPollinationPixels(
-            Number((updatedElementFromFallback as { width?: number }).width) || 1024,
-            Number((updatedElementFromFallback as { height?: number }).height) || 1024,
-          );
           try {
-            (updatedElementFromFallback as { src?: string }).src = await generatePollinationsImageUrl({ prompt: promptText, width: fw, height: fh, polish: true });
+            (updatedElementFromFallback as { src?: string }).src = await resolvePromptImageSrc({
+              promptText,
+              element: updatedElementFromFallback,
+              sourceElement: element,
+              plan,
+              spendState,
+            });
           } catch (fallbackErr) {
-            console.error('[MagicEdit] Pollinations fallback also failed:', fallbackErr);
+            console.error('[MagicEdit] Image generation in text fallback failed:', fallbackErr);
+            return NextResponse.json(
+              { error: fallbackErr instanceof Error ? fallbackErr.message : 'Failed to generate image for Magic Edit' },
+              { status: 502 },
+            );
           }
         }
 
@@ -236,77 +308,20 @@ Return the modified element JSON only.`;
 
     if (updatedElement.type === 'image' && updatedElement.src?.startsWith('PROMPT:')) {
       const promptText = updatedElement.src.replace(/^PROMPT:\s*/i, '').trim();
-      const { width, height } = toPollinationPixels(
-        Number(updatedElement.width) || Number(element.width) || 1024,
-        Number(updatedElement.height) || Number(element.height) || 1024,
-      );
-      const hasClaid = Boolean(process.env.CLAID_API_KEY?.trim());
-      // Pollinations is a free public API — no key required, always available
-      const hasPollinations = true;
-      const hasOpenRouter = Boolean(process.env.OPENROUTER_API_KEY?.trim());
-
-      if (!hasOpenRouter && !hasClaid && !hasPollinations) {
-        return NextResponse.json(
-          {
-            error:
-              'Image generation is not configured. Set OPENROUTER_API_KEY, CLAID_API_KEY, or POLLINATIONS_API_KEY.',
-          },
-          { status: 503 }
-        );
-      }
       try {
-        const imgSel = selectImageProvider({
+        updatedElement.src = await resolvePromptImageSrc({
+          promptText,
+          element: updatedElement,
+          sourceElement: element,
           plan,
-          visualProfile: 'cinematic',
-          premiumRequested: plan === 'creator_pro' || plan === 'admin',
           spendState,
-          task: 'magic_edit_image',
-          hasOpenRouterKey: hasOpenRouter,
-          hasLeonardoKey: Boolean(process.env.LEONARDO_API_KEY?.trim()),
-          hasClaidKey: hasClaid,
-          hasPollinationsKey: hasPollinations,
         });
 
-        if (imgSel.provider === 'openrouter' && hasOpenRouter) {
-          const sourceForEdit =
-            typeof element.src === 'string' && element.src.trim().startsWith('data:')
-              ? element.src
-              : typeof element.src === 'string' && element.src.startsWith('http')
-                ? element.src
-                : undefined;
-
-          const result = await openRouterImageGeneration({
-            prompt: promptText,
-            size: `${width}x${height}`,
-            visualProfile: 'cinematic',
-            model: imgSel.model,
-            modelCascade: imgSel.modelCascade,
-            qualityBoost: true,
-            sourceImage: sourceForEdit,
-            plan,
-          });
-          if (result.ok && result.url) {
-            updatedElement.src = result.url;
-          }
-        }
-
-        const src = String(updatedElement.src || '');
-        if (!src.startsWith('http') && !src.startsWith('data:')) {
-          try {
-            updatedElement.src = hasClaid
-              ? await generateClaidImageUrl({ prompt: promptText, polish: true, width, height })
-              : await generatePollinationsImageUrl({
-                  prompt: promptText,
-                  width,
-                  height,
-                  polish: true,
-                });
-          } catch (fallbackErr) {
-            console.error('[MagicEdit] Fallback image generation failed:', fallbackErr);
-          }
-        }
-
         // Best-effort usage log for dashboard cost tracking.
+        const { width, height } = regionToLeonardoPixels(
+          Number(updatedElement.width) || Number(element.width) || 1024,
+          Number(updatedElement.height) || Number(element.height) || 1024,
+        );
         try {
           const { error: usageLogError } = await supabase.from('ai_usage_events').insert({
             user_id: userId,

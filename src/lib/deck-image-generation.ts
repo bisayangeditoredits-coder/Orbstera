@@ -10,6 +10,9 @@ export type DeckImageTask = {
   visualProfile: 'cinematic' | 'typography';
 };
 
+/** Parallel Leonardo jobs — 4 keeps speed without tripping rate limits */
+const DECK_IMAGE_CONCURRENCY = 4;
+
 type StoreGet = () => {
   presentation?: { id?: string; slides?: { id: string }[]; theme?: string; colorPalette?: string[] } | null;
   editor: {
@@ -19,8 +22,6 @@ type StoreGet = () => {
   };
   trackDeckGenerationImage: (work: () => Promise<void>) => void;
   updateElement: (slideId: string, elementId: string, patch: Record<string, unknown>) => void;
-  setCurrentSlideIndex: (index: number) => void;
-  setEditorState: (patch: Record<string, unknown>) => void;
 };
 
 function placeholderForTask(get: StoreGet, task: DeckImageTask): string {
@@ -62,6 +63,7 @@ async function fetchImageUrl(
       height: task.h,
       visualProfile: task.visualProfile,
       task: 'deck_slide_image',
+      polish: false,
     }),
   });
 
@@ -80,8 +82,7 @@ async function fetchImageUrl(
 }
 
 /**
- * Fire every deck image job in parallel with live progress tracking.
- * Deck slides use Leonardo AI when configured; Pollinations data-URL fallback if Leonardo fails.
+ * Deck image jobs with bounded concurrency. CDN URLs paint instantly; R2 upload is background.
  */
 export function runDeckImageTasks(get: StoreGet, tasks: DeckImageTask[], deckId: string): void {
   if (tasks.length === 0) return;
@@ -102,7 +103,7 @@ export function runDeckImageTasks(get: StoreGet, tasks: DeckImageTask[], deckId:
     let result = await fetchImageUrl(imageSource, task);
 
     if (!result.url) {
-      await new Promise((r) => setTimeout(r, 800));
+      await new Promise((r) => setTimeout(r, 300));
       result = await fetchImageUrl(imageSource, task);
     }
 
@@ -114,27 +115,40 @@ export function runDeckImageTasks(get: StoreGet, tasks: DeckImageTask[], deckId:
     }
 
     const rawUrl = result.url;
-    const finalSrc =
-      rawUrl.startsWith('data:') ? rawUrl : await persistGeneratedImage(rawUrl, deckId);
-
-    if (get().presentation?.id !== deckId) return;
 
     get().updateElement(task.slideId, task.elementId, {
-      src: finalSrc,
+      src: rawUrl,
       aiImagePending: false,
       ...(result.imageId ? { aiMetadata: { leonardoImageId: result.imageId } } : {}),
     });
 
-    if (get().editor.isGenerating) {
-      const slideIdx = get().presentation?.slides?.findIndex((s) => s.id === task.slideId) ?? -1;
-      if (slideIdx >= 0) {
-        get().setCurrentSlideIndex(slideIdx);
-        get().setEditorState({ previewElementId: task.elementId });
-      }
+    if (!rawUrl.startsWith('data:') && !rawUrl.includes('/api/presentations/read-asset')) {
+      void persistGeneratedImage(rawUrl, deckId).then((finalSrc) => {
+        if (get().presentation?.id !== deckId) return;
+        if (finalSrc && finalSrc !== rawUrl) {
+          get().updateElement(task.slideId, task.elementId, { src: finalSrc });
+        }
+      });
     }
   };
 
-  for (const task of tasks) {
-    get().trackDeckGenerationImage(() => runOne(task));
-  }
+  let nextIndex = 0;
+  let active = 0;
+
+  const pump = () => {
+    while (active < DECK_IMAGE_CONCURRENCY && nextIndex < tasks.length) {
+      const task = tasks[nextIndex++];
+      active++;
+      get().trackDeckGenerationImage(async () => {
+        try {
+          await runOne(task);
+        } finally {
+          active--;
+          pump();
+        }
+      });
+    }
+  };
+
+  pump();
 }

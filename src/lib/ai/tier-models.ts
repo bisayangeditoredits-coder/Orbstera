@@ -20,24 +20,24 @@ export const STUDENT_PREMIUM_IMAGE_MODELS = new Set<string>();
 
 export const PLANNER_MODELS = {
   creator: {
-    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-sonnet-4.5',
+    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-3.5-sonnet',
     fallbacks: [
-      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-3.5-flash',
-      'anthropic/claude-opus-4.8',
+      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-2.5-flash',
+      'openai/gpt-4o',
     ],
   },
   student: {
-    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-sonnet-4.5',
+    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-3.5-sonnet',
     fallbacks: [
-      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-3.5-flash',
-      'anthropic/claude-opus-4.8',
+      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-2.5-flash',
+      'openai/gpt-4o',
     ],
   },
   free: {
-    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-sonnet-4.5',
+    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-3.5-sonnet',
     fallbacks: [
-      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-3.5-flash',
-      'anthropic/claude-opus-4.8',
+      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-2.5-flash',
+      'openai/gpt-4o',
     ],
   },
 } as const;

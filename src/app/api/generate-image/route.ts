@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { generatePollinationsImageUrl } from '@/lib/pollinations-image';
 import type { ImageVisualProfile } from '@/lib/ai/agent-models';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
@@ -14,12 +13,12 @@ import { addEstimatedSpend, getSpendState } from '@/lib/ai/spend';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
+import { regionToLeonardoPixels } from '@/lib/leonardo-dimensions';
 import {
   generateLeonardoImageUrl,
   getLeonardoApiKey,
   isLeonardoConfigured,
   leonardoQualityForPlan,
-  leonardoUrlToDataUrl,
 } from '@/lib/leonardo-image';
 
 const POLISH_SUFFIX =
@@ -71,8 +70,9 @@ export async function POST(req: Request) {
       if (!already) text = `${text}${POLISH_SUFFIX}`;
     }
 
-    const w = Math.max(256, Math.min(1536, Math.round(Number(width)) || 1024));
-    const h = Math.max(256, Math.min(1536, Math.round(Number(height)) || 1024));
+    const rawW = Math.max(256, Math.min(1536, Math.round(Number(width)) || 1024));
+    const rawH = Math.max(256, Math.min(1536, Math.round(Number(height)) || 1024));
+    const { width: w, height: h } = regionToLeonardoPixels(rawW, rawH);
     const isDeckSlide = task === 'deck_slide_image';
 
     const cookieStore = cookies();
@@ -136,7 +136,7 @@ export async function POST(req: Request) {
       hasOpenRouterKey: false,
       hasLeonardoKey: isLeonardoConfigured(),
       hasClaidKey: false,
-      hasPollinationsKey: true,
+      hasPollinationsKey: false,
     });
 
     const seed = Math.floor(Math.random() * 1_000_000);
@@ -158,6 +158,7 @@ export async function POST(req: Request) {
           quality,
           visualProfile,
           apiKey: getLeonardoApiKey() || undefined,
+          enhancePrompt: !isDeckSlide,
         });
         imageId = result.imageId;
         provider = 'leonardo';
@@ -169,11 +170,9 @@ export async function POST(req: Request) {
           }
         }
 
-        if (isDeckSlide) {
-          url = await leonardoUrlToDataUrl(result.url);
-        } else {
-          url = result.url;
-        }
+        // Return CDN URL directly — client shows instantly and persists to R2 in background.
+        // Avoids blocking on server-side base64 conversion (~5–15s per 1280×720 image).
+        url = result.url;
       } catch (leonardoErr) {
         console.error('[generate-image] Leonardo failed:', leonardoErr);
         if (!isDeckSlide) {
@@ -182,14 +181,7 @@ export async function POST(req: Request) {
       }
     }
 
-    if (!url && isDeckSlide) {
-      try {
-        url = await generatePollinationsImageUrl({ prompt: text, width: w, height: h });
-        provider = 'pollinations';
-      } catch (pollErr) {
-        console.error('[generate-image] Pollinations fallback failed:', pollErr);
-      }
-    }
+
 
     if (!url) {
       return NextResponse.json(
@@ -203,7 +195,7 @@ export async function POST(req: Request) {
       seed,
       imageId,
       provider,
-      fallback: isDeckSlide && !creditsCharged && provider === 'pollinations',
+      fallback: false,
     });
   } catch (error) {
     console.error('Image Generation Error:', error);

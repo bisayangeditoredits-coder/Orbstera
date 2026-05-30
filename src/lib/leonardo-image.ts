@@ -4,6 +4,10 @@
  * Phoenix + alchemy only for Creator Pro cinematic requests (~$0.03–0.05/image vs 8–12 credits charged).
  */
 
+import { snapDim } from '@/lib/leonardo-dimensions';
+
+export { snapDim } from '@/lib/leonardo-dimensions';
+
 const LEONARDO_API_URL = 'https://cloud.leonardo.ai/api/rest/v1';
 
 /** Leonardo model UUIDs — https://docs.leonardo.ai/docs/commonly-used-api-values */
@@ -38,11 +42,6 @@ export function getLeonardoApiKey(): string | null {
 
 export function isLeonardoConfigured(): boolean {
   return Boolean(getLeonardoApiKey());
-}
-
-function snapDim(n: number, min = 512, max = 1536): number {
-  const v = Math.max(min, Math.min(max, Math.round(n) || 1024));
-  return Math.round(v / 8) * 8;
 }
 
 export function selectLeonardoProfile(args: {
@@ -97,6 +96,9 @@ export function leonardoQualityForPlan(args: {
   task: 'deck_slide_image' | 'genfill_image' | 'magic_edit_image' | 'image_generate';
   premiumRequested?: boolean;
 }): LeonardoQuality {
+  // Deck backgrounds: always Flux Schnell — 5–12 parallel jobs need speed over alchemy
+  if (args.task === 'deck_slide_image') return 'economy';
+
   const p = String(args.plan || 'free').toLowerCase();
   const isGenfill = args.task === 'genfill_image' || args.task === 'magic_edit_image';
   if (isGenfill) return 'genfill';
@@ -112,11 +114,14 @@ type GenerationResult = { url: string; imageId: string; estimatedUsd: number };
 async function pollLeonardoGeneration(
   generationId: string,
   token: string,
-  maxAttempts = 24,
-  intervalMs = 2500,
+  maxAttempts = 36,
+  intervalMs = 1200,
 ): Promise<GenerationResult> {
   for (let i = 0; i < maxAttempts; i++) {
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    // First poll immediately — Leonardo often finishes in <2s on Flux Schnell
+    if (i > 0) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
 
     const pollRes = await fetch(`${LEONARDO_API_URL}/generations/${generationId}`, {
       method: 'GET',

@@ -7,6 +7,7 @@ import {
   getDeckLayoutCategoryOption,
   normalizeDeckLayoutCategory,
 } from '@/lib/deck-layout-categories';
+import { regionToLeonardoPixels } from '@/lib/leonardo-dimensions';
 
 export const DECK_CANVAS_W = 1280;
 export const DECK_CANVAS_H = 720;
@@ -213,37 +214,53 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       animation: { entrance: 'fadeIn', duration: 400, delay: 0 },
     });
     
-    // Geometric accents for corporate & bento layouts
-    if (layoutCategory === 'corporate' || layoutCategory === 'bento') {
-      elements.unshift({
-        id: uid('el-bg-ribbon-1'),
-        type: 'shape',
-        shapeType: 'rect',
-        x: DECK_CANVAS_W - 450,
-        y: -300,
-        width: 160,
-        height: DECK_CANVAS_H + 600,
-        rotation: 25,
-        zIndex: 0,
-        visible: true,
-        shapeStyle: { fill: accent, opacity: light ? 0.06 : 0.15 },
-        animation: { entrance: 'fadeSlideLeft', duration: 1200, delay: 0 },
-      });
-      elements.unshift({
-        id: uid('el-bg-ribbon-2'),
-        type: 'shape',
-        shapeType: 'rect',
-        x: DECK_CANVAS_W - 220,
-        y: -300,
-        width: 50,
-        height: DECK_CANVAS_H + 600,
-        rotation: 25,
-        zIndex: 0,
-        visible: true,
-        shapeStyle: { fill: textPrimary, opacity: light ? 0.03 : 0.08 },
-        animation: { entrance: 'fadeSlideLeft', duration: 1000, delay: 100 },
-      });
-    }
+    // Abstract premium accents for all solid layouts to avoid ugly white emptiness
+    elements.unshift({
+      id: uid('el-bg-ribbon-1'),
+      type: 'shape',
+      shapeType: 'rect',
+      x: DECK_CANVAS_W - 550,
+      y: -200,
+      width: 280,
+      height: DECK_CANVAS_H + 400,
+      rotation: 35,
+      zIndex: 0,
+      visible: true,
+      shapeStyle: { fill: accent, opacity: light ? 0.04 : 0.08 },
+      animation: { entrance: 'fadeSlideLeft', duration: 1200, delay: 0 },
+    });
+    elements.unshift({
+      id: uid('el-bg-ribbon-2'),
+      type: 'shape',
+      shapeType: 'rect',
+      x: DECK_CANVAS_W - 250,
+      y: -300,
+      width: 80,
+      height: DECK_CANVAS_H + 600,
+      rotation: 35,
+      zIndex: 0,
+      visible: true,
+      shapeStyle: { fill: textPrimary, opacity: light ? 0.02 : 0.05 },
+      animation: { entrance: 'fadeSlideLeft', duration: 1000, delay: 100 },
+    });
+    elements.unshift({
+      id: uid('el-bg-frame'),
+      type: 'shape',
+      shapeType: 'rect',
+      x: 32,
+      y: 32,
+      width: DECK_CANVAS_W - 64,
+      height: DECK_CANVAS_H - 64,
+      zIndex: 0,
+      visible: true,
+      shapeStyle: { 
+        fill: 'transparent', 
+        stroke: textPrimary, 
+        strokeWidth: 1, 
+        opacity: light ? 0.06 : 0.12 
+      },
+      animation: { entrance: 'fadeIn', duration: 1500, delay: 300 },
+    });
 
     currentZ = Math.max(currentZ, 1);
   };
@@ -267,8 +284,8 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
     });
     pushImageTask({
       elementId: bgId,
-      w: 1280,
-      h: 720,
+      w: 1024,
+      h: 576,
       visualProfile,
     });
     if (!light) {
@@ -303,18 +320,39 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
     }
     const titleText = slide.title?.trim() ?? '';
     const titleFontSize = titleText.length > 42 ? 64 : titleText.length > 28 ? 76 : 88;
-    const estLines = Math.max(1, Math.ceil(titleText.length / (titleFontSize > 76 ? 18 : 22)));
-    const titleHeight = Math.min(300, Math.max(120, Math.round(estLines * titleFontSize * 1.12)));
-    const titleY = Math.round(DECK_CANVAS_H / 2 - titleHeight / 2 - 36);
-    const subtitleY = titleY + titleHeight + 20;
+    const titleW = DECK_CANVAS_W - 192;
+    const titleHeight = titleText
+      ? estimateTextBlockHeight(titleText, titleFontSize, titleW, 1.08, 100, 280)
+      : 0;
+    const subFontSize = 34;
+    const subW = DECK_CANVAS_W - 440;
+    const subHeight = slide.subtitle
+      ? estimateTextBlockHeight(slide.subtitle, subFontSize, subW, 1.5, 72, 120)
+      : 0;
+    const titleY = 108;
+    const subtitleY = titleY + titleHeight + 24;
+    const heroScrimH = titleHeight + (slide.subtitle ? subHeight + 48 : 32) + 36;
 
     if (slide.title) {
+      elements.push({
+        id: uid('el-title-scrim'),
+        type: 'shape',
+        shapeType: 'rect',
+        x: 48,
+        y: titleY - 28,
+        width: DECK_CANVAS_W - 96,
+        height: heroScrimH,
+        zIndex: currentZ++,
+        visible: true,
+        shapeStyle: glassCard(light),
+        animation: { entrance: 'fadeIn', duration: 600, delay: 0 },
+      });
       elements.push({
         id: uid('el-title'),
         type: 'text',
         x: 96,
         y: titleY,
-        width: DECK_CANVAS_W - 192,
+        width: titleW,
         height: titleHeight,
         content: slide.title,
         zIndex: currentZ++,
@@ -336,14 +374,14 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         type: 'text',
         x: 220,
         y: subtitleY,
-        width: DECK_CANVAS_W - 440,
-        height: 72,
+        width: subW,
+        height: subHeight,
         content: slide.subtitle,
         zIndex: currentZ++,
         visible: true,
         textStyle: {
           fontFamily: bodyFont,
-          fontSize: 34,
+          fontSize: subFontSize,
           fontWeight: 'normal',
           color: textMuted,
           textAlign: 'center',
@@ -486,10 +524,13 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       visible: true,
       animation: { entrance: 'zoomIn', duration: 850, delay: 200 },
     });
+    const splitImgW = 552;
+    const splitImgH = DECK_CANVAS_H - 128;
+    const splitPixels = regionToLeonardoPixels(splitImgW, splitImgH);
     pushImageTask({
       elementId: imgId,
-      w: 800,
-      h: 900,
+      w: splitPixels.width,
+      h: splitPixels.height,
       visualProfile: 'cinematic',
     });
   } else if (isQuote) {
@@ -507,20 +548,27 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       shapeStyle: glassCard(light),
       animation: { entrance: 'zoomIn', duration: 800, delay: 0 },
     });
+    const quoteFontSize = 58;
+    const quoteW = DECK_CANVAS_W - 320;
+    const quoteY = 200;
+    let quoteBottomY = quoteY;
     if (slide.title) {
+      const quoteText = `"${slide.title.replace(/^"|"$/g, '')}"`;
+      const quoteHeight = estimateTextBlockHeight(quoteText, quoteFontSize, quoteW, 1.55, 120, 260);
+      quoteBottomY = quoteY + quoteHeight;
       elements.push({
         id: uid('el-quote'),
         type: 'text',
         x: 160,
-        y: 200,
-        width: DECK_CANVAS_W - 320,
-        height: 260,
-        content: `"${slide.title.replace(/^"|"$/g, '')}"`,
+        y: quoteY,
+        width: quoteW,
+        height: quoteHeight,
+        content: quoteText,
         zIndex: currentZ++,
         visible: true,
         textStyle: {
           fontFamily: headingFont,
-          fontSize: 58,
+          fontSize: quoteFontSize,
           fontWeight: 'normal',
           fontStyle: 'italic',
           color: textPrimary,
@@ -531,13 +579,17 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       });
     }
     if (slide.subtitle) {
+      const authorFontSize = 30;
+      const authorW = DECK_CANVAS_W - 320;
+      const authorHeight = estimateTextBlockHeight(slide.subtitle, authorFontSize, authorW, 1.5, 56, 80);
+      const authorY = slide.title ? quoteBottomY + 20 : 400;
       elements.push({
         id: uid('el-author'),
         type: 'text',
         x: 160,
-        y: 480,
-        width: DECK_CANVAS_W - 320,
-        height: 56,
+        y: authorY,
+        width: authorW,
+        height: authorHeight,
         content: `— ${slide.subtitle}`,
         zIndex: currentZ++,
         visible: true,
@@ -890,11 +942,14 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       addFullBleedBackground(contentVariant === 2 ? 0.22 : 0.28, 'cinematic');
     }
 
+    let titleBlockBottom = 48;
+
     if (slide.title) {
       const titleX = contentVariant === 2 ? 140 : 72;
       const titleW = contentVariant === 2 ? DECK_CANVAS_W - 280 : DECK_CANVAS_W - 144;
       const titleFontSize = contentVariant === 2 ? 40 : 44;
       const titleHeight = estimateTextBlockHeight(slide.title, titleFontSize, titleW, 1.15, 72, 140);
+      titleBlockBottom = 48 + titleHeight + 36;
       elements.push({
         id: uid('el-title-glass'),
         type: 'shape',
@@ -927,6 +982,47 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
           lineHeight: 1.15,
         },
         animation: { entrance: 'fadeSlideUp', duration: 600, delay: 100 },
+      });
+    }
+
+    if (slide.subtitle && mergedB.length === 0) {
+      const subX = contentVariant === 2 ? 140 : 72;
+      const subW = contentVariant === 2 ? DECK_CANVAS_W - 280 : DECK_CANVAS_W - 144;
+      const subFontSize = 32;
+      const subHeight = estimateTextBlockHeight(slide.subtitle, subFontSize, subW, 1.5, 80, 240);
+      const subGlassY = slide.title ? titleBlockBottom + 16 : 48;
+      const subTextY = subGlassY + 24;
+      elements.push({
+        id: uid('el-subtitle-glass'),
+        type: 'shape',
+        shapeType: 'rect',
+        x: 48,
+        y: subGlassY,
+        width: DECK_CANVAS_W - 96,
+        height: subHeight + 48,
+        zIndex: currentZ++,
+        visible: true,
+        shapeStyle: glassCard(light),
+        animation: { entrance: 'fadeSlideUp', duration: 550, delay: 150 },
+      });
+      elements.push({
+        id: uid('el-subtitle'),
+        type: 'text',
+        x: subX,
+        y: subTextY,
+        width: subW,
+        height: subHeight,
+        content: slide.subtitle,
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: bodyFont,
+          fontSize: subFontSize,
+          color: textPrimary,
+          textAlign: contentVariant === 2 ? 'center' : 'left',
+          lineHeight: 1.5,
+        },
+        animation: { entrance: 'fadeIn', duration: 600, delay: 250 },
       });
     }
 
