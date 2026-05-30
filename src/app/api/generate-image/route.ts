@@ -161,7 +161,7 @@ export async function POST(req: Request) {
           enhancePrompt: !isDeckSlide,
         });
         imageId = result.imageId;
-        provider = 'fal.ai';
+        provider = 'leonardo';
 
         if (creditsCharged) {
           const usdPerCredit = typeof creditConfig.usdPerCredit === 'number' ? creditConfig.usdPerCredit : 0;
@@ -173,10 +173,10 @@ export async function POST(req: Request) {
         // Return CDN URL directly — client shows instantly and persists to R2 in background.
         // Avoids blocking on server-side base64 conversion (~5–15s per 1280×720 image).
         url = result.url;
-      } catch (falErr) {
-        console.error('[generate-image] Fal.ai failed:', falErr);
+      } catch (leonardoErr) {
+        console.error('[generate-image] Leonardo failed:', leonardoErr);
         if (!isDeckSlide) {
-          throw falErr;
+          throw leonardoErr;
         }
       }
     }
