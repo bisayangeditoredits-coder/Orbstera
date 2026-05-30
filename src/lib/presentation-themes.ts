@@ -51,7 +51,7 @@ export function buildPlannerFirstMessage(topic: string, prefs: PlannerSetupPrefe
     `I want to create a presentation about: "${topic}".`,
     `Target length: ${prefs.slideCount} slides.`,
     `Theme: ${prefs.themeName}. Brand colors: ${prefs.colorPalette.join(', ')}.`,
-    `Layout category: ${layout.label}. ${layout.promptHint}`,
+
     `Please build a slide-by-slide outline for exactly ${prefs.slideCount} slides.`,
   ].join('\n');
 }

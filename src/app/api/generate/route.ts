@@ -293,7 +293,7 @@ export async function POST(req: Request) {
             const preset = resolveVisualTheme(theme.trim());
             finalPrompt += `\n\n[USER COLOR PALETTE]\nUse exactly this colorPalette array in the deck JSON: ${JSON.stringify(preset.colorPalette)}`;
           }
-          finalPrompt += `\n\n[USER LAYOUT CATEGORY]\nRoot layoutCategory must be "${layoutCategory}". ${buildDeckLayoutCategoryPrompt(layoutCategory)} This must change slide structures and layout rhythm, not just colors.`;
+
           if (typeof theme === 'string' && theme.trim()) {
             finalPrompt += `\n\n${buildVisualCurationBlock({
               themeId: theme.trim(),
