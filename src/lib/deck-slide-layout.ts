@@ -153,8 +153,6 @@ function prefersImageBackground(category: DeckLayoutCategory, slideType?: string
  * Gamma-style slide layouts: full-bleed backgrounds, glass cards, editorial hierarchy.
  */
 // ─── Constants ────────────────────────────────────────────────────────────────
-const DECK_CANVAS_W = 1280;
-const DECK_CANVAS_H = 720;
 
 // Safe rendering zone — elements should never exceed this bottom edge
 const SAFE_BOTTOM = DECK_CANVAS_H - 40;
