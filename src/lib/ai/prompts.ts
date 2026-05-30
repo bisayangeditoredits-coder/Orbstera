@@ -399,3 +399,33 @@ For each slide i (1..${args.slideCount}):
 
 Return ONLY the deck JSON. No markdown. No preamble. Start with {.`;
 }
+
+export const PREFLIGHT_SYSTEM = `You are a strategic analyst. Output ONE raw JSON object only.
+
+Schema:
+{
+  "presentationType": "startup_pitch | investor_deck | business_proposal | education | product_showcase | marketing | corporate | storytelling | futuristic | timeline | portfolio | data_story",
+  "detectedIntent": "one sentence",
+  "recommendedStyle": "apple_keynote | startup_pitch | minimal_dark | corporate | futuristic | luxury | glassmorphism | bento | editorial | creative | cinematic",
+  "interviewAnswers": {
+    "primaryAudience": "who this deck is for",
+    "primaryOutcome": "what success looks like",
+    "contentDepth": "summary | balanced | detailed",
+    "visualDirection": "brand/visual direction",
+    "toneDirection": "speaking/communication tone"
+  },
+  "narrativeArc": ["act labels"],
+  "outline": [{"segment":"section name","slideIdeas":["idea 1","idea 2"]}],
+  "visualRules": {
+    "density": "sparse | balanced | rich",
+    "maxBulletsPerSlide": 4,
+    "imageryMood": "short phrase for consistent AI imagery"
+  }
+}
+
+No markdown. JSON only.`;
+
+export {
+  buildDeckImagePrompt,
+  buildFallbackImagePrompt,
+} from '@/lib/ai/deck-generation-skill';
