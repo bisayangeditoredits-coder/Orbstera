@@ -22,6 +22,7 @@ async function step(
   plan?: string,
   freeTaste?: boolean,
   economy?: boolean,
+  jsonMode?: boolean,
 ): Promise<string> {
   try {
     const { text } = await openRouterCompleteCascade(appUrl, {
@@ -36,6 +37,7 @@ async function step(
       freeTaste,
       economy,
       timeoutMs: OPENROUTER_TIMEOUT.orchestrationStep,
+      jsonMode,
     });
     return text;
   } catch (e) {
@@ -72,7 +74,7 @@ function buildRefinedBrief(args: {
     typeof args.intent.imageryPalette === 'string' && args.intent.imageryPalette
       ? `--- Imagery palette ---\n${args.intent.imageryPalette}`
       : '',
-    spine && `--- SLIDE ORDERS (slideSpine — execute 1:1, do NOT invent structure) ---\n${spine}`,
+    spine && `--- SLIDE BLUEPRINT (slideSpine — follow typeHint and layoutHint for each slide; refine headlines and imageBrief, do NOT use all-content slides) ---\n${spine}`,
     args.reasonMemo && `--- Strategy / reasoning layer ---\n${args.reasonMemo}`,
     `--- Flow notes ---\n${typeof args.structure.flowNotes === 'string' ? args.structure.flowNotes : ''}`,
     `--- Tone guardrails ---\n${typeof args.structure.toneGuardrails === 'string' ? args.structure.toneGuardrails : ''}`,
@@ -230,6 +232,7 @@ export async function runOpenRouterOrchestration(
     opts?.plan,
     opts?.freeTaste,
     opts?.spendState?.forcedEconomyMode,
+    true,
   );
   if (!intentOut.trim()) {
     throw new Error('Director intent step returned empty output');
@@ -272,7 +275,7 @@ export async function runOpenRouterOrchestration(
     onProgress?.('reasoning', 'Skipping deep reasoning — fast path.');
   }
 
-  onProgress?.('structure', 'Architect: writing explicit slide orders…');
+  onProgress?.('structure', 'Architect: drafting creative blueprint…');
   const structureCascade = getTextModelCascade({
     plan: opts?.plan,
     task: 'deck_structure',
@@ -291,6 +294,7 @@ export async function runOpenRouterOrchestration(
     opts?.plan,
     opts?.freeTaste,
     opts?.spendState?.forcedEconomyMode,
+    true,
   );
   if (!structOut.trim()) {
     throw new Error('Director structure step returned empty output');
@@ -316,7 +320,7 @@ export async function runOpenRouterOrchestration(
     `DIRECTOR_DNA_PRESET:\n${JSON.stringify(dna, null, 2)}`,
   ].join('\n\n');
 
-  onProgress?.('synthesis', 'Brief locked — composer executing orders…');
+  onProgress?.('synthesis', 'Brief ready — composer designing deck…');
 
   void aiCacheSet(
     orchKey,

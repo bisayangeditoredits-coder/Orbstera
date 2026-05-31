@@ -598,14 +598,23 @@ function ElementNode({
 
   const renderShape = () => {
     if (el.type === 'text') {
+      const defaultFontSize = el.textStyle?.fontSize || 24;
+      let computedFontSize = defaultFontSize;
+      
+      if (el.content && el.content.length > 40 && el.width && el.height) {
+        const estimatedMaxFontSize = Math.sqrt((el.width * el.height) / (el.content.length * 0.65));
+        computedFontSize = Math.max(9, Math.min(defaultFontSize, Math.floor(estimatedMaxFontSize)));
+      }
+
       return (
         <Text
           ref={shapeRef as React.RefObject<Konva.Text>}
           {...commonProps}
+          height={undefined}
           opacity={isEditingText ? 0 : (el.opacity ?? 1)}
           text={el.content || ''}
           fontFamily={el.textStyle?.fontFamily || 'Inter'}
-          fontSize={el.textStyle?.fontSize || 24}
+          fontSize={computedFontSize}
           fontStyle={
             [
               el.textStyle?.fontStyle === 'italic' ? 'italic' : '',
@@ -1164,7 +1173,7 @@ function SlideBackground({
   const accent = colors[2] || '#38BDF8';
   const bgUrl = bgImageUrl?.trim() || '';
   const [bgImg] = useImage(editorImageFetchUrl(bgUrl), 'anonymous');
-  const heroOpacity = typeof bgImageOpacity === 'number' ? bgImageOpacity : 0.18;
+  const heroOpacity = typeof bgImageOpacity === 'number' ? bgImageOpacity : 1;
 
   return (
     <>

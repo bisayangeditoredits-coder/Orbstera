@@ -4,8 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Check,
   ChevronDown,
-  ChevronRight,
-  Grid3X3,
   Image as ImageIcon,
   ImageOff,
   Plus,
@@ -217,28 +215,8 @@ const ART_STYLES: ArtStyleDefinition[] = [
       </div>
     ),
   },
-  {
-    id: 'custom',
-    label: 'Custom',
-    selectable: true,
-    renderCard: () => (
-      <div className="flex h-full w-full items-center justify-center bg-gray-100">
-        <Plus className="h-5 w-5 text-gray-400" strokeWidth={1.5} />
-      </div>
-    ),
-  },
-  {
-    id: 'view-more',
-    label: 'View more',
-    selectable: false,
-    renderCard: () => (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-gray-100">
-        <Grid3X3 className="h-4 w-4 text-gray-400" strokeWidth={1.5} />
-        <span className="text-[9px] text-gray-400">View more</span>
-      </div>
-    ),
-  },
 ];
+
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return <p className="text-sm font-medium text-gray-900">{children}</p>;
@@ -307,18 +285,9 @@ export default function VisualsConfig({ initialSlideCount, onGenerate }: Visuals
 
         {/* Theme */}
         <section className="mb-8">
-          <div className="mb-3 flex items-center justify-between">
-            <SectionLabel>Theme</SectionLabel>
-            <button
-              type="button"
-              className="inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              View more
-              <ChevronRight className="h-4 w-4" strokeWidth={2} />
-            </button>
-          </div>
-          <p className="mb-4 text-sm text-gray-500">
-            Use one of our popular themes below or view more.
+          <SectionLabel>Theme</SectionLabel>
+          <p className="mb-4 mt-3 text-sm text-gray-500">
+            Pick a starting theme or let AI choose automatically.
           </p>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">

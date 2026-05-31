@@ -11,10 +11,26 @@ export interface OpenRouterOptions {
   temperature?: number;
   max_tokens?: number;
   stream?: boolean;
+  /** Request JSON object output (orchestration steps) */
+  jsonMode?: boolean;
   /** HTTP timeout; defaults differ for complete vs stream */
   timeoutMs?: number;
   /** Optional plan tier for per-pool API keys */
   plan?: string | null;
+}
+
+function buildRequestBody(opts: OpenRouterOptions, stream: boolean): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    model: opts.model,
+    messages: opts.messages,
+    temperature: opts.temperature ?? (stream ? 0.28 : 0.25),
+    max_tokens: opts.max_tokens ?? (stream ? 24_000 : 8192),
+    stream,
+  };
+  if (opts.jsonMode) {
+    body.response_format = { type: 'json_object' };
+  }
+  return body;
 }
 
 function headers(appUrl: string, plan?: string | null): Record<string, string> {
@@ -38,13 +54,7 @@ export async function openRouterComplete(
     {
       method: 'POST',
       headers: headers(appUrl, opts.plan),
-      body: JSON.stringify({
-        model: opts.model,
-        messages: opts.messages,
-        temperature: opts.temperature ?? 0.25,
-        max_tokens: opts.max_tokens ?? 8192,
-        stream: false,
-      }),
+      body: JSON.stringify(buildRequestBody(opts, false)),
     },
     opts.timeoutMs ?? OPENROUTER_TIMEOUT.complete,
   );
@@ -82,13 +92,7 @@ export async function openRouterStream(
     {
       method: 'POST',
       headers: headers(appUrl, opts.plan),
-      body: JSON.stringify({
-        model: opts.model,
-        messages: opts.messages,
-        temperature: opts.temperature ?? 0.28,
-        max_tokens: opts.max_tokens ?? 24_000,
-        stream: true,
-      }),
+      body: JSON.stringify(buildRequestBody(opts, true)),
     },
     opts.timeoutMs ?? OPENROUTER_TIMEOUT.stream,
   );

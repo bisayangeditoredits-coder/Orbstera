@@ -1,23 +1,28 @@
 /**
  * Hidden orchestration stack — OpenRouter only. IDs overridable via env.
  *
- * Updated May 2026 — upgraded to best-in-class models.
+ * Updated May 2026 — best-in-class models for deck generation.
  */
 
 export const AGENT_MODELS = {
-  /** Intent, merge, final polish — Claude Opus 4 */
-  gptOrchestrator: process.env.OPENROUTER_AGENT_GPT5 ?? 'anthropic/claude-opus-4-5',
-  /** Orchestrator fallback — Claude Sonnet 4.5 */
+  /** Director intent, merge, final polish — Claude Opus 4.6 */
+  gptOrchestrator: process.env.OPENROUTER_AGENT_GPT5 ?? 'anthropic/claude-opus-4.6',
+  /** Orchestrator fallback — Claude Sonnet 4.6 */
   gptOrchestratorAlt:
-    process.env.OPENROUTER_AGENT_GPT5_ALT ?? 'anthropic/claude-sonnet-4-5',
-  /** Slide spine, structure — Claude Sonnet 4.5 */
-  claudeStructure: process.env.OPENROUTER_AGENT_CLAUDE ?? 'anthropic/claude-sonnet-4-5',
-  /** Elite polish — Claude Opus 4 */
-  claudeOpus: process.env.OPENROUTER_AGENT_CLAUDE_OPUS ?? 'anthropic/claude-opus-4-5',
-  /** Analytical depth */
+    process.env.OPENROUTER_AGENT_GPT5_ALT ?? 'anthropic/claude-sonnet-4.6',
+  /** Slide spine, structure — Claude Sonnet 4.6 */
+  claudeStructure: process.env.OPENROUTER_AGENT_CLAUDE ?? 'anthropic/claude-sonnet-4.6',
+  /** Elite polish — Claude Opus 4.6 */
+  claudeOpus: process.env.OPENROUTER_AGENT_CLAUDE_OPUS ?? 'anthropic/claude-opus-4.6',
+  /** Deep analytical reasoning */
   deepseekReason: process.env.OPENROUTER_AGENT_DEEPSEEK ?? 'deepseek/deepseek-r1',
   /** Long-context fallback */
   geminiPro: process.env.OPENROUTER_AGENT_GEMINI_PRO ?? 'google/gemini-2.5-flash',
+  /** Gemini 3.1 Pro — structured JSON fallback */
+  gemini31Pro:
+    process.env.OPENROUTER_AGENT_GEMINI_31 ?? 'google/gemini-3.1-pro-preview',
+  /** Economy text */
+  geminiFlash: process.env.OPENROUTER_AGENT_GEMINI_FLASH ?? 'google/gemini-3-flash-preview',
 } as const;
 
 export const IMAGE_MODELS = {

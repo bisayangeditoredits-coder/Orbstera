@@ -1,6 +1,7 @@
 import type { DeckLayoutCategory, SlideElement } from '@/types';
 import type { DeckImageTask } from '@/lib/deck-image-generation';
 import { buildDeckImagePrompt } from '@/lib/ai/deck-generation-skill';
+import { parseSlideBackgroundStyle } from '@/lib/ai/generation-constraints';
 import type { VisualBackgroundMode } from '@/lib/visual-themes';
 import {
   DEFAULT_DECK_LAYOUT_CATEGORY,
@@ -36,6 +37,7 @@ export type AiSlideInput = {
   bullets?: string[];
   content?: { bullets?: string[] };
   imagePrompt?: string;
+  backgroundStyle?: unknown;
 };
 
 export type BuildDeckSlideLayoutArgs = {
@@ -177,12 +179,18 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
   const imageTasks: DeckImageTask[] = [];
   const elements: SlideElement[]    = [...(args.existingElements || [])];
   let currentZ = elements.length + 1;
+  let onPhotoBackground = false;
+
+  const parsedBg = parseSlideBackgroundStyle(slide.backgroundStyle);
+  const wantsAiImageBg = parsedBg?.type === 'image';
 
   const light       = args.backgroundMode === 'light';
   const bgColor     = palette[0] || (light ? '#FFFFFF' : '#05050A');
   const textPrimary = palette[1] || (light ? '#1F2937' : '#FFFFFF');
   const textMuted   = palette[3] || palette[1];
   const accent      = palette[2] || '#7B61FF';
+  const photoTitle  = () => (onPhotoBackground ? '#FFFFFF' : textPrimary);
+  const photoMuted  = () => (onPhotoBackground ? 'rgba(255,255,255,0.88)' : textMuted);
 
   const nestedB = slide.content?.bullets;
   const mergedB = [...(slide.bullets || []), ...(nestedB || [])].filter(
@@ -235,119 +243,93 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       shapeStyle: { fill: bgColor, stroke: 'transparent', strokeWidth: 0 },
       animation: { entrance: 'fadeIn', duration: 400, delay: 0 },
     });
-    // Subtle decorative ribbons
-    elements.unshift({
-      id: uid('el-bg-ribbon-1'),
-      type: 'shape', shapeType: 'rect',
-      x: DECK_CANVAS_W - 550, y: -200,
-      width: 280, height: DECK_CANVAS_H + 400,
-      rotation: 35, zIndex: 0, visible: true,
-      shapeStyle: { fill: accent, opacity: light ? 0.04 : 0.08 },
-      animation: { entrance: 'fadeSlideLeft', duration: 1200, delay: 0 },
-    });
-    elements.unshift({
-      id: uid('el-bg-ribbon-2'),
-      type: 'shape', shapeType: 'rect',
-      x: DECK_CANVAS_W - 250, y: -300,
-      width: 80, height: DECK_CANVAS_H + 600,
-      rotation: 35, zIndex: 0, visible: true,
-      shapeStyle: { fill: textPrimary, opacity: light ? 0.02 : 0.05 },
-      animation: { entrance: 'fadeSlideLeft', duration: 1000, delay: 100 },
-    });
-    elements.unshift({
-      id: uid('el-bg-frame'),
-      type: 'shape', shapeType: 'rect',
-      x: 32, y: 32,
-      width: DECK_CANVAS_W - 64, height: DECK_CANVAS_H - 64,
-      zIndex: 0, visible: true,
-      shapeStyle: {
-        fill: 'transparent',
-        stroke: textPrimary,
-        strokeWidth: 1,
-        opacity: light ? 0.06 : 0.12,
-      },
-      animation: { entrance: 'fadeIn', duration: 1500, delay: 300 },
-    });
     currentZ = Math.max(currentZ, 1);
   };
 
-  const addFullBleedBackground = (bgOpacity: number, visualProfile: 'cinematic' | 'typography') => {
+  /** Gamma-style: full-opacity photo + dark scrim + bottom vignette for readable text */
+  const addFullBleedBackground = (overlayOpacity = 0.5, visualProfile: 'cinematic' | 'typography' = 'cinematic') => {
+    onPhotoBackground = true;
     const bgId = uid('el-bg-image');
-    const imageOpacity = light ? Math.max(0.72, bgOpacity) : bgOpacity;
+    const scrim = Math.min(0.58, Math.max(0.42, parsedBg?.overlayOpacity ?? overlayOpacity));
+
     elements.unshift({
       id: bgId,
       type: 'image', src: '',
       x: 0, y: 0, width: DECK_CANVAS_W, height: DECK_CANVAS_H,
       zIndex: 0, visible: true,
-      opacity: imageOpacity,
+      opacity: 1,
       aiImagePending: true,
-      animation: { entrance: 'fadeIn', duration: 1200, delay: 0 },
+      animation: { entrance: 'cinematicImageZoom', duration: 1400, delay: 0 },
     });
-    pushImageTask({ elementId: bgId, w: 1024, h: 576, visualProfile });
-    if (!light) {
-      elements.push({
-        id: uid('el-bg-overlay'),
-        type: 'shape', shapeType: 'rect',
-        x: 0, y: 0, width: DECK_CANVAS_W, height: DECK_CANVAS_H,
-        zIndex: 1, visible: true,
-        shapeStyle: {
-          fill: 'rgba(5, 5, 12, 0.3)',
-          stroke: 'transparent',
-          strokeWidth: 0,
-        },
-        animation: { entrance: 'fadeIn', duration: 800, delay: 0 },
-      });
-      currentZ = Math.max(currentZ, 2);
-    } else {
-      currentZ = Math.max(currentZ, 1);
-    }
+    const dims = regionToLeonardoPixels(DECK_CANVAS_W, DECK_CANVAS_H);
+    pushImageTask({ elementId: bgId, w: dims.width, h: dims.height, visualProfile });
+
+    elements.push({
+      id: uid('el-bg-overlay'),
+      type: 'shape', shapeType: 'rect',
+      x: 0, y: 0, width: DECK_CANVAS_W, height: DECK_CANVAS_H,
+      zIndex: 1, visible: true,
+      shapeStyle: {
+        fill: `rgba(0, 0, 0, ${scrim})`,
+        stroke: 'transparent',
+        strokeWidth: 0,
+      },
+      animation: { entrance: 'fadeIn', duration: 700, delay: 0 },
+    });
+    elements.push({
+      id: uid('el-bg-vignette'),
+      type: 'shape', shapeType: 'rect',
+      x: 0, y: Math.round(DECK_CANVAS_H * 0.42),
+      width: DECK_CANVAS_W, height: Math.round(DECK_CANVAS_H * 0.58),
+      zIndex: 1, visible: true,
+      shapeStyle: {
+        fill: 'rgba(0, 0, 0, 0.28)',
+        stroke: 'transparent',
+        strokeWidth: 0,
+      },
+      animation: { entrance: 'fadeIn', duration: 700, delay: 0 },
+    });
+    currentZ = Math.max(currentZ, 2);
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
   // HERO
   // ═══════════════════════════════════════════════════════════════════════════
   if (isHero) {
-    if (layoutCategory === 'minimal' || layoutCategory === 'corporate') {
+    if ((layoutCategory === 'minimal' || layoutCategory === 'corporate') && !wantsAiImageBg) {
       addSolidBackground();
     } else {
-      addFullBleedBackground(layoutCategory === 'cinematic' ? 0.48 : 0.42, 'typography');
+      addFullBleedBackground(0.52, 'cinematic');
     }
 
-    const titleText    = slide.title?.trim() ?? '';
-    const titleFontSize = titleText.length > 42 ? 64 : titleText.length > 28 ? 76 : 88;
-    const titleW       = DECK_CANVAS_W - 192;
-    const titleHeight  = titleText
-      ? estimateTextBlockHeight(titleText, titleFontSize, titleW, 1.08, 100, 280)
+    const titleText     = slide.title?.trim() ?? '';
+    const titleFontSize = titleText.length > 42 ? 64 : titleText.length > 28 ? 80 : 96;
+    const titleW        = onPhotoBackground ? DECK_CANVAS_W - PAD * 2 : DECK_CANVAS_W - 192;
+    const titleHeight   = titleText
+      ? estimateTextBlockHeight(titleText, titleFontSize, titleW, 1.05, 90, 260)
       : 0;
-    const subFontSize  = 34;
-    const subW         = DECK_CANVAS_W - 440;
-    const subHeight    = slide.subtitle
-      ? estimateTextBlockHeight(slide.subtitle, subFontSize, subW, 1.5, 72, 120)
+    const subFontSize   = onPhotoBackground ? 28 : 34;
+    const subW          = onPhotoBackground ? DECK_CANVAS_W - PAD * 2 : DECK_CANVAS_W - 440;
+    const subHeight     = slide.subtitle
+      ? estimateTextBlockHeight(slide.subtitle, subFontSize, subW, 1.45, 60, 100)
       : 0;
-    const titleY       = 108;
-    const subtitleY    = titleY + titleHeight + 24;
-    const heroScrimH   = titleHeight + (slide.subtitle ? subHeight + 48 : 32) + 36;
+    const titleY        = onPhotoBackground
+      ? DECK_CANVAS_H - titleHeight - (slide.subtitle ? subHeight + 28 : 0) - 64
+      : 108;
+    const subtitleY     = titleY + titleHeight + 16;
 
     if (slide.title) {
       elements.push({
-        id: uid('el-title-scrim'),
-        type: 'shape', shapeType: 'rect',
-        x: 48, y: titleY - 28,
-        width: DECK_CANVAS_W - 96, height: heroScrimH,
-        zIndex: currentZ++, visible: true,
-        shapeStyle: glassCard(light),
-        animation: { entrance: 'fadeIn', duration: 600, delay: 0 },
-      });
-      elements.push({
         id: uid('el-title'),
         type: 'text',
-        x: 96, y: titleY, width: titleW, height: titleHeight,
+        x: onPhotoBackground ? PAD : 96,
+        y: titleY, width: titleW, height: titleHeight,
         content: slide.title,
         zIndex: currentZ++, visible: true,
         textStyle: {
           fontFamily: headingFont, fontSize: titleFontSize,
-          fontWeight: 'bold', color: textPrimary,
-          textAlign: 'center', lineHeight: 1.08,
+          fontWeight: 'bold', color: photoTitle(),
+          textAlign: onPhotoBackground ? 'left' : 'center', lineHeight: 1.05,
         },
         animation: { entrance: 'fadeSlideUp', duration: 900, delay: 80 },
       });
@@ -356,13 +338,15 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       elements.push({
         id: uid('el-sub'),
         type: 'text',
-        x: 220, y: subtitleY, width: subW, height: subHeight,
+        x: onPhotoBackground ? PAD : 220,
+        y: subtitleY, width: subW, height: subHeight,
         content: slide.subtitle,
         zIndex: currentZ++, visible: true,
         textStyle: {
           fontFamily: bodyFont, fontSize: subFontSize,
-          fontWeight: 'normal', color: textMuted,
-          textAlign: 'center', lineHeight: 1.5, letterSpacing: 2,
+          fontWeight: 'normal', color: photoMuted(),
+          textAlign: onPhotoBackground ? 'left' : 'center', lineHeight: 1.45,
+          letterSpacing: onPhotoBackground ? 0 : 2,
         },
         animation: { entrance: 'fadeSlideUp', duration: 900, delay: 220 },
       });
@@ -451,7 +435,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         zIndex: currentZ++, visible: true,
         textStyle: {
           fontFamily: headingFont, fontSize: titleFontSize,
-          fontWeight: 'bold', color: textPrimary,
+          fontWeight: 'bold', color: photoTitle(),
           textAlign: 'left', lineHeight: 1.15,
         },
         animation: { entrance: 'fadeSlideLeft', duration: 650, delay: 160 },
@@ -490,36 +474,26 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
   // QUOTE
   // ═══════════════════════════════════════════════════════════════════════════
   } else if (isQuote) {
-    addFullBleedBackground(0.36, 'cinematic');
+    addFullBleedBackground(0.54, 'cinematic');
 
-    elements.push({
-      id: uid('el-quote-glass'),
-      type: 'shape', shapeType: 'rect',
-      x: 120, y: 120,
-      width: DECK_CANVAS_W - 240, height: DECK_CANVAS_H - 240,
-      zIndex: currentZ++, visible: true,
-      shapeStyle: glassCard(light),
-      animation: { entrance: 'zoomIn', duration: 800, delay: 0 },
-    });
-
-    const quoteFontSize = 58;
-    const quoteW        = DECK_CANVAS_W - 320;
-    const quoteY        = 200;
+    const quoteFontSize = 52;
+    const quoteW        = DECK_CANVAS_W - 200;
+    const quoteY        = 180;
 
     if (slide.title) {
       const quoteText   = `"${slide.title.replace(/^"|"$/g, '')}"`;
-      const quoteHeight = estimateTextBlockHeight(quoteText, quoteFontSize, quoteW, 1.55, 120, 260);
+      const quoteHeight = estimateTextBlockHeight(quoteText, quoteFontSize, quoteW, 1.5, 120, 280);
       elements.push({
         id: uid('el-quote'),
         type: 'text',
-        x: 160, y: quoteY,
+        x: 100, y: quoteY,
         width: quoteW, height: quoteHeight,
         content: quoteText,
         zIndex: currentZ++, visible: true,
         textStyle: {
           fontFamily: headingFont, fontSize: quoteFontSize,
-          fontWeight: 'bold', color: textPrimary,
-          textAlign: 'center', lineHeight: 1.55,
+          fontWeight: 'bold', color: '#FFFFFF',
+          textAlign: 'center', lineHeight: 1.5,
         },
         animation: { entrance: 'fadeSlideUp', duration: 900, delay: 100 },
       });
@@ -528,13 +502,13 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         elements.push({
           id: uid('el-quote-attr'),
           type: 'text',
-          x: 160, y: quoteY + quoteHeight + 32,
+          x: 100, y: quoteY + quoteHeight + 28,
           width: quoteW, height: 48,
           content: `— ${slide.subtitle}`,
           zIndex: currentZ++, visible: true,
           textStyle: {
-            fontFamily: bodyFont, fontSize: 28,
-            fontWeight: 'normal', color: textMuted,
+            fontFamily: bodyFont, fontSize: 24,
+            fontWeight: 'normal', color: 'rgba(255,255,255,0.85)',
             textAlign: 'center', letterSpacing: 1,
           },
           animation: { entrance: 'fadeIn', duration: 700, delay: 340 },
@@ -546,84 +520,57 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
   // CLOSING
   // ═══════════════════════════════════════════════════════════════════════════
   } else if (isClosing) {
-    if (layoutCategory === 'minimal' || layoutCategory === 'corporate') {
+    if ((layoutCategory === 'minimal' || layoutCategory === 'corporate') && !wantsAiImageBg) {
       addSolidBackground();
     } else {
-      addFullBleedBackground(0.38, 'cinematic');
+      addFullBleedBackground(0.5, 'cinematic');
     }
 
     if (slide.title) {
-      const titleFontSize = 80;
-      const titleW        = DECK_CANVAS_W - 200;
-      const titleH        = estimateTextBlockHeight(slide.title, titleFontSize, titleW, 1.1, 100, 220);
-      const titleY        = DECK_CANVAS_H / 2 - titleH / 2 - 40;
+      const titleFontSize = onPhotoBackground ? 72 : 64;
+      const titleW        = DECK_CANVAS_W - (onPhotoBackground ? PAD * 2 : 200);
+      const titleH        = estimateTextBlockHeight(slide.title, titleFontSize, titleW, 1.08, 90, 200);
+      const titleY        = onPhotoBackground
+        ? DECK_CANVAS_H - titleH - (slide.subtitle ? 72 : 48) - 56
+        : DECK_CANVAS_H / 2 - titleH / 2 - 40;
 
       elements.push({
         id: uid('el-close-title'),
         type: 'text',
-        x: 100, y: titleY,
+        x: onPhotoBackground ? PAD : 100,
+        y: titleY,
         width: titleW, height: titleH,
         content: slide.title,
         zIndex: currentZ++, visible: true,
         textStyle: {
           fontFamily: headingFont, fontSize: titleFontSize,
-          fontWeight: 'bold', color: textPrimary,
-          textAlign: 'center', lineHeight: 1.1,
+          fontWeight: 'bold', color: photoTitle(),
+          textAlign: onPhotoBackground ? 'left' : 'center', lineHeight: 1.08,
         },
         animation: { entrance: 'fadeSlideUp', duration: 800, delay: 100 },
       });
     }
 
     if (slide.subtitle) {
+      const subY = onPhotoBackground
+        ? DECK_CANVAS_H - 56
+        : DECK_CANVAS_H / 2 + 56;
       elements.push({
         id: uid('el-close-sub'),
         type: 'text',
-        x: 200, y: DECK_CANVAS_H / 2 + 56,
-        width: DECK_CANVAS_W - 400, height: 48,
+        x: onPhotoBackground ? PAD : 200,
+        y: subY,
+        width: DECK_CANVAS_W - (onPhotoBackground ? PAD * 2 : 400), height: 48,
         content: slide.subtitle,
         zIndex: currentZ++, visible: true,
         textStyle: {
-          fontFamily: bodyFont, fontSize: 30,
-          color: textMuted,
-          textAlign: 'center', letterSpacing: 1.5,
+          fontFamily: bodyFont, fontSize: onPhotoBackground ? 26 : 30,
+          color: photoMuted(),
+          textAlign: onPhotoBackground ? 'left' : 'center', letterSpacing: 0.5,
         },
         animation: { entrance: 'fadeIn', duration: 800, delay: 280 },
       });
     }
-
-    // FIX: CTA button shape for a polished closing slide
-    const ctaW = 260;
-    const ctaH = 52;
-    const ctaX = (DECK_CANVAS_W - ctaW) / 2;
-    const ctaY = DECK_CANVAS_H / 2 + 120;
-    elements.push({
-      id: uid('el-cta-btn'),
-      type: 'shape', shapeType: 'rect',
-      x: ctaX, y: ctaY,
-      width: ctaW, height: ctaH,
-      zIndex: currentZ++, visible: true,
-      shapeStyle: {
-        fill: accent,
-        stroke: 'transparent',
-        cornerRadius: 26,
-        opacity: 0.9,
-      },
-      animation: { entrance: 'zoomIn', duration: 600, delay: 450 },
-    });
-    elements.push({
-      id: uid('el-cta-label'),
-      type: 'text',
-      x: ctaX, y: ctaY + 12,
-      width: ctaW, height: ctaH - 16,
-      content: 'Get Started',
-      zIndex: currentZ++, visible: true,
-      textStyle: {
-        fontFamily: headingFont, fontSize: 22,
-        fontWeight: 'bold', color: '#FFFFFF',
-        textAlign: 'center',
-      },
-      animation: { entrance: 'fadeIn', duration: 500, delay: 560 },
-    });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STATS
@@ -644,7 +591,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         zIndex: currentZ++, visible: true,
         textStyle: {
           fontFamily: headingFont, fontSize: 50,
-          fontWeight: 'bold', color: textPrimary,
+          fontWeight: 'bold', color: photoTitle(),
           textAlign: 'left',
         },
         animation: { entrance: 'fadeSlideUp', duration: 550, delay: 0 },
@@ -710,7 +657,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
           zIndex: currentZ++, visible: true,
           textStyle: {
             fontFamily: bodyFont, fontSize: 24,
-            color: textMuted,
+            color: photoMuted(),
             textAlign: 'left', lineHeight: 1.6,
           },
           animation: { entrance: 'fadeIn', duration: 450, delay: 240 + i * 90 },
@@ -737,7 +684,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         zIndex: currentZ++, visible: true,
         textStyle: {
           fontFamily: headingFont, fontSize: 46,
-          fontWeight: 'bold', color: textPrimary,
+          fontWeight: 'bold', color: photoTitle(),
           textAlign: 'left',
         },
         animation: { entrance: 'fadeSlideUp', duration: 500, delay: 0 },
@@ -805,7 +752,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         zIndex: currentZ++, visible: true,
         textStyle: {
           fontFamily: bodyFont, fontSize: 22,
-          color: textMuted,
+          color: photoMuted(),
           textAlign: 'center', lineHeight: 1.55,
         },
         animation: { entrance: 'fadeIn', duration: 450, delay: 280 + i * 80 },
@@ -829,7 +776,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         zIndex: currentZ++, visible: true,
         textStyle: {
           fontFamily: headingFont, fontSize: 46,
-          fontWeight: 'bold', color: textPrimary,
+          fontWeight: 'bold', color: photoTitle(),
           textAlign: 'center',
         },
         animation: { entrance: 'fadeSlideUp', duration: 500, delay: 0 },
@@ -900,7 +847,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
           zIndex: currentZ++, visible: true,
           textStyle: {
             fontFamily: bodyFont, fontSize: 26,
-            color: textMuted,
+            color: photoMuted(),
             textAlign: 'left', lineHeight: 1.6,
           },
           animation: { entrance: 'fadeIn', duration: 450, delay: 200 + i * 70 },
@@ -934,7 +881,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         zIndex: currentZ++, visible: true,
         textStyle: {
           fontFamily: headingFont, fontSize: titleFontSize,
-          fontWeight: 'bold', color: textPrimary,
+          fontWeight: 'bold', color: photoTitle(),
           textAlign: 'left',
         },
         animation: { entrance: 'fadeSlideUp', duration: 550, delay: 0 },
@@ -966,7 +913,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         zIndex: currentZ++, visible: true,
         textStyle: {
           fontFamily: bodyFont, fontSize: 28,
-          color: textMuted,
+          color: photoMuted(),
           textAlign: 'left', lineHeight: 1.5,
         },
         animation: { entrance: 'fadeIn', duration: 400, delay: 160 + i * 60 },
@@ -1014,7 +961,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
           zIndex: currentZ++, visible: true,
           textStyle: {
             fontFamily: headingFont, fontSize: titleFontSize,
-            fontWeight: 'bold', color: textPrimary,
+            fontWeight: 'bold', color: photoTitle(),
             textAlign: 'left', lineHeight: 1.15,
           },
           animation: { entrance: 'fadeSlideLeft', duration: 600, delay: 80 },
@@ -1081,7 +1028,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
           zIndex: currentZ++, visible: true,
           textStyle: {
             fontFamily: headingFont, fontSize: titleFontSize,
-            fontWeight: 'bold', color: textPrimary,
+            fontWeight: 'bold', color: photoTitle(),
             textAlign: 'center', lineHeight: 1.15,
           },
           animation: { entrance: 'fadeSlideUp', duration: 550, delay: 0 },
@@ -1203,7 +1150,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
           zIndex: currentZ++, visible: true,
           textStyle: {
             fontFamily: headingFont, fontSize: titleFontSize,
-            fontWeight: 'bold', color: textPrimary,
+            fontWeight: 'bold', color: photoTitle(),
             textAlign: 'center', lineHeight: 1.2,
           },
           animation: { entrance: 'fadeSlideUp', duration: 650, delay: 120 },
@@ -1223,7 +1170,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
           zIndex: currentZ++, visible: true,
           textStyle: {
             fontFamily: bodyFont, fontSize: 26,
-            color: textMuted,
+            color: photoMuted(),
             textAlign: 'center', lineHeight: 1.55,
           },
           animation: { entrance: 'fadeIn', duration: 500, delay: 260 + i * 80 },

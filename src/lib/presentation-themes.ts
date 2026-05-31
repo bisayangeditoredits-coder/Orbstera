@@ -72,7 +72,13 @@ export function buildPlannerFirstMessage(topic: string, prefs: PlannerSetupPrefe
     lines.push(`Optional layout inspiration: ${layout.label} (you may choose a better structure for the topic).`);
   }
 
-  lines.push(`Please build a slide-by-slide outline for exactly ${prefs.slideCount} slides.`);
+  lines.push(
+    `Please build a DETAILED slide-by-slide outline for exactly ${prefs.slideCount} slides.`,
+    `For EVERY slide include:`,
+    `  - A punchy title with a one-line key message (format: Slide N: Title — key message)`,
+    `  - 3 specific content bullets (real data points, insights, or talking points — no vague fillers)`,
+    `  - A visual suggestion (layout type: hero, split-screen, chart, quote block, icon grid, timeline, etc.)`,
+  );
   return lines.join('\n');
 }
 

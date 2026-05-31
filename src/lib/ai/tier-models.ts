@@ -20,24 +20,24 @@ export const STUDENT_PREMIUM_IMAGE_MODELS = new Set<string>();
 
 export const PLANNER_MODELS = {
   creator: {
-    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-sonnet-4-5',
+    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-sonnet-4.6',
     fallbacks: [
-      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-2.5-flash',
-      'anthropic/claude-opus-4-5',
+      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-3.1-pro-preview',
+      'anthropic/claude-opus-4.6',
     ],
   },
   student: {
-    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-sonnet-4-5',
+    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-sonnet-4.6',
     fallbacks: [
-      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-2.5-flash',
-      'anthropic/claude-opus-4-5',
+      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-3.1-pro-preview',
+      'anthropic/claude-opus-4.6',
     ],
   },
   free: {
-    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-sonnet-4-5',
+    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-sonnet-4.6',
     fallbacks: [
-      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-2.5-flash',
-      'anthropic/claude-opus-4-5',
+      process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-3.1-pro-preview',
+      'anthropic/claude-opus-4.6',
     ],
   },
 } as const;
@@ -45,18 +45,32 @@ export const PLANNER_MODELS = {
 // ── Deck orchestration (intent / structure / compose) ────────────────────────
 
 const CREATOR_TIER_TEXT = {
-  intent: AGENT_MODELS.claudeStructure,
+  intent: AGENT_MODELS.gptOrchestrator,
   structure: AGENT_MODELS.claudeStructure,
-  reason: AGENT_MODELS.claudeStructure,
+  reason: AGENT_MODELS.deepseekReason,
   compose: OR_MODELS.composerPrimary,
   polish: OR_MODELS.refineOpus,
   magicEdit: AGENT_MODELS.claudeStructure,
   composeFallbacks: [
     OR_MODELS.composerElite,
     OR_MODELS.composerFallback,
-    AGENT_MODELS.claudeStructure,
+    AGENT_MODELS.gemini31Pro,
     AGENT_MODELS.geminiPro,
+  ],
+  reasonFallbacks: [
+    AGENT_MODELS.claudeStructure,
+    AGENT_MODELS.gemini31Pro,
+    AGENT_MODELS.geminiPro,
+  ],
+  intentFallbacks: [
+    AGENT_MODELS.claudeStructure,
+    AGENT_MODELS.gemini31Pro,
+    AGENT_MODELS.geminiPro,
+  ],
+  structureFallbacks: [
     AGENT_MODELS.gptOrchestratorAlt,
+    AGENT_MODELS.gemini31Pro,
+    AGENT_MODELS.geminiPro,
   ],
   magicEditFallbacks: [
     AGENT_MODELS.gptOrchestrator,

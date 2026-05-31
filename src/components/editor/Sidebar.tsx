@@ -120,6 +120,13 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
       >
         {visibleEls.map((el) => {
           if (el.type === 'text' && el.content) {
+            const defaultFontSize = el.textStyle?.fontSize || 24;
+            let computedFontSize = defaultFontSize;
+            if (el.content && el.content.length > 40 && el.width && el.height) {
+              const estimatedMaxFontSize = Math.sqrt((el.width * el.height) / (el.content.length * 0.65));
+              computedFontSize = Math.max(9, Math.min(defaultFontSize, Math.floor(estimatedMaxFontSize)));
+            }
+
             return (
               <motion.div
                 key={el.id}
@@ -132,7 +139,7 @@ function SlideThumbnail({ slide, index, colors }: { slide: Slide; index: number;
                   top: el.y,
                   width: el.width,
                   height: el.height,
-                  fontSize: el.textStyle?.fontSize || 24,
+                  fontSize: computedFontSize,
                   color: el.textStyle?.color || '#FFFFFF',
                   fontWeight: el.textStyle?.fontWeight || 'normal',
                   fontStyle: el.textStyle?.fontStyle || 'normal',

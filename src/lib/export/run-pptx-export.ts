@@ -388,8 +388,13 @@ export async function runPptxExport(params: {
         // ── TEXT ──────────────────────────────────────────────────────────
         if (el.type === 'text' && el.content) {
           const ts       = el.textStyle || {};
+          let computedPixelSize = ts.fontSize || 24;
+          if (el.content.length > 40 && el.width && el.height) {
+            const estimatedMaxFontSize = Math.sqrt((el.width * el.height) / (el.content.length * 0.65));
+            computedPixelSize = Math.max(9, Math.min(computedPixelSize, Math.floor(estimatedMaxFontSize)));
+          }
           // Convert from px to pt (72pt = 96px -> factor of 0.75)
-          const fontSize = Math.max(6, Math.round((ts.fontSize || 24) * 0.75));
+          const fontSize = Math.max(6, Math.round(computedPixelSize * 0.75));
           const bold     = ts.fontWeight === 'bold' || Number(ts.fontWeight) >= 700;
           const italic   = ts.fontStyle === 'italic';
           const align    = (ts.textAlign || 'left') as 'left' | 'center' | 'right' | 'justify';
@@ -636,9 +641,9 @@ export async function runPptxExport(params: {
     const buffer = await pptx.write({ outputType: 'arraybuffer' }) as ArrayBuffer;
 
     // ── Inject entrance animations via OOXML post-processing ─────────────────
-    // Temporarily disabled injectAnimations because it causes file corruption (shape ID mismatches & XML schema violations)
     let finalBuffer = buffer;
     if (pptSlidesInfo.length > 0) {
+      finalBuffer = await injectAnimations(finalBuffer, pptSlidesInfo);
       finalBuffer = await injectVideoAutoplay(finalBuffer);
     }
 
@@ -737,7 +742,13 @@ async function injectAnimations(
       });
       if (animEntries.length === 0) continue;
 
-      let nodeId = 100;
+      let maxId = 0;
+      for (const m of xml.matchAll(/ id="(\d+)"/g)) {
+        const n = parseInt(m[1], 10);
+        if (n > maxId) maxId = n;
+      }
+      let nodeId = Math.max(maxId + 50, 500);
+      
       const getId = () => nodeId++;
       const rootId   = getId();
       const seqId    = getId();
@@ -759,7 +770,7 @@ async function injectAnimations(
       ).join('');
 
       const timingXml =
-        `<p:timing><p:tnLst><p:par><p:cTn id="${rootId}" dur="indefinite" restart="whenNotActive" nodeType="tmRoot"><p:childTnLst><p:seq concurrent="1" nextAc="seek"><p:cTn id="${seqId}" dur="indefinite" nodeType="mainSeq"><p:childTnLst>${parBlocks}</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onPrevClick" delay="0"><p:tn/></p:cond></p:prevCondLst><p:nextCondLst><p:cond evt="onNextClick" delay="0"><p:tn/></p:cond></p:nextCondLst></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst><p:bldLst>${bldList}</p:bldLst></p:timing>`;
+        `<p:timing><p:tnLst><p:par><p:cTn id="${rootId}" dur="indefinite" restart="whenNotActive" nodeType="tmRoot"><p:childTnLst><p:seq concurrent="1" nextAc="seek"><p:cTn id="${seqId}" dur="indefinite" nodeType="mainSeq"><p:childTnLst>${parBlocks}</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onPrevClick" delay="0"><p:tn><p:cTnRef id="${seqId}"/></p:tn></p:cond></p:prevCondLst><p:nextCondLst><p:cond evt="onNextClick" delay="0"><p:tn><p:cTnRef id="${seqId}"/></p:tn></p:cond></p:nextCondLst></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst><p:bldLst>${bldList}</p:bldLst></p:timing>`;
 
       if (xml.includes('<p:timing>')) {
         xml = xml.replace(/<p:timing>[\s\S]*?<\/p:timing>/, timingXml);

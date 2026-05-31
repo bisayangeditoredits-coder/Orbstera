@@ -59,13 +59,12 @@ type QualityTier = 'economy' | 'free' | 'student' | 'creator';
 
 const TEXT_LABELS = {
   economy: 'Gemini Flash',
-  gpt55: 'GPT-5.5',
-  gpt5: 'GPT-5',
   sonnet: 'Claude Sonnet',
   sonnetStrategy: 'Claude Sonnet · Strategy',
   opus: 'Claude Opus',
   opusStrategy: 'Claude Opus · Strategy',
   geminiPro: 'Gemini Pro',
+  deepseek: 'DeepSeek R1',
 } as const;
 
 function normalizePlan(plan: string | null | undefined): PlanTier {
@@ -251,19 +250,19 @@ export function selectTextModel(args: {
   const cfg = TIER_TEXT[sub];
 
   const labelForModel = (model: string): string => {
-    if (model === AGENT_MODELS.claudeOpus) return TEXT_LABELS.opus;
+    if (model === AGENT_MODELS.claudeOpus || model === AGENT_MODELS.gptOrchestrator) return TEXT_LABELS.opus;
     if (model === AGENT_MODELS.claudeStructure) return TEXT_LABELS.sonnet;
-    if (model === AGENT_MODELS.geminiPro) return TEXT_LABELS.geminiPro;
+    if (model === AGENT_MODELS.deepseekReason) return TEXT_LABELS.deepseek;
+    if (model === AGENT_MODELS.geminiPro || model === AGENT_MODELS.gemini31Pro) return TEXT_LABELS.geminiPro;
     if (model.includes('claude-sonnet')) return TEXT_LABELS.sonnet;
     if (model.includes('claude-opus')) return TEXT_LABELS.opus;
-    if (model.includes('gemini-2.5-pro') || model.includes('gemini-3.5')) return TEXT_LABELS.geminiPro;
+    if (model.includes('deepseek')) return TEXT_LABELS.deepseek;
+    if (model.includes('gemini-3.1') || model.includes('gemini-2.5-pro')) return TEXT_LABELS.geminiPro;
     if (model.includes('gemini')) {
       return isFreeTaste ? `${TEXT_LABELS.economy} · Preview` : TEXT_LABELS.economy;
     }
-    if (model === AGENT_MODELS.gptOrchestrator || model === OR_MODELS.composerPrimary) {
-      return TEXT_LABELS.economy;
-    }
-    return TEXT_LABELS.economy;
+    if (model === OR_MODELS.composerPrimary) return TEXT_LABELS.opus;
+    return TEXT_LABELS.sonnet;
   };
 
   let model = cfg.compose;
@@ -326,10 +325,18 @@ export function getTextModelCascade(args: {
     Boolean(args.spendState?.forcedEconomyMode),
     args.freeTaste,
   );
-  const extras =
-    args.task === 'deck_compose'
-      ? TIER_TEXT[sub].composeFallbacks
-      : TIER_TEXT[sub].magicEditFallbacks;
+  let extras: string[];
+  if (args.task === 'deck_compose') {
+    extras = TIER_TEXT[sub].composeFallbacks;
+  } else if (args.task === 'deck_reason') {
+    extras = TIER_TEXT[sub].reasonFallbacks;
+  } else if (args.task === 'deck_intent') {
+    extras = TIER_TEXT[sub].intentFallbacks;
+  } else if (args.task === 'deck_structure') {
+    extras = TIER_TEXT[sub].structureFallbacks;
+  } else {
+    extras = TIER_TEXT[sub].magicEditFallbacks;
+  }
   return capModelsToTier(uniqueModels([primary.model, ...extras]), sub);
 }
 

@@ -2,6 +2,7 @@ import { PresentationData, Slide, SlideElement } from '@/types';
 import { finalizeSlideMotion } from '@/lib/presentationMotion';
 import { runDeckImageTasks, type DeckImageTask } from '@/lib/deck-image-generation';
 import { buildDeckSlideElements, resolveDeckImagePrompt } from '@/lib/deck-slide-layout';
+import { buildImageTasksFromAiElements, validateAiElements } from '@/lib/ai/validate-ai-elements';
 import { buildSlideFromReferenceTemplate } from '@/lib/reference-templates/build-slide';
 import { useReferenceTemplatePackForDeck } from '@/lib/reference-templates/use-during-generation';
 import { resolveVisualTheme } from '@/lib/visual-themes';
@@ -217,6 +218,9 @@ export const setPresentationAction = (set: any, get: any, data: any) => {
         `${prefix}-${sIdx}-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
 
       const refPack = get().editor.referenceTemplatePack;
+      const aiElements = slide.elements;
+      const useAiLayout = validateAiElements(aiElements);
+
       const { elements, imageTasks: slideImageTasks } = useReferenceTemplatePackForDeck(
         refPack,
         get().editor.isGenerating,
@@ -234,7 +238,21 @@ export const setPresentationAction = (set: any, get: any, data: any) => {
             },
             uid,
           })
-        : buildDeckSlideElements({
+        : useAiLayout && aiElements
+          ? buildImageTasksFromAiElements({
+              slideId: slide.id,
+              elements: aiElements,
+              slideMeta: {
+                type: slide.type,
+                title: slide.title,
+                imagePrompt: (slide as { imagePrompt?: string }).imagePrompt,
+              },
+              slideIndex: sIdx,
+              slideCount: normalized.slides.length,
+              layoutCategory: normalized.layoutCategory,
+              uid,
+            })
+          : buildDeckSlideElements({
             slide: {
               id: slide.id,
               type: slide.type,
@@ -243,6 +261,7 @@ export const setPresentationAction = (set: any, get: any, data: any) => {
               bullets: slide.bullets,
               content: slide.content,
               imagePrompt: (slide as { imagePrompt?: string }).imagePrompt,
+              backgroundStyle: (slide as { backgroundStyle?: unknown }).backgroundStyle,
             },
             sIdx,
             palette,

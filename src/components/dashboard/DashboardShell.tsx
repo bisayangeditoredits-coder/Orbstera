@@ -50,7 +50,12 @@ export function DashboardShell() {
   const [decksRemainingEstimate, setDecksRemainingEstimate] = useState<number | undefined>();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [section, setSection] = useState<DashboardSection>('overview');
+  const [mounted, setMounted] = useState(false);
   const decksRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const credits = useCredits();
 
@@ -196,7 +201,7 @@ export function DashboardShell() {
   }, []);
 
   const creditsWarning = !credits.loading && credits.usagePct >= 90;
-  const activePlan = credits.plan || plan;
+  const activePlan = mounted ? (credits.plan || plan) : '';
   const isFreePlan = activePlan === 'free' || !activePlan;
   const showLibrary = section === 'overview' || section === 'decks';
   const showSettings = section === 'settings';

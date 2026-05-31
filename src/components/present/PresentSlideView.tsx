@@ -362,7 +362,7 @@ function PresentSlideViewInner({
             src={resolveImageUrl(bgEl.src)}
             alt=""
             className="absolute inset-0 w-full h-full object-cover"
-            style={{ opacity: bgEl.opacity ?? 0.18 }}
+            style={{ opacity: bgEl.opacity ?? 1 }}
           />
         </motion.div>
       )}

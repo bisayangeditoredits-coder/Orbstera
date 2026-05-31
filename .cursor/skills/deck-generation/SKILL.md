@@ -1,45 +1,31 @@
 ---
 name: deck-generation
-description: Gamma-style AI deck generation — director orchestration, per-slide orders (slideSpine), composer execution, imagePrompt rules. Use when improving deck prompts, orchestration, compose quality, or presentation JSON output.
+description: Orbstera AI deck generation — creative director orchestration and composer prompts. Use when improving deck prompts, orchestration, compose quality, or presentation JSON output.
 ---
 
-# Deck Generation (Gamma-style)
+# Deck Generation
 
-## Pipeline (do not skip steps)
+## Pipeline
 
 ```
-User prompt → Director (intent) → Architect (slideSpine orders) → Composer (JSON executor) → Layout engine → Parallel FLUX images
+User prompt → Director (intent) → Architect (slideSpine blueprint) → Composer (JSON) → normalize → layout/images
 ```
-
-## Core principle
-
-**Director gives orders. Composer executes.** The composer must NOT invent structure when `slideSpine` exists — map `slides[i]` to `slideSpine[i]` 1:1.
 
 ## Source of truth
 
-All prompt text lives in:
+All prompt text lives in **`src/lib/ai/deck-generation-skill.ts`**.
 
-- `src/lib/ai/deck-generation-skill.ts` — philosophy, playbooks, system prompts
-- `src/lib/ai/prompt-chain.ts` — orchestration steps (intent → structure → brief)
-- `src/lib/ai/prompts.ts` — thin re-exports for backward compatibility
-- `src/lib/ai/orchestration.ts` — composer messages + normalization
+Supporting files:
+- `src/lib/ai/prompt-chain.ts` — orchestration steps
+- `src/lib/ai/orchestration.ts` — composer messages + light normalization
 
-## Mandatory per slide
+## Principles
 
-Every slide in JSON **must** include:
-
-- `type` — from playbook (vary types; never all `content`)
-- `title` — 3–8 words, specific
-- `imagePrompt` — 2–4 sentences, FLUX background, never empty
-- `animation.entrance` — type-appropriate motion
+- **Creative freedom:** AI owns slide types, colors, backgrounds, and layout rhythm.
+- **slideSpine is advisory** — composer may refine the architect blueprint.
+- **Light normalization** — fix broken JSON only; do not rewrite creative choices.
 
 ## When editing prompts
 
-1. Update `deck-generation-skill.ts` first
-2. Wire imports in `prompt-chain.ts` and `prompts.ts`
-3. Ensure `normalizePresentationPayload` fills missing `imagePrompt` via `buildFallbackImagePrompt`
-4. Test: deck should have distinct slide types + backgrounds on every slide
-
-## Anti-patterns (ban in copy)
-
-revolutionary, game-changing, synergy, leverage, cutting-edge, world-class (without proof), lorem ipsum, generic "Introduction" titles
+1. Update `deck-generation-skill.ts`
+2. Test: varied slide types, readable text on photos, distinct imagePrompts per slide

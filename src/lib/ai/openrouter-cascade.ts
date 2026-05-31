@@ -30,6 +30,7 @@ export async function openRouterCompleteCascade(
     temperature?: number;
     max_tokens?: number;
     timeoutMs?: number;
+    jsonMode?: boolean;
   },
 ): Promise<CascadeCompleteResult> {
   const tier = resolveTier(args.plan, args.freeTaste, args.economy);
@@ -47,6 +48,7 @@ export async function openRouterCompleteCascade(
         temperature: args.temperature,
         max_tokens: args.max_tokens,
         timeoutMs: args.timeoutMs,
+        jsonMode: args.jsonMode,
         plan: args.plan,
       });
       if (text.trim()) {

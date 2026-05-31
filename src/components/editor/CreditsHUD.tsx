@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, RefreshCw, Sparkles, ChevronDown, Layers, Image as ImageIcon, Wand2, Info, CheckCircle2, Layout, ScanIcon } from 'lucide-react';
 import { useCredits } from '@/hooks/useCredits';
@@ -10,6 +10,11 @@ export function CreditsHUD() {
   const { remaining, monthlyLimit, used, plan, estimates, loading, refresh, usagePct } = useCredits();
   const [isOpen, setIsOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -17,13 +22,13 @@ export function CreditsHUD() {
     setTimeout(() => setIsRefreshing(false), 800);
   };
 
-  const planNameDisplay = 
+  const planNameDisplay = !mounted ? 'Loading...' :
     plan === 'creator_pro' ? 'Creator Pro' :
     plan === 'student_pro' ? 'Student Pro' :
     plan === 'pro' ? 'Pro Plan' :
     plan === 'admin' ? 'Enterprise Admin' : 'Free Plan';
 
-  const isLow = remaining < 40 && !loading;
+  const isLow = mounted && remaining < 40 && !loading;
 
   return (
     <div className="relative inline-block text-left z-50 font-sans">

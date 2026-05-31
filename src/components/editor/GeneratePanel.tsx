@@ -4,11 +4,11 @@ import { useState, useRef, useEffect, useCallback, memo, type ReactNode } from '
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { SurveyModal } from './SurveyModal';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import type { DeckLayoutCategory, PresentationData } from '@/types';
 import { mergeOrchestrationMetadata, normalizePresentationPayload } from '@/lib/ai/orchestration';
 import { constraintsFromGenerateBody } from '@/lib/ai/generation-constraints';
+import { shouldUsePlanner } from '@/lib/should-use-planner';
 import { createEditorGeneratingShell } from '@/lib/editor-generating-shell';
 import {
   DECK_LAYOUT_CATEGORIES,
@@ -28,10 +28,8 @@ import {
   Sparkles, X, ChevronDown, Wand2,
   Crown, Globe, ArrowRight,
   Save, Trash2, Download, AlertCircle, Plus, Mic, MicOff,
-  Briefcase, Palette, Zap, Minus, BookOpen, FlaskConical,
   Layers, LayoutGrid, Image as ImageIcon, Info, Maximize2, Minimize2
 } from 'lucide-react';
-import { useCredits } from '@/hooks/useCredits';
 import { pollJobUntilDone } from '@/lib/client/poll-job';
 import { resolveVisualTheme } from '@/lib/visual-themes';
 import { GenerationProgress } from './GenerationProgress';
@@ -67,45 +65,7 @@ async function waitForDeckReadyAndSync(epoch: number): Promise<void> {
   }
 }
 
-const EXAMPLE_PROMPTS = [
-  { emoji: '🚀', label: 'Startup Pitch',   prompt: 'Create a 10-slide Series A pitch deck for an AI startup. Include problem, solution, market size, traction, and ask.' },
-  { emoji: '📊', label: 'Business Review', prompt: 'Build a quarterly business review deck with KPIs, revenue metrics, team wins, and Q3 roadmap.' },
-  { emoji: '🎓', label: 'Education',       prompt: 'Design an engaging 8-slide lesson on climate change for high school students with facts and visuals.' },
-  { emoji: '🎨', label: 'Creative Agency', prompt: 'Create a portfolio presentation for a creative design agency — bold, vibrant, and visually stunning.' },
-  { emoji: '📈', label: 'Sales Deck',      prompt: 'Build a sales deck for an enterprise SaaS product targeting HR teams. Focus on pain points and ROI.' },
-  { emoji: '🔬', label: 'Research',        prompt: 'Create a 12-slide research presentation on the future of quantum computing for a tech conference.' },
-];
-
 const SLIDE_COUNTS = [2, 5, 10, 15, 20, 25, 30, 35, 40];
-
-const TONE_OPTIONS = [
-  { id: 'professional', label: 'Professional', Icon: Briefcase },
-  { id: 'creative',     label: 'Creative',     Icon: Palette },
-  { id: 'bold',         label: 'Bold & Impact', Icon: Zap },
-  { id: 'minimal',      label: 'Minimal',       Icon: Minus },
-  { id: 'storytelling', label: 'Storytelling',  Icon: BookOpen },
-  { id: 'technical',    label: 'Technical',     Icon: FlaskConical },
-];
-
-const THEME_OPTIONS = [
-  { id: 'modern-dark',  label: 'Obsidian Night', desc: 'Deep dark with neon accents', preview: 'bg-gradient-to-br from-[#05050A] to-[#1a1a2e]' },
-  { id: 'corporate',   label: 'Executive Blue',  desc: 'Clean corporate authority',  preview: 'bg-gradient-to-br from-[#0F4C81] to-[#1a6bb0]' },
-  { id: 'gradient',    label: 'Aurora',          desc: 'Vivid gradient spectacle',   preview: 'bg-gradient-to-br from-[#7928CA] to-[#FF0080]' },
-  { id: 'minimal',     label: 'Paper White',     desc: 'Ultra-clean minimalism',     preview: 'bg-gradient-to-br from-white to-[#F1F5F9] border border-black/10' },
-  { id: 'warm',        label: 'Sunset Gold',     desc: 'Warm, premium editorial',    preview: 'bg-gradient-to-br from-[#B45309] to-[#F59E0B]' },
-  { id: 'tech',        label: 'Cyber Grid',      desc: 'Futuristic tech aesthetic',  preview: 'bg-gradient-to-br from-[#0D1117] to-[#00FF88]/40' },
-];
-
-const LANGUAGE_OPTIONS = [
-  { code: 'en', label: 'English',    flag: '🇺🇸' },
-  { code: 'es', label: 'Spanish',   flag: '🇪🇸' },
-  { code: 'fr', label: 'French',    flag: '🇫🇷' },
-  { code: 'de', label: 'German',    flag: '🇩🇪' },
-  { code: 'pt', label: 'Portuguese', flag: '🇧🇷' },
-  { code: 'zh', label: 'Chinese',   flag: '🇨🇳' },
-  { code: 'ja', label: 'Japanese',  flag: '🇯🇵' },
-  { code: 'ar', label: 'Arabic',    flag: '🇸🇦' },
-];
 
 const LAYOUT_CATEGORY_OPTIONS = DECK_LAYOUT_CATEGORIES.map((category) => ({
   ...category,
@@ -156,108 +116,6 @@ function CollapsibleSection({
 
 
 
-// ─── Credits Tracker Component ───────────────────────────────────────────────
-
-function CreditsTracker({ onGenerated }: { onGenerated?: boolean }) {
-  const { remaining, monthlyLimit, used, plan, estimates, loading, refresh, usagePct } = useCredits();
-
-  // Refresh after generation completes
-  useEffect(() => {
-    if (!onGenerated) refresh();
-  }, [onGenerated, refresh]);
-
-  if (loading) {
-    return <div className="h-28 rounded-2xl bg-neutral-100/70 animate-pulse border border-black/[0.04]" />;
-  }
-
-  const planNameDisplay =
-    plan === 'creator_pro' ? 'Creator Pro' :
-    plan === 'student_pro' ? 'Student Pro' :
-    plan === 'pro'         ? 'Pro Plan' :
-    plan === 'admin'       ? 'Enterprise Admin' : 'Free Plan';
-
-  const isLow = remaining < 40;
-  const isEmpty = remaining <= 0;
-
-  return (
-    <div className="rounded-2xl border border-black/[0.08] bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] space-y-3.5">
-      {/* Header section */}
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-neutral-400">
-              AI Credits Ledger
-            </span>
-            <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded">
-              {planNameDisplay}
-            </span>
-          </div>
-          <div className="flex items-baseline gap-1 mt-1">
-            <span className={`text-[18px] font-bold tracking-tight ${isEmpty ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-neutral-900'}`}>
-              {remaining.toLocaleString()}
-            </span>
-            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
-              CR Available
-            </span>
-          </div>
-        </div>
-
-        <div className="text-right">
-          <span className="text-[10px] font-bold text-neutral-500 block">
-            {used.toLocaleString()} / {monthlyLimit.toLocaleString()}
-          </span>
-          <span className="text-[9px] font-medium text-neutral-400 block">
-            {usagePct}% consumed
-          </span>
-        </div>
-      </div>
-
-      {/* Modern thin line progress bar */}
-      <div className="relative h-1 w-full bg-neutral-100 rounded-full overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${Math.min(100, Math.max(0, usagePct))}%` }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          className={`absolute inset-y-0 left-0 rounded-full ${
-            isEmpty ? 'bg-red-500' : isLow ? 'bg-amber-500' : 'bg-primary'
-          }`}
-        />
-      </div>
-
-      {/* Precise Action Costs List */}
-      <div className="pt-1.5 border-t border-black/[0.04] space-y-1.5">
-        <div className="text-[8px] font-semibold uppercase tracking-[0.16em] text-neutral-400 flex items-center justify-between">
-          <span>AI Engine Action</span>
-          <span>Cost (Credits)</span>
-        </div>
-
-        <div className="grid grid-cols-1 gap-1 text-[11px]">
-          <div className="flex items-center justify-between py-0.5 font-medium text-neutral-600">
-            <span>Generate Presentation</span>
-            <span className="font-bold text-neutral-900">{estimates.deck_small} - {estimates.deck_large} CR</span>
-          </div>
-          <div className="flex items-center justify-between py-0.5 font-medium text-neutral-600">
-            <span>Edit with AI</span>
-            <span className="font-bold text-neutral-900">{estimates.magic_edit} CR</span>
-          </div>
-          <div className="flex items-center justify-between py-0.5 font-medium text-neutral-600">
-            <span>Generative Fill</span>
-            <span className="font-bold text-neutral-900">10 CR</span>
-          </div>
-          <div className="flex items-center justify-between py-0.5 font-medium text-neutral-600">
-            <span>Add New Slide</span>
-            <span className="font-bold text-neutral-900">15 CR</span>
-          </div>
-          <div className="flex items-center justify-between py-0.5 font-medium text-neutral-600">
-            <span>AI Image Generation</span>
-            <span className="font-bold text-neutral-900">{estimates.image_standard} CR</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function GeneratePanelInner({ onClose }: GeneratePanelProps) {
   type InterviewSummary = {
     detectedIntent?: string;
@@ -274,10 +132,8 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
   const [prompt, setPrompt] = useState('');
   const [slideCount, setSlideCount] = useState(5);
   const [error, setError] = useState('');
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [userPlan, setUserPlan] = useState<string>('free');
-  const [showSurvey, setShowSurvey] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [profileData, setProfileData] = useState<any>(null);
   const searchParams = useSearchParams();
@@ -323,13 +179,10 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
   const [expandLayout, setExpandLayout] = useState(true);
   const [selectedLayoutCategory, setSelectedLayoutCategory] = useState<DeckLayoutCategory>(DEFAULT_DECK_LAYOUT_CATEGORY);
   const [layoutExplicit, setLayoutExplicit] = useState(false);
-  const [selectedTone, setSelectedTone] = useState('Professional');
-  const [expandTone, setExpandTone] = useState(false);
+  const [selectedTone] = useState('professional');
   const [selectedTheme, setSelectedTheme] = useState('Obsidian Night');
   const [themeExplicit, setThemeExplicit] = useState(false);
-  const [expandTheme, setExpandTheme] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState('English');
-  const [expandLanguage, setExpandLanguage] = useState(false);
+  const [selectedLanguage] = useState('English');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [streamedSlides, setStreamedSlides] = useState<{ id: string; title: string }[]>([]);
@@ -535,17 +388,32 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
     if (copilotApproved) {
       hasAutoTriggered.current = true;
       const context = usePresentationStore.getState().editor.copilotContext;
-      const finalPrompt = `[Copilot Approved Outline]\n\n${context}\n\nCRITICAL INSTRUCTION: Generate a presentation matching this exact approved outline. You MUST strictly follow the aesthetic, stylistic, and vibe instructions from the [ORIGINAL USER PROMPT] above. The imagery, visual direction, and content tone MUST perfectly match what the user originally requested.`;
+      const finalPrompt = `[Copilot Approved Outline]\n\n${context}\n\nCRITICAL INSTRUCTION: Generate a presentation matching this exact approved outline. You MUST strictly follow the aesthetic, stylistic, and vibe instructions from the [ORIGINAL USER PROMPT] above. The imagery, visual direction, and content tone MUST perfectly match what the user originally requested. YOU MUST INCLUDE ALL THE DETAILED TEXT FROM THE OUTLINE. DO NOT SUMMARIZE OR SHORTEN. Write long, highly detailed, and informative text for every slide exactly as written in the outline.`;
       setPrompt(finalPrompt);
       autoTriggerTimer = setTimeout(() => {
         executeGenerate('replace', finalPrompt, true);
       }, 50);
     } else if (urlPrompt && urlMode !== 'enhance') {
-      hasAutoTriggered.current = true;  // lock before async work
+      hasAutoTriggered.current = true;
       setPrompt(urlPrompt);
       if (urlFileName) setSelectedFile({ name: urlFileName } as File);
+      const slidesParam = searchParams.get('slides');
+      if (slidesParam) {
+        const n = parseInt(slidesParam, 10);
+        if (Number.isFinite(n) && n > 0) setSlideCount(n);
+      }
+      const directGenerate = searchParams.get('direct') === 'true';
       autoTriggerTimer = setTimeout(() => {
-        handleGenerateClick(urlPrompt);
+        if (
+          directGenerate ||
+          !shouldUsePlanner({ prompt: urlPrompt, hasFileAttachment: !!urlFileName, mode: urlMode })
+        ) {
+          executeGenerate('replace', urlPrompt, true);
+        } else {
+          router.push(
+            `/planner?topic=${encodeURIComponent(urlPrompt)}&slides=${slideCount}&layout=${selectedLayoutCategory}`,
+          );
+        }
       }, 50);
     } else if (urlFileName) {
       hasAutoTriggered.current = true;
@@ -599,44 +467,57 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
     setShowInterviewSummary(false);
   }, [setEditorState]);
 
-  const handleGenerateClick = (overridePrompt?: string) => {
+  const handleGenerateClick = (overridePrompt?: string, forcePlanner?: boolean) => {
     const targetPrompt = overridePrompt || prompt;
-    // ── AUTH GATE ──
     if (!user) {
-      // Encode prompt to pass it through login
       const encodedPrompt = encodeURIComponent(targetPrompt);
       router.push(`/login?redirect=/editor&prompt=${encodedPrompt}&mode=create`);
       return;
     }
 
-    // ── SURVEY GATE ──
-    // Hard bypass if completed in this session (LocalStorage) OR already in profileData
-    const hasCompletedInSession = typeof window !== 'undefined' && localStorage.getItem(`survey_done_${user?.id}`) === 'true';
-    
-    if (user && !isProfileLoading) {
-      const isDoneInDB = profileData?.survey_completed;
-      if (!isDoneInDB && !hasCompletedInSession) {
-        setShowSurvey(true);
-        return;
-      }
-    }
-
     if (presentation && presentation.slides.length > 0) {
       setShowConfirm(true);
     } else {
-      executeGenerate('replace', targetPrompt);
+      executeGenerate('replace', targetPrompt, false, forcePlanner);
     }
   };
 
+  const handlePlanOutlineClick = () => {
+    const targetPrompt = prompt.trim();
+    if (!targetPrompt) return;
+    if (!user) {
+      router.push(`/login?redirect=/editor&prompt=${encodeURIComponent(targetPrompt)}&mode=create`);
+      return;
+    }
+    if (onClose) onClose();
+    router.push(
+      `/planner?topic=${encodeURIComponent(targetPrompt)}&slides=${slideCount}&layout=${selectedLayoutCategory}`,
+    );
+  };
+
   // appendMode: 'replace' = wipe & replace, 'append' = add to existing deck
-  const executeGenerate = async (appendMode: 'replace' | 'append' = 'replace', overridePrompt?: string, bypassPlanner = false) => {
+  const executeGenerate = async (
+    appendMode: 'replace' | 'append' = 'replace',
+    overridePrompt?: string,
+    bypassPlanner = false,
+    forcePlanner = false,
+  ) => {
     const targetPrompt = overridePrompt || prompt;
     if (activeTab === 'create') {
       const trimmed = targetPrompt.trim();
       if (!trimmed || isLoading || generateInFlightRef.current) return;
       generateInFlightRef.current = true;
 
-      if (!bypassPlanner) {
+      const routeToPlanner =
+        !bypassPlanner &&
+        shouldUsePlanner({
+          prompt: trimmed,
+          hasFileAttachment: !!selectedFile,
+          mode: 'create',
+          forcePlanner,
+        });
+
+      if (routeToPlanner) {
         generateInFlightRef.current = false;
         if (onClose) onClose();
         router.push(
@@ -645,7 +526,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
         return;
       }
 
-      // For 'replace' mode, wipe the existing presentation immediately
+      // Direct generate path
       const handoffAtStart = usePresentationStore.getState().editor.plannerHandoff;
       const effectiveSlideCountAtStart =
         handoffAtStart?.targetSlideCount && handoffAtStart.targetSlideCount > 0
@@ -670,7 +551,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
       }
 
       const nextEpoch = usePresentationStore.getState().editor.generationEpoch + 1;
-      const useBuildReveal = bypassPlanner;
+      const useBuildReveal = true;
       setEditorState({
         isGenerating: true,
         generationEpoch: nextEpoch,
@@ -853,6 +734,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
         const decoder = new TextDecoder();
         let accumulatedText = '';
         let processedSlideCount = 0;
+        let lastReasoningUpdate = 0;
         /** Incomplete SSE line when chunks split mid-line */
         let sseCarry = '';
 
@@ -941,10 +823,13 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
                   (typeof ch?.message?.content === 'string' ? ch.message.content : '');
                 accumulatedText += piece;
 
-                // ── Extract Reasoning (e.g. from DeepSeek R1 thinking tags) ──
                 const thoughtMatch = accumulatedText.match(/<(?:think|thought)>([\s\S]*?)(?:<\/(?:think|thought)>|$)/i);
                 if (thoughtMatch && thoughtMatch[1]) {
-                  setEditorState({ reasoning: thoughtMatch[1].trim() });
+                  const now = Date.now();
+                  if (now - lastReasoningUpdate > 100) {
+                    setEditorState({ reasoning: thoughtMatch[1].trim() });
+                    lastReasoningUpdate = now;
+                  }
                 }
 
                 const slideRegex = /\{[^{}]*"type":\s*"[^"]+"[^{}]*\}/g;
@@ -1159,31 +1044,9 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
     }
   };
 
-  const fillExample = (example: string) => {
-    setPrompt(example);
-    textareaRef.current?.focus();
-  };
-
   return (
     <>
       <AnimatePresence>
-        {showSurvey && (
-          <SurveyModal 
-            onComplete={() => {
-              setShowSurvey(false);
-              // 1. Session bypass (Instant)
-              if (user?.id) {
-                localStorage.setItem(`survey_done_${user.id}`, 'true');
-              }
-              // 2. State update
-              setProfileData((prev: Record<string, unknown> | null) => ({
-                ...prev,
-                survey_completed: true,
-              }));
-              executeGenerate('replace');
-            }} 
-          />
-        )}
         {showUpgradeModal && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -1237,7 +1100,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
                 <div className="w-full space-y-3 mb-10">
                   {[
                     'Generate unlimited presentations',
-                    'Advanced AI models (Gemini 2.5 Pro & GPT-4o)',
+                    'Premium AI models & faster generation',
                     'Export to PowerPoint (PPTX)',
                     'Custom branding & fonts'
                   ].map((feature, i) => (
@@ -1617,11 +1480,6 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
               </div>
             </CollapsibleSection>
 
-            {/* ── LIVE AI CREDITS CONSUMPTION LEDGER ── */}
-            <div className="pt-2">
-              <CreditsTracker onGenerated={isLoading} />
-            </div>
-
           </>
         ) : (
           <div className="space-y-6">
@@ -1690,7 +1548,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
       </div>
 
       {/* Consistent Luxury CTA */}
-      <div className="shrink-0 px-4 sm:px-5 pt-3.5 pb-3 border-t border-black/[0.06] bg-white relative z-50">
+      <div className="shrink-0 px-4 sm:px-5 pt-3.5 pb-3 border-t border-black/[0.06] bg-white relative z-50 space-y-2">
         {isLoading && (
           <GenerationProgress jobId={activeJobId} onCancel={handleCancelGenerate} />
         )}
@@ -1705,13 +1563,23 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
               <span className="text-[14px] font-semibold tracking-tight">Generating…</span>
             ) : (
               <>
-                <span className="text-[14px] font-semibold tracking-tight">Generate Presentation</span>
+                <span className="text-[14px] font-semibold tracking-tight">Generate Deck</span>
                 <ArrowRight size={18} strokeWidth={1.75} className="group-hover:translate-x-0.5 transition-transform" />
               </>
             )}
           </div>
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 group-hover:opacity-100 group-hover:translate-x-full transition-all duration-700 translate-x-[-100%]" />
         </button>
+        {activeTab === 'create' && (
+          <button
+            type="button"
+            onClick={handlePlanOutlineClick}
+            disabled={!prompt.trim() || isLoading}
+            className="w-full h-10 rounded-full text-[13px] font-medium text-neutral-600 border border-black/[0.08] hover:bg-neutral-50 disabled:opacity-35 transition-colors"
+          >
+            Plan outline first
+          </button>
+        )}
       </div>
 
       {/* Save/Discard/Append Confirmation Modal */}

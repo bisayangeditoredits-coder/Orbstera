@@ -1,6 +1,7 @@
 import type { DeckMeta } from '@/types/deck-meta';
 
 export function formatPlanLabel(plan: string): string {
+  if (!plan) return '';
   const p = plan.toLowerCase();
   if (p === 'creator_pro') return 'Creator Pro';
   if (p === 'student_pro' || p === 'pro') return 'Student Pro';

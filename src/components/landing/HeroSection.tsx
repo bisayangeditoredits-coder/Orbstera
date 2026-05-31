@@ -12,6 +12,7 @@ import { useCredits } from '@/hooks/useCredits';
 import { SlideCountDropdown } from '@/components/SlideCountDropdown';
 import { DEFAULT_SLIDE_COUNT } from '@/lib/slide-count-options';
 
+
 export function HeroSection() {
   const [isPending, startTransition] = useTransition();
   const [prompt, setPrompt] = useState("");
@@ -557,7 +558,6 @@ export function HeroSection() {
       return;
     }
 
-    // Direct routing to the Planner Copilot for create mode
     if (activeMode === 'create' || activeMode === 'voice') {
       startTransition(() => {
         router.push(`/planner?topic=${encodeURIComponent(effectivePrompt)}&slides=${slideCount}`);
@@ -574,6 +574,7 @@ export function HeroSection() {
       router.push(`/editor?${params.toString()}`);
     });
   };
+
 
   return (
     <section className="relative w-full min-h-screen flex flex-col items-center pt-8 sm:pt-12 md:pt-14 pb-8 sm:pb-12 overflow-x-clip bg-gradient-to-b from-[#e6e8ff] via-white to-white">
@@ -893,27 +894,30 @@ export function HeroSection() {
                       )}
                     </button>
                   ) : null}
-                  <button
-                    type="button"
-                    onClick={handleGenerate}
-                    disabled={((activeMode === 'create' || activeMode === 'notes') ? !prompt.trim() : !selectedFile) || isPending}
+                  <div className="flex flex-col gap-2 w-full sm:w-auto sm:min-w-[12rem]">
+                    <button
+                      type="button"
+                      onClick={handleGenerate}
+                      disabled={((activeMode === 'create' || activeMode === 'notes') ? !prompt.trim() : !selectedFile) || isPending}
                       className="group relative w-full sm:w-auto min-h-11 px-5 sm:px-8 justify-center bg-primary text-white rounded-full text-[11px] sm:text-[12px] font-medium shadow-xl hover:bg-primaryHover hover:scale-[1.01] sm:hover:scale-[1.02] transition-all active:scale-[0.98] flex items-center gap-2 overflow-hidden disabled:opacity-40 disabled:scale-100 disabled:shadow-none shrink-0"
-                  >
-                    <div
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]"
-                    />
-                    {isPending && (
-                      <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin relative z-10" />
-                    )}
-                    <span className="relative z-10 truncate max-w-[16rem] sm:max-w-none">
-                      {isPending ? 'Starting...' : activeMode === 'enhance' ? 'Enhance PPT' : activeMode === 'notes' ? 'Generate from Notes' : 'Generate Presentation'}
-                    </span>
-                    <ArrowRight
-                      size={16}
-                      strokeWidth={1.5}
-                      className="relative z-10 shrink-0 group-hover:translate-x-1 transition-transform"
-                    />
-                  </button>
+                    >
+                      <div
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg]"
+                      />
+                      {isPending && (
+                        <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin relative z-10" />
+                      )}
+                      <span className="relative z-10 truncate max-w-[16rem] sm:max-w-none">
+                        {isPending ? 'Starting...' : activeMode === 'enhance' ? 'Enhance PPT' : activeMode === 'notes' ? 'Generate from Notes' : 'Generate Deck'}
+                      </span>
+                      <ArrowRight
+                        size={16}
+                        strokeWidth={1.5}
+                        className="relative z-10 shrink-0 group-hover:translate-x-1 transition-transform"
+                      />
+                    </button>
+
+                  </div>
                 </div>
               )}
             </div>

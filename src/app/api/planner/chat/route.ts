@@ -47,10 +47,18 @@ STRICT RULES:
 - Never repeat the same question, sentence, or bullet.
 - [SETUP COMPLETE] The user already chose exactly ${preferences.slideCount} slides. ${themeLine} ${layoutLine} ${colorLine}
 - DO NOT ask how many slides they want or what brand color to use.
-- On the FIRST reply: output the slide outline immediately (unless the topic is extremely vague — then ask ONE short clarifying question only, then outline in the same or next reply).
+- On the FIRST reply: output the FULL detailed slide outline immediately (unless the topic is extremely vague — then ask ONE short clarifying question only, then outline in the same or next reply).
 - The outline MUST contain exactly ${preferences.slideCount} slides (Slide 1 through Slide ${preferences.slideCount}).
-- Structure: (1) one short intro line, (2) numbered slides, (3) one closing line telling the user to click "Generate deck".
-- Use this slide format exactly (one per line): Slide 1: Title — one-line key message
+- Structure: (1) one short intro line, (2) ALL slides with FULL details below, (3) one closing line telling the user to click "Generate deck".
+- For EVERY slide, use this EXACT multi-line format:
+
+Slide N: Title — one-line key message
+  • Bullet 1: specific content point or data highlight
+  • Bullet 2: supporting detail, stat, or example
+  • Bullet 3: additional context or call-to-action element
+  Visual: [suggested layout — e.g. hero image, split-screen, chart, quote block, icon grid]
+
+- Be SPECIFIC: write real content bullets, not vague placeholders like "add content here".
 - Keep total reply focused; no filler paragraphs or repeated phrases.`;
   }
 
@@ -63,8 +71,16 @@ STRICT RULES:
   1) Ask how many slides they want for the presentation.
 - Do NOT ask for their brand color, because it is automatically applied from their brand kit.
 - Do NOT output the slide outline until the user has answered or explicitly asked you to just build it.
-- Once ready to build, structure your outline reply as: (1) one short intro line, (2) numbered slides, (3) one closing line telling the user to click "Generate deck".
-- Use this slide format exactly (one per line): Slide 1: Title — one-line key message
+- Once ready to build, structure your outline reply as: (1) one short intro line, (2) ALL slides with FULL details below, (3) one closing line telling the user to click "Generate deck".
+- For EVERY slide, use this EXACT multi-line format:
+
+Slide N: Title — one-line key message
+  • Bullet 1: specific content point or data highlight
+  • Bullet 2: supporting detail, stat, or example
+  • Bullet 3: additional context or call-to-action element
+  Visual: [suggested layout — e.g. hero image, split-screen, chart, quote block, icon grid]
+
+- Be SPECIFIC: write real content bullets, not vague placeholders.
 - Keep total reply focused; no filler paragraphs or repeated phrases.`;
   }
 
@@ -75,8 +91,16 @@ STRICT RULES:
   1) Ask how many slides they want for the presentation.
   2) Ask what specific brand color or hex code they want to use for the design.
 - Do NOT output the slide outline until the user has answered or explicitly asked you to just build it.
-- Once ready to build, structure your outline reply as: (1) one short intro line, (2) numbered slides, (3) one closing line telling the user to click "Generate deck".
-- Use this slide format exactly (one per line): Slide 1: Title — one-line key message
+- Once ready to build, structure your outline reply as: (1) one short intro line, (2) ALL slides with FULL details below, (3) one closing line telling the user to click "Generate deck".
+- For EVERY slide, use this EXACT multi-line format:
+
+Slide N: Title — one-line key message
+  • Bullet 1: specific content point or data highlight
+  • Bullet 2: supporting detail, stat, or example
+  • Bullet 3: additional context or call-to-action element
+  Visual: [suggested layout — e.g. hero image, split-screen, chart, quote block, icon grid]
+
+- Be SPECIFIC: write real content bullets, not vague placeholders.
 - Keep total reply focused; no filler paragraphs or repeated phrases.`;
 }
 
@@ -97,10 +121,18 @@ IMPORTANT — understand these shortcut messages immediately:
 - "Investor pitch" → use investor narrative: Problem → Market → Solution → Traction → Team → Ask
 - "Educational" → use Hook → Context → Lesson blocks → Key takeaway → CTA structure
 
-Example slides:
-Slide 1: Title — Hook and topic
-Slide 2: Problem — Core pain point
-Slide 3: Solution — Your approach
+Example detailed slide format:
+Slide 1: The Future of Remote Work — Why the office is no longer the default
+  • 73% of workers prefer hybrid or fully remote arrangements (Gallup 2024)
+  • Companies that mandate full return-to-office report 24% higher turnover
+  • This deck explores the data, the risks, and the winning strategy
+  Visual: Hero slide with bold stat overlay on workspace photography
+
+Slide 2: The Problem — Productivity myths are costing companies talent
+  • Common misconception: remote workers are less productive
+  • Stanford study shows 13% productivity boost in remote settings
+  • Root cause: managers optimizing for visibility, not output
+  Visual: Split-screen — office vs home setup with annotated stat callouts
 
 Use clean markdown only. No JSON.`;
 
@@ -109,12 +141,20 @@ The user wants a compelling, well-structured deck.
 
 ${getOutputRulesForPrompt(brandKit, preferences)}
 
-For each slide, use proven narrative frameworks (problem-solution, SCQA, hero's journey, or data-driven storytelling).
-Make titles punchy and benefit-led. Max 10 slides unless asked for more.
+For each slide, apply proven narrative frameworks (problem-solution, SCQA, hero's journey, or data-driven storytelling).
+Make titles punchy and benefit-led.
 
-Format:
-Slide 1: Title — key message
-Slide 2: Problem — ...
+For EVERY slide write:
+- A sharp, benefit-driven title with key message on the same line
+- 3 specific content bullets (real data points, insights, or action items — not generic fillers)
+- A visual suggestion (layout type: hero, split, chart, quote, icon grid, timeline, etc.)
+
+Example:
+Slide 1: Redefining Leadership — The shift from authority to influence
+  • Leaders who coach outperform those who direct by 2.4× (HBR 2023)
+  • Command-and-control models increase attrition by 31% in knowledge workers
+  • This deck maps the transition framework used by Fortune 100 companies
+  Visual: Bold hero with leadership archetype contrast graphic
 
 Be sharp, clear, and persuasive. Remind them to click "Generate deck" when the outline is ready.`;
 
@@ -128,13 +168,21 @@ Apply the best narrative arc for the context:
 - Agency/client: Insight → Strategy → Creative → Results → Next Steps
 - Educational: Hook → Context → Content blocks → Key takeaway → CTA
 
-For each slide:
-- Write a punchy, benefit-driven title (not generic like "Introduction")
-- Add a one-line message that tells the audience exactly what to think
-- Imply the slide type in the title when helpful (data, quote, split, hero, chart)
+For EVERY slide, provide:
+1. A punchy, benefit-driven title with a precise one-line key message
+2. 3–4 specific, substantive content bullets — include real data points, concrete examples, or precise action items. NO vague filler like "discuss the topic here".
+3. A visual direction line specifying layout type and image/graphic concept
 
-Max 12 slides unless asked for more. Be precise and investor-grade. No JSON.
+Example investor deck slide:
+Slide 3: The Market Opportunity — A $47B problem with no dominant player
+  • Global market for [sector] reaches $47B by 2027, growing at 18% CAGR (Statista)
+  • Top 3 incumbents each hold <8% market share — no clear winner yet
+  • Our beachhead segment: 12,000 mid-market firms spending avg $180K/yr on legacy tools
+  Visual: TAM/SAM/SOM concentric circles with annotated dollar figures
+
+Be precise, investor-grade, and strategically sharp. No JSON.
 Remind them to click "Generate deck" when ready.`;
+
 
 export async function POST(req: Request) {
   try {
@@ -258,15 +306,15 @@ export async function POST(req: Request) {
     if (planTier === 'creator') {
       systemPrompt = getCreatorProSystemPrompt(brandKit, plannerPrefs) + topicLine;
       temperature = 0.55;
-      max_tokens = 2500;
+      max_tokens = 4000;
     } else if (planTier === 'student') {
       systemPrompt = getStudentProSystemPrompt(brandKit, plannerPrefs) + topicLine;
       temperature = 0.6;
-      max_tokens = 2000;
+      max_tokens = 3500;
     } else {
       systemPrompt = getBaseSystemPrompt(brandKit, plannerPrefs) + topicLine;
       temperature = 0.7;
-      max_tokens = 1500;
+      max_tokens = 3000;
     }
 
     modelsToTry =

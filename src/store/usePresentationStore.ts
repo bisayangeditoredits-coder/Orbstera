@@ -4,6 +4,7 @@ import { PresentationData, Slide, SlideElement, HistoryEntry, EditorState } from
 import { finalizeSlideMotion } from '@/lib/presentationMotion';
 import { runDeckImageTasks } from '@/lib/deck-image-generation';
 import { buildDeckSlideElements } from '@/lib/deck-slide-layout';
+import { buildImageTasksFromAiElements, validateAiElements } from '@/lib/ai/validate-ai-elements';
 import { buildSlideFromReferenceTemplate } from '@/lib/reference-templates/build-slide';
 import { useReferenceTemplatePackForDeck } from '@/lib/reference-templates/use-during-generation';
 import { resolveVisualTheme } from '@/lib/visual-themes';
@@ -641,6 +642,8 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       slideData.id || (placeholderIdx >= 0 ? currentPres.slides[placeholderIdx].id : `slide-${sIdx}`);
 
     const refPack = get().editor.referenceTemplatePack;
+    const useAiLayout = validateAiElements(slideData.elements);
+
     const { elements, imageTasks } = useReferenceTemplatePackForDeck(
       refPack,
       get().editor.isGenerating,
@@ -658,7 +661,21 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
           },
           uid,
         })
-      : buildDeckSlideElements({
+      : useAiLayout && slideData.elements
+        ? buildImageTasksFromAiElements({
+            slideId,
+            elements: slideData.elements,
+            slideMeta: {
+              type: slideData.type,
+              title: slideData.title,
+              imagePrompt: slideData.imagePrompt,
+            },
+            slideIndex: sIdx,
+            slideCount: currentPres.slides.length,
+            layoutCategory: currentPres.layoutCategory,
+            uid,
+          })
+        : buildDeckSlideElements({
           slide: {
             id: slideId,
             type: slideData.type,
@@ -667,6 +684,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
             bullets: mergedBullets.length ? mergedBullets : slideData.bullets,
             content: slideData.content,
             imagePrompt: slideData.imagePrompt,
+            backgroundStyle: slideData.backgroundStyle,
           },
           sIdx,
           palette,
@@ -727,9 +745,13 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     hasSeenTour: (() => {
       if (typeof window === 'undefined') return false;
       try {
-        return window.localStorage.getItem('orbstera_tour_seen') === 'true';
+        if (window.localStorage.getItem('orbstera_tour_seen') === 'true') return true;
       } catch {
-        // Some browsers/environments can throw on localStorage access (privacy mode / blocked storage).
+        // Fallback to cookie
+      }
+      try {
+        return document.cookie.includes('orbstera_tour_seen=true');
+      } catch {
         return false;
       }
     })(),
@@ -746,7 +768,15 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
 
   skipOnboarding: () => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('orbstera_tour_seen', 'true');
+      try {
+        window.localStorage.setItem('orbstera_tour_seen', 'true');
+      } catch {
+        try {
+          document.cookie = "orbstera_tour_seen=true; max-age=31536000; path=/";
+        } catch {
+          // Ignore
+        }
+      }
     }
     set((state) => ({ 
       onboarding: { 

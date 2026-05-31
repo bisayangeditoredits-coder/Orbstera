@@ -131,7 +131,7 @@ function clampOverlay(opacity: number): number {
   return Math.min(0.58, Math.max(0.45, opacity));
 }
 
-/** Post-process AI slides so hero/closing/content-cinematic always request image backgrounds when using AI images. */
+/** Ensure image backgrounds on hero, closing, quote, and cinematic content slides. */
 export function enforceSlideBackgroundStyles(
   slides: { type?: string; layout?: string; backgroundStyle?: unknown }[],
   imageSource?: 'ai' | 'unsplash' | 'none',
@@ -141,6 +141,7 @@ export function enforceSlideBackgroundStyles(
   slides.forEach((slide, i) => {
     const type = String(slide.type || '').toLowerCase();
     const layout = String(slide.layout || '').toLowerCase();
+    const existing = parseSlideBackgroundStyle(slide.backgroundStyle);
     const isContentCinematic =
       type === 'content' &&
       (layout.includes('cinematic') ||
@@ -148,21 +149,25 @@ export function enforceSlideBackgroundStyles(
         layout.includes('full-bleed') ||
         i % 3 === 2);
 
-    const mustImage = type === 'hero' || type === 'closing' || isContentCinematic;
-    if (!mustImage) return;
+    const wantsImage =
+      type === 'hero' ||
+      type === 'closing' ||
+      type === 'quote' ||
+      isContentCinematic ||
+      existing?.type === 'image';
 
-    const existing = parseSlideBackgroundStyle(slide.backgroundStyle);
+    if (!wantsImage) return;
+
     const opacity =
-      existing?.type === 'image' && existing.overlayOpacity >= 0.45
+      existing?.type === 'image' && existing.overlayOpacity >= 0.35
         ? clampOverlay(existing.overlayOpacity)
         : 0.52;
 
-    const style: SlideBackgroundStyle = {
+    slide.backgroundStyle = JSON.stringify({
       type: 'image',
       overlayOpacity: opacity,
       overlayColor: existing?.overlayColor || '#000000',
       textColor: '#FFFFFF',
-    };
-    slide.backgroundStyle = JSON.stringify(style);
+    } satisfies SlideBackgroundStyle);
   });
 }

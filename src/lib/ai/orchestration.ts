@@ -64,7 +64,10 @@ export function buildComposerMessages(args: {
   imageSource?: 'ai' | 'unsplash' | 'none';
   systemConstraints?: string;
 }): { system: string; user: string } {
-  const system = buildComposerSystemPrompt(args.preflightSummary);
+  let system = buildComposerSystemPrompt(args.preflightSummary);
+  if (args.systemConstraints?.trim()) {
+    system += `\n\n${args.systemConstraints.trim()}`;
+  }
   const user = buildComposerUserPrompt({
     userPrompt: args.userPrompt,
     refinedBrief: args.refinedBrief,
@@ -97,8 +100,14 @@ const KNOWN_LAYOUT_TYPES = new Set<string>([
 function coerceSlideType(raw: string): SlideLayoutType {
   if (KNOWN_LAYOUT_TYPES.has(raw)) return raw as SlideLayoutType;
   if (raw === 'bento' || raw === 'roadmap') return 'content';
-  if (raw === 'minimal' || raw === 'cinematic') return 'hero';
   return 'content';
+}
+
+const MIN_IMAGE_PROMPT_CHARS = 40;
+
+function needsImagePromptFill(prompt?: string): boolean {
+  const trimmed = prompt?.trim() ?? '';
+  return trimmed.length < MIN_IMAGE_PROMPT_CHARS;
 }
 
 /** Merge director/architect metadata into composer JSON before normalization */
@@ -182,37 +191,23 @@ export function normalizePresentationPayload(
         ? obj.imagePrompt.trim()
         : undefined;
 
-    if (!imagePrompt) {
+    if (needsImagePromptFill(imagePrompt)) {
       const spineRaw = (input as { slideSpine?: unknown[] }).slideSpine;
       const spineEntry =
         Array.isArray(spineRaw) && spineRaw[i] && typeof spineRaw[i] === 'object'
           ? (spineRaw[i] as { imageBrief?: string; typeHint?: string })
           : null;
-      if (spineEntry?.imageBrief?.trim()) {
-        imagePrompt = buildDeckImagePrompt({
-          basePrompt: spineEntry.imageBrief.trim(),
-          title: (obj.title as string) || undefined,
-          type,
-          slideIndex: i,
-          slideCount: slidesRaw.length || undefined,
-          layoutHint: spineEntry.typeHint || type,
-          layoutCategory,
-          visualMood,
-          imageryPalette,
-        });
-      }
-      if (!imagePrompt) {
-        imagePrompt = buildDeckImagePrompt({
-          title: (obj.title as string) || undefined,
-          type,
-          slideIndex: i,
-          slideCount: slidesRaw.length || undefined,
-          layoutHint: type,
-          layoutCategory,
-          visualMood,
-          imageryPalette,
-        });
-      }
+      imagePrompt = buildDeckImagePrompt({
+        basePrompt: spineEntry?.imageBrief?.trim() || imagePrompt,
+        title: (obj.title as string) || undefined,
+        type,
+        slideIndex: i,
+        slideCount: slidesRaw.length || undefined,
+        layoutHint: spineEntry?.typeHint || type,
+        layoutCategory,
+        visualMood,
+        imageryPalette,
+      });
     } else {
       imagePrompt = buildDeckImagePrompt({
         basePrompt: imagePrompt,
@@ -248,13 +243,21 @@ export function normalizePresentationPayload(
     };
   });
 
-  // Rebalance from slideSpine orders when model ignored architect brief
+  // Apply slideSpine types for bookends and when composer defaulted to generic content
   const spineRaw = (input as { slideSpine?: { typeHint?: string; headlineAngle?: string }[] }).slideSpine;
   if (Array.isArray(spineRaw) && spineRaw.length === slides.length) {
+    const lastIdx = slides.length - 1;
     slides.forEach((slide, i) => {
       const order = spineRaw[i];
       if (!order || typeof order !== 'object') return;
-      if (order.typeHint) slide.type = coerceSlideType(String(order.typeHint));
+
+      if (order.typeHint) {
+        const hinted = coerceSlideType(String(order.typeHint));
+        if (i === 0) slide.type = 'hero';
+        else if (i === lastIdx) slide.type = 'closing';
+        else if (slide.type === 'content') slide.type = hinted;
+      }
+
       if (
         order.headlineAngle &&
         (!slide.title?.trim() || slide.title.length < 3 || slide.title.toLowerCase() === 'untitled')
@@ -264,7 +267,7 @@ export function normalizePresentationPayload(
     });
   }
 
-  // If the model returns low variety, rebalance slide types for a less template-like deck.
+  // Rescue monotonous decks — only when variety is clearly broken
   const typeSet = new Set(slides.map((s) => s.type));
   const runsTooLong = (() => {
     let run = 1;
@@ -293,8 +296,7 @@ export function normalizePresentationPayload(
         slide.type = 'closing';
         return;
       }
-      const mapped = rhythm[Math.min(i, rhythm.length - 1)];
-      slide.type = mapped;
+      slide.type = rhythm[Math.min(i, rhythm.length - 1)] ?? 'content';
     });
     slides.forEach((slide, i) => {
       slide.imagePrompt = buildDeckImagePrompt({
@@ -303,7 +305,7 @@ export function normalizePresentationPayload(
         type: slide.type,
         slideIndex: i,
         slideCount: slides.length,
-        layoutHint: slide.layout || `${layoutOption.label} ${slide.type}`,
+        layoutHint: slide.layout || slide.type,
         layoutCategory,
         visualMood,
         imageryPalette,
