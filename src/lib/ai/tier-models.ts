@@ -20,24 +20,24 @@ export const STUDENT_PREMIUM_IMAGE_MODELS = new Set<string>();
 
 export const PLANNER_MODELS = {
   creator: {
-    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-3.5-sonnet',
+    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-sonnet-4-5',
     fallbacks: [
       process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-2.5-flash',
-      'openai/gpt-4o',
+      'anthropic/claude-opus-4-5',
     ],
   },
   student: {
-    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-3.5-sonnet',
+    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-sonnet-4-5',
     fallbacks: [
       process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-2.5-flash',
-      'openai/gpt-4o',
+      'anthropic/claude-opus-4-5',
     ],
   },
   free: {
-    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-3.5-sonnet',
+    primary: process.env.OPENROUTER_PLANNER_CREATOR ?? 'anthropic/claude-sonnet-4-5',
     fallbacks: [
       process.env.OPENROUTER_PLANNER_CREATOR_FB ?? 'google/gemini-2.5-flash',
-      'openai/gpt-4o',
+      'anthropic/claude-opus-4-5',
     ],
   },
 } as const;

@@ -2,29 +2,29 @@
  * OpenRouter model IDs for deck generation and auxiliary routes.
  * Override via env without code changes.
  *
- * Updated May 2026 — model IDs verified against OpenRouter's live catalog.
+ * Updated May 2026 — upgraded to latest best-in-class models.
  */
 
 export const OR_MODELS = {
-  /** Primary streaming composer — higher-quality JSON deck output */
+  /** Primary streaming composer — Claude Sonnet 4.6 (best JSON + creative) */
   composerPrimary:
-    process.env.OPENROUTER_COMPOSER_PRIMARY ?? 'openai/gpt-4o',
-  /** Creator Pro compose fallback */
+    process.env.OPENROUTER_COMPOSER_PRIMARY ?? 'anthropic/claude-sonnet-4-5',
+  /** Elite composer — Claude Opus 4 for top quality */
   composerElite:
-    process.env.OPENROUTER_COMPOSER_ELITE ?? 'anthropic/claude-3.5-sonnet',
-  /** Fallback composer if primary is unavailable */
+    process.env.OPENROUTER_COMPOSER_ELITE ?? 'anthropic/claude-opus-4-5',
+  /** Fallback composer */
   composerFallback:
-    process.env.OPENROUTER_COMPOSER_FALLBACK ?? 'anthropic/claude-3.5-sonnet',
+    process.env.OPENROUTER_COMPOSER_FALLBACK ?? 'anthropic/claude-sonnet-4-5',
 
-  /** Polish / refine — Student Pro */
+  /** Polish / refine — Sonnet 4.5 */
   refineFallback:
-    process.env.OPENROUTER_REFINE_FB ?? process.env.OPENROUTER_COMPOSER_FALLBACK ?? 'anthropic/claude-3.5-sonnet',
+    process.env.OPENROUTER_REFINE_FB ?? 'anthropic/claude-sonnet-4-5',
 
-  /** Polish / refine — Creator Pro */
+  /** Polish / refine — Opus 4 for creator tier */
   refineOpus:
-    process.env.OPENROUTER_REFINE_OPUS ?? 'openai/gpt-4o',
+    process.env.OPENROUTER_REFINE_OPUS ?? 'anthropic/claude-opus-4-5',
 
-  /** Free / economy text — Gemini Flash class */
+  /** Free / economy text — Gemini Flash */
   coach: process.env.OPENROUTER_COACH ?? 'google/gemini-2.5-flash',
 } as const;
 
