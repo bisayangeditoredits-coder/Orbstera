@@ -1,6 +1,6 @@
 /** Visual theme presets from VisualsConfig — palettes, typography, imagery mood. */
 
-import { buildDeckLayoutCategoryPrompt, normalizeDeckLayoutCategory } from '@/lib/deck-layout-categories';
+import { buildThemeHintsBlock } from '@/lib/ai/generation-constraints';
 
 export type VisualBackgroundMode = 'light' | 'dark';
 
@@ -148,35 +148,20 @@ export function resolveArtStyleHint(artStyle?: string | null): string {
   return ART_STYLE_IMAGE_HINTS[key] ?? ART_STYLE_IMAGE_HINTS.scene;
 }
 
+/** @deprecated Use buildThemeHintsBlock — kept for callers that expect a string. */
 export function buildVisualCurationBlock(args: {
   themeId?: string;
   artStyle?: string;
   layoutCategory?: string;
   imageSource?: 'ai' | 'unsplash' | 'none';
 }): string {
-  const theme = resolveVisualTheme(args.themeId);
-  const artHint = resolveArtStyleHint(args.artStyle);
-  const layoutCategory = normalizeDeckLayoutCategory(args.layoutCategory);
-  const layoutPrompt = buildDeckLayoutCategoryPrompt(layoutCategory);
-  const source =
-    args.imageSource === 'unsplash'
-      ? 'Use Unsplash-style realistic stock photography descriptions in imagePrompt.'
-      : args.imageSource === 'none'
-        ? 'User chose text-only — still write imagePrompt for optional backgrounds but keep copy primary.'
-        : 'Generate unique AI imagery — imagePrompt must be highly specific and on-brand.';
-
-  return `[USER VISUAL CURATION — OBEY STRICTLY]
-Theme: ${theme.name} (${theme.id})
-Palette (use as colorPalette): ${JSON.stringify(theme.colorPalette)}
-Typography: heading="${theme.fontPairing.heading}", body="${theme.fontPairing.body}"
-Background mode: ${theme.backgroundMode}
-Imagery mood family: ${theme.imageryMood}
-Color/lighting keywords: ${theme.imageryPalette}
-Art style: ${artHint}
-Image source: ${args.imageSource ?? 'ai'} — ${source}
-Layout category: ${layoutCategory} — ${layoutPrompt}
-Layout: premium Gamma-class — category changes actual slide structure, not just colors; vary slide types, never repeat the same layout 3× in a row.
-Rhythm: keep the same mood family, but make every slide image feel like a new scene with a different crop, camera distance, or focal subject.`;
+  return (
+    buildThemeHintsBlock({
+      themeId: args.themeId,
+      artStyle: args.artStyle,
+      imageSource: args.imageSource,
+    }) ?? ''
+  );
 }
 
 /** SVG gradient placeholder when image generation fails — avoids infinite loading spinners. */

@@ -1,6 +1,7 @@
 import { IMAGE_MODELS, type ImageVisualProfile } from '@/lib/ai/agent-models';
 import { capModelsToTier, planToSubscriptionTier } from '@/lib/ai/tier-models';
 import { resolveOpenRouterApiKey } from '@/lib/ai/openrouter-keys';
+import { openRouterFetch, OPENROUTER_TIMEOUT } from '@/lib/ai/openrouter-timeouts';
 
 const OPENROUTER_IMAGE_URL = 'https://openrouter.ai/api/v1/images/generations';
 const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -81,15 +82,19 @@ async function runKontextEdit(args: {
     content.push({ type: 'image_url', image_url: { url: args.maskImage } });
   }
 
-  const response = await fetch(OPENROUTER_CHAT_URL, {
-    method: 'POST',
-    headers: hdrs,
-    body: JSON.stringify({
-      model: args.model,
-      messages: [{ role: 'user', content }],
-      modalities: ['image', 'text'],
-    }),
-  });
+  const response = await openRouterFetch(
+    OPENROUTER_CHAT_URL,
+    {
+      method: 'POST',
+      headers: hdrs,
+      body: JSON.stringify({
+        model: args.model,
+        messages: [{ role: 'user', content }],
+        modalities: ['image', 'text'],
+      }),
+    },
+    OPENROUTER_TIMEOUT.complete,
+  );
 
   const body = await response.text();
   if (!response.ok) {
@@ -109,16 +114,20 @@ async function runGeneration(args: {
   const hdrs = headers(args.plan);
   if (!hdrs) return { ok: false, status: 503, body: 'OPENROUTER_API_KEY missing' };
 
-  const response = await fetch(OPENROUTER_IMAGE_URL, {
-    method: 'POST',
-    headers: hdrs,
-    body: JSON.stringify({
-      model: args.model,
-      prompt: args.prompt,
-      size: args.size,
-      response_format: 'url',
-    }),
-  });
+  const response = await openRouterFetch(
+    OPENROUTER_IMAGE_URL,
+    {
+      method: 'POST',
+      headers: hdrs,
+      body: JSON.stringify({
+        model: args.model,
+        prompt: args.prompt,
+        size: args.size,
+        response_format: 'url',
+      }),
+    },
+    OPENROUTER_TIMEOUT.complete,
+  );
   const body = await response.text();
   if (!response.ok) {
     return { ok: false, status: response.status, body };

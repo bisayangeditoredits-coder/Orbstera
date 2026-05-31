@@ -21,6 +21,23 @@ end
 return redis.call('INCRBY', key, cost)
 `;
 
+/** Atomic burst spend: INCRBY only if used + cost <= hourly limit. */
+const BURST_RESERVE_LUA = `
+local key = KEYS[1]
+local cost = tonumber(ARGV[1])
+local limit = tonumber(ARGV[2])
+local ttl = tonumber(ARGV[3])
+local used = tonumber(redis.call('GET', key) or '0')
+if used + cost > limit then
+  return -1
+end
+local next = redis.call('INCRBY', key, cost)
+if next == cost then
+  redis.call('EXPIRE', key, ttl)
+end
+return next
+`;
+
 export function isCreditRedisFastPathEnabled(): boolean {
   return Boolean(redis && FAST_PATH_ENABLED);
 }
@@ -103,4 +120,30 @@ export async function adjustCreditFastPathRefund(
   cost: number,
 ): Promise<void> {
   await releaseCreditsRedisFastPath(userId, monthKey, cost);
+}
+
+/** Atomic hourly burst limit for credit consumption (prevents concurrent bypass). */
+export async function reserveCreditBurstRedis(args: {
+  userId: string;
+  hourKey: string;
+  cost: number;
+  hourlyLimit: number;
+  ttlSec: number;
+}): Promise<{ ok: true; used: number } | { ok: false; error: 'BURST_LIMIT_EXCEEDED' } | null> {
+  if (!redis || args.cost <= 0) return null;
+
+  try {
+    const result = await redis.eval(
+      BURST_RESERVE_LUA,
+      [args.hourKey],
+      [String(args.cost), String(args.hourlyLimit), String(args.ttlSec)],
+    );
+    const n = typeof result === 'number' ? result : Number(result);
+    if (n === -1) return { ok: false, error: 'BURST_LIMIT_EXCEEDED' };
+    if (!Number.isFinite(n) || n < 0) return null;
+    return { ok: true, used: n };
+  } catch (e) {
+    console.warn('[credit-redis] burst reserve failed:', e);
+    return null;
+  }
 }

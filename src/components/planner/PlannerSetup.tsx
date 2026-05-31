@@ -50,11 +50,17 @@ export function PlannerSetup({ topic, onContinue }: PlannerSetupProps) {
   };
 
   const handleContinue = () => {
+    const paletteTouched =
+      colorsExpanded ||
+      colorPalette.some((c, i) => c !== DEFAULT_PLANNER_THEME.palette[i]);
     onContinue({
       slideCount,
       themeName: selectedThemeName,
       colorPalette,
       layoutCategory,
+      themeExplicit: true,
+      paletteExplicit: paletteTouched,
+      layoutCategoryExplicit: false,
     });
   };
 

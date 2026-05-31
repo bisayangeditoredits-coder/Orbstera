@@ -1,5 +1,6 @@
 import type { DeckGenerationJobBody } from '@/lib/ai/run-deck-generation-batch';
 import { processGenerateJob, type ProcessGenerateJobPayload } from '@/lib/jobs/process-generate-job';
+import { signalJobCancellation } from '@/lib/jobs/redis-job-queue';
 
 const QUEUE_NAME = 'generate-deck';
 
@@ -23,6 +24,27 @@ async function getQueue(): Promise<import('bullmq').Queue | null> {
     })();
   }
   return queuePromise;
+}
+
+export async function cancelBullGenerateJob(jobId: string): Promise<'removed' | 'signalled' | 'not_found'> {
+  const queue = await getQueue();
+  if (!queue) return 'not_found';
+
+  const job = await queue.getJob(jobId);
+  if (!job) return 'not_found';
+
+  const state = await job.getState();
+  if (state === 'waiting' || state === 'delayed') {
+    await job.remove();
+    return 'removed';
+  }
+
+  if (state === 'active') {
+    await signalJobCancellation(jobId);
+    return 'signalled';
+  }
+
+  return 'not_found';
 }
 
 export async function enqueueBullGenerateJob(payload: ProcessGenerateJobPayload): Promise<boolean> {

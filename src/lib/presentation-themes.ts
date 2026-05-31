@@ -40,20 +40,40 @@ export const DEFAULT_PLANNER_THEME = PRESENTATION_THEMES[0];
 
 export type PlannerSetupPreferences = {
   slideCount: number;
-  themeName: string;
-  colorPalette: string[];
+  themeName?: string;
+  colorPalette?: string[];
   layoutCategory: DeckLayoutCategory;
+  /** User picked a theme preset on setup (hint only — not enforced colors). */
+  themeExplicit?: boolean;
+  /** User customized palette swatches (optional hint). */
+  paletteExplicit?: boolean;
+  /** User chose layout category (hint only unless from URL). */
+  layoutCategoryExplicit?: boolean;
 };
 
 export function buildPlannerFirstMessage(topic: string, prefs: PlannerSetupPreferences): string {
-  const layout = getDeckLayoutCategoryOption(prefs.layoutCategory);
-  return [
+  const lines = [
     `I want to create a presentation about: "${topic}".`,
     `Target length: ${prefs.slideCount} slides.`,
-    `Theme: ${prefs.themeName}. Brand colors: ${prefs.colorPalette.join(', ')}.`,
+  ];
 
-    `Please build a slide-by-slide outline for exactly ${prefs.slideCount} slides.`,
-  ].join('\n');
+  if (prefs.themeExplicit && prefs.themeName) {
+    lines.push(
+      `Visual mood hint: ${prefs.themeName} (suggested look only — choose colors and layouts that fit the topic).`,
+    );
+  }
+  if (prefs.paletteExplicit && prefs.colorPalette?.length) {
+    lines.push(`Suggested colors (optional): ${prefs.colorPalette.join(', ')}.`);
+  }
+  const layout = getDeckLayoutCategoryOption(prefs.layoutCategory);
+  if (prefs.layoutCategoryExplicit) {
+    lines.push(`Layout direction hint: ${layout.label}.`);
+  } else {
+    lines.push(`Optional layout inspiration: ${layout.label} (you may choose a better structure for the topic).`);
+  }
+
+  lines.push(`Please build a slide-by-slide outline for exactly ${prefs.slideCount} slides.`);
+  return lines.join('\n');
 }
 
 export function plannerSetupStorageKey(topic: string): string {
@@ -77,13 +97,17 @@ export function resolvePlannerPreferencesFromParams(args: {
   layoutParam?: string | null;
 }): PlannerSetupPreferences {
   const slideCount = parseSlideCountParam(args.slidesParam ?? null);
-  const theme = parsePlannerThemeFromParam(args.themeParam ?? null) ?? DEFAULT_PLANNER_THEME;
+  const theme = parsePlannerThemeFromParam(args.themeParam ?? null);
+  const layoutFromUrl = args.layoutParam
+    ? normalizeDeckLayoutCategory(args.layoutParam)
+    : undefined;
   return {
     slideCount,
-    themeName: theme.name,
-    colorPalette: [...theme.palette],
-    layoutCategory: args.layoutParam
-      ? normalizeDeckLayoutCategory(args.layoutParam)
-      : DEFAULT_DECK_LAYOUT_CATEGORY,
+    themeName: theme?.name,
+    colorPalette: theme ? [...theme.palette] : undefined,
+    layoutCategory: layoutFromUrl ?? DEFAULT_DECK_LAYOUT_CATEGORY,
+    themeExplicit: !!theme,
+    paletteExplicit: false,
+    layoutCategoryExplicit: !!layoutFromUrl,
   };
 }

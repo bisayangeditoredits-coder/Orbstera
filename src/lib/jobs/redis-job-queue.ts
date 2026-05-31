@@ -1,6 +1,6 @@
 import { redis } from '@/lib/redis';
 
-export type JobStatus = 'queued' | 'running' | 'completed' | 'failed';
+export type JobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export type JobRecord = {
   id: string;
@@ -13,9 +13,15 @@ export type JobRecord = {
   result?: unknown;
   error?: string;
   progress?: number;
+  /** Billing metadata for cancellation refunds */
+  billingRequestId?: string;
+  estimatedCredits?: number;
+  /** Free-tier deck slot reserved at request start */
+  freeDeckReserved?: boolean;
 };
 
 const PREFIX = 'job:v1:';
+const CANCEL_PREFIX = 'job:cancel:v1:';
 const QUEUE_KEY = 'queue:generate:v1';
 const TTL_SEC = 86_400;
 
@@ -25,7 +31,7 @@ const TTL_SEC = 86_400;
  */
 export async function createJobRecord(
   partial: Pick<JobRecord, 'id' | 'type' | 'status' | 'userId'> &
-    Partial<Pick<JobRecord, 'result' | 'error' | 'progress'>>,
+    Partial<Pick<JobRecord, 'result' | 'error' | 'progress' | 'billingRequestId' | 'estimatedCredits' | 'freeDeckReserved'>>,
 ): Promise<JobRecord | null> {
   if (!redis) return null;
   const now = new Date().toISOString();
@@ -39,6 +45,9 @@ export async function createJobRecord(
     result: partial.result,
     error: partial.error,
     progress: partial.progress,
+    billingRequestId: partial.billingRequestId,
+    estimatedCredits: partial.estimatedCredits,
+    freeDeckReserved: partial.freeDeckReserved,
   };
   await redis.set(`${PREFIX}${partial.id}`, rec, { ex: TTL_SEC });
   return rec;
@@ -57,12 +66,17 @@ function mergeJobRecord(cur: JobRecord, patch: Partial<JobRecord>): JobRecord {
   let newError = patch.error !== undefined ? patch.error : cur.error;
   let newResult = patch.result !== undefined ? patch.result : cur.result;
 
-  if (cur.status === 'completed' || cur.status === 'failed') {
+  if (cur.status === 'completed' || cur.status === 'failed' || cur.status === 'cancelled') {
     if (newStatus === 'running' || newStatus === 'queued') {
       newStatus = cur.status; // keep terminal status
       newError = cur.error; // preserve existing error
       newResult = cur.result; // preserve existing result
     }
+  }
+
+  if (cur.status === 'cancelled') {
+    newStatus = 'cancelled';
+    newError = cur.error ?? patch.error;
   }
 
   return {
@@ -113,6 +127,9 @@ export async function enqueueGenerateJob(payload: {
   jobId: string;
   userId: string;
   body: Record<string, unknown>;
+  billingRequestId?: string;
+  estimatedCredits?: number;
+  freeDeckReserved?: boolean;
 }): Promise<boolean> {
   if (!redis) return false;
   await createJobRecord({
@@ -120,6 +137,9 @@ export async function enqueueGenerateJob(payload: {
     userId: payload.userId,
     type: 'deck_generate',
     status: 'queued',
+    billingRequestId: payload.billingRequestId,
+    estimatedCredits: payload.estimatedCredits,
+    freeDeckReserved: payload.freeDeckReserved,
   });
 
   try {
@@ -151,4 +171,27 @@ export async function claimNextGenerateJob(): Promise<{
   } catch {
     return null;
   }
+}
+
+export class JobCancelledError extends Error {
+  constructor(message = 'Generation cancelled') {
+    super(message);
+    this.name = 'JobCancelledError';
+  }
+}
+
+export async function signalJobCancellation(jobId: string): Promise<void> {
+  if (!redis) return;
+  await redis.set(`${CANCEL_PREFIX}${jobId}`, '1', { ex: TTL_SEC });
+}
+
+export async function isJobCancellationRequested(jobId: string): Promise<boolean> {
+  if (!redis) return false;
+  const v = await redis.get<string | number>(`${CANCEL_PREFIX}${jobId}`);
+  return v === '1' || v === 1;
+}
+
+export async function clearJobCancellation(jobId: string): Promise<void> {
+  if (!redis) return;
+  await redis.del(`${CANCEL_PREFIX}${jobId}`);
 }

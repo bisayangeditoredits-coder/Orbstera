@@ -1,10 +1,14 @@
 import { mergeOrchestrationMetadata, normalizePresentationPayload, buildComposerMessages } from '@/lib/ai/orchestration';
+import {
+  buildSystemConstraintsBlock,
+  constraintsFromGenerateBody,
+} from '@/lib/ai/generation-constraints';
 import { runOpenRouterOrchestration } from '@/lib/ai/prompt-chain';
 import { extractDeckJsonFromModelOutput } from '@/lib/ai/openrouter';
 import { openRouterCompleteCascade } from '@/lib/ai/openrouter-cascade';
 import { getTextModelCascade, selectTextModel } from '@/lib/ai/router';
 import { getSpendState } from '@/lib/ai/spend';
-import { buildDeckLayoutCategoryPrompt, normalizeDeckLayoutCategory } from '@/lib/deck-layout-categories';
+import { normalizeDeckLayoutCategory } from '@/lib/deck-layout-categories';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type DeckGenerationJobBody = {
@@ -14,10 +18,19 @@ export type DeckGenerationJobBody = {
   language: string;
   styleMode?: string;
   layoutCategory?: string;
+  layoutCategoryExplicit?: boolean;
+  theme?: string;
+  themeExplicit?: boolean;
+  colorPalette?: string[];
+  paletteExplicit?: boolean;
   imageSource?: 'ai' | 'unsplash' | 'none';
   plan: string;
   plannerSessionId?: string;
   outlineSlideCount?: number;
+  /** Credit charge idempotency key — used to refund on worker failure. */
+  billingRequestId?: string;
+  estimatedCredits?: number;
+  deckCreditAction?: string;
 };
 
 export async function runDeckGenerationBatch(args: {
@@ -30,13 +43,16 @@ export async function runDeckGenerationBatch(args: {
   const { appUrl, supabase, userId, body, onProgress } = args;
   const userPrompt = String(body.prompt || '').trim();
   if (!userPrompt) throw new Error('Prompt is required');
-  const layoutCategory = normalizeDeckLayoutCategory(body.layoutCategory || body.styleMode);
+  const constraints = constraintsFromGenerateBody(body as Record<string, unknown>);
+  const layoutCategoryForComposer = constraints.layoutCategoryExplicit
+    ? normalizeDeckLayoutCategory(constraints.layoutCategory || body.layoutCategory || body.styleMode)
+    : undefined;
 
   onProgress?.(5, 'Starting orchestration…');
   const spend = await getSpendState({ supabase });
   const spendState = { forcedEconomyMode: spend.forcedEconomyMode };
 
-  let finalPrompt = userPrompt;
+  let orchestrationPrompt = userPrompt;
   const { data: profileData } = await supabase
     .from('profiles')
     .select('brand_kit')
@@ -44,14 +60,14 @@ export async function runDeckGenerationBatch(args: {
     .maybeSingle();
   const brandKit = profileData?.brand_kit as Record<string, unknown> | null;
   if (brandKit && brandKit.primary_color) {
-    finalPrompt += `\n\n[USER BRAND KIT]\nPrimary Color: ${brandKit.primary_color}\nFont: ${brandKit.font || 'Default'}\nBrand: ${brandKit.name || 'User Company'}`;
+    orchestrationPrompt += `\n\n[USER BRAND KIT]\nPrimary Color: ${brandKit.primary_color}\nFont: ${brandKit.font || 'Default'}\nBrand: ${brandKit.name || 'User Company'}`;
   }
-  finalPrompt += `\n\n[USER LAYOUT CATEGORY]\nRoot layoutCategory must be "${layoutCategory}". ${buildDeckLayoutCategoryPrompt(layoutCategory)} This must change slide structures and layout rhythm, not just colors.`;
 
+  const systemConstraints = buildSystemConstraintsBlock(constraints);
 
   const { dossierText, refinedBrief, preflightSummary } = await runOpenRouterOrchestration(
     appUrl,
-    finalPrompt,
+    orchestrationPrompt,
     {
       slideCount: body.slideCount,
       tone: String(body.tone),
@@ -70,8 +86,10 @@ export async function runDeckGenerationBatch(args: {
     tone: String(body.tone),
     language: String(body.language),
     styleMode: body.styleMode ? String(body.styleMode) : undefined,
-    layoutCategory,
+    layoutCategory: layoutCategoryForComposer,
+    layoutCategoryExplicit: constraints.layoutCategoryExplicit,
     imageSource: body.imageSource,
+    systemConstraints,
   });
 
   const composerPrimary = selectTextModel({
@@ -115,7 +133,8 @@ export async function runDeckGenerationBatch(args: {
   onProgress?.(85, 'Parsing deck…');
   const parsed = extractDeckJsonFromModelOutput(raw);
   if (!parsed) throw new Error('Could not parse deck JSON from model output');
-  return normalizePresentationPayload(
-    mergeOrchestrationMetadata(parsed, preflightSummary),
-  ) as unknown as Record<string, unknown>;
+  return normalizePresentationPayload(mergeOrchestrationMetadata(parsed, preflightSummary), {
+    imageSource: body.imageSource ?? 'ai',
+    constraints,
+  }) as unknown as Record<string, unknown>;
 }

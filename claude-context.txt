@@ -1,0 +1,3202 @@
+==================================================
+FILE: src/lib/export/run-pptx-export.ts
+==================================================
+
+import PptxGenJS from 'pptxgenjs';
+import { createClient } from '@supabase/supabase-js';
+import { PresentationData, Slide, SlideTransition, SlideElement } from '@/types';
+import { findDeckBackgroundElement, isSlideDeckBackgroundImage } from '@/lib/slide-background';
+import { fetchImageAsBase64ForExport, fetchVideoAsBase64ForExport } from '@/lib/export/export-image';
+import { combinedShapeTransparency, parseColorForPptx } from '@/lib/export/export-colors';
+import { shapePathToSvgDataUri } from '@/lib/export/export-shape-path';
+import { elementPlacement, pptxRectRadius, pptxShapeLine } from '@/lib/export/export-pptx-placement';
+import { updateJobRecord } from '@/lib/jobs/redis-job-queue';
+import { getServiceSupabase } from '@/lib/billing/supabase-admin';
+import { getR2BucketName, getR2Client, isR2Configured } from '@/lib/server/r2-client';
+import fs from 'fs';
+import path from 'path';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+
+// ── Canvas → PPTX coordinate system ──────────────────────────────────────────
+// Canvas: 1280 × 720 px  →  PPTX: 13.333 × 7.5 inches (96 DPI exact match)
+const PPTX_W = 13.3333333;
+const PPTX_H = 7.5;
+const SCALE  = 1 / 96; // 1px = 1/96 inch
+
+const px = (v: number) => parseFloat((v * SCALE).toFixed(4));
+
+/** Read PNG dimensions from IHDR for watermark aspect-ratio math */
+function readPngDimensions(buffer: Buffer): { width: number; height: number } | null {
+  if (buffer.length < 24 || buffer.readUInt32BE(0) !== 0x89504e47) return null;
+  const width = buffer.readUInt32BE(16);
+  const height = buffer.readUInt32BE(20);
+  if (width <= 0 || height <= 0) return null;
+  return { width, height };
+}
+
+/** Fit image inside a max box while preserving aspect ratio (inches) */
+function fitImageInBox(
+  imgW: number,
+  imgH: number,
+  maxW: number,
+  maxH: number,
+): { w: number; h: number } {
+  const aspect = imgW / imgH;
+  let w = maxW;
+  let h = w / aspect;
+  if (h > maxH) {
+    h = maxH;
+    w = h * aspect;
+  }
+  return { w: parseFloat(w.toFixed(4)), h: parseFloat(h.toFixed(4)) };
+}
+
+const WATERMARK_LOGO_CANDIDATES = [
+  'public/orbstera-colored-logo.png',
+  'public/@2026-Logos-orbstera/orbstera-colored-logo.png',
+  'public/Main_logo.png',
+  'public/logo.png.png',
+];
+
+function loadWatermarkLogo(): { dataUri: string; width: number; height: number } | null {
+  for (const rel of WATERMARK_LOGO_CANDIDATES) {
+    const logoPath = path.join(process.cwd(), rel);
+    try {
+      const logoBuffer = fs.readFileSync(logoPath);
+      const dims = readPngDimensions(logoBuffer);
+      if (!dims) continue;
+      return {
+        dataUri: `data:image/png;base64,${logoBuffer.toString('base64')}`,
+        width: dims.width,
+        height: dims.height,
+      };
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
+
+/** Strip # and ensure 6-char uppercase hex (pptxgenjs format) */
+function hex(color?: string): string {
+  return parseColorForPptx(color).color;
+}
+
+/** Map web font names → Office-safe equivalents */
+function mapFont(family?: string): string {
+  if (!family) return 'Calibri';
+  const f = family.toLowerCase();
+  if (f.includes('grotesk') || f.includes('inter') || f.includes('roboto') || f.includes('outfit')) return 'Calibri';
+  if (f.includes('helvetica') || f.includes('arial'))  return 'Arial';
+  if (f.includes('georgia'))                           return 'Georgia';
+  if (f.includes('times'))                             return 'Times New Roman';
+  if (f.includes('trebuchet'))                         return 'Trebuchet MS';
+  if (f.includes('verdana'))                           return 'Verdana';
+  if (f.includes('courier'))                           return 'Courier New';
+  if (f.includes('playfair') || f.includes('lora')) return 'Georgia';
+  if (f.includes('dm sans') || f.includes('dm'))       return 'Calibri';
+  if (f.includes('jetbrains') || f.includes('mono'))   return 'Courier New';
+  return 'Calibri';
+}
+
+/** Legacy heuristic when no explicit `SlideTransition` is set */
+function legacySlideTransition(animStyle?: string, slideType?: string) {
+  const fade: any = { type: 'fade',  speed: 'med' };
+  const push: any = { type: 'push',  dir:   'l',  speed: 'med' };
+  const zoom: any = { type: 'zoom',  speed: 'med' };
+
+  if (animStyle?.includes('cinematic')) return fade;
+  switch (slideType) {
+    case 'hero':     return fade;
+    case 'quote':    return fade;
+    case 'split':    return push;
+    case 'media':    return zoom;
+    case 'chart':    return zoom;
+    case 'stats':    return zoom;
+    case 'timeline': return push;
+    default:         return fade;
+  }
+}
+
+/** Map Orbstera slide transitions → pptxgenjs transition objects */
+function resolveSlideTransitionExport(
+  slide: Slide,
+  animStyle?: string,
+  defaultSlideTransition?: SlideTransition,
+) {
+  const fade: any = { type: 'fade', speed: 'med' };
+  const pushL: any = { type: 'push', dir: 'l', speed: 'med' };
+  const pushU: any = { type: 'push', dir: 'u', speed: 'med' };
+  const zoom: any = { type: 'zoom', speed: 'med' };
+
+  const t = slide.slideTransition || defaultSlideTransition;
+  if (t) {
+    if (t === 'fade' || t === 'crossDissolve' || t === 'blurReveal') return fade;
+    if (t === 'floating') return fade;
+    if (t === 'verticalFlow') return pushU;
+    if (t === 'zoom' || t === 'dynamicScale' || t === 'depth' || t === 'morph') return zoom;
+    if (
+      t === 'smoothSlide' ||
+      t === 'horizontalCinematic' ||
+      t === 'glassSwipe' ||
+      t === 'parallaxFlow' ||
+      t === 'layerReveal' ||
+      t === 'keynote'
+    ) {
+      return pushL;
+    }
+  }
+  return legacySlideTransition(animStyle, slide.type);
+}
+
+// ── Build real OOXML entrance animation for a shape by shapeId ────────────────
+// This injects proper <p:timing> OOXML so PowerPoint actually plays animations
+function buildAnimXml(shapeId: number, entrance: string, delayMs: number, orderIdx: number, durationMs = 600): string {
+  // Map entrance names → OOXML preset IDs
+  const presetMap: Record<string, { preset: number; subtype?: string; dir?: string }> = {
+    none:           { preset: 10 },
+    fadeSlideUp:    { preset: 2,  subtype: 'fromBottom' },   // Fly In from bottom
+    fadeSlideLeft:  { preset: 2,  subtype: 'fromLeft'   },   // Fly In from left
+    slideRight:     { preset: 2,  subtype: 'fromRight'  },
+    fadeIn:         { preset: 10 },                           // Fade
+    zoomIn:         { preset: 18, subtype: 'in'          },   // Zoom
+    elasticScale:   { preset: 18, subtype: 'in'          },   // Zoom
+    reveal:         { preset: 37 },                           // Wipe
+    blurIn:         { preset: 10 },                           // Fade
+    glassBlur:      { preset: 10 },
+    glitch:         { preset: 2,  subtype: 'fromLeft'    },   // Fly In
+    flipIn:         { preset: 8  },                           // Flip
+    bounceIn:       { preset: 38 },                           // Bounce (closest)
+    parallaxDrift:  { preset: 2,  subtype: 'fromLeft' },
+    verticalRise:   { preset: 2,  subtype: 'fromBottom' },
+    horizontalReveal: { preset: 2, subtype: 'fromLeft' },
+    depthRise:      { preset: 18, subtype: 'in' },
+    floatGentle:    { preset: 10 },
+    scaleSoft:      { preset: 18, subtype: 'in' },
+    morphBlend:     { preset: 10 },
+    cinematicImageZoom: { preset: 18, subtype: 'in' },
+    typewriterWords: { preset: 10 },
+    staggerLines:   { preset: 2,  subtype: 'fromBottom' },
+  };
+
+  const info    = presetMap[entrance] || { preset: 10 };
+  const presetId = info.preset;
+  const attrSub  = info.subtype ? ` presetSubtype="${subEnum(info.subtype)}"` : '';
+  const delayEmu = delayMs * 100_000; // EMU = ms * 100000
+
+  // We return a snippet that gets appended to the slide XML timing block.
+  // pptxgenjs exposes `addSlide(...).addElement` with raw XML via the internal
+  // ooxml override. We patch the slide XML directly after generation.
+  // This is the <p:par> block used inside <p:seq> children.
+  const dur = Math.round(Math.max(50, durationMs));
+  return `<p:par><p:cTn id="${orderIdx * 2 + 1}" presetID="${presetId}"${attrSub} presetClass="entr" grpId="0" afterActionClr="false" fill="hold" autoRev="false" restart="whenNotActive" nodeType="clickEffect"><p:stCondLst><p:cond delay="${delayEmu}"/></p:stCondLst><p:childTnLst><p:set><p:cBhvr><p:cTn id="${orderIdx * 2 + 2}" dur="1" fill="hold"/><p:tgtEl><p:spTgt spid="${shapeId}"/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val="visible"/></p:to></p:set><p:animEffect filter="fade" transition="in"><p:cBhvr><p:cTn id="${orderIdx * 2 + 3}" dur="${dur}"/><p:tgtEl><p:spTgt spid="${shapeId}"/></p:tgtEl></p:cBhvr></p:animEffect></p:childTnLst></p:cTn></p:par>`;
+}
+
+// Map subtype strings to Office Open XML enum values
+function subEnum(sub?: string): number {
+  switch (sub) {
+    case 'fromBottom': return 8;
+    case 'fromLeft':   return 2;
+    case 'fromRight':  return 4;
+    case 'fromTop':    return 1;
+    case 'in':         return 1;
+    default:           return 0;
+  }
+}
+
+export type PptxExportBody = PresentationData & { slideImages?: string[] };
+
+export type PptxExportResult =
+  | { mode: 'download'; buffer: ArrayBuffer; fileName: string }
+  | { mode: 'job'; exportKey: string; fileName: string };
+
+async function resolveExportBilling(userId: string): Promise<{ isPaidUser: boolean }> {
+  let isPaidUser = false;
+  let exportCredits = 0;
+
+  const admin = getServiceSupabase();
+  if (!admin) return { isPaidUser: false };
+
+  try {
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('plan')
+      .eq('id', userId)
+      .maybeSingle();
+    const plan = profile?.plan?.toLowerCase() || 'free';
+    isPaidUser = plan === 'pro' || plan === 'creator_pro' || plan === 'student_pro';
+
+    const { data: authUser } = await admin.auth.admin.getUserById(userId);
+    exportCredits =
+      (authUser?.user?.user_metadata?.watermark_free_exports as number | undefined) || 0;
+  } catch {
+    return { isPaidUser: false };
+  }
+
+  const useCredit = !isPaidUser && exportCredits > 0;
+  if (useCredit) {
+    try {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+      const supabaseAdmin = createClient(url, key);
+      await supabaseAdmin.auth.admin.updateUserById(userId, {
+        user_metadata: { watermark_free_exports: exportCredits - 1 },
+      });
+      isPaidUser = true;
+    } catch (err) {
+      console.error('[PPTX] Failed to deduct export credit:', err);
+    }
+  }
+
+  return { isPaidUser };
+}
+
+async function failExportJob(jobId: string, message: string): Promise<void> {
+  try {
+    await updateJobRecord(jobId, { status: 'failed', progress: 0, error: message });
+  } catch (e) {
+    console.error('[pptx-export] failed to update job record', e);
+  }
+}
+
+/**
+ * Core PPTX build — runs in API routes and in-process export workers (no HTTP callback).
+ */
+export async function runPptxExport(params: {
+  userId: string;
+  body: PptxExportBody;
+  jobId?: string;
+}): Promise<PptxExportResult> {
+  const { userId, body, jobId } = params;
+  const { slides, colorPalette, animationStyle, title, defaultSlideTransition } = body;
+
+  if (!slides?.length) {
+    throw new Error('Invalid presentation: missing or empty slides');
+  }
+
+  if (jobId && !isR2Configured()) {
+    const msg = 'Export storage (Cloudflare R2) is not configured';
+    await failExportJob(jobId, msg);
+    throw new Error(msg);
+  }
+
+  try {
+  const { isPaidUser } = await resolveExportBilling(userId);
+
+  const palette = colorPalette || ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'];
+    const bgColor  = hex(palette[0]);
+    const accent   = hex(palette[2] || palette[1]);
+
+    const pptx = new PptxGenJS();
+    pptx.author  = 'Orbstera AI';
+    pptx.company = 'Orbstera';
+    pptx.title   = title || 'Generated Presentation';
+    pptx.defineLayout({ name: 'ORBSTERA_16x9', width: PPTX_W, height: PPTX_H });
+    pptx.layout  = 'ORBSTERA_16x9';
+
+    // ── Pre-fetch ALL images in parallel (dedupe by URL) ─────────────────────
+    type ImgTask = { slideIdx: number; elementId: string; url: string };
+    const imgTasks: ImgTask[] = [];
+    const uniqueUrls = new Set<string>();
+
+    slides.forEach((slide, si) => {
+      for (const el of slide.elements || []) {
+        const isRaster =
+          (el.type === 'image' || el.type === 'icon') && typeof el.src === 'string' && el.src.trim();
+        if (!isRaster || el.aiImagePending) continue;
+        const src = el.src!.trim();
+        imgTasks.push({ slideIdx: si, elementId: el.id, url: src });
+        uniqueUrls.add(src);
+      }
+    });
+
+    const urlToData = new Map<string, string | null>();
+    await Promise.all(
+      [...uniqueUrls].map(async (url) => {
+        const data = await fetchImageAsBase64ForExport(url);
+        urlToData.set(url, data);
+      }),
+    );
+
+    const imgMap = new Map<string, string>();
+    for (const t of imgTasks) {
+      const data = urlToData.get(t.url);
+      if (data) imgMap.set(`${t.slideIdx}:${t.elementId}`, data);
+    }
+
+    const pptSlidesInfo: { bgShapeCount: number; exportedElements: any[] }[] = [];
+
+    // ── Build each slide ──────────────────────────────────────────────────────
+    for (let si = 0; si < slides.length; si++) {
+      const slide    = slides[si];
+      const pptSlide = pptx.addSlide();
+
+      // ── 1. Solid background color ──────────────────────────────────────────
+      pptSlide.background = { color: bgColor };
+
+      // ── 2. (Gradient overlay removed to match current KonvaCanvas background) ──
+
+      // ── 3. Hero background image (low opacity, full-slide) ─────────────────
+      const bgEl = findDeckBackgroundElement(slide.elements);
+
+      let bgShapeCount = 0;
+
+      if (bgEl?.src) {
+        const bgData = imgMap.get(`${si}:${bgEl.id}`);
+        if (bgData) {
+          const bgOpacity = bgEl.opacity ?? 0.18;
+          bgShapeCount++;
+          pptSlide.addImage({
+            x: 0,
+            y: 0,
+            w: PPTX_W,
+            h: PPTX_H,
+            data: bgData,
+            // Removed sizing: 'cover' to prevent background image warping 
+            // AI-generated backgrounds are already 16:9
+          } as any);
+          const bgOverlayTransparency = combinedShapeTransparency(
+            undefined,
+            1 - bgOpacity,
+          );
+          if (bgOverlayTransparency !== undefined && bgOverlayTransparency < 100) {
+            pptSlide.addShape(pptx.ShapeType.rect, {
+              objectName: 'bg-overlay',
+              x: 0,
+              y: 0,
+              w: PPTX_W,
+              h: PPTX_H,
+              fill: { type: 'solid', color: bgColor, transparency: bgOverlayTransparency } as any,
+              line: { type: 'none' },
+            });
+          }
+        }
+      }
+
+      // ── 4. Elements ────────────────────────────────────────────────────────
+      const exportedElements: SlideElement[] = [];
+      const sorted = [...(slide.elements || [])].sort(
+        (a, b) => (a.zIndex || 0) - (b.zIndex || 0)
+      );
+
+      for (let ei = 0; ei < sorted.length; ei++) {
+        const el = sorted[ei];
+        if (el.visible === false) continue;
+        if (isSlideDeckBackgroundImage(el)) continue;
+
+        exportedElements.push(el);
+
+        const _placement = elementPlacement(el);
+        const common = { ..._placement, w: _placement.w as number, h: _placement.h as number, objectName: el.id };
+
+        // ── TEXT ──────────────────────────────────────────────────────────
+        if (el.type === 'text' && el.content) {
+          const ts       = el.textStyle || {};
+          // Convert from px to pt (72pt = 96px -> factor of 0.75)
+          const fontSize = Math.max(6, Math.round((ts.fontSize || 24) * 0.75));
+          const bold     = ts.fontWeight === 'bold' || Number(ts.fontWeight) >= 700;
+          const italic   = ts.fontStyle === 'italic';
+          const align    = (ts.textAlign || 'left') as 'left' | 'center' | 'right' | 'justify';
+
+          pptSlide.addText(el.content, {
+            ...common,
+            fontFace:           mapFont(ts.fontFamily),
+            fontSize,
+            bold,
+            italic,
+            color:              hex(ts.color || '#FFFFFF'),
+            align,
+            valign:             'top',
+            wrap:               true,
+            charSpacing:        ts.letterSpacing || 0,
+            lineSpacingMultiple: ts.lineHeight || 1.4,
+            autoFit:            false,
+            fit:                'shrink',
+            margin:             0,
+          });
+        }
+
+        // ── IMAGE / VIDEO / ICON ─────────────────────────────────────────
+        else if (
+          (el.type === 'image' || el.type === 'icon') &&
+          el.src &&
+          !el.aiImagePending
+        ) {
+          const isVideo = el.src.includes('youtube.com') || el.src.includes('youtu.be') || el.src.split('?')[0].endsWith('.mp4') || el.src.split('?')[0].endsWith('.mov');
+          
+          if (isVideo) {
+            try {
+              if (el.src.includes('youtube.com') || el.src.includes('youtu.be')) {
+                (pptSlide as any).addMedia({
+                  ...common,
+                  type: 'online',
+                  link: el.src,
+                });
+              } else {
+                let videoUrl = el.src;
+                if (videoUrl.includes('?') && !videoUrl.includes('read-asset')) {
+                  videoUrl = videoUrl.split('?')[0];
+                }
+                const b64 = await fetchVideoAsBase64ForExport(el.src);
+                if (b64) {
+                  (pptSlide as any).addMedia({
+                    ...common,
+                    type: 'video',
+                    data: b64,
+                    cover: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+                  });
+                }
+              }
+            } catch (e) {
+              console.error('[pptx-export] video insertion failed:', e);
+            }
+          } else {
+            // Regular Image
+            const imgData =
+              imgMap.get(`${si}:${el.id}`) || (await fetchImageAsBase64ForExport(el.src));
+
+            if (imgData) {
+              const imageTransparency = combinedShapeTransparency(undefined, el.opacity);
+              pptSlide.addImage({
+                ...common,
+                data: imgData,
+                // Removed sizing: 'cover' to prevent image warping in PPTX
+                // The w and h from 'common' already preserve the exact aspect ratio from the canvas
+                rounding: false,
+                ...(imageTransparency !== undefined
+                  ? { transparency: imageTransparency }
+                  : {}),
+              } as any);
+            } else {
+              console.warn('[pptx-export] missing image on slide', si + 1, el.id, (el.src || '').slice(0, 80));
+            }
+          }
+        }
+
+        // ── FREEHAND DRAW ─────────────────────────────────────────────────
+        else if (el.type === 'draw' && el.points && el.points.length >= 4) {
+          const pts = el.points.map((p) => px(p));
+          const strokeParsed = parseColorForPptx(el.shapeStyle?.stroke || el.shapeStyle?.fill || '#38BDF8');
+          pptSlide.addShape(pptx.ShapeType.line, {
+            ...common,
+            line: {
+              color: strokeParsed.color,
+              pt: el.shapeStyle?.strokeWidth || 3,
+              transparency: strokeParsed.transparency,
+            },
+            points: pts,
+          } as any);
+        }
+
+        // ── SHAPE ─────────────────────────────────────────────────────────
+        else if (el.type === 'shape') {
+          const ss = el.shapeStyle || {};
+
+          if (el.shapeType === 'path') {
+            const pathData = shapePathToSvgDataUri(el);
+            if (pathData) {
+              pptSlide.addImage({
+                ...common,
+                data: pathData,
+                sizing: { type: 'contain', w: common.w, h: common.h },
+              });
+            }
+            continue;
+          }
+
+          const fillParsed = ss.fill ? parseColorForPptx(ss.fill) : null;
+          const strokeParsed =
+            ss.stroke && ss.stroke !== 'transparent' ? parseColorForPptx(ss.stroke) : null;
+          const shapeTransparency = combinedShapeTransparency(
+            fillParsed?.transparency,
+            el.opacity,
+          );
+
+          const fill = fillParsed
+            ? {
+                type: 'solid' as const,
+                color: fillParsed.color,
+                ...(shapeTransparency !== undefined ? { transparency: shapeTransparency } : {}),
+              }
+            : { type: 'none' as const };
+
+          const line = pptxShapeLine(ss);
+
+          if (el.shapeType === 'line' || el.shapeType === 'arrow') {
+            const lineColor = strokeParsed?.color || fillParsed?.color || '000000';
+            pptSlide.addShape(
+              el.shapeType === 'arrow' ? pptx.ShapeType.rightArrow : pptx.ShapeType.line,
+              {
+                ...common,
+                line: { color: lineColor, pt: ss.strokeWidth || 4 },
+                fill: fillParsed ? { type: 'solid', color: fillParsed.color } : undefined,
+              } as any,
+            );
+            continue;
+          }
+
+          const shapeType =
+            el.shapeType === 'circle'
+              ? pptx.ShapeType.ellipse
+              : el.shapeType === 'triangle'
+                ? pptx.ShapeType.triangle
+                : el.shapeType === 'star'
+                  ? pptx.ShapeType.star5
+                  : pptx.ShapeType.rect;
+
+          pptSlide.addShape(shapeType, {
+            ...common,
+            fill,
+            line,
+            rectRadius: pptxRectRadius(el),
+          } as any);
+        }
+      }
+
+      // ── 5. Slide transition ────────────────────────────────────────────────
+      const trans = resolveSlideTransitionExport(slide, animationStyle, defaultSlideTransition);
+      (pptSlide as any).transition = trans;
+
+      // ── 6. Speaker notes ───────────────────────────────────────────────────
+      const notes = [
+        slide.speakerNotes,
+        slide.imagePrompt ? `Image Prompt: ${slide.imagePrompt}` : '',
+      ].filter(Boolean).join('\n\n');
+      if (notes) pptSlide.addNotes(notes);
+
+      pptSlidesInfo.push({ bgShapeCount, exportedElements });
+    }
+
+    // ── Watermark: inject on every slide for Free users ──────────────────────
+    if (!isPaidUser) {
+      try {
+        const logo = loadWatermarkLogo();
+        if (!logo) {
+          console.warn('[export/pptx] No watermark logo found in public/; text-only watermark');
+        }
+
+        const WM_MAX_W = 2.05;
+        const WM_MAX_H = 0.42;
+        const WM_MARGIN_X = 0.14;
+        const WM_MARGIN_Y = 0.1;
+        const TAGLINE_H = 0.12;
+
+        let logoPlacement: { x: number; y: number; w: number; h: number } | null = null;
+        if (logo) {
+          const { w, h } = fitImageInBox(logo.width, logo.height, WM_MAX_W, WM_MAX_H);
+          logoPlacement = {
+            w,
+            h,
+            x: parseFloat((PPTX_W - w - WM_MARGIN_X).toFixed(4)),
+            y: parseFloat((PPTX_H - h - WM_MARGIN_Y - TAGLINE_H).toFixed(4)),
+          };
+        }
+
+        const internalSlides = (pptx as unknown as { slides?: unknown }).slides;
+        const allSlides = Array.isArray(internalSlides) ? internalSlides : [];
+        for (const wSlide of allSlides) {
+          if (!wSlide || typeof (wSlide as { addText?: unknown }).addText !== 'function') continue;
+          const ws = wSlide as {
+            addImage?: (o: Record<string, unknown>) => void;
+            addText: (t: string, o: Record<string, unknown>) => void;
+          };
+          if (logo && logoPlacement && typeof ws.addImage === 'function') {
+            ws.addImage({
+              data: logo.dataUri,
+              x: logoPlacement.x,
+              y: logoPlacement.y,
+              w: logoPlacement.w,
+              h: logoPlacement.h,
+            });
+          }
+          const taglineW = 2.0;
+          const taglineX = parseFloat((PPTX_W - taglineW - WM_MARGIN_X).toFixed(4));
+          const taglineY = logoPlacement
+            ? parseFloat((logoPlacement.y + logoPlacement.h + 0.03).toFixed(4))
+            : parseFloat((PPTX_H - TAGLINE_H - WM_MARGIN_Y).toFixed(4));
+          ws.addText('Made with Orbstera AI', {
+            x: taglineX,
+            y: taglineY,
+            w: taglineW,
+            h: TAGLINE_H,
+            fontSize: 7,
+            color: 'BBBBBB',
+            align: 'right',
+            bold: false,
+            isTextBox: true,
+          });
+        }
+      } catch (wmErr) {
+        console.error('[export/pptx] Watermark injection skipped:', wmErr);
+      }
+    }
+
+    // ── Serialise ─────────────────────────────────────────────────────────────
+    const safeTitle = (title || 'presentation')
+      .replace(/[^a-z0-9]/gi, '_')
+      .toLowerCase()
+      .slice(0, 60);
+
+    const buffer = await pptx.write({ outputType: 'arraybuffer' }) as ArrayBuffer;
+
+    // ── Inject entrance animations via OOXML post-processing ─────────────────
+    // Temporarily disabled injectAnimations because it causes file corruption (shape ID mismatches & XML schema violations)
+    let finalBuffer = buffer;
+    if (pptSlidesInfo.length > 0) {
+      finalBuffer = await injectVideoAutoplay(finalBuffer);
+    }
+
+  if (jobId) {
+    const client = getR2Client();
+    const bucket = getR2BucketName();
+    if (!client || !bucket) {
+      throw new Error('Export storage (Cloudflare R2) is not configured');
+    }
+    const exportKey = `exports/${userId}/${jobId}.pptx`;
+    try {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: exportKey,
+          Body: Buffer.from(finalBuffer),
+          ContentType:
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        }),
+      );
+      await updateJobRecord(jobId, {
+        status: 'completed',
+        progress: 100,
+        result: { exportKey, fileName: `${safeTitle}.pptx` },
+      });
+      return { mode: 'job', exportKey, fileName: `${safeTitle}.pptx` };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'PPTX upload failed';
+      await failExportJob(jobId, msg);
+      throw e;
+    }
+  }
+
+  return { mode: 'download', buffer: finalBuffer, fileName: `${safeTitle}.pptx` };
+  } catch (e) {
+    if (jobId) {
+      const msg = e instanceof Error ? e.message : 'PPTX export failed';
+      await failExportJob(jobId, msg);
+    }
+    throw e;
+  }
+}
+
+
+
+// ── Post-process: Inject OOXML animations into the pptx buffer ────────────────
+async function injectAnimations(
+  buffer: ArrayBuffer,
+  pptSlidesInfo: { bgShapeCount: number; exportedElements: SlideElement[] }[],
+): Promise<ArrayBuffer> {
+  try {
+    const JSZip = (await import('jszip')).default;
+    const zip   = await JSZip.loadAsync(buffer);
+
+    for (let si = 0; si < pptSlidesInfo.length; si++) {
+      const slideFile = zip.file(`ppt/slides/slide${si + 1}.xml`);
+      if (!slideFile) continue;
+
+      let xml = await slideFile.async('string');
+
+      const shapeIdMap = new Map<string, number>();
+      const cNvPrRe = /<p:cNvPr\s([^>]+)>/g;
+      let m;
+      while ((m = cNvPrRe.exec(xml)) !== null) {
+        const attrs = m[1];
+        const idM   = /\bid="(\d+)"/.exec(attrs);
+        const nameM = /\bname="([^"]+)"/.exec(attrs);
+        if (idM && nameM) {
+          const id   = parseInt(idM[1], 10);
+          const name = nameM[1];
+          if (id > 1 && name) shapeIdMap.set(name, id);
+        }
+      }
+
+      if (shapeIdMap.size === 0) continue;
+      const meta = pptSlidesInfo[si];
+      if (!meta) continue;
+      const { exportedElements } = meta;
+
+      const hasAnyAnim = exportedElements.some(el => el.animation && el.animation.entrance !== 'none');
+      if (!hasAnyAnim) continue;
+
+      interface AnimEntry { spId: number; entrance: string; delay: number; duration: number }
+      const animEntries: AnimEntry[] = [];
+      exportedElements.forEach((el, i) => {
+        const anim = el.animation;
+        if (!anim || anim.entrance === 'none') return;
+        const spId = shapeIdMap.get(el.id);
+        if (!spId) return;
+        animEntries.push({
+          spId,
+          entrance: anim.entrance,
+          delay:    anim.delay    ?? i * 150,
+          duration: anim.duration ?? 600,
+        });
+      });
+      if (animEntries.length === 0) continue;
+
+      let nodeId = 100;
+      const getId = () => nodeId++;
+      const rootId   = getId();
+      const seqId    = getId();
+
+      const parBlocks = animEntries.map((entry) => {
+        const preset   = getPresetId(entry.entrance);
+        const subtype  = getPresetSubtype(entry.entrance);
+        const subtypeAttr = subtype ? ` presetSubtype="${subtype}"` : '';
+        const dur      = Math.round(Math.max(100, entry.duration));
+        const delayEmu = Math.round(entry.delay) * 100_000;
+        const parId    = getId();
+        const setId    = getId();
+        const animId   = getId();
+        return `<p:par><p:cTn id="${parId}" presetID="${preset}"${subtypeAttr} presetClass="entr" grpId="0" fill="hold" nodeType="clickEffect"><p:stCondLst><p:cond delay="${delayEmu}"/></p:stCondLst><p:childTnLst><p:set><p:cBhvr><p:cTn id="${setId}" dur="1" fill="hold"/><p:tgtEl><p:spTgt spid="${entry.spId}"/></p:tgtEl><p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val="visible"/></p:to></p:set><p:animEffect transition="in" filter="fade"><p:cBhvr><p:cTn id="${animId}" dur="${dur}"/><p:tgtEl><p:spTgt spid="${entry.spId}"/></p:tgtEl></p:cBhvr></p:animEffect></p:childTnLst></p:cTn></p:par>`;
+      }).join('');
+
+      const bldList = animEntries.map((entry, i) =>
+        `<p:bldP spid="${entry.spId}" grpId="${i}" uiExpand="0" build="p"/>`
+      ).join('');
+
+      const timingXml =
+        `<p:timing><p:tnLst><p:par><p:cTn id="${rootId}" dur="indefinite" restart="whenNotActive" nodeType="tmRoot"><p:childTnLst><p:seq concurrent="1" nextAc="seek"><p:cTn id="${seqId}" dur="indefinite" nodeType="mainSeq"><p:childTnLst>${parBlocks}</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onPrevClick" delay="0"><p:tn/></p:cond></p:prevCondLst><p:nextCondLst><p:cond evt="onNextClick" delay="0"><p:tn/></p:cond></p:nextCondLst></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst><p:bldLst>${bldList}</p:bldLst></p:timing>`;
+
+      if (xml.includes('<p:timing>')) {
+        xml = xml.replace(/<p:timing>[\s\S]*?<\/p:timing>/, timingXml);
+      } else if (xml.includes('<p:extLst>')) {
+        xml = xml.replace('<p:extLst>', `${timingXml}<p:extLst>`);
+      } else if (xml.includes('</p:transition>')) {
+        xml = xml.replace('</p:transition>', `</p:transition>${timingXml}`);
+      } else {
+        xml = xml.replace('</p:cSld>', `</p:cSld>${timingXml}`);
+      }
+      zip.file(`ppt/slides/slide${si + 1}.xml`, xml);
+    }
+    return await zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' });
+  } catch (e) {
+    console.error('[PPTX] Animation injection failed:', e);
+    return buffer;
+  }
+}
+
+// ── Post-process: Make embedded MP4 videos autoplay on slide entry ────────────────
+async function injectVideoAutoplay(buffer: ArrayBuffer): Promise<ArrayBuffer> {
+  try {
+    const JSZip = (await import('jszip')).default;
+    const zip   = await JSZip.loadAsync(buffer);
+
+    const slideNames = Object.keys(zip.files)
+      .filter(f => /^ppt\/slides\/slide\d+\.xml$/.test(f))
+      .sort((a, b) => parseInt(a.match(/\d+/)![0]) - parseInt(b.match(/\d+/)![0]));
+
+    for (const slideFileName of slideNames) {
+      const slideFile = zip.file(slideFileName);
+      if (!slideFile) continue;
+
+      let xml = await slideFile.async('string');
+
+      const videoShapeIds: number[] = [];
+      const picRe = /<p:pic>[\s\S]*?<\/p:pic>/g;
+      let picM;
+      while ((picM = picRe.exec(xml)) !== null) {
+        if (picM[0].includes('<a:videoFile')) {
+          const idM = /id="(\d+)"/.exec(picM[0]);
+          if (idM) videoShapeIds.push(parseInt(idM[1], 10));
+        }
+      }
+      if (videoShapeIds.length === 0) continue;
+
+      let maxId = 0;
+      for (const m of xml.matchAll(/ id="(\d+)"/g)) {
+        const n = parseInt(m[1], 10);
+        if (n > maxId) maxId = n;
+      }
+      let nid = Math.max(maxId + 50, 500);
+      const nxt = () => nid++;
+
+      const buildVideoPar = (spId: number) => {
+        const [a, b, c, d] = [nxt(), nxt(), nxt(), nxt()];
+        return (
+          `<p:par><p:cTn id="${a}" fill="hold" nodeType="withEffect">` +
+            `<p:stCondLst><p:cond delay="0"/></p:stCondLst>` +
+            `<p:childTnLst>` +
+              `<p:par><p:cTn id="${b}" fill="hold">` +
+                `<p:stCondLst><p:cond delay="0"/></p:stCondLst>` +
+                `<p:childTnLst>` +
+                  `<p:par><p:cTn id="${c}" dur="indefinite" fill="hold">` +
+                    `<p:stCondLst><p:cond delay="0"/></p:stCondLst>` +
+                    `<p:childTnLst>` +
+                      `<p:video><p:cMediaNode vol="80000">` +
+                        `<p:cTn id="${d}" dur="indefinite" fill="hold" display="0" repeatCount="indefinite"/>` +
+                        `<p:tgtEl><p:spTgt spid="${spId}"/></p:tgtEl>` +
+                      `</p:cMediaNode></p:video>` +
+                    `</p:childTnLst>` +
+                  `</p:cTn></p:par>` +
+                `</p:childTnLst>` +
+              `</p:cTn></p:par>` +
+            `</p:childTnLst>` +
+          `</p:cTn></p:par>`
+        );
+      };
+
+      const videoPars = videoShapeIds.map(buildVideoPar).join('');
+      let injected = false;
+      if (xml.includes('nodeType="mainSeq"')) {
+        xml = xml.replace(/(nodeType="mainSeq"[^>]*><p:childTnLst>)/, `$1${videoPars}`);
+        // We do NOT inject <p:bldP> for videos. Build paragraphs are for text animations.
+        // PowerPoint silently rejects autoplay if media elements have bogus paragraph builds!
+        injected = true;
+      }
+
+      if (!injected) {
+        let seqId = nxt();
+        let timingXml = 
+          `<p:timing><p:tnLst><p:par><p:cTn id="${nxt()}" dur="indefinite" restart="whenNotActive" nodeType="tmRoot"><p:childTnLst><p:seq concurrent="1" nextAc="seek"><p:cTn id="${seqId}" dur="indefinite" nodeType="mainSeq"><p:childTnLst>${videoPars}</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onPrevClick" delay="0"><p:tn><p:cTnRef id="${seqId}"/></p:tn></p:cond></p:prevCondLst><p:nextCondLst><p:cond evt="onNextClick" delay="0"><p:tn><p:cTnRef id="${seqId}"/></p:tn></p:cond></p:nextCondLst></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>`;
+        if (xml.includes('<p:extLst>')) {
+          xml = xml.replace('<p:extLst>', `${timingXml}<p:extLst>`);
+        } else if (xml.includes('</p:transition>')) {
+          xml = xml.replace('</p:transition>', `</p:transition>${timingXml}`);
+        } else {
+          xml = xml.replace('</p:cSld>', `</p:cSld>${timingXml}`);
+        }
+      }
+      zip.file(slideFileName, xml);
+    }
+    return zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' });
+  } catch (err) {
+    console.error('[pptx-export] injectVideoAutoplay failed', err);
+    return buffer;
+  }
+}
+
+function getPresetId(entrance: string): number {
+  const map: Record<string, number> = {
+    none: 10, fadeSlideUp: 2, fadeSlideLeft: 2, slideRight: 2,
+    fadeIn: 10, zoomIn: 18, elasticScale: 18, reveal: 37,
+    blurIn: 10, glassBlur: 10, glitch: 2, flipIn: 8,
+    bounceIn: 38, parallaxDrift: 2, verticalRise: 2, horizontalReveal: 2,
+    depthRise: 18, floatGentle: 10, scaleSoft: 18, morphBlend: 10,
+    cinematicImageZoom: 18, typewriterWords: 10, staggerLines: 2,
+  };
+  return map[entrance] || 10;
+}
+
+function getPresetSubtype(entrance: string): number | undefined {
+  const map: Record<string, number> = {
+    fadeSlideUp: 8, verticalRise: 8, staggerLines: 8,
+    fadeSlideLeft: 2, parallaxDrift: 2, horizontalReveal: 2, glitch: 2,
+    slideRight: 4, zoomIn: 1, elasticScale: 1, depthRise: 1,
+    scaleSoft: 1, cinematicImageZoom: 1,
+  };
+  return map[entrance];
+}
+
+
+==================================================
+FILE: src/lib/export.ts
+==================================================
+
+import { PresentationData } from '@/types';
+import {
+  preparePresentationForCloudSave,
+  encodePresentationPostBody,
+  postPptxExportViaStaging,
+  encodedBodyByteLength,
+  VERCEL_DIRECT_POST_MAX_BYTES,
+} from '@/lib/presentation-cloud-save';
+import { EXPORT_OFFLOAD_BLOCKED_MESSAGE } from '@/lib/network-error-message';
+
+/** Stay under typical serverless request body limits after gzip (Vercel ~4.5 MB). */
+const EXPORT_JSON_BYTE_WARN = 3_800_000;
+
+function isPptxZipSignature(buf: ArrayBuffer): boolean {
+  if (buf.byteLength < 4) return false;
+  const u = new Uint8Array(buf);
+  return u[0] === 0x50 && u[1] === 0x4b;
+}
+
+async function readExportFailureMessage(res: Response): Promise<string> {
+  const ct = (res.headers.get('content-type') || '').toLowerCase();
+  const status = res.status;
+  if (ct.includes('application/json')) {
+    const j = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      detail?: string;
+      message?: string;
+    };
+    const msg = typeof j.message === 'string' ? j.message.trim() : '';
+    if (msg) return msg;
+    const err = typeof j.error === 'string' ? j.error.trim() : '';
+    const detail = typeof j.detail === 'string' ? j.detail.trim() : '';
+    if (detail && (!err || err === 'Export failed')) return detail.slice(0, 900);
+    if (err && detail && err !== detail) return `${err}: ${detail.slice(0, 600)}`;
+    if (err) return err;
+    if (detail) return detail.slice(0, 900);
+  } else {
+    const text = await res.text().catch(() => '');
+    if (text.trimStart().startsWith('{')) {
+      try {
+        const j = JSON.parse(text) as { error?: string; message?: string; detail?: string };
+        if (typeof j.message === 'string' && j.message.trim()) return j.message.trim();
+        const d = typeof j.detail === 'string' ? j.detail.trim() : '';
+        const er = typeof j.error === 'string' ? j.error.trim() : '';
+        if (d && (!er || er === 'Export failed')) return d.slice(0, 900);
+        if (er) return er;
+      } catch {
+        /* ignore */
+      }
+    }
+    if (status === 413) {
+      return 'The export payload is too large for a direct upload. Try again—large decks use cloud staging automatically.';
+    }
+    if (text.trim()) return text.trim().slice(0, 500);
+  }
+  if (status === 401) return 'Sign in required to export.';
+  if (status === 429) return 'Too many export requests. Try again shortly.';
+  return `Export failed (HTTP ${status}).`;
+}
+
+/**
+ * Export a presentation to PPTX.
+ *
+ * Strategy: send the raw presentation data (elements with coordinates, text,
+ * images, shapes) to the server. The server uses pptxgenjs to build a fully
+ * editable PPTX file with real text boxes, embedded images, and shapes —
+ * NOT screenshots. This makes every element selectable and editable in
+ * PowerPoint, Keynote, and LibreOffice.
+ *
+ * Large inline images are uploaded to R2 first (same path as cloud save) so the JSON POST stays small.
+ * When the encoded POST body still exceeds the Vercel limit, the deck is staged to R2 (same as large saves)
+ * and the export route loads it from a small JSON reference.
+ */
+/**
+ * Converts all blob: URLs in a presentation clone to base64 data: URLs so they
+ * survive the export pipeline (blob URLs are browser-session-only and cannot be
+ * sent to the server).  Failures for individual images are silently ignored —
+ * the element will simply be left without an image rather than blocking the
+ * whole export.
+ */
+async function resolveBlobUrls(presentation: PresentationData): Promise<PresentationData> {
+  const hasBlobUrls = (presentation.slides || []).some(
+    (s) =>
+      (s.imageUrl || '').startsWith('blob:') ||
+      (s.elements || []).some((el) => el.type === 'image' && (el.src || '').startsWith('blob:')),
+  );
+  if (!hasBlobUrls) return presentation;
+
+  const clone = structuredClone(presentation) as PresentationData;
+
+  async function blobToDataUrl(blobUrl: string): Promise<string | null> {
+    try {
+      const res = await fetch(blobUrl);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  for (const slide of clone.slides || []) {
+    if ((slide.imageUrl || '').startsWith('blob:')) {
+      const dataUrl = await blobToDataUrl(slide.imageUrl!);
+      if (dataUrl) slide.imageUrl = dataUrl;
+    }
+    for (const el of slide.elements || []) {
+      if (el.type === 'image' && (el.src || '').startsWith('blob:')) {
+        const dataUrl = await blobToDataUrl(el.src!);
+        if (dataUrl) el.src = dataUrl;
+        else el.src = ''; // clear unresolvable blob URL so it doesn't get sent as-is
+      }
+    }
+  }
+
+  return clone;
+}
+
+export async function exportToPptx(presentation: PresentationData): Promise<void> {
+  // Resolve any blob: URLs to base64 data URLs before cloud-save preparation,
+  // since blob URLs are session-only and cannot be sent to the server.
+  const withResolvedBlobs = await resolveBlobUrls(presentation);
+  const prepared = await preparePresentationForCloudSave(withResolvedBlobs);
+
+  const pendingImages = (prepared.slides || []).some((s) =>
+    (s.elements || []).some((el) => el.type === 'image' && el.aiImagePending && !el.src?.trim()),
+  );
+  if (pendingImages) {
+    throw new Error(
+      'Some images are still generating. Wait for them to finish on the canvas, then export again.',
+    );
+  }
+  const json = JSON.stringify(prepared);
+  const byteLength = new TextEncoder().encode(json).byteLength;
+
+  if (byteLength > EXPORT_JSON_BYTE_WARN && json.includes('data:image')) {
+    throw new Error(EXPORT_OFFLOAD_BLOCKED_MESSAGE);
+  }
+
+  const { body, headers } = await encodePresentationPostBody(json);
+  const payloadBytes = encodedBodyByteLength(body);
+
+  const response =
+    payloadBytes > VERCEL_DIRECT_POST_MAX_BYTES
+      ? await postPptxExportViaStaging(prepared, body, headers)
+      : await fetch('/api/export/pptx', {
+          method: 'POST',
+          headers,
+          body,
+          cache: 'no-store',
+        });
+
+  if (!response.ok) {
+    throw new Error(await readExportFailureMessage(response));
+  }
+
+  const disposition = response.headers.get('Content-Disposition');
+  const match = disposition?.match(/filename="(.+?)"/);
+  const filename = match?.[1] || 'presentation.pptx';
+
+  const buffer = await response.arrayBuffer();
+
+  if (!isPptxZipSignature(buffer)) {
+    const slice = buffer.byteLength > 800 ? buffer.slice(0, 800) : buffer;
+    const head = new TextDecoder().decode(slice);
+    if (head.trimStart().startsWith('{')) {
+      try {
+        const j = JSON.parse(head) as { error?: string };
+        if (typeof j.error === 'string' && j.error.trim()) {
+          throw new Error(j.error.trim());
+        }
+      } catch (e) {
+        if (e instanceof SyntaxError) {
+          /* partial JSON in truncated slice — ignore */
+        } else if (e instanceof Error) {
+          throw e;
+        }
+      }
+    }
+    throw new Error('Server returned a response that is not a valid PPTX file. Try again or check server logs.');
+  }
+
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+
+==================================================
+FILE: src/lib/ai/prompts.ts
+==================================================
+
+/**
+ * Deck generation prompts — re-exports from deck-generation-skill (Gamma-style pipeline).
+ */
+export {
+  GAMMA_PHILOSOPHY,
+  SLIDE_TYPE_PLAYBOOK,
+  IMAGE_PROMPT_FORMULA,
+  HEADLINE_RULES,
+  DECK_JSON_SCHEMA,
+  COMPOSER_EXECUTION_RULES,
+  DIRECTOR_INTENT_SYSTEM,
+  DIRECTOR_STRUCTURE_SYSTEM,
+  DIRECTOR_REASON_SYSTEM,
+  POLISH_SYSTEM,
+  buildComposerSystemPrompt,
+  buildComposerUserPrompt,
+  buildDeckImagePrompt,
+  buildFallbackImagePrompt,
+} from '@/lib/ai/deck-generation-skill';
+
+/** @deprecated Use DIRECTOR_INTENT_SYSTEM via prompt-chain */
+export const PREFLIGHT_SYSTEM = `You are a strategic analyst. Output ONE raw JSON object only.
+
+Schema:
+{
+  "presentationType": "startup_pitch | investor_deck | business_proposal | education | product_showcase | marketing | corporate | storytelling | futuristic | timeline | portfolio | data_story",
+  "detectedIntent": "one sentence",
+  "recommendedStyle": "apple_keynote | startup_pitch | minimal_dark | corporate | futuristic | luxury | glassmorphism | bento | editorial | creative | cinematic",
+  "interviewAnswers": {
+    "primaryAudience": "who this deck is for",
+    "primaryOutcome": "what success looks like",
+    "contentDepth": "summary | balanced | detailed",
+    "visualDirection": "brand/visual direction",
+    "toneDirection": "speaking/communication tone"
+  },
+  "narrativeArc": ["act labels"],
+  "outline": [{"segment":"section name","slideIdeas":["idea 1","idea 2"]}],
+  "visualRules": {
+    "density": "sparse | balanced | rich",
+    "maxBulletsPerSlide": 4,
+    "imageryMood": "short phrase for consistent AI imagery"
+  }
+}
+
+No markdown. JSON only.`;
+
+/** Legacy alias — kept for imports that reference DECK_JSON_RULES */
+export { DECK_JSON_SCHEMA as DECK_JSON_RULES } from '@/lib/ai/deck-generation-skill';
+
+
+==================================================
+FILE: src/lib/ai/deck-generation-skill.ts
+==================================================
+
+/**
+ * Gamma-style deck generation skill — single source of truth for AI orchestration.
+ * Pipeline: Director → Spine (orders per slide) → Composer (executor).
+ */
+
+export const GAMMA_PHILOSOPHY = `
+GAMMA MODE — how premium auto-decks are built:
+1. DIRECTOR analyzes intent and writes explicit ORDERS for every slide (slideSpine).
+2. COMPOSER is an EXECUTOR — it does NOT freestyle structure. It fills each ordered slot with JSON.
+3. Every slide is a cinematic SCENE: headline + optional bullets + mandatory background imagePrompt.
+4. Visual continuity: one imageryMood family, one palette story, one typography pairing across the deck, but every slide gets a unique scene, crop, and composition.
+5. Headlines are punchy (3–8 words). Bullets MUST be highly detailed, informative, and comprehensive (15-30 words each). Do NOT output short fragments. Ensure the user gets all the needed details.
+6. Zero generic AI slop: ban "revolutionary", "game-changing", "synergy", "leverage", "cutting-edge", lorem ipsum.
+7. No cheap template look: avoid pale grey washed backgrounds, default centered title slides, repeated white cards, and same-looking slide structure.
+`;
+
+export const VISUAL_QUALITY_BAR = `
+VISUAL QUALITY BAR:
+- Every slide must feel like a professionally art-directed deck page, not a document converted to slides.
+- Use specific layout names in slide.layout: e.g. "asymmetric editorial opener", "bento KPI grid", "cinematic media split", "executive comparison board".
+- Never create a deck where most slides are grey background + centered white title + generic bullets.
+- Vary scale: one large hero moment, one dense proof page, one split proof page, one data/metric page, one quiet close.
+- Backgrounds should be intentional: either clean solid brand color or strong image scene. Do not add a light grey wash over the whole slide.
+`;
+
+export const SLIDE_TYPE_PLAYBOOK = `
+SLIDE TYPE PLAYBOOK (pick intentionally — never default everything to "content"):
+- hero: Opening hook. Big title + subtitle. Full-bleed cinematic background. Use once at start.
+- split: Concept + visual proof. Title + 2–4 bullets left, hero image right. Great for features, process, story beats.
+- content: Single idea with 3–5 bullets. Full-bleed subtle background. Use for frameworks, lists, explanations.
+- bullets: Denser list-forward layout when 4–6 points matter.
+- quote: Pull-quote or testimonial. Title = quote text, subtitle = attribution.
+- stats: Numbers that prove a point. Bullets = stat lines like "87% faster onboarding". Keep ≤4.
+- comparison: Contrast pairs or "Option A vs B" points.
+- timeline: Chronological steps. Roadmaps, history, process.
+- media: Visual-first split — product showcase.
+- closing: CTA or memorable close. Title = action headline, subtitle = next step. Use once at end.
+
+LAYOUT RHYTHM (mandatory variety):
+- Never 3+ adjacent slides with the same type.
+- For N slides: use at least min(N-2, 5) distinct types when N≥6.
+`;
+
+export const LAYOUT_CATEGORY_PLAYBOOK = `
+LAYOUT CATEGORY PLAYBOOK (user-selected; obey as the deck's structural language):
+- editorial: magazine-style asymmetry, large headlines, image/text tension, varied editorial pages.
+- bento: modular card grids, nested panels, compact dashboards, grouped proof blocks.
+- cinematic: full-bleed imagery, dramatic crops, minimal copy, scene-by-scene storytelling.
+- corporate: executive clarity, safe grids, metrics, comparisons, readable boardroom structure.
+- pitch: investor rhythm with problem, solution, market, product, traction, roadmap, ask.
+- product: large product/media showcases, feature callouts, visual proof, before/after.
+- data_story: KPI cards, comparisons, dashboards, insight-first evidence slides.
+- timeline: roadmaps, milestones, process flows, chronological and sequence-based pages.
+- minimal: sparse layouts, generous whitespace, few elements, precise hierarchy.
+- luxury: refined editorial spacing, premium restraint, boutique imagery, elegant contrast.
+`;
+
+export const IMAGE_PROMPT_FORMULA = `
+IMAGE PROMPT FORMULA (required on EVERY slide — FLUX renders full-bleed backgrounds):
+Structure: [Subject/scene] + [lighting/mood] + [color palette alignment] + [camera/style] + [constraints]
+
+Rules:
+- 2–4 sentences per imagePrompt. Highly specific. Cinematic photography or abstract texture.
+- Match the imageryMood family from the director brief, but vary subject, framing, scale, and camera distance on each slide.
+- Never reuse the same scene or composition twice in a row.
+- NO text, logos, watermarks in image.
+- NO generic stock office scenes unless user asked corporate.
+- Background-appropriate: atmospheric, bokeh, gradient mesh, macro texture.
+`;
+
+export const HEADLINE_RULES = `
+HEADLINE & COPY RULES:
+- title: 3–8 words, active voice, specific (not "Introduction" or "Overview").
+- subtitle: optional, ≤12 words.
+- bullets: 3-6 per slide, highly detailed and informative, each 15-30 words, parallel grammar. Avoid short shallow statements.
+- speakerNotes: 2–4 sentences, conversational delivery cues.
+- Write in the user's requested language.
+`;
+
+export const DECK_JSON_SCHEMA = `
+OUTPUT: VALID RAW JSON ONLY. No markdown fences. No HTML. No preamble.
+
+Root: title, theme, presentationType, styleMode, layoutCategory, colorPalette, fontPairing, animationStyle, defaultSlideTransition, cinematicPresenterEffects, slides[]
+
+Each slide MUST include:
+id, type, layout, title, subtitle (optional), bullets (optional), visualStyle,
+imagePrompt (REQUIRED 2–4 sentences — NEVER empty),
+visualDirection, backgroundStyle, slideTransition (optional), animation, speakerNotes, chart
+`;
+
+export const COMPOSER_EXECUTION_RULES = `
+COMPOSER EXECUTION RULES (Gamma-style):
+
+1. SPINE OBEDIENCE: If slideSpine exists, slides[i] MUST implement slideSpine[i]:
+   type ← typeHint, title ← headlineAngle, bullets ← supportingPoints, imagePrompt ← expand imageBrief
+
+2. IMAGE PROMPT: EVERY slide non-empty imagePrompt.
+
+3. VARIETY: No deck where >40% slides are "content".
+
+4. MOTION: Hero/closing → cinematicImageZoom or blurIn. Lists → staggerLines. Splits → slideRight.
+
+5. IMAGE RHYTHM: Keep the same palette and mood family, but every slide imagePrompt must vary in subject, crop, or scene geometry.
+
+6. OUTPUT: Start with { — no text before JSON.
+`;
+
+export const DIRECTOR_INTENT_SYSTEM = `You are the Creative Director for a Gamma-class presentation engine.
+
+${GAMMA_PHILOSOPHY}
+
+Output ONE raw JSON object only (no markdown):
+{
+  "intentSummary": "one sentence",
+  "presentationType": "startup_pitch | investor_deck | business_proposal | education | product_showcase | marketing | corporate | storytelling | data_story | portfolio | other",
+  "presentationCategory": "short label",
+  "audienceType": "investors | executives | customers | students | conference_attendees | general_public",
+  "emotionalTone": "confident | urgent | warm | analytical | inspirational",
+  "needsDeepReasoning": false,
+  "promptEnhancement": "Rich paragraph 800–1200 chars: sharpen story, infer context, emotional arc. Same language as user.",
+  "recommendedStyle": "apple_keynote | startup_pitch | minimal_dark | corporate | futuristic | luxury | glassmorphism | bento | editorial | creative | cinematic",
+  "visualMood": "Specific mood family for the slide backgrounds e.g. midnight indigo volumetric light",
+  "imageryPalette": "Color/lighting keywords for FLUX e.g. deep navy, electric violet, soft bloom",
+  "densityMode": "minimal | standard | rich",
+  "cinematicIntensity": "low | medium | high",
+  "fontSuggestion": {"heading":"Font","body":"Font"},
+  "colorPaletteSuggestion": ["#bg","#text","#accent","#muted"],
+  "successCriteria": ["2–5 criteria"]
+}
+
+needsDeepReasoning true ONLY for heavy technical/legal/scientific decks.`;
+
+export const DIRECTOR_STRUCTURE_SYSTEM = `You are the Slide Architect — write explicit ORDERS for every slide (Gamma slideSpine).
+
+${SLIDE_TYPE_PLAYBOOK}
+
+Output ONE raw JSON only:
+{
+  "acts": [{"name": "Act", "beats": ["beats"]}],
+  "slideSpine": [
+    {
+      "index": 1,
+      "typeHint": "hero|split|content|quote|stats|comparison|timeline|closing|media|bullets",
+      "headlineAngle": "headline intent — 3–8 words",
+      "subtitleAngle": "optional or null",
+      "supportingPoints": ["highly detailed and rich bullet point intents (20-30 words each)"],
+      "layoutHint": "full-bleed | split-image-right | bento | editorial | cinematic",
+      "imageBrief": "1–2 sentence FLUX background scene — REQUIRED",
+      "emotionalBeat": "curiosity | tension | proof | relief | aspiration | action",
+      "animationHint": "fadeSlideUp | cinematicImageZoom | staggerLines | etc"
+    }
+  ],
+  "flowNotes": "tension and release across deck",
+  "toneGuardrails": "voice rules and banned clichés",
+  "imageryContinuity": "background consistency notes"
+}
+
+CRITICAL:
+- slideSpine length === requested slide count exactly (index 1..N).
+- index 1 = hero, index N = closing (unless user forbids).
+- Every entry: non-empty imageBrief.
+- Never 3 identical typeHint in a row.`;
+
+export const DIRECTOR_REASON_SYSTEM = `Strategic reasoning for a high-stakes deck. Plain text max 600 words: persuasion logic, proof, risks, emotional landing per act. No JSON.`;
+
+export const POLISH_SYSTEM = `Final polish agent for Gamma-class deck JSON.
+
+${HEADLINE_RULES}
+${IMAGE_PROMPT_FORMULA}
+${VISUAL_QUALITY_BAR}
+
+Sharpen headlines/bullets, ensure every slide has strong imagePrompt, improve animation. Preserve slide count, ids, types. JSON only.`;
+
+export function buildComposerSystemPrompt(preflightBlock: string): string {
+  return `You are Orbstera's Deck Composer — an EXECUTION ENGINE.
+
+${GAMMA_PHILOSOPHY}
+${DECK_JSON_SCHEMA}
+${SLIDE_TYPE_PLAYBOOK}
+${LAYOUT_CATEGORY_PLAYBOOK}
+${VISUAL_QUALITY_BAR}
+${IMAGE_PROMPT_FORMULA}
+${HEADLINE_RULES}
+${COMPOSER_EXECUTION_RULES}
+
+ORCHESTRATION ORDERS (OBEY ABSOLUTELY):
+${preflightBlock}
+
+Before output: slides count correct, every imagePrompt non-empty, spine mapped 1:1, JSON only.`;
+}
+
+export function buildComposerUserPrompt(args: {
+  userPrompt: string;
+  refinedBrief: string;
+  slideCount: number;
+  tone: string;
+  language: string;
+  styleMode?: string;
+  layoutCategory?: string;
+  imageSource?: 'ai' | 'unsplash' | 'none';
+}): string {
+  const style =
+    args.styleMode && args.styleMode !== 'auto'
+      ? `\nArt style (imagePrompt must reflect): ${args.styleMode}`
+      : '';
+  const images =
+    args.imageSource === 'none'
+      ? '\nImage source: none — prioritize typography and layout; imagePrompt still required for optional backgrounds.'
+      : args.imageSource === 'unsplash'
+        ? '\nImage source: unsplash — imagePrompt must describe realistic stock-photo scenes.'
+        : '\nImage source: AI — imagePrompt must be vivid, specific, and unique per slide.';
+  const layoutCategory = args.layoutCategory?.trim()
+    ? `\nLayout category (must shape slide structures, not only colors): ${args.layoutCategory}`
+    : '';
+  return `EXECUTE the deck JSON now.
+
+USER REQUEST:
+${args.userPrompt}
+
+MASTER BRIEF (orders — prioritize):
+${args.refinedBrief}
+
+PARAMETERS:
+- EXACTLY ${args.slideCount} slides
+- Tone: ${args.tone}
+- Language: ${args.language}${style}${layoutCategory}${images}
+
+LAYOUT VARIETY (mandatory):
+- Use hero once, closing once, and at least 4 distinct types among: split, content, stats, timeline, comparison, quote, bullets, media.
+- Never assign "content" or "split" to more than 35% of slides.
+- Alternate layout rhythm — no 3 identical types in a row.
+- Root layoutCategory must equal the selected layout category and every slide.layout must name a concrete layout pattern from that category.
+- Hard visual ban: no pale grey full-slide overlays, no repeated generic background cards, no default centered-title templates except a deliberate hero/closing.
+
+For each slide i (1..${args.slideCount}):
+1. Implement slideSpine[i]: typeHint, headlineAngle, supportingPoints, imageBrief
+2. title = headlineAngle (3–8 words)
+3. imagePrompt = expand imageBrief + visualMood family + a distinct composition choice for that slide (2–4 sentences)
+4. Never empty imagePrompt
+
+Return ONLY the deck JSON. No markdown. No preamble.`;
+}
+
+type DeckImagePromptContext = {
+  title?: string;
+  type?: string;
+  slideIndex?: number;
+  slideCount?: number;
+  layoutHint?: string;
+  presentationType?: string;
+  visualMood?: string;
+  imageryPalette?: string;
+  basePrompt?: string;
+  layoutCategory?: string;
+};
+
+const TYPE_RECIPES: Record<string, string[]> = {
+  hero: [
+    'wide establishing shot with generous negative space and a single dominant focal subject',
+    'low-angle hero composition with strong leading lines and an editorial sense of scale',
+    'cinematic portrait framing with layered foreground and background separation',
+    'monumental wide shot with quiet atmosphere and one clear visual anchor',
+  ],
+  split: [
+    'editorial split composition with the subject on one side and contextual environment on the other',
+    'balanced two-zone layout with a clean text-safe area and a distinct visual proof element',
+    'off-center framing that leaves breathing room for copy while keeping the scene grounded',
+  ],
+  content: [
+    'clean editorial scene with one clear subject and a restrained supporting background',
+    'quiet concept image with tactile detail and a strong negative-space layout',
+    'structured visual metaphor with depth, but no clutter or crowded surfaces',
+  ],
+  bullets: [
+    'organized workspace-style scene with multiple subtle focal points and clear hierarchy',
+    'layered concept board composition with enough detail to support multiple bullet ideas',
+    'calm, readable scene with a strong center and secondary supporting elements',
+  ],
+  quote: [
+    'intimate portrait or stage-lit scene with soft depth of field and emotional restraint',
+    'quiet spotlight composition with a single human or symbolic subject',
+    'minimal, reflective image with premium editorial mood and a strong center',
+  ],
+  stats: [
+    'abstract data sculpture with luminous metrics and a crisp, analytical feel',
+    'dashboard-inspired scene with geometric structure and one dominant number shape',
+    'clean information-rich composition with clear metric emphasis and subtle motion',
+  ],
+  comparison: [
+    'clear left-right contrast with two distinct materials, scenes, or lighting conditions',
+    'dual-path composition showing opposing ideas in one cohesive frame',
+    'balanced side-by-side visual contrast with a sharp divide and editorial polish',
+  ],
+  timeline: [
+    'progression scene with a clear directional path from foreground to background',
+    'linear or diagonal journey composition that visually suggests sequence and momentum',
+    'layered process image with depth cues that read like a structured roadmap',
+  ],
+  media: [
+    'product-first showcase with studio lighting and premium presentation framing',
+    'visual proof composition centered on the object, screen, or subject with clean margins',
+    'hero product scene with strong material detail and a polished showcase feel',
+  ],
+  closing: [
+    'resolving wide shot with optimistic light and a strong call-to-action space',
+    'open horizon composition with calm confidence and a memorable final focal point',
+    'concluding editorial scene that feels clean, premium, and forward-looking',
+  ],
+  default: [
+    'premium editorial scene with one dominant subject and one supporting visual cue',
+    'cinematic concept image with clear hierarchy and generous text-safe spacing',
+    'clean atmospheric composition with depth, texture, and restrained motion',
+  ],
+};
+
+function stableHash(input: string): number {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
+
+function normalizePhrase(value?: string): string {
+  return (value || '').trim().replace(/\s+/g, ' ').replace(/[.?!]+$/g, '');
+}
+
+function chooseRecipe(kind: string, seed: string): string {
+  const recipes = TYPE_RECIPES[kind] || TYPE_RECIPES.default;
+  const index = recipes.length > 0 ? stableHash(seed) % recipes.length : 0;
+  return recipes[index] || TYPE_RECIPES.default[0];
+}
+
+function normalizeRecipeKind(raw: string): string {
+  const kind = raw.toLowerCase();
+  if (kind.includes('hero') || kind.includes('cinematic') || kind.includes('banner')) return 'hero';
+  if (kind.includes('split')) return 'split';
+  if (kind.includes('quote') || kind.includes('testimonial')) return 'quote';
+  if (kind.includes('stat') || kind.includes('metric') || kind.includes('data')) return 'stats';
+  if (kind.includes('timeline') || kind.includes('roadmap') || kind.includes('sequence')) return 'timeline';
+  if (kind.includes('comparison') || kind.includes('contrast') || kind.includes('vs')) return 'comparison';
+  if (kind.includes('media') || kind.includes('product') || kind.includes('showcase')) return 'media';
+  if (kind.includes('bullet') || kind.includes('list')) return 'bullets';
+  if (kind.includes('close') || kind.includes('cta') || kind.includes('ending')) return 'closing';
+  if (kind.includes('editorial') || kind.includes('bento') || kind.includes('content') || kind.includes('full-bleed')) {
+    return 'content';
+  }
+  return kind || 'default';
+}
+
+export function buildDeckImagePrompt(args: DeckImagePromptContext): string {
+  const title = normalizePhrase(args.title);
+  const topic = title || normalizePhrase(args.presentationType) || normalizePhrase(args.type) || 'presentation theme';
+  const mood = normalizePhrase(args.visualMood) || 'cinematic atmospheric';
+  const palette = normalizePhrase(args.imageryPalette) || 'deep dark elegant tones';
+  const kind = normalizePhrase(args.layoutHint || args.type) || 'content';
+  const category = normalizePhrase(args.layoutCategory);
+  const basePrompt = normalizePhrase(args.basePrompt);
+  const slideSeed = `${args.slideIndex ?? 'x'}:${args.slideCount ?? 'x'}:${category}:${kind}:${topic}`;
+  const recipeKind = normalizeRecipeKind(kind);
+  const recipe = chooseRecipe(recipeKind, slideSeed);
+  const sceneKind = recipeKind === 'default' ? kind : recipeKind;
+  const scene =
+    basePrompt ||
+    `${mood} ${sceneKind} image about "${topic}"`;
+  const continuity =
+    typeof args.slideCount === 'number' && args.slideCount > 1
+      ? 'Keep this visually distinct from the other slides in the deck.'
+      : 'Keep this visually distinct and non-generic.';
+  const categoryLine = category ? `Layout family: ${category}; make the image composition support that layout language. ` : '';
+  return `${scene}. Composition: ${recipe}. ${categoryLine}Color and lighting: ${palette}. ${continuity} Full-bleed 16:9, no text, no logos, no watermark.`;
+}
+
+export function buildFallbackImagePrompt(args: DeckImagePromptContext): string {
+  return buildDeckImagePrompt(args);
+}
+
+
+==================================================
+FILE: src/lib/deck-image-generation.ts
+==================================================
+
+import { persistGeneratedImage } from '@/lib/client/persist-generated-image';
+import { buildGradientPlaceholderDataUrl, resolveVisualTheme } from '@/lib/visual-themes';
+
+export type DeckImageTask = {
+  slideId: string;
+  elementId: string;
+  prompt: string;
+  w: number;
+  h: number;
+  visualProfile: 'cinematic' | 'typography';
+};
+
+/** Parallel Leonardo jobs — 4 keeps speed without tripping rate limits */
+const DECK_IMAGE_CONCURRENCY = 4;
+
+type StoreGet = () => {
+  presentation?: { id?: string; slides?: { id: string }[]; theme?: string; colorPalette?: string[] } | null;
+  editor: {
+    generationEpoch: number;
+    isGenerating: boolean;
+    plannerHandoff?: { imageSource?: 'ai' | 'unsplash' | 'none'; themeName?: string };
+  };
+  trackDeckGenerationImage: (work: () => Promise<void>) => void;
+  updateElement: (slideId: string, elementId: string, patch: Record<string, unknown>) => void;
+};
+
+function placeholderForTask(get: StoreGet, task: DeckImageTask): string {
+  const pres = get().presentation;
+  const themeId = get().editor.plannerHandoff?.themeName ?? pres?.theme;
+  const preset = resolveVisualTheme(themeId);
+  const [c1, c2] = [preset.colorPalette[2], preset.colorPalette[0]];
+  return buildGradientPlaceholderDataUrl(task.w, task.h, c1, c2);
+}
+
+function clearPendingImage(get: StoreGet, task: DeckImageTask, src: string): void {
+  get().updateElement(task.slideId, task.elementId, {
+    src,
+    aiImagePending: false,
+  });
+}
+
+async function fetchImageUrl(
+  imageSource: 'ai' | 'unsplash',
+  task: DeckImageTask,
+): Promise<{ url?: string; imageId?: string; failed?: boolean }> {
+  if (imageSource === 'unsplash') {
+    const res = await fetch('/api/unsplash', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: task.prompt }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return { failed: true };
+    return { url: typeof json.url === 'string' ? json.url : undefined };
+  }
+
+  const res = await fetch('/api/generate-image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      prompt: task.prompt,
+      width: task.w,
+      height: task.h,
+      visualProfile: task.visualProfile,
+      task: 'deck_slide_image',
+      polish: false,
+    }),
+  });
+
+  const json = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    console.warn('[deck-image] API error', res.status, json);
+    return { failed: true };
+  }
+
+  return {
+    url: typeof json.url === 'string' ? json.url : undefined,
+    imageId: typeof json.imageId === 'string' ? json.imageId : undefined,
+    failed: !json.url,
+  };
+}
+
+/**
+ * Deck image jobs with bounded concurrency. CDN URLs paint instantly; R2 upload is background.
+ */
+export function runDeckImageTasks(get: StoreGet, tasks: DeckImageTask[], deckId: string): void {
+  if (tasks.length === 0) return;
+
+  const imageSource = get().editor.plannerHandoff?.imageSource ?? 'ai';
+
+  if (imageSource === 'none') {
+    for (const task of tasks) {
+      if (get().presentation?.id !== deckId) return;
+      clearPendingImage(get, task, '');
+    }
+    return;
+  }
+
+  const runOne = async (task: DeckImageTask) => {
+    if (get().presentation?.id !== deckId) return;
+
+    let result = await fetchImageUrl(imageSource, task);
+
+    if (!result.url) {
+      await new Promise((r) => setTimeout(r, 300));
+      result = await fetchImageUrl(imageSource, task);
+    }
+
+    if (get().presentation?.id !== deckId) return;
+
+    if (!result.url) {
+      clearPendingImage(get, task, placeholderForTask(get, task));
+      return;
+    }
+
+    const rawUrl = result.url;
+
+    get().updateElement(task.slideId, task.elementId, {
+      src: rawUrl,
+      aiImagePending: false,
+      ...(result.imageId ? { aiMetadata: { leonardoImageId: result.imageId } } : {}),
+    });
+
+    if (!rawUrl.startsWith('data:') && !rawUrl.includes('/api/presentations/read-asset')) {
+      void persistGeneratedImage(rawUrl, deckId).then((finalSrc) => {
+        if (get().presentation?.id !== deckId) return;
+        if (finalSrc && finalSrc !== rawUrl) {
+          get().updateElement(task.slideId, task.elementId, { src: finalSrc });
+        }
+      });
+    }
+  };
+
+  let nextIndex = 0;
+  let active = 0;
+
+  const pump = () => {
+    while (active < DECK_IMAGE_CONCURRENCY && nextIndex < tasks.length) {
+      const task = tasks[nextIndex++];
+      active++;
+      get().trackDeckGenerationImage(async () => {
+        try {
+          await runOne(task);
+        } finally {
+          active--;
+          pump();
+        }
+      });
+    }
+  };
+
+  pump();
+}
+
+
+==================================================
+FILE: src/lib/deck-slide-layout.ts
+==================================================
+
+import type { DeckLayoutCategory, SlideElement } from '@/types';
+import type { DeckImageTask } from '@/lib/deck-image-generation';
+import { buildDeckImagePrompt } from '@/lib/ai/deck-generation-skill';
+import type { VisualBackgroundMode } from '@/lib/visual-themes';
+import {
+  DEFAULT_DECK_LAYOUT_CATEGORY,
+  getDeckLayoutCategoryOption,
+  normalizeDeckLayoutCategory,
+} from '@/lib/deck-layout-categories';
+import { regionToLeonardoPixels } from '@/lib/leonardo-dimensions';
+
+export const DECK_CANVAS_W = 1280;
+export const DECK_CANVAS_H = 720;
+
+/** Estimate Konva/PPTX-safe text box height from content length. */
+export function estimateTextBlockHeight(
+  text: string,
+  fontSize: number,
+  width: number,
+  lineHeight = 1.15,
+  minH = 72,
+  maxH = 180,
+): number {
+  const trimmed = text.trim();
+  if (!trimmed) return minH;
+  const charsPerLine = Math.max(10, Math.floor(width / (fontSize * 0.52)));
+  const lines = Math.max(1, Math.ceil(trimmed.length / charsPerLine));
+  return Math.min(maxH, Math.max(minH, Math.round(lines * fontSize * lineHeight + 6)));
+}
+
+export type AiSlideInput = {
+  id: string;
+  type?: string;
+  title?: string;
+  subtitle?: string;
+  bullets?: string[];
+  content?: { bullets?: string[] };
+  imagePrompt?: string;
+};
+
+export type BuildDeckSlideLayoutArgs = {
+  slide: AiSlideInput;
+  sIdx: number;
+  slideCount?: number;
+  layoutCategory?: DeckLayoutCategory | string;
+  palette: string[];
+  headingFont: string;
+  bodyFont: string;
+  uid: (prefix: string) => string;
+  existingElements?: SlideElement[];
+  backgroundMode?: VisualBackgroundMode;
+};
+
+export type BuildDeckSlideLayoutResult = {
+  elements: SlideElement[];
+  imageTasks: DeckImageTask[];
+};
+
+export function resolveDeckImagePrompt(
+  slide: AiSlideInput,
+  ctx?: {
+    slideIndex?: number;
+    slideCount?: number;
+    layoutHint?: string;
+    layoutCategory?: DeckLayoutCategory | string;
+    visualMood?: string;
+    imageryPalette?: string;
+    presentationType?: string;
+  },
+): string {
+  const explicit = typeof slide.imagePrompt === 'string' ? slide.imagePrompt.trim() : '';
+  return buildDeckImagePrompt({
+    basePrompt: explicit || undefined,
+    title: slide.title,
+    type: slide.type,
+    slideIndex: ctx?.slideIndex,
+    slideCount: ctx?.slideCount,
+    layoutHint: ctx?.layoutHint || slide.type,
+    layoutCategory: ctx?.layoutCategory,
+    visualMood: ctx?.visualMood,
+    imageryPalette: ctx?.imageryPalette,
+    presentationType: ctx?.presentationType,
+  });
+}
+
+const glassCard = (light: boolean) =>
+  light
+    ? {
+        fill: 'rgba(255, 255, 255, 0.96)',
+        stroke: 'rgba(255, 255, 255, 1)',
+        strokeWidth: 2,
+        cornerRadius: 32,
+        shadowColor: 'rgba(0, 30, 80, 0.08)',
+        shadowBlur: 48,
+        shadowOffsetY: 16,
+      }
+    : {
+        fill: 'rgba(255, 255, 255, 0.04)',
+        stroke: 'rgba(255, 255, 255, 0.12)',
+        strokeWidth: 1,
+        cornerRadius: 32,
+        shadowColor: 'rgba(0,0,0,0.6)',
+        shadowBlur: 64,
+        shadowOffsetY: 24,
+      };
+
+const bulletPill = (light: boolean) =>
+  light
+    ? {
+        fill: 'rgba(255, 255, 255, 0.98)',
+        stroke: 'rgba(0,0,0,0.03)',
+        strokeWidth: 1,
+        cornerRadius: 20,
+        shadowColor: 'rgba(0, 30, 80, 0.05)',
+        shadowBlur: 16,
+        shadowOffsetY: 6,
+      }
+    : {
+        fill: 'rgba(255, 255, 255, 0.05)',
+        stroke: 'rgba(255, 255, 255, 0.1)',
+        strokeWidth: 1,
+        cornerRadius: 20,
+        shadowColor: 'rgba(0,0,0,0.4)',
+        shadowBlur: 24,
+        shadowOffsetY: 8,
+      };
+
+function resolveContentVariant(category: DeckLayoutCategory, sIdx: number): 0 | 1 | 2 {
+  const rhythms: Record<DeckLayoutCategory, (0 | 1 | 2)[]> = {
+    editorial: [0, 2, 1, 0, 2],
+    bento: [2, 2, 1, 2, 0],
+    cinematic: [0, 0, 2, 0, 1],
+    corporate: [1, 2, 1, 1, 2],
+    pitch: [0, 2, 1, 2, 0],
+    product: [0, 2, 0, 1, 2],
+    data_story: [2, 1, 2, 2, 1],
+    timeline: [1, 2, 1, 0, 2],
+    minimal: [1, 1, 0, 1, 2],
+    luxury: [0, 1, 0, 2, 0],
+  };
+  const rhythm = rhythms[category] || rhythms[DEFAULT_DECK_LAYOUT_CATEGORY];
+  return rhythm[sIdx % rhythm.length];
+}
+
+function prefersImageBackground(category: DeckLayoutCategory, slideType?: string): boolean {
+  if (slideType === 'hero' || slideType === 'quote' || slideType === 'closing' || slideType === 'media') return true;
+  if (category === 'cinematic' || category === 'luxury' || category === 'product') return true;
+  if (category === 'corporate' || category === 'minimal' || category === 'data_story') return false;
+  return true;
+}
+
+/**
+ * Gamma-style slide layouts: full-bleed backgrounds, glass cards, editorial hierarchy.
+ */
+export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDeckSlideLayoutResult {
+  const { slide, sIdx, slideCount, palette, headingFont, bodyFont, uid } = args;
+  const layoutCategory = normalizeDeckLayoutCategory(args.layoutCategory);
+  const layoutOption = getDeckLayoutCategoryOption(layoutCategory);
+  const imageTasks: DeckImageTask[] = [];
+  const elements: SlideElement[] = [...(args.existingElements || [])];
+  let currentZ = elements.length + 1;
+  const light = args.backgroundMode === 'light';
+  const bgColor = palette[0] || (light ? '#FFFFFF' : '#05050A');
+  const textPrimary = palette[1] || (light ? '#1F2937' : '#FFFFFF');
+  const textMuted = palette[3] || palette[1];
+
+  const nestedB = slide.content?.bullets;
+  const mergedB = [...(slide.bullets || []), ...(nestedB || [])].filter(
+    (b, i, a) => b && a.indexOf(b) === i,
+  );
+  const isHero = slide.type === 'hero';
+  const isSplit = slide.type === 'split' || slide.type === 'media';
+  const isQuote = slide.type === 'quote';
+  const isClosing = slide.type === 'closing';
+  const isStats = slide.type === 'stats';
+  const isTimeline = slide.type === 'timeline';
+  const isComparison = slide.type === 'comparison';
+  const isBullets = slide.type === 'bullets';
+  const flipSplit =
+    layoutCategory === 'product' || layoutCategory === 'cinematic'
+      ? sIdx % 3 === 1
+      : sIdx % 2 === 1;
+  const imagePrompt = resolveDeckImagePrompt(slide, {
+    slideIndex: sIdx,
+    slideCount,
+    layoutHint: `${layoutOption.label} ${slide.type || 'content'} layout`,
+    layoutCategory,
+  });
+  const accent = palette[2] || '#7B61FF';
+
+  const pushImageTask = (task: Omit<DeckImageTask, 'prompt' | 'slideId'> & { prompt?: string }) => {
+    imageTasks.push({
+      slideId: slide.id,
+      elementId: task.elementId,
+      prompt: task.prompt ?? imagePrompt,
+      w: task.w,
+      h: task.h,
+      visualProfile: task.visualProfile,
+    });
+  };
+
+  const addSolidBackground = () => {
+    elements.unshift({
+      id: uid('el-bg-solid'),
+      type: 'shape',
+      shapeType: 'rect',
+      x: 0,
+      y: 0,
+      width: DECK_CANVAS_W,
+      height: DECK_CANVAS_H,
+      zIndex: 0,
+      visible: true,
+      shapeStyle: { fill: bgColor, stroke: 'transparent', strokeWidth: 0 },
+      animation: { entrance: 'fadeIn', duration: 400, delay: 0 },
+    });
+    
+    // Abstract premium accents for all solid layouts to avoid ugly white emptiness
+    elements.unshift({
+      id: uid('el-bg-ribbon-1'),
+      type: 'shape',
+      shapeType: 'rect',
+      x: DECK_CANVAS_W - 550,
+      y: -200,
+      width: 280,
+      height: DECK_CANVAS_H + 400,
+      rotation: 35,
+      zIndex: 0,
+      visible: true,
+      shapeStyle: { fill: accent, opacity: light ? 0.04 : 0.08 },
+      animation: { entrance: 'fadeSlideLeft', duration: 1200, delay: 0 },
+    });
+    elements.unshift({
+      id: uid('el-bg-ribbon-2'),
+      type: 'shape',
+      shapeType: 'rect',
+      x: DECK_CANVAS_W - 250,
+      y: -300,
+      width: 80,
+      height: DECK_CANVAS_H + 600,
+      rotation: 35,
+      zIndex: 0,
+      visible: true,
+      shapeStyle: { fill: textPrimary, opacity: light ? 0.02 : 0.05 },
+      animation: { entrance: 'fadeSlideLeft', duration: 1000, delay: 100 },
+    });
+    elements.unshift({
+      id: uid('el-bg-frame'),
+      type: 'shape',
+      shapeType: 'rect',
+      x: 32,
+      y: 32,
+      width: DECK_CANVAS_W - 64,
+      height: DECK_CANVAS_H - 64,
+      zIndex: 0,
+      visible: true,
+      shapeStyle: { 
+        fill: 'transparent', 
+        stroke: textPrimary, 
+        strokeWidth: 1, 
+        opacity: light ? 0.06 : 0.12 
+      },
+      animation: { entrance: 'fadeIn', duration: 1500, delay: 300 },
+    });
+
+    currentZ = Math.max(currentZ, 1);
+  };
+
+  const addFullBleedBackground = (bgOpacity: number, visualProfile: 'cinematic' | 'typography') => {
+    const bgId = uid('el-bg-image');
+    const imageOpacity = light ? Math.max(0.72, bgOpacity) : bgOpacity;
+    elements.unshift({
+      id: bgId,
+      type: 'image',
+      src: '',
+      x: 0,
+      y: 0,
+      width: DECK_CANVAS_W,
+      height: DECK_CANVAS_H,
+      zIndex: 0,
+      visible: true,
+      opacity: imageOpacity,
+      aiImagePending: true,
+      animation: { entrance: 'fadeIn', duration: 1200, delay: 0 },
+    });
+    pushImageTask({
+      elementId: bgId,
+      w: 1024,
+      h: 576,
+      visualProfile,
+    });
+    if (!light) {
+      elements.push({
+        id: uid('el-bg-overlay'),
+        type: 'shape',
+        shapeType: 'rect',
+        x: 0,
+        y: 0,
+        width: DECK_CANVAS_W,
+        height: DECK_CANVAS_H,
+        zIndex: 1,
+        visible: true,
+        shapeStyle: {
+          fill: 'rgba(5, 5, 12, 0.3)',
+          stroke: 'transparent',
+          strokeWidth: 0,
+        },
+        animation: { entrance: 'fadeIn', duration: 800, delay: 0 },
+      });
+      currentZ = Math.max(currentZ, 2);
+    } else {
+      currentZ = Math.max(currentZ, 1);
+    }
+  };
+
+  if (isHero) {
+    if (layoutCategory === 'minimal' || layoutCategory === 'corporate') {
+      addSolidBackground();
+    } else {
+      addFullBleedBackground(layoutCategory === 'cinematic' ? 0.48 : 0.42, 'typography');
+    }
+    const titleText = slide.title?.trim() ?? '';
+    const titleFontSize = titleText.length > 42 ? 64 : titleText.length > 28 ? 76 : 88;
+    const titleW = DECK_CANVAS_W - 192;
+    const titleHeight = titleText
+      ? estimateTextBlockHeight(titleText, titleFontSize, titleW, 1.08, 100, 280)
+      : 0;
+    const subFontSize = 34;
+    const subW = DECK_CANVAS_W - 440;
+    const subHeight = slide.subtitle
+      ? estimateTextBlockHeight(slide.subtitle, subFontSize, subW, 1.5, 72, 120)
+      : 0;
+    const titleY = 108;
+    const subtitleY = titleY + titleHeight + 24;
+    const heroScrimH = titleHeight + (slide.subtitle ? subHeight + 48 : 32) + 36;
+
+    if (slide.title) {
+      elements.push({
+        id: uid('el-title-scrim'),
+        type: 'shape',
+        shapeType: 'rect',
+        x: 48,
+        y: titleY - 28,
+        width: DECK_CANVAS_W - 96,
+        height: heroScrimH,
+        zIndex: currentZ++,
+        visible: true,
+        shapeStyle: glassCard(light),
+        animation: { entrance: 'fadeIn', duration: 600, delay: 0 },
+      });
+      elements.push({
+        id: uid('el-title'),
+        type: 'text',
+        x: 96,
+        y: titleY,
+        width: titleW,
+        height: titleHeight,
+        content: slide.title,
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: headingFont,
+          fontSize: titleFontSize,
+          fontWeight: 'bold',
+          color: textPrimary,
+          textAlign: 'center',
+          lineHeight: 1.08,
+        },
+        animation: { entrance: 'fadeSlideUp', duration: 900, delay: 80 },
+      });
+    }
+    if (slide.subtitle) {
+      elements.push({
+        id: uid('el-sub'),
+        type: 'text',
+        x: 220,
+        y: subtitleY,
+        width: subW,
+        height: subHeight,
+        content: slide.subtitle,
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: bodyFont,
+          fontSize: subFontSize,
+          fontWeight: 'normal',
+          color: textMuted,
+          textAlign: 'center',
+          lineHeight: 1.5,
+          letterSpacing: 2,
+        },
+        animation: { entrance: 'fadeSlideUp', duration: 900, delay: 220 },
+      });
+    }
+  } else if (isSplit) {
+    addSolidBackground();
+    const textX = flipSplit ? 640 : 56;
+    const imgPanelX = flipSplit ? 56 : 640;
+
+    elements.push({
+      id: uid('el-split-glass'),
+      type: 'shape',
+      shapeType: 'rect',
+      x: textX,
+      y: 48,
+      width: 584,
+      height: DECK_CANVAS_H - 96,
+      zIndex: currentZ++,
+      visible: true,
+      shapeStyle: glassCard(light),
+      animation: { entrance: 'fadeSlideLeft', duration: 650, delay: 0 },
+    });
+
+    const titleFontSize = 44;
+    const titleWidth = 520;
+    const titleY = 108;
+    const titleHeight = slide.title
+      ? estimateTextBlockHeight(slide.title, titleFontSize, titleWidth, 1.15, 90, 160)
+      : 0;
+    const bulletsStartY = slide.title ? titleY + titleHeight + 20 : 248;
+    const maxBullets = Math.max(1, Math.min(5, Math.floor((560 - bulletsStartY) / 76)));
+
+    if (slide.title) {
+      elements.push({
+        id: uid('el-accent'),
+        type: 'shape',
+        shapeType: 'rect',
+        x: textX + 32,
+        y: 88,
+        width: 72,
+        height: 5,
+        zIndex: currentZ++,
+        visible: true,
+        shapeStyle: { fill: accent, stroke: 'transparent', cornerRadius: 3 },
+        animation: { entrance: 'reveal', duration: 500, delay: 120 },
+      });
+      elements.push({
+        id: uid('el-title'),
+        type: 'text',
+        x: textX + 32,
+        y: titleY,
+        width: titleWidth,
+        height: titleHeight,
+        content: slide.title,
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: headingFont,
+          fontSize: titleFontSize,
+          fontWeight: 'bold',
+          color: textPrimary,
+          textAlign: 'left',
+          lineHeight: 1.15,
+        },
+        animation: { entrance: 'fadeSlideLeft', duration: 650, delay: 160 },
+      });
+    }
+
+    mergedB.slice(0, maxBullets).forEach((bullet, i) => {
+      const y = bulletsStartY + i * 76;
+      elements.push({
+        id: uid(`el-bullet-bg-${i}`),
+        type: 'shape',
+        shapeType: 'rect',
+        x: textX + 32,
+        y,
+        width: 520,
+        height: 58,
+        zIndex: currentZ++,
+        visible: true,
+        shapeStyle: bulletPill(light),
+        animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 280 + i * 70 },
+      });
+      elements.push({
+        id: uid(`el-bullet-${i}`),
+        type: 'text',
+        x: textX + 52,
+        y: y + 14,
+        width: 480,
+        height: 48,
+        content: bullet.replace(/^•\s*/, ''),
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: bodyFont,
+          fontSize: 27,
+          fontWeight: 'normal',
+          color: textMuted,
+          textAlign: 'left',
+          lineHeight: 1.6,
+        },
+        animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 320 + i * 70 },
+      });
+    });
+
+    const imgId = uid('el-image');
+    elements.push({
+      id: uid('el-split-frame'),
+      type: 'shape',
+      shapeType: 'rect',
+      x: imgPanelX,
+      y: 48,
+      width: 584,
+      height: DECK_CANVAS_H - 96,
+      zIndex: currentZ++,
+      visible: true,
+      shapeStyle: {
+        fill: 'rgba(255,255,255,0.02)',
+        stroke: 'rgba(255,255,255,0.14)',
+        strokeWidth: 1,
+        cornerRadius: 24,
+      },
+      animation: { entrance: 'slideRight', duration: 700, delay: 0 },
+    });
+    elements.push({
+      id: imgId,
+      type: 'image',
+      src: '',
+      aiImagePending: true,
+      x: imgPanelX + 16,
+      y: 64,
+      width: 552,
+      height: DECK_CANVAS_H - 128,
+      zIndex: currentZ++,
+      visible: true,
+      animation: { entrance: 'zoomIn', duration: 850, delay: 200 },
+    });
+    const splitImgW = 552;
+    const splitImgH = DECK_CANVAS_H - 128;
+    const splitPixels = regionToLeonardoPixels(splitImgW, splitImgH);
+    pushImageTask({
+      elementId: imgId,
+      w: splitPixels.width,
+      h: splitPixels.height,
+      visualProfile: 'cinematic',
+    });
+  } else if (isQuote) {
+    addFullBleedBackground(0.36, 'cinematic');
+    elements.push({
+      id: uid('el-quote-glass'),
+      type: 'shape',
+      shapeType: 'rect',
+      x: 120,
+      y: 120,
+      width: DECK_CANVAS_W - 240,
+      height: DECK_CANVAS_H - 240,
+      zIndex: currentZ++,
+      visible: true,
+      shapeStyle: glassCard(light),
+      animation: { entrance: 'zoomIn', duration: 800, delay: 0 },
+    });
+    const quoteFontSize = 58;
+    const quoteW = DECK_CANVAS_W - 320;
+    const quoteY = 200;
+    let quoteBottomY = quoteY;
+    if (slide.title) {
+      const quoteText = `"${slide.title.replace(/^"|"$/g, '')}"`;
+      const quoteHeight = estimateTextBlockHeight(quoteText, quoteFontSize, quoteW, 1.55, 120, 260);
+      quoteBottomY = quoteY + quoteHeight;
+      elements.push({
+        id: uid('el-quote'),
+        type: 'text',
+        x: 160,
+        y: quoteY,
+        width: quoteW,
+        height: quoteHeight,
+        content: quoteText,
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: headingFont,
+          fontSize: quoteFontSize,
+          fontWeight: 'normal',
+          fontStyle: 'italic',
+          color: textPrimary,
+          textAlign: 'center',
+          lineHeight: 1.55,
+        },
+        animation: { entrance: 'fadeIn', duration: 1000, delay: 200 },
+      });
+    }
+    if (slide.subtitle) {
+      const authorFontSize = 30;
+      const authorW = DECK_CANVAS_W - 320;
+      const authorHeight = estimateTextBlockHeight(slide.subtitle, authorFontSize, authorW, 1.5, 56, 80);
+      const authorY = slide.title ? quoteBottomY + 20 : 400;
+      elements.push({
+        id: uid('el-author'),
+        type: 'text',
+        x: 160,
+        y: authorY,
+        width: authorW,
+        height: authorHeight,
+        content: `— ${slide.subtitle}`,
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: bodyFont,
+          fontSize: 30,
+          fontWeight: 'bold',
+          color: accent,
+          textAlign: 'center',
+          letterSpacing: 3,
+        },
+        animation: { entrance: 'fadeIn', duration: 900, delay: 400 },
+      });
+    }
+  } else if (isClosing) {
+    addFullBleedBackground(0.38, 'cinematic');
+    if (slide.title) {
+      elements.push({
+        id: uid('el-close-title'),
+        type: 'text',
+        x: 120,
+        y: DECK_CANVAS_H / 2 - 72,
+        width: DECK_CANVAS_W - 240,
+        height: 120,
+        content: slide.title,
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: headingFont,
+          fontSize: 68,
+          fontWeight: 'bold',
+          color: textPrimary,
+          textAlign: 'center',
+          lineHeight: 1.1,
+        },
+        animation: { entrance: 'fadeSlideUp', duration: 800, delay: 100 },
+      });
+    }
+    if (slide.subtitle) {
+      elements.push({
+        id: uid('el-close-sub'),
+        type: 'text',
+        x: 200,
+        y: DECK_CANVAS_H / 2 + 56,
+        width: DECK_CANVAS_W - 400,
+        height: 48,
+        content: slide.subtitle,
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: bodyFont,
+          fontSize: 30,
+          color: textMuted,
+          textAlign: 'center',
+          letterSpacing: 1.5,
+        },
+        animation: { entrance: 'fadeIn', duration: 800, delay: 280 },
+      });
+    }
+  } else if (isStats) {
+    addSolidBackground();
+    if (slide.title) {
+      elements.push({
+        id: uid('el-title'),
+        type: 'text',
+        x: 72,
+        y: 56,
+        width: DECK_CANVAS_W - 144,
+        height: 64,
+        content: slide.title,
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: headingFont,
+          fontSize: 50,
+          fontWeight: 'bold',
+          color: textPrimary,
+          textAlign: 'left',
+        },
+        animation: { entrance: 'fadeSlideUp', duration: 550, delay: 0 },
+      });
+    }
+    const statItems = mergedB.slice(0, 4);
+    const colW = (DECK_CANVAS_W - 144) / Math.max(statItems.length, 1);
+    statItems.forEach((stat, i) => {
+      const parts = stat.split(/[:\u2013\u2014-]/);
+      const value = parts[0]?.trim() || stat;
+      const label = parts.slice(1).join(' ').trim() || '';
+      const x = 72 + i * colW;
+      elements.push({
+        id: uid(`el-stat-card-${i}`),
+        type: 'shape',
+        shapeType: 'rect',
+        x,
+        y: 160,
+        width: colW - 24,
+        height: 420,
+        zIndex: currentZ++,
+        visible: true,
+        shapeStyle: glassCard(light),
+        animation: { entrance: 'zoomIn', duration: 520, delay: 120 + i * 90 },
+      });
+      elements.push({
+        id: uid(`el-stat-val-${i}`),
+        type: 'text',
+        x: x + 24,
+        y: 220,
+        width: colW - 72,
+        height: 120,
+        content: value,
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: headingFont,
+          fontSize: 68,
+          fontWeight: 'bold',
+          color: accent,
+          textAlign: 'left',
+          lineHeight: 1,
+        },
+        animation: { entrance: 'fadeSlideUp', duration: 500, delay: 180 + i * 90 },
+      });
+      if (label) {
+        elements.push({
+          id: uid(`el-stat-lbl-${i}`),
+          type: 'text',
+          x: x + 24,
+          y: 360,
+          width: colW - 72,
+          height: 80,
+          content: label,
+          zIndex: currentZ++,
+          visible: true,
+          textStyle: {
+            fontFamily: bodyFont,
+            fontSize: 26,
+            color: textMuted,
+            textAlign: 'left',
+            lineHeight: 1.6,
+          },
+          animation: { entrance: 'fadeIn', duration: 450, delay: 240 + i * 90 },
+        });
+      }
+    });
+  } else if (isTimeline) {
+    addFullBleedBackground(0.3, 'cinematic');
+    if (slide.title) {
+      elements.push({
+        id: uid('el-title'),
+        type: 'text',
+        x: 72,
+        y: 48,
+        width: DECK_CANVAS_W - 144,
+        height: 56,
+        content: slide.title,
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: headingFont,
+          fontSize: 46,
+          fontWeight: 'bold',
+          color: textPrimary,
+          textAlign: 'left',
+        },
+        animation: { entrance: 'fadeSlideUp', duration: 500, delay: 0 },
+      });
+    }
+    const steps = mergedB.slice(0, 5);
+    const stepW = (DECK_CANVAS_W - 144) / Math.max(steps.length, 1);
+    elements.push({
+      id: uid('el-timeline-line'),
+      type: 'shape',
+      shapeType: 'rect',
+      x: 96,
+      y: 340,
+      width: DECK_CANVAS_W - 192,
+      height: 3,
+      zIndex: currentZ++,
+      visible: true,
+      shapeStyle: { fill: accent, cornerRadius: 2 },
+      animation: { entrance: 'reveal', duration: 600, delay: 100 },
+    });
+    steps.forEach((step, i) => {
+      const x = 72 + i * stepW + stepW / 2 - 20;
+      elements.push({
+        id: uid(`el-step-dot-${i}`),
+        type: 'shape',
+        shapeType: 'circle',
+        x,
+        y: 328,
+        width: 28,
+        height: 28,
+        zIndex: currentZ++,
+        visible: true,
+        shapeStyle: { fill: accent, stroke: light ? bgColor : '#fff', strokeWidth: 3 },
+        animation: { entrance: 'zoomIn', duration: 400, delay: 200 + i * 80 },
+      });
+      elements.push({
+        id: uid(`el-step-${i}`),
+        type: 'text',
+        x: 72 + i * stepW,
+        y: 380,
+        width: stepW - 16,
+        height: 120,
+        content: step.replace(/^•\s*/, ''),
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: bodyFont,
+          fontSize: 24,
+          color: textMuted,
+          textAlign: 'center',
+          lineHeight: 1.55,
+        },
+        animation: { entrance: 'fadeIn', duration: 450, delay: 280 + i * 80 },
+      });
+    });
+  } else if (isComparison) {
+    addSolidBackground();
+    if (slide.title) {
+      elements.push({
+        id: uid('el-title'),
+        type: 'text',
+        x: 72,
+        y: 48,
+        width: DECK_CANVAS_W - 144,
+        height: 56,
+        content: slide.title,
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: headingFont,
+          fontSize: 46,
+          fontWeight: 'bold',
+          color: textPrimary,
+          textAlign: 'center',
+        },
+        animation: { entrance: 'fadeSlideUp', duration: 500, delay: 0 },
+      });
+    }
+    const mid = Math.ceil(mergedB.length / 2);
+    const leftItems = mergedB.slice(0, mid);
+    const rightItems = mergedB.slice(mid);
+    const colW = (DECK_CANVAS_W - 160) / 2;
+    [
+      { items: leftItems, x: 64, label: 'A' },
+      { items: rightItems, x: 64 + colW + 32, label: 'B' },
+    ].forEach((col, ci) => {
+      elements.push({
+        id: uid(`el-cmp-col-${ci}`),
+        type: 'shape',
+        shapeType: 'rect',
+        x: col.x,
+        y: 140,
+        width: colW,
+        height: 480,
+        zIndex: currentZ++,
+        visible: true,
+        shapeStyle: glassCard(light),
+        animation: { entrance: ci === 0 ? 'fadeSlideLeft' : 'slideRight', duration: 600, delay: 80 },
+      });
+      col.items.slice(0, 4).forEach((item, i) => {
+        elements.push({
+          id: uid(`el-cmp-${ci}-${i}`),
+          type: 'text',
+          x: col.x + 28,
+          y: 180 + i * 88,
+          width: colW - 56,
+          height: 72,
+          content: `• ${item.replace(/^•\s*/, '')}`,
+          zIndex: currentZ++,
+          visible: true,
+          textStyle: {
+            fontFamily: bodyFont,
+            fontSize: 28,
+            color: textMuted,
+            textAlign: 'left',
+            lineHeight: 1.6,
+          },
+          animation: { entrance: 'fadeIn', duration: 450, delay: 200 + i * 70 },
+        });
+      });
+    });
+  } else if (isBullets) {
+    if (layoutCategory === 'corporate' || layoutCategory === 'minimal' || layoutCategory === 'data_story') {
+      addSolidBackground();
+    } else {
+      addFullBleedBackground(0.28, 'typography');
+    }
+    if (slide.title) {
+      elements.push({
+        id: uid('el-title'),
+        type: 'text',
+        x: 96,
+        y: 64,
+        width: DECK_CANVAS_W - 192,
+        height: 72,
+        content: slide.title,
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: headingFont,
+          fontSize: 52,
+          fontWeight: 'bold',
+          color: textPrimary,
+          textAlign: 'left',
+        },
+        animation: { entrance: 'fadeSlideUp', duration: 550, delay: 0 },
+      });
+    }
+    mergedB.slice(0, 6).forEach((bullet, i) => {
+      const y = 168 + i * 82;
+      elements.push({
+        id: uid(`el-bullet-row-${i}`),
+        type: 'shape',
+        shapeType: 'rect',
+        x: 96,
+        y,
+        width: DECK_CANVAS_W - 192,
+        height: 64,
+        zIndex: currentZ++,
+        visible: true,
+        shapeStyle: bulletPill(light),
+        animation: { entrance: 'fadeSlideLeft', duration: 450, delay: 120 + i * 60 },
+      });
+      elements.push({
+        id: uid(`el-bullet-${i}`),
+        type: 'text',
+        x: 120,
+        y: y + 16,
+        width: DECK_CANVAS_W - 240,
+        height: 40,
+        content: bullet.replace(/^•\s*/, ''),
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: bodyFont,
+          fontSize: 30,
+          color: textMuted,
+          textAlign: 'left',
+        },
+        animation: { entrance: 'fadeIn', duration: 400, delay: 160 + i * 60 },
+      });
+    });
+  } else {
+    const contentVariant = resolveContentVariant(layoutCategory, sIdx);
+    if (contentVariant === 1 || !prefersImageBackground(layoutCategory, slide.type)) {
+      addSolidBackground();
+    } else {
+      addFullBleedBackground(contentVariant === 2 ? 0.22 : 0.28, 'cinematic');
+    }
+
+    let titleBlockBottom = 48;
+
+    if (slide.title) {
+      const titleX = contentVariant === 2 ? 140 : 72;
+      const titleW = contentVariant === 2 ? DECK_CANVAS_W - 280 : DECK_CANVAS_W - 144;
+      const titleFontSize = contentVariant === 2 ? 40 : 44;
+      const titleHeight = estimateTextBlockHeight(slide.title, titleFontSize, titleW, 1.15, 72, 140);
+      titleBlockBottom = 48 + titleHeight + 36;
+      elements.push({
+        id: uid('el-title-glass'),
+        type: 'shape',
+        shapeType: 'rect',
+        x: 48,
+        y: 48,
+        width: DECK_CANVAS_W - 96,
+        height: titleHeight + 36,
+        zIndex: currentZ++,
+        visible: true,
+        shapeStyle: glassCard(light),
+        animation: { entrance: 'fadeSlideUp', duration: 550, delay: 0 },
+      });
+      elements.push({
+        id: uid('el-title'),
+        type: 'text',
+        x: titleX,
+        y: 72,
+        width: titleW,
+        height: titleHeight,
+        content: slide.title,
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: headingFont,
+          fontSize: contentVariant === 2 ? 40 : 44,
+          fontWeight: 'bold',
+          color: textPrimary,
+          textAlign: contentVariant === 2 ? 'center' : 'left',
+          lineHeight: 1.15,
+        },
+        animation: { entrance: 'fadeSlideUp', duration: 600, delay: 100 },
+      });
+    }
+
+    if (slide.subtitle && mergedB.length === 0) {
+      const subX = contentVariant === 2 ? 140 : 72;
+      const subW = contentVariant === 2 ? DECK_CANVAS_W - 280 : DECK_CANVAS_W - 144;
+      const subFontSize = 32;
+      const subHeight = estimateTextBlockHeight(slide.subtitle, subFontSize, subW, 1.5, 80, 240);
+      const subGlassY = slide.title ? titleBlockBottom + 16 : 48;
+      const subTextY = subGlassY + 24;
+      elements.push({
+        id: uid('el-subtitle-glass'),
+        type: 'shape',
+        shapeType: 'rect',
+        x: 48,
+        y: subGlassY,
+        width: DECK_CANVAS_W - 96,
+        height: subHeight + 48,
+        zIndex: currentZ++,
+        visible: true,
+        shapeStyle: glassCard(light),
+        animation: { entrance: 'fadeSlideUp', duration: 550, delay: 150 },
+      });
+      elements.push({
+        id: uid('el-subtitle'),
+        type: 'text',
+        x: subX,
+        y: subTextY,
+        width: subW,
+        height: subHeight,
+        content: slide.subtitle,
+        zIndex: currentZ++,
+        visible: true,
+        textStyle: {
+          fontFamily: bodyFont,
+          fontSize: subFontSize,
+          color: textPrimary,
+          textAlign: contentVariant === 2 ? 'center' : 'left',
+          lineHeight: 1.5,
+        },
+        animation: { entrance: 'fadeIn', duration: 600, delay: 250 },
+      });
+    }
+
+    if (mergedB.length > 0) {
+      if (contentVariant === 1) {
+        mergedB.slice(0, 5).forEach((bullet, i) => {
+          const y = 196 + i * 88;
+          elements.push({
+            id: uid(`el-bullet-bg-${i}`),
+            type: 'shape',
+            shapeType: 'rect',
+            x: 72,
+            y,
+            width: DECK_CANVAS_W - 144,
+            height: 72,
+            zIndex: currentZ++,
+            visible: true,
+            shapeStyle: {
+              ...bulletPill(light),
+              cornerRadius: 16,
+            },
+            animation: { entrance: 'fadeSlideLeft', duration: 480, delay: 200 + i * 75 },
+          });
+          elements.push({
+            id: uid(`el-bullet-accent-${i}`),
+            type: 'shape',
+            shapeType: 'rect',
+            x: 88,
+            y: y + 18,
+            width: 4,
+            height: 36,
+            zIndex: currentZ++,
+            visible: true,
+            shapeStyle: { fill: accent, cornerRadius: 2 },
+            animation: { entrance: 'reveal', duration: 400, delay: 240 + i * 75 },
+          });
+          elements.push({
+            id: uid(`el-bullet-${i}`),
+            type: 'text',
+            x: 108,
+            y: y + 16,
+            width: DECK_CANVAS_W - 220,
+            height: 48,
+            content: bullet.replace(/^•\s*/, ''),
+            zIndex: currentZ++,
+            visible: true,
+            textStyle: {
+              fontFamily: bodyFont,
+              fontSize: 31,
+              fontWeight: 'normal',
+              color: textMuted,
+              textAlign: 'left',
+              lineHeight: 1.65,
+            },
+            animation: { entrance: 'fadeSlideLeft', duration: 480, delay: 280 + i * 75 },
+          });
+        });
+      } else if (contentVariant === 2) {
+        const cardW = (DECK_CANVAS_W - 160) / 2;
+        mergedB.slice(0, 4).forEach((bullet, i) => {
+          const col = i % 2;
+          const row = Math.floor(i / 2);
+          const x = 64 + col * (cardW + 32);
+          const y = 188 + row * 112;
+          elements.push({
+            id: uid(`el-bullet-bg-${i}`),
+            type: 'shape',
+            shapeType: 'rect',
+            x,
+            y,
+            width: cardW,
+            height: 96,
+            zIndex: currentZ++,
+            visible: true,
+            shapeStyle: glassCard(light),
+            animation: { entrance: 'zoomIn', duration: 520, delay: 220 + i * 90 },
+          });
+          elements.push({
+            id: uid(`el-bullet-${i}`),
+            type: 'text',
+            x: x + 24,
+            y: y + 24,
+            width: cardW - 48,
+            height: 56,
+            content: bullet.replace(/^•\s*/, ''),
+            zIndex: currentZ++,
+            visible: true,
+            textStyle: {
+              fontFamily: bodyFont,
+              fontSize: 28,
+              fontWeight: 'normal',
+              color: textMuted,
+              textAlign: 'left',
+              lineHeight: 1.6,
+            },
+            animation: { entrance: 'fadeIn', duration: 450, delay: 300 + i * 90 },
+          });
+        });
+      } else {
+        const numBullets = Math.min(mergedB.length, 6);
+        const isGrid = numBullets > 3;
+        const boxWidth = isGrid ? (DECK_CANVAS_W - 128) / 2 : DECK_CANVAS_W - 96;
+        const boxHeight = isGrid ? Math.min(120, (DECK_CANVAS_H - 200) / Math.ceil(numBullets / 2)) : 88;
+        const startY = 172;
+
+        mergedB.slice(0, 6).forEach((bullet, i) => {
+          const col = isGrid ? i % 2 : 0;
+          const row = isGrid ? Math.floor(i / 2) : i;
+          const x = 48 + col * (boxWidth + 32);
+          const y = startY + row * (boxHeight + 16);
+          elements.push({
+            id: uid(`el-bullet-bg-${i}`),
+            type: 'shape',
+            shapeType: 'rect',
+            x,
+            y,
+            width: boxWidth,
+            height: boxHeight,
+            zIndex: currentZ++,
+            visible: true,
+            shapeStyle: glassCard(light),
+            animation: { entrance: 'zoomIn', duration: 500, delay: 200 + i * 90 },
+          });
+          elements.push({
+            id: uid(`el-bullet-num-${i}`),
+            type: 'text',
+            x: x + 20,
+            y: y + 16,
+            width: 36,
+            height: 32,
+            content: String(i + 1).padStart(2, '0'),
+            zIndex: currentZ++,
+            visible: true,
+            textStyle: {
+              fontFamily: headingFont,
+              fontSize: 22,
+              fontWeight: 'bold',
+              color: accent,
+              textAlign: 'left',
+            },
+            animation: { entrance: 'fadeIn', duration: 400, delay: 260 + i * 90 },
+          });
+          elements.push({
+            id: uid(`el-bullet-${i}`),
+            type: 'text',
+            x: x + 56,
+            y: y + 18,
+            width: boxWidth - 72,
+            height: boxHeight - 32,
+            content: bullet.replace(/^•\s*/, ''),
+            zIndex: currentZ++,
+            visible: true,
+            textStyle: {
+              fontFamily: bodyFont,
+              fontSize: isGrid ? 18 : 21,
+              fontWeight: 'normal',
+              color: textMuted,
+              textAlign: 'left',
+              lineHeight: 1.65,
+            },
+            animation: { entrance: 'fadeIn', duration: 500, delay: 320 + i * 90 },
+          });
+        });
+      }
+    }
+  }
+
+  return { elements, imageTasks };
+}
+
+
+==================================================
+FILE: src/lib/leonardo-image.ts
+==================================================
+
+/**
+ * Server-side Leonardo AI image generation (deck slides, gen fill, editor images).
+ * Cost-aware defaults: Flux Schnell / Phoenix without alchemy for standard tiers;
+ * Phoenix + alchemy only for Creator Pro cinematic requests (~$0.03–0.05/image vs 8–12 credits charged).
+ */
+
+import { snapDim } from '@/lib/leonardo-dimensions';
+
+export { snapDim } from '@/lib/leonardo-dimensions';
+
+const LEONARDO_API_URL = 'https://cloud.leonardo.ai/api/rest/v1';
+
+/** Leonardo model UUIDs — https://docs.leonardo.ai/docs/commonly-used-api-values */
+export const LEONARDO_MODELS = {
+  fluxSchnell: '1dd50843-d653-4516-a8e3-f0238ee453ff',
+  phoenix: 'de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3',
+  kino: 'aa77f04e-3eec-4034-9c07-d0f619684628',
+  vision: '5c232a9e-9061-4777-980a-ddc8e65647c6',
+  fluxKontext: '28aeddf8-bd19-4803-80fc-79602d1a9989',
+} as const;
+
+/** Rough USD per image for spend tracking (conservative high-end estimates). */
+export const LEONARDO_ESTIMATED_USD = {
+  economy: 0.008,
+  standard: 0.018,
+  premium: 0.042,
+  genfill: 0.028,
+} as const;
+
+export type LeonardoQuality = 'economy' | 'standard' | 'premium' | 'genfill';
+
+export function getLeonardoApiKey(): string | null {
+  let key = (process.env.LEONARDO_API_KEY || '').trim();
+  if (
+    (key.startsWith('"') && key.endsWith('"')) ||
+    (key.startsWith("'") && key.endsWith("'"))
+  ) {
+    key = key.slice(1, -1).trim();
+  }
+  return key || null;
+}
+
+export function isLeonardoConfigured(): boolean {
+  return Boolean(getLeonardoApiKey());
+}
+
+export function selectLeonardoProfile(args: {
+  quality: LeonardoQuality;
+  visualProfile?: 'cinematic' | 'typography';
+}): {
+  modelId: string;
+  alchemy: boolean;
+  ultra?: boolean;
+  contrast?: number;
+  estimatedUsd: number;
+} {
+  const cinematic = args.visualProfile !== 'typography';
+
+  if (args.quality === 'genfill') {
+    return {
+      modelId: LEONARDO_MODELS.fluxKontext,
+      alchemy: false,
+      contrast: 3.5,
+      estimatedUsd: LEONARDO_ESTIMATED_USD.genfill,
+    };
+  }
+
+  if (args.quality === 'premium' && cinematic) {
+    return {
+      modelId: LEONARDO_MODELS.phoenix,
+      alchemy: true,
+      contrast: 3.5,
+      estimatedUsd: LEONARDO_ESTIMATED_USD.premium,
+    };
+  }
+
+  if (args.quality === 'standard') {
+    return {
+      modelId: LEONARDO_MODELS.phoenix,
+      alchemy: false,
+      contrast: 3.5,
+      estimatedUsd: LEONARDO_ESTIMATED_USD.standard,
+    };
+  }
+
+  return {
+    modelId: LEONARDO_MODELS.fluxSchnell,
+    alchemy: false,
+    contrast: 3,
+    estimatedUsd: LEONARDO_ESTIMATED_USD.economy,
+  };
+}
+
+export function leonardoQualityForPlan(args: {
+  plan: string;
+  task: 'deck_slide_image' | 'genfill_image' | 'magic_edit_image' | 'image_generate';
+  premiumRequested?: boolean;
+}): LeonardoQuality {
+  // Deck backgrounds: always Flux Schnell — 5–12 parallel jobs need speed over alchemy
+  if (args.task === 'deck_slide_image') return 'economy';
+
+  const p = String(args.plan || 'free').toLowerCase();
+  const isGenfill = args.task === 'genfill_image' || args.task === 'magic_edit_image';
+  if (isGenfill) return 'genfill';
+  if (p === 'creator_pro' || p === 'admin') {
+    return args.premiumRequested ? 'premium' : 'standard';
+  }
+  if (p === 'student_pro' || p === 'pro') return 'standard';
+  return 'economy';
+}
+
+type GenerationResult = { url: string; imageId: string; estimatedUsd: number };
+
+async function pollLeonardoGeneration(
+  generationId: string,
+  token: string,
+  maxAttempts = 36,
+  intervalMs = 1200,
+): Promise<GenerationResult> {
+  for (let i = 0; i < maxAttempts; i++) {
+    // First poll immediately — Leonardo often finishes in <2s on Flux Schnell
+    if (i > 0) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+
+    const pollRes = await fetch(`${LEONARDO_API_URL}/generations/${generationId}`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!pollRes.ok) continue;
+
+    const pollData = (await pollRes.json()) as {
+      generations_by_pk?: {
+        status?: string;
+        generated_images?: { url?: string; id?: string }[];
+      };
+    };
+
+    const generation = pollData?.generations_by_pk;
+    if (generation?.status === 'COMPLETE') {
+      const img = generation.generated_images?.[0];
+      if (img?.url && img?.id) {
+        return { url: img.url, imageId: img.id, estimatedUsd: 0 };
+      }
+    } else if (generation?.status === 'FAILED') {
+      throw new Error('Leonardo generation failed.');
+    }
+  }
+
+  throw new Error('Leonardo generation timed out.');
+}
+
+export async function generateLeonardoImageUrl(params: {
+  prompt: string;
+  width: number;
+  height: number;
+  quality?: LeonardoQuality;
+  visualProfile?: 'cinematic' | 'typography';
+  apiKey?: string;
+  enhancePrompt?: boolean;
+}): Promise<GenerationResult> {
+  const token = params.apiKey || getLeonardoApiKey();
+  if (!token) {
+    throw new Error('LEONARDO_API_KEY is not configured.');
+  }
+
+  const w = snapDim(params.width);
+  const h = snapDim(params.height);
+  const profile = selectLeonardoProfile({
+    quality: params.quality ?? 'standard',
+    visualProfile: params.visualProfile,
+  });
+  const shouldEnhancePrompt =
+    typeof params.enhancePrompt === 'boolean'
+      ? params.enhancePrompt
+      : params.visualProfile !== 'typography' && (params.quality ?? 'standard') !== 'economy';
+
+  const reqBody: Record<string, unknown> = {
+    prompt: params.prompt,
+    modelId: profile.modelId,
+    width: w,
+    height: h,
+    num_images: 1,
+    alchemy: profile.alchemy,
+    enhancePrompt: shouldEnhancePrompt,
+  };
+
+  if (profile.contrast != null) reqBody.contrast = profile.contrast;
+  if (profile.ultra) reqBody.ultra = true;
+
+  const initRes = await fetch(`${LEONARDO_API_URL}/generations`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(reqBody),
+  });
+
+  if (!initRes.ok) {
+    const errText = await initRes.text();
+    throw new Error(`Leonardo API generation failed: ${initRes.status} ${errText}`);
+  }
+
+  const initData = (await initRes.json()) as {
+    sdGenerationJob?: { generationId?: string };
+    generationId?: string;
+  };
+
+  const generationId =
+    initData?.sdGenerationJob?.generationId || initData?.generationId;
+
+  if (!generationId) {
+    throw new Error('Leonardo API did not return a generation ID.');
+  }
+
+  const result = await pollLeonardoGeneration(generationId, token);
+  return { ...result, estimatedUsd: profile.estimatedUsd };
+}
+
+/** Fetch remote Leonardo CDN URL and return a canvas-safe data URL. */
+export async function leonardoUrlToDataUrl(remoteUrl: string): Promise<string> {
+  const imgRes = await fetch(remoteUrl, { signal: AbortSignal.timeout(35_000) });
+  if (!imgRes.ok) throw new Error(`Failed to fetch Leonardo image: ${imgRes.status}`);
+  const contentType = imgRes.headers.get('content-type') || 'image/png';
+  const arrayBuffer = await imgRes.arrayBuffer();
+  if (arrayBuffer.byteLength < 32) throw new Error('Leonardo image response too small');
+  const base64 = Buffer.from(arrayBuffer).toString('base64');
+  return `data:${contentType};base64,${base64}`;
+}
+
+export async function generateLeonardoMotionUrl(params: {
+  imageId: string;
+  apiKey?: string;
+}): Promise<string> {
+  const token = params.apiKey || getLeonardoApiKey();
+  if (!token) throw new Error('LEONARDO_API_KEY is not configured.');
+
+  const initRes = await fetch(`${LEONARDO_API_URL}/generations-motion-svd`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      imageId: params.imageId,
+      isPublic: true,
+    }),
+  });
+
+  if (!initRes.ok) {
+    const errText = await initRes.text();
+    throw new Error(`Leonardo Motion API failed: ${initRes.status} ${errText}`);
+  }
+
+  const initData = (await initRes.json()) as {
+    motionSvdGenerationJob?: { generationId?: string };
+  };
+  const generationId = initData?.motionSvdGenerationJob?.generationId;
+  if (!generationId) throw new Error('Leonardo Motion API did not return a generation ID.');
+
+  for (let i = 0; i < 40; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+
+    const pollRes = await fetch(`${LEONARDO_API_URL}/generations/${generationId}`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!pollRes.ok) continue;
+
+    const pollData = (await pollRes.json()) as {
+      generations_by_pk?: {
+        status?: string;
+        generated_images?: { motionMP4URL?: string }[];
+      };
+    };
+
+    const generation = pollData?.generations_by_pk;
+    if (generation?.status === 'COMPLETE') {
+      const videoUrl = generation.generated_images?.[0]?.motionMP4URL;
+      if (videoUrl) return videoUrl;
+    } else if (generation?.status === 'FAILED') {
+      throw new Error('Leonardo motion generation failed.');
+    }
+  }
+
+  throw new Error('Leonardo motion generation timed out.');
+}
+
+

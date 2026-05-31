@@ -1,6 +1,6 @@
 export type JobPollRecord = {
   id: string;
-  status: 'queued' | 'running' | 'completed' | 'failed';
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
   progress?: number;
   result?: unknown;
   error?: string;
@@ -95,8 +95,8 @@ async function watchJobViaSse(jobId: string, options?: PollJobOptions): Promise<
         if (!job?.status) continue;
         options?.onProgress?.(job);
         if (job.status === 'completed') return job;
-        if (job.status === 'failed') {
-          throw new Error(job.error || 'Generation failed');
+        if (job.status === 'failed' || job.status === 'cancelled') {
+          throw new Error(job.error || (job.status === 'cancelled' ? 'Generation cancelled' : 'Generation failed'));
         }
       }
     }
@@ -143,8 +143,8 @@ async function pollJobViaHttp(jobId: string, options?: PollJobOptions): Promise<
     options?.onProgress?.(job);
 
     if (job.status === 'completed') return job;
-    if (job.status === 'failed') {
-      throw new Error(job.error || 'Generation failed');
+    if (job.status === 'failed' || job.status === 'cancelled') {
+      throw new Error(job.error || (job.status === 'cancelled' ? 'Generation cancelled' : 'Generation failed'));
     }
 
     const waitMs = pollIntervalMs(attempt, baseIntervalMs);

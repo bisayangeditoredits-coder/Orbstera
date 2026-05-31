@@ -5,6 +5,7 @@ import { finalizeSlideMotion } from '@/lib/presentationMotion';
 import { runDeckImageTasks } from '@/lib/deck-image-generation';
 import { buildDeckSlideElements } from '@/lib/deck-slide-layout';
 import { buildSlideFromReferenceTemplate } from '@/lib/reference-templates/build-slide';
+import { useReferenceTemplatePackForDeck } from '@/lib/reference-templates/use-during-generation';
 import { resolveVisualTheme } from '@/lib/visual-themes';
 
 /** Cap undo stack size to limit RAM on large decks (structured clones per step). */
@@ -640,7 +641,10 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
       slideData.id || (placeholderIdx >= 0 ? currentPres.slides[placeholderIdx].id : `slide-${sIdx}`);
 
     const refPack = get().editor.referenceTemplatePack;
-    const { elements, imageTasks } = refPack?.slides?.length
+    const { elements, imageTasks } = useReferenceTemplatePackForDeck(
+      refPack,
+      get().editor.isGenerating,
+    )
       ? buildSlideFromReferenceTemplate({
           pack: refPack,
           slideIndex: sIdx,

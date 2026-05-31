@@ -41,17 +41,23 @@ const LIMITS = {
   },
 } as const;
 
-/** Fail open in production when Upstash is not configured so the app still works. */
+export function rateLimitUnavailableResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      error: 'SERVICE_UNAVAILABLE',
+      message: 'Rate limiting unavailable, please try again shortly.',
+    },
+    { status: 503 },
+  );
+}
+
+/** Fail closed when Upstash Redis is not configured or unreachable. */
 export function requireRateLimitInfrastructure(): NextResponse | null {
-  if (process.env.NODE_ENV !== 'production') return null;
   const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
   const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
   if (url && token && redis) return null;
-  
-  // FIXED: Changed from failing closed (503 SERVICE_UNAVAILABLE) to failing open (null).
-  // This allows the app to function without rate limits if Upstash Redis isn't set up yet.
-  console.warn('Rate limiting is bypassed because UPSTASH_REDIS_REST_URL is missing.');
-  return null;
+  console.error('[rate-limit] Redis unavailable — failing closed');
+  return rateLimitUnavailableResponse();
 }
 
 // ── Singleton limiters (created once per process) ─────────────────────────────
@@ -68,7 +74,6 @@ function getLimiter(prefix: string, max: number): Ratelimit | null {
     redis,
     limiter: Ratelimit.slidingWindow(max, '1 m'),
     prefix: `rl:orb:${prefix}`,
-    // analytics: true  // uncomment to enable Upstash rate-limit analytics dashboard
   });
   _limiters.set(prefix, lim);
   return lim;
@@ -82,10 +87,8 @@ async function runRateLimitChecks(
 
   for (const result of results) {
     if (result.status === 'rejected') {
-      // Fail open in ALL environments — a Redis hiccup should never block users from
-      // creating or saving presentations. Log the error for monitoring but allow through.
-      console.error(`[rate-limit${logPrefix}] Redis error — failing open:`, result.reason);
-      continue;
+      console.error(`[rate-limit${logPrefix}] Redis error — failing closed:`, result.reason);
+      return rateLimitUnavailableResponse();
     }
     if (!result.value.success) {
       return NextResponse.json(
@@ -112,8 +115,11 @@ export async function enforceAiIpRateLimit(
   req: Request,
   tier: AiTier = 'default',
 ): Promise<NextResponse | null> {
+  const infra = requireRateLimitInfrastructure();
+  if (infra) return infra;
+
   const ipLim = getLimiter(`ai:ip:${tier}`, LIMITS.ip[tier]);
-  if (!ipLim) return null;
+  if (!ipLim) return rateLimitUnavailableResponse();
   return runRateLimitChecks([ipLim.limit(clientIp(req))], '');
 }
 
@@ -123,8 +129,11 @@ export async function enforceAiUserRateLimit(
   userId: string,
   tier: AiTier = 'default',
 ): Promise<NextResponse | null> {
+  const infra = requireRateLimitInfrastructure();
+  if (infra) return infra;
+
   const userLim = getLimiter(`ai:user:${tier}`, LIMITS.user[tier]);
-  if (!userLim) return null;
+  if (!userLim) return rateLimitUnavailableResponse();
   return runRateLimitChecks([userLim.limit(userId)], '');
 }
 
@@ -133,9 +142,12 @@ export async function enforceApiIpRateLimit(
   req: Request,
   tier: ApiTier = 'default',
 ): Promise<NextResponse | null> {
+  const infra = requireRateLimitInfrastructure();
+  if (infra) return infra;
+
   const { ip, prefix } = apiTierKeys(tier);
   const ipLim = getLimiter(`${prefix}:ip`, ip);
-  if (!ipLim) return null;
+  if (!ipLim) return rateLimitUnavailableResponse();
   return runRateLimitChecks([ipLim.limit(clientIp(req))], ':api');
 }
 
@@ -145,9 +157,12 @@ export async function enforceApiUserRateLimit(
   userId: string,
   tier: ApiTier = 'default',
 ): Promise<NextResponse | null> {
+  const infra = requireRateLimitInfrastructure();
+  if (infra) return infra;
+
   const { user, prefix } = apiTierKeys(tier);
   const userLim = getLimiter(`${prefix}:user`, user);
-  if (!userLim) return null;
+  if (!userLim) return rateLimitUnavailableResponse();
   return runRateLimitChecks([userLim.limit(userId)], ':api');
 }
 
@@ -188,7 +203,6 @@ export async function enforceContactRateLimit(req: Request): Promise<NextRespons
   if (infra) return infra;
 
   const ipLim = getContactIpLimiter();
-  if (!ipLim) return null;
+  if (!ipLim) return rateLimitUnavailableResponse();
   return runRateLimitChecks([ipLim.limit(clientIp(req))], ':contact');
 }
-

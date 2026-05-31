@@ -1,7 +1,14 @@
 import type { DeckGenerationJobBody } from '@/lib/ai/run-deck-generation-batch';
 import { runDeckGenerationBatch } from '@/lib/ai/run-deck-generation-batch';
+import { refundCreditsForUser } from '@/lib/billing/credits';
+import { decrementFreeTierUsage } from '@/lib/billing/free-tier-usage';
 import { getServiceSupabase } from '@/lib/billing/supabase-admin';
-import { updateJobRecord } from '@/lib/jobs/redis-job-queue';
+import {
+  getJobRecord,
+  isJobCancellationRequested,
+  JobCancelledError,
+  updateJobRecord,
+} from '@/lib/jobs/redis-job-queue';
 
 export type ProcessGenerateJobPayload = {
   jobId: string;
@@ -28,13 +35,21 @@ export async function processGenerateJobInline(payload: ProcessGenerateJobPayloa
 
   await updateJobRecord(jobId, { status: 'running', progress: 0, error: undefined });
 
+  const throwIfCancelled = async () => {
+    if (await isJobCancellationRequested(jobId)) {
+      throw new JobCancelledError();
+    }
+  };
+
   try {
+    await throwIfCancelled();
     const result = await runDeckGenerationBatch({
       appUrl,
       supabase,
       userId,
       body,
-      onProgress: (progress) => {
+      onProgress: async (progress) => {
+        await throwIfCancelled();
         void updateJobRecord(jobId, { status: 'running', progress, error: undefined });
       },
     });
@@ -46,11 +61,27 @@ export async function processGenerateJobInline(payload: ProcessGenerateJobPayloa
       error: undefined,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'Generation failed';
+    const cancelled = e instanceof JobCancelledError;
+    const message = cancelled ? 'Cancelled by user' : e instanceof Error ? e.message : 'Generation failed';
     await updateJobRecord(jobId, {
-      status: 'failed',
+      status: cancelled ? 'cancelled' : 'failed',
       error: message,
     });
+    if (!cancelled) {
+      const refundCost = Math.max(0, Math.round(body.estimatedCredits ?? 0));
+      if (refundCost > 0 && body.billingRequestId?.trim()) {
+        await refundCreditsForUser({
+          userId,
+          cost: refundCost,
+          idempotencyKey: body.billingRequestId,
+          reason: 'generate_failed',
+        });
+      }
+      const jobMeta = await getJobRecord(jobId);
+      if (jobMeta?.freeDeckReserved) {
+        await decrementFreeTierUsage(userId, 'free_ai_deck_generations');
+      }
+    }
     throw e;
   }
 }

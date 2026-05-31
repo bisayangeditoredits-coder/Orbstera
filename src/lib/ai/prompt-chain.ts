@@ -1,5 +1,6 @@
 import { extractJsonObject } from '@/lib/ai/openrouter';
 import { openRouterCompleteCascade } from '@/lib/ai/openrouter-cascade';
+import { OPENROUTER_TIMEOUT } from '@/lib/ai/openrouter-timeouts';
 import { getTextModelCascade, selectTextModel, shouldRunDeepReasoning } from '@/lib/ai/router';
 import { aiCacheGet, aiCacheSet, makeAiCacheKey } from '@/lib/ai/cache';
 import {
@@ -34,11 +35,12 @@ async function step(
       plan,
       freeTaste,
       economy,
+      timeoutMs: OPENROUTER_TIMEOUT.orchestrationStep,
     });
     return text;
   } catch (e) {
     console.warn(`[Orchestration] step failed:`, e);
-    return '';
+    throw e;
   }
 }
 
@@ -229,6 +231,9 @@ export async function runOpenRouterOrchestration(
     opts?.freeTaste,
     opts?.spendState?.forcedEconomyMode,
   );
+  if (!intentOut.trim()) {
+    throw new Error('Director intent step returned empty output');
+  }
   const intent = extractJsonObject(intentOut) ?? {};
 
   const needsDeep =
@@ -287,6 +292,9 @@ export async function runOpenRouterOrchestration(
     opts?.freeTaste,
     opts?.spendState?.forcedEconomyMode,
   );
+  if (!structOut.trim()) {
+    throw new Error('Director structure step returned empty output');
+  }
   const structure = extractJsonObject(structOut) ?? {};
 
   const refinedBrief = buildRefinedBrief({

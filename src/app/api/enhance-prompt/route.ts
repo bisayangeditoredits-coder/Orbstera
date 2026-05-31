@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { openRouterComplete } from '@/lib/ai/openrouter';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { chargeCreditsBeforeJob, getActionCreditCost, getCreditConfig } from '@/lib/billing/credits';
+import { chargeCreditsBeforeJob, getActionCreditCost, getCreditConfig, refundCreditsForUser } from '@/lib/billing/credits';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
@@ -28,6 +28,7 @@ const MAX_BODY_BYTES = 24 * 1024;
 
 export async function POST(req: Request) {
   const requestId = getOrCreateRequestId(req);
+  let refundIfNeeded: (() => Promise<void>) | null = null;
   try {
     const bodyResult = await readJsonBodyWithLimit<{ prompt?: string; purpose?: string }>(
       req,
@@ -86,6 +87,18 @@ export async function POST(req: Request) {
       );
     }
 
+    let creditsRefunded = false;
+    refundIfNeeded = async () => {
+      if (creditsRefunded) return;
+      creditsRefunded = true;
+      await refundCreditsForUser({
+        userId: user.id,
+        cost,
+        idempotencyKey: requestId,
+        reason: 'enhance_prompt_failed',
+      });
+    };
+
     const system =
       String(purpose) === 'image' ? IMAGE_SYSTEM_PROMPT : DECK_SYSTEM_PROMPT;
     const maxTokens = String(purpose) === 'image' ? 220 : 150;
@@ -105,6 +118,7 @@ export async function POST(req: Request) {
       ).trim();
     } catch (e) {
       console.error('Enhance prompt OpenRouter error:', e);
+      await refundIfNeeded?.();
       return NextResponse.json(
         { error: e instanceof Error ? e.message : 'Failed to fetch from AI provider' },
         { status: 502 },
@@ -119,6 +133,11 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('Enhance prompt error:', error);
     captureApiException(error, { requestId, route: 'POST /api/enhance-prompt' });
+    try {
+      await refundIfNeeded?.();
+    } catch {
+      /* refund best-effort */
+    }
     return NextResponse.json({ error: 'Failed to enhance prompt' }, { status: 500 });
   }
 }

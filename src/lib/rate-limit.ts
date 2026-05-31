@@ -37,6 +37,8 @@ export function getGlobalRateLimit(): Ratelimit | null {
   return store!.global ?? null;
 }
 
+export { rateLimitUnavailableResponse } from '@/lib/rate-limit-server';
+
 /** Image generation cap (20/min per user+IP). */
 export function getImageRateLimit(): Ratelimit | null {
   const store = getExtraLimiters();

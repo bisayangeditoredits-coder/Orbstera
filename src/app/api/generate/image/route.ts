@@ -4,7 +4,8 @@ import { selectImageProvider, type AiTask } from '@/lib/ai/router';
 import { getSpendState } from '@/lib/ai/spend';
 import { requireAiUser, aiUnauthorized } from '@/lib/auth/require-ai-route';
 import { captureApiException, getOrCreateRequestId } from '@/lib/observability';
-import { imageRateLimit } from '@/lib/rate-limit';
+import { getImageRateLimit, rateLimitUnavailableResponse } from '@/lib/rate-limit';
+import { requireRateLimitInfrastructure } from '@/lib/rate-limit-server';
 import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
 import {
   generateLeonardoImageUrl,
@@ -38,27 +39,34 @@ export async function POST(req: Request) {
     }
     const user = auth.user;
 
-    if (imageRateLimit) {
-      const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
-      const identifier = `${user.id}-${ip}`;
-      try {
-        const { success, limit, reset, remaining } = await imageRateLimit.limit(identifier);
-        if (!success) {
-          return NextResponse.json(
-            { error: 'Rate limit exceeded. Please try again later.' },
-            {
-              status: 429,
-              headers: {
-                'X-RateLimit-Limit': limit.toString(),
-                'X-RateLimit-Remaining': remaining.toString(),
-                'X-RateLimit-Reset': reset.toString(),
-              },
+    const imageInfra = requireRateLimitInfrastructure();
+    if (imageInfra) return imageInfra;
+
+    const imageRateLimit = getImageRateLimit();
+    if (!imageRateLimit) {
+      return rateLimitUnavailableResponse();
+    }
+
+    const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
+    const identifier = `${user.id}-${ip}`;
+    try {
+      const { success, limit, reset, remaining } = await imageRateLimit.limit(identifier);
+      if (!success) {
+        return NextResponse.json(
+          { error: 'Rate limit exceeded. Please try again later.' },
+          {
+            status: 429,
+            headers: {
+              'X-RateLimit-Limit': limit.toString(),
+              'X-RateLimit-Remaining': remaining.toString(),
+              'X-RateLimit-Reset': reset.toString(),
             },
-          );
-        }
-      } catch (rlError) {
-        console.warn('[Image] Rate limit check failed, failing open:', rlError);
+          },
+        );
       }
+    } catch (rlError) {
+      console.error('[Image] Rate limit check failed, failing closed:', rlError);
+      return rateLimitUnavailableResponse();
     }
 
     const bodyResult = await readJsonBodyWithLimit<Record<string, unknown>>(req, MAX_BODY_BYTES);

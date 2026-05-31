@@ -337,7 +337,10 @@ export interface EditorState {
     outlineSlideCount?: number;
     targetSlideCount?: number;
     themeName?: string;
+    themeExplicit?: boolean;
+    paletteExplicit?: boolean;
     layoutCategory?: DeckLayoutCategory;
+    layoutCategoryExplicit?: boolean;
     colorPalette?: string[];
     styleMode?: string;
     imageSource?: 'ai' | 'unsplash' | 'none';

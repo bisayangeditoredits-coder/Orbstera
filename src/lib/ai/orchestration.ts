@@ -4,6 +4,8 @@ import { resolveVisualTheme } from '@/lib/visual-themes';
 import { normalizeDeckLayoutCategory, getDeckLayoutCategoryOption } from '@/lib/deck-layout-categories';
 import { openRouterComplete, extractJsonObject } from './openrouter';
 import { PREFLIGHT_SYSTEM, buildComposerSystemPrompt, buildComposerUserPrompt, buildDeckImagePrompt } from './deck-generation-skill';
+import { enforceSlideBackgroundStyles } from './generation-constraints';
+import type { DeckGenerationConstraints } from './generation-constraints';
 import { AGENT_MODELS } from './agent-models';
 
 export interface PreflightResult {
@@ -58,9 +60,11 @@ export function buildComposerMessages(args: {
   language: string;
   styleMode?: string;
   layoutCategory?: string;
+  layoutCategoryExplicit?: boolean;
   imageSource?: 'ai' | 'unsplash' | 'none';
+  systemConstraints?: string;
 }): { system: string; user: string } {
-  const system = buildComposerSystemPrompt(args.preflightSummary);
+  const system = buildComposerSystemPrompt(args.preflightSummary, args.systemConstraints);
   const user = buildComposerUserPrompt({
     userPrompt: args.userPrompt,
     refinedBrief: args.refinedBrief,
@@ -69,6 +73,7 @@ export function buildComposerMessages(args: {
     language: args.language,
     styleMode: args.styleMode,
     layoutCategory: args.layoutCategory,
+    layoutCategoryExplicit: args.layoutCategoryExplicit,
     imageSource: args.imageSource,
   });
 
@@ -126,7 +131,19 @@ export function mergeOrchestrationMetadata(
 }
 
 /** Normalize AI quirks → PresentationData shape the editor expects */
-export function normalizePresentationPayload(input: Record<string, unknown>): PresentationData {
+export function normalizePresentationPayload(
+  input: Record<string, unknown>,
+  opts?: { imageSource?: 'ai' | 'unsplash' | 'none'; constraints?: DeckGenerationConstraints },
+): PresentationData {
+  // API routes (e.g. /api/generate/polish) wrap the deck as `{ presentation: ... }`
+  if (
+    input.presentation &&
+    typeof input.presentation === 'object' &&
+    !Array.isArray(input.presentation)
+  ) {
+    input = input.presentation as Record<string, unknown>;
+  }
+
   const title =
     (input.presentationTitle as string) ||
     (input.title as string) ||
@@ -142,7 +159,8 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
   const imageryPalette =
     typeof input.imageryPalette === 'string' ? input.imageryPalette : undefined;
   const layoutCategory = normalizeDeckLayoutCategory(
-    input.layoutCategory ||
+    (opts?.constraints?.layoutCategoryExplicit && opts.constraints.layoutCategory) ||
+      input.layoutCategory ||
       input.recommendedStyle ||
       input.styleMode ||
       input.presentationType,
@@ -294,6 +312,9 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
     });
   }
 
+  const imageSource = opts?.imageSource ?? opts?.constraints?.imageSource ?? 'ai';
+  enforceSlideBackgroundStyles(slides, imageSource);
+
   const dna = (input as { dna?: PresentationDNA }).dna;
 
   const paletteFromIntent = (input as { colorPaletteSuggestion?: string[] }).colorPaletteSuggestion;
@@ -301,17 +322,21 @@ export function normalizePresentationPayload(input: Record<string, unknown>): Pr
 
   const themeId = (input.theme as string) || undefined;
   const visualPreset = resolveVisualTheme(themeId);
+  const useExplicitPalette =
+    opts?.constraints?.paletteExplicit && (opts.constraints.colorPalette?.length ?? 0) >= 2;
 
   return {
     id: (input.id as string) || undefined,
     title,
-    theme: themeId || 'chimney-smoke',
+    theme: themeId || visualPreset.id,
     layoutCategory,
-    colorPalette: Array.isArray(input.colorPalette)
-      ? (input.colorPalette as string[])
-      : Array.isArray(paletteFromIntent) && paletteFromIntent.length >= 2
-        ? paletteFromIntent
-        : [...visualPreset.colorPalette],
+    colorPalette: useExplicitPalette
+      ? opts!.constraints!.colorPalette!
+      : Array.isArray(input.colorPalette)
+        ? (input.colorPalette as string[])
+        : Array.isArray(paletteFromIntent) && paletteFromIntent.length >= 2
+          ? paletteFromIntent
+          : [...visualPreset.colorPalette],
     fontPairing: {
       heading:
         (input.fontPairing as { heading?: string })?.heading ||

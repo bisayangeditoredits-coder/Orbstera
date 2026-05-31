@@ -14,17 +14,21 @@ import {
 } from '@/lib/billing/credits';
 import { getBillingPlan } from '@/lib/billing/resolve-plan';
 import { FREE_TIER } from '@/lib/billing/free-tier-limits';
-import { incrementFreeTierUsage, readFreeTierUsage } from '@/lib/billing/free-tier-usage';
+import { decrementFreeTierUsage, tryIncrementFreeTierUsage } from '@/lib/billing/free-tier-usage';
 import { addEstimatedSpend, getSpendState } from '@/lib/ai/spend';
 import { requireAiUser } from '@/lib/auth/require-ai-route';
 import { createJobRecord, enqueueGenerateJob, updateJobRecord } from '@/lib/jobs/redis-job-queue';
 import { isGenerateQueueEnabled, shouldPreferAsyncGenerate } from '@/lib/jobs/generate-queue-config';
 import { apiLog, captureApiException, getOrCreateRequestId } from '@/lib/observability';
 import { v4 as uuidv4 } from 'uuid';
-import { globalRateLimit } from '@/lib/rate-limit';
+import { getGlobalRateLimit, rateLimitUnavailableResponse } from '@/lib/rate-limit';
+import { requireRateLimitInfrastructure } from '@/lib/rate-limit-server';
 import { readJsonBodyWithLimit } from '@/lib/http/request-body-limit';
-import { buildVisualCurationBlock, resolveVisualTheme } from '@/lib/visual-themes';
-import { buildDeckLayoutCategoryPrompt, normalizeDeckLayoutCategory } from '@/lib/deck-layout-categories';
+import {
+  buildSystemConstraintsBlock,
+  constraintsFromGenerateBody,
+} from '@/lib/ai/generation-constraints';
+import { normalizeDeckLayoutCategory } from '@/lib/deck-layout-categories';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -47,27 +51,34 @@ export async function POST(req: Request) {
     if ('response' in auth) return auth.response;
     const user = auth.user;
 
-    if (globalRateLimit) {
-      const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
-      const identifier = `${user.id}-${ip}`;
-      try {
-        const { success, limit, reset, remaining } = await globalRateLimit.limit(identifier);
-        if (!success) {
-          return NextResponse.json(
-            { error: 'Rate limit exceeded. Please try again later.' },
-            {
-              status: 429,
-              headers: {
-                'X-RateLimit-Limit': limit.toString(),
-                'X-RateLimit-Remaining': remaining.toString(),
-                'X-RateLimit-Reset': reset.toString(),
-              },
-            }
-          );
-        }
-      } catch (rlError) {
-        console.warn('[Global] Rate limit check failed, failing open:', rlError);
+    const deckInfra = requireRateLimitInfrastructure();
+    if (deckInfra) return deckInfra;
+
+    const globalRateLimit = getGlobalRateLimit();
+    if (!globalRateLimit) {
+      return rateLimitUnavailableResponse();
+    }
+
+    const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
+    const identifier = `${user.id}-${ip}`;
+    try {
+      const { success, limit, reset, remaining } = await globalRateLimit.limit(identifier);
+      if (!success) {
+        return NextResponse.json(
+          { error: 'Rate limit exceeded. Please try again later.' },
+          {
+            status: 429,
+            headers: {
+              'X-RateLimit-Limit': limit.toString(),
+              'X-RateLimit-Remaining': remaining.toString(),
+              'X-RateLimit-Reset': reset.toString(),
+            },
+          }
+        );
       }
+    } catch (rlError) {
+      console.error('[Global] Rate limit check failed, failing closed:', rlError);
+      return rateLimitUnavailableResponse();
     }
 
     const bodyResult = await readJsonBodyWithLimit<Record<string, unknown>>(req, MAX_BODY_BYTES);
@@ -85,6 +96,9 @@ export async function POST(req: Request) {
       theme,
       colorPalette,
       imageSource,
+      themeExplicit,
+      paletteExplicit,
+      layoutCategoryExplicit,
     } = body as {
       prompt?: string;
       slideCount?: number;
@@ -97,8 +111,26 @@ export async function POST(req: Request) {
       theme?: string;
       colorPalette?: string[];
       imageSource?: 'ai' | 'unsplash' | 'none';
+      themeExplicit?: boolean;
+      paletteExplicit?: boolean;
+      layoutCategoryExplicit?: boolean;
     };
-    const layoutCategory = normalizeDeckLayoutCategory(rawLayoutCategory || styleMode);
+
+    const constraints = constraintsFromGenerateBody({
+      ...body,
+      theme,
+      colorPalette,
+      themeExplicit,
+      paletteExplicit,
+      layoutCategory: rawLayoutCategory,
+      layoutCategoryExplicit,
+      styleMode,
+      imageSource,
+    });
+    const layoutCategoryForTemplates = normalizeDeckLayoutCategory(rawLayoutCategory || styleMode);
+    const layoutCategoryForComposer = constraints.layoutCategoryExplicit
+      ? normalizeDeckLayoutCategory(constraints.layoutCategory || rawLayoutCategory || styleMode)
+      : undefined;
 
     const cookieStore = cookies();
     const supabase = createServerClient(
@@ -110,21 +142,27 @@ export async function POST(req: Request) {
     const plan = await getBillingPlan(user.id);
     const isFreePlan = plan === 'free';
     let freeTaste = false;
+    let freeDeckReserved = false;
 
     if (isFreePlan) {
-      const freeUsage = await readFreeTierUsage(user.id);
-      if (freeUsage.free_ai_deck_generations >= FREE_TIER.lifetimeAiDecks) {
+      const reserved = await tryIncrementFreeTierUsage(
+        user.id,
+        'free_ai_deck_generations',
+        FREE_TIER.lifetimeAiDecks,
+      );
+      if (!reserved.ok) {
         return NextResponse.json(
           {
             error: 'LIMIT_REACHED',
             message: `You've used all ${FREE_TIER.lifetimeAiDecks} free AI presentations. Upgrade to Student Pro for unlimited cinematic decks.`,
-            used: freeUsage.free_ai_deck_generations,
+            used: reserved.error === 'LIMIT_REACHED' ? FREE_TIER.lifetimeAiDecks : undefined,
             limit: FREE_TIER.lifetimeAiDecks,
           },
           { status: 403 },
         );
       }
       freeTaste = true;
+      freeDeckReserved = true;
     }
 
     const MAX_SLIDES: Record<string, number> = {
@@ -182,6 +220,10 @@ export async function POST(req: Request) {
         idempotencyKey: requestId,
         reason: 'generate_failed',
       });
+      if (freeDeckReserved) {
+        await decrementFreeTierUsage(user.id, 'free_ai_deck_generations');
+        freeDeckReserved = false;
+      }
     };
 
     const usdPerCredit = typeof creditConfig.usdPerCredit === 'number' ? creditConfig.usdPerCredit : 0;
@@ -195,15 +237,23 @@ export async function POST(req: Request) {
       const queued = await enqueueGenerateJob({
         jobId,
         userId: user.id,
+        billingRequestId: requestId,
+        estimatedCredits: deckCreditCost,
+        freeDeckReserved,
         body: {
           prompt: userPrompt,
           slideCount: finalSlideCount,
           tone,
           language,
           styleMode,
-          layoutCategory,
+          layoutCategory: layoutCategoryForTemplates,
+          themeExplicit: constraints.themeExplicit,
+          paletteExplicit: constraints.paletteExplicit,
+          layoutCategoryExplicit: constraints.layoutCategoryExplicit,
+          theme: constraints.themeExplicit ? constraints.themeId : undefined,
           imageSource,
           plan,
+          billingRequestId: requestId,
           estimatedCredits: deckCreditCost,
           deckCreditAction,
           plannerSessionId: plannerSessionId || undefined,
@@ -276,37 +326,22 @@ export async function POST(req: Request) {
             },
           });
 
-          // Inject Brand Kit into the prompt if present
-          let finalPrompt = userPrompt;
+          // Brand kit is an explicit user profile choice — may augment orchestration prompt only.
+          let orchestrationPrompt = userPrompt;
           const { data: profileData } = await supabase.from('profiles').select('brand_kit').eq('id', user.id).single();
-          const brandKit = profileData?.brand_kit as any;
+          const brandKit = profileData?.brand_kit as Record<string, unknown> | null;
           if (brandKit && brandKit.primary_color) {
-            finalPrompt += `\n\n[USER BRAND KIT]\nPlease STRICTLY apply the following brand kit rules to the generated JSON output:
-- Primary Color: ${brandKit.primary_color} (Must be the dominant color in colorPalette)
+            orchestrationPrompt += `\n\n[USER BRAND KIT]\nPlease apply this brand kit where appropriate:
+- Primary Color: ${brandKit.primary_color}
 - Font: ${brandKit.font || 'Default'}
-- Brand Name/Company: ${brandKit.name || 'User Company'} (Use this anywhere a company name is needed in the slide titles or content)`;
+- Brand Name/Company: ${brandKit.name || 'User Company'}`;
           }
 
-          if (Array.isArray(colorPalette) && colorPalette.length >= 3) {
-            finalPrompt += `\n\n[USER COLOR PALETTE]\nUse exactly this colorPalette array in the deck JSON: ${JSON.stringify(colorPalette)}`;
-          } else if (typeof theme === 'string' && theme.trim()) {
-            const preset = resolveVisualTheme(theme.trim());
-            finalPrompt += `\n\n[USER COLOR PALETTE]\nUse exactly this colorPalette array in the deck JSON: ${JSON.stringify(preset.colorPalette)}`;
-          }
-          finalPrompt += `\n\n[USER LAYOUT CATEGORY]\nRoot layoutCategory must be "${layoutCategory}". ${buildDeckLayoutCategoryPrompt(layoutCategory)} This must change slide structures and layout rhythm, not just colors.`;
-
-          if (typeof theme === 'string' && theme.trim()) {
-            finalPrompt += `\n\n${buildVisualCurationBlock({
-              themeId: theme.trim(),
-              artStyle: styleMode ? String(styleMode) : undefined,
-              layoutCategory,
-              imageSource: imageSource ?? 'ai',
-            })}`;
-          }
+          const systemConstraints = buildSystemConstraintsBlock(constraints);
 
           const { dossierText, refinedBrief, preflightSummary } = await runOpenRouterOrchestration(
             APP_URL,
-            finalPrompt,
+            orchestrationPrompt,
             {
               slideCount: finalSlideCount,
               tone: String(tone),
@@ -352,8 +387,10 @@ export async function POST(req: Request) {
             tone: String(tone),
             language: String(language),
             styleMode: styleMode ? String(styleMode) : undefined,
-            layoutCategory,
+            layoutCategory: layoutCategoryForComposer,
+            layoutCategoryExplicit: constraints.layoutCategoryExplicit,
             imageSource: imageSource ?? 'ai',
+            systemConstraints,
           });
 
           sendOrb({
@@ -457,9 +494,6 @@ export async function POST(req: Request) {
             await refundIfNeeded?.();
             void updateJobRecord(jobId, { status: 'failed', error: 'Stream failed' });
           } else {
-            if (freeTaste) {
-              void incrementFreeTierUsage(user.id, 'free_ai_deck_generations');
-            }
             void updateJobRecord(jobId, { status: 'completed', progress: 100 });
           }
         } catch (e: unknown) {

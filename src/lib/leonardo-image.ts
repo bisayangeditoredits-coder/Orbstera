@@ -9,6 +9,7 @@ import { snapDim } from '@/lib/leonardo-dimensions';
 export { snapDim } from '@/lib/leonardo-dimensions';
 
 const LEONARDO_API_URL = 'https://cloud.leonardo.ai/api/rest/v1';
+const LEONARDO_FETCH_TIMEOUT_MS = 45_000;
 
 /** Leonardo model UUIDs — https://docs.leonardo.ai/docs/commonly-used-api-values */
 export const LEONARDO_MODELS = {
@@ -129,6 +130,7 @@ async function pollLeonardoGeneration(
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,
       },
+      signal: AbortSignal.timeout(LEONARDO_FETCH_TIMEOUT_MS),
     });
 
     if (!pollRes.ok) continue;
@@ -199,6 +201,7 @@ export async function generateLeonardoImageUrl(params: {
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(reqBody),
+    signal: AbortSignal.timeout(LEONARDO_FETCH_TIMEOUT_MS),
   });
 
   if (!initRes.ok) {
@@ -250,6 +253,7 @@ export async function generateLeonardoMotionUrl(params: {
       imageId: params.imageId,
       isPublic: true,
     }),
+    signal: AbortSignal.timeout(LEONARDO_FETCH_TIMEOUT_MS),
   });
 
   if (!initRes.ok) {
@@ -272,6 +276,7 @@ export async function generateLeonardoMotionUrl(params: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,
       },
+      signal: AbortSignal.timeout(LEONARDO_FETCH_TIMEOUT_MS),
     });
 
     if (!pollRes.ok) continue;

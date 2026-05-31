@@ -9,6 +9,7 @@ import {
   adjustCreditFastPathRefund,
   isCreditRedisFastPathEnabled,
   releaseCreditsRedisFastPath,
+  reserveCreditBurstRedis,
   reserveCreditsRedisFastPath,
   setCreditFastPathUsed,
   syncCreditFastPathFromProfile,
@@ -334,17 +335,20 @@ const BURST_LIMIT_PER_HOUR = 2000;
 const BURST_WINDOW_SEC = 3600;
 
 async function enforceCreditBurstLimit(userId: string, cost: number): Promise<boolean> {
-  if (!redis || cost <= 0) return true;
+  if (cost <= 0) return true;
   const hourKey = `credits:burst:${userId}:${new Date().toISOString().slice(0, 13)}`;
-  try {
-    const prev = await redis.get<number>(hourKey);
-    const next = (typeof prev === 'number' ? prev : 0) + cost;
-    if (next > BURST_LIMIT_PER_HOUR) return false;
-    await redis.set(hourKey, next, { ex: BURST_WINDOW_SEC });
-    return true;
-  } catch {
-    return true;
+  const burst = await reserveCreditBurstRedis({
+    userId,
+    hourKey,
+    cost,
+    hourlyLimit: BURST_LIMIT_PER_HOUR,
+    ttlSec: BURST_WINDOW_SEC,
+  });
+  if (burst === null) {
+    // Redis unavailable — fail closed for burst protection
+    return false;
   }
+  return burst.ok;
 }
 
 type RpcV2Payload = {

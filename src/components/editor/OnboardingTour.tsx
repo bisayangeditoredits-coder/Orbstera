@@ -169,6 +169,7 @@ export function OnboardingTour() {
 
     return () => {
       if (speechTimeout) clearTimeout(speechTimeout);
+      window.speechSynthesis.onvoiceschanged = null;
       window.speechSynthesis.cancel();
       window.removeEventListener('resize', updateCoords);
       observer.disconnect();

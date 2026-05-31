@@ -990,7 +990,7 @@ export function HeroSection() {
             >
               <video
                 src="https://pub-84b1c8192311490baf3e9bba37bcbe13.r2.dev/720-ORBSTERA-VIDEO.compressed.mp4"
-                poster="/demo-poster.jpg"
+                poster="/editor_preview.png"
                 autoPlay
                 muted
                 loop

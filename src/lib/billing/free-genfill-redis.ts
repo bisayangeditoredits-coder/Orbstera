@@ -31,6 +31,21 @@ function secondsUntilMonthEndUTC(): number {
   return Math.max(3600, Math.ceil((end.getTime() - now.getTime()) / 1000) + 86400);
 }
 
+const GENFILL_RESERVE_LUA = `
+local key = KEYS[1]
+local limit = tonumber(ARGV[1])
+local ttl = tonumber(ARGV[2])
+local next = redis.call('INCR', key)
+if next == 1 then
+  redis.call('EXPIRE', key, ttl)
+end
+if next > limit then
+  redis.call('DECR', key)
+  return -1
+end
+return next
+`;
+
 export type FreeGenfillStatus = {
   limit: number;
   used: number;
@@ -47,8 +62,8 @@ export async function getFreeGenfillStatus(userId: string): Promise<FreeGenfillS
     const used = Math.min(limit, Math.max(0, typeof raw === 'number' ? raw : 0));
     return { limit, used, remaining: Math.max(0, limit - used) };
   } catch (err) {
-    console.error('[Redis] Failing open on getFreeGenfillStatus:', err);
-    return { limit, used: 0, remaining: limit };
+    console.error('[Redis] getFreeGenfillStatus failed:', err);
+    return { limit, used: limit, remaining: 0 };
   }
 }
 
@@ -57,7 +72,7 @@ export type ConsumeFreeGenfillResult =
   | { ok: false; error: 'FREE_LIMIT_REACHED'; used: number; remaining: 0 };
 
 /**
- * Atomically reserves one free Gen-Fill slot (INCR with cap). Call before generation.
+ * Atomically reserves one free Gen-Fill slot (Lua INCR with cap). Call before generation.
  */
 export async function consumeFreeGenfillSlot(userId: string): Promise<ConsumeFreeGenfillResult> {
   const limit = FREE_GENFILL_MONTHLY_LIMIT;
@@ -71,17 +86,18 @@ export async function consumeFreeGenfillSlot(userId: string): Promise<ConsumeFre
 
   try {
     const key = freeGenfillRedisKey(userId);
-    const next = await redis.incr(key);
-    if (next === 1) {
-      await redis.expire(key, secondsUntilMonthEndUTC());
-    }
-    if (next > limit) {
-      await redis.decr(key);
+    const ttl = secondsUntilMonthEndUTC();
+    const result = await redis.eval(GENFILL_RESERVE_LUA, [key], [String(limit), String(ttl)]);
+    const n = typeof result === 'number' ? result : Number(result);
+    if (n === -1) {
       return { ok: false, error: 'FREE_LIMIT_REACHED', used: limit, remaining: 0 };
     }
-    return { ok: true, used: next, remaining: Math.max(0, limit - next) };
+    if (!Number.isFinite(n) || n <= 0) {
+      return { ok: false, error: 'FREE_LIMIT_REACHED', used: limit, remaining: 0 };
+    }
+    return { ok: true, used: n, remaining: Math.max(0, limit - n) };
   } catch (err) {
-    console.error('[Redis] Failing open on consumeFreeGenfillSlot:', err);
-    return { ok: true, used: 1, remaining: limit - 1 };
+    console.error('[Redis] consumeFreeGenfillSlot failed — failing closed:', err);
+    return { ok: false, error: 'FREE_LIMIT_REACHED', used: limit, remaining: 0 };
   }
 }

@@ -23,21 +23,32 @@ type PlannerPreferences = {
   colorPalette?: string[];
   themeName?: string;
   layoutCategory?: string;
+  themeExplicit?: boolean;
+  paletteExplicit?: boolean;
+  layoutCategoryExplicit?: boolean;
 };
 
 // ── System Prompts ────────────────────────────────────────────────────────────
 function getOutputRules(brandKit?: { primary_color?: string; font?: string }, preferences?: PlannerPreferences) {
-  if (preferences?.slideCount && preferences.colorPalette?.length) {
-    const colors = preferences.colorPalette.join(', ');
-    const layout = preferences.layoutCategory || 'editorial';
+  if (preferences?.slideCount) {
+    const themeLine =
+      preferences.themeExplicit && preferences.themeName
+        ? `Optional visual mood: "${preferences.themeName}" (do not ask for brand colors).`
+        : 'The AI will choose visual direction — do not ask for brand colors unless the topic is extremely vague.';
+    const layoutLine = preferences.layoutCategory
+      ? `Optional layout inspiration: "${preferences.layoutCategory}" (you may pick a better structure for the topic).`
+      : '';
+    const colorLine =
+      preferences.paletteExplicit && preferences.colorPalette?.length
+        ? `Suggested colors (optional): ${preferences.colorPalette.join(', ')}.`
+        : '';
     return `
 STRICT RULES:
 - Never repeat the same question, sentence, or bullet.
-- [SETUP COMPLETE] The user already chose exactly ${preferences.slideCount} slides, theme "${preferences.themeName || 'Custom'}", layout category "${layout}", and brand colors: ${colors}.
+- [SETUP COMPLETE] The user already chose exactly ${preferences.slideCount} slides. ${themeLine} ${layoutLine} ${colorLine}
 - DO NOT ask how many slides they want or what brand color to use.
 - On the FIRST reply: output the slide outline immediately (unless the topic is extremely vague — then ask ONE short clarifying question only, then outline in the same or next reply).
 - The outline MUST contain exactly ${preferences.slideCount} slides (Slide 1 through Slide ${preferences.slideCount}).
-- Layout direction: shape the outline around the "${layout}" layout category, choosing slide moments that fit that structure.
 - Structure: (1) one short intro line, (2) numbered slides, (3) one closing line telling the user to click "Generate deck".
 - Use this slide format exactly (one per line): Slide 1: Title — one-line key message
 - Keep total reply focused; no filler paragraphs or repeated phrases.`;

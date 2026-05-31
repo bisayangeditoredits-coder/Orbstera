@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server';
+import { enforceApiIpRateLimit, requireRateLimitInfrastructure } from '@/lib/rate-limit-server';
 
 export const maxDuration = 10;
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
+    const infra = requireRateLimitInfrastructure();
+    if (infra) return infra;
+
+    const ipLimited = await enforceApiIpRateLimit(req, 'default');
+    if (ipLimited) return ipLimited;
+
     const { prompt } = await req.json();
 
     if (!prompt) {
@@ -26,6 +33,7 @@ export async function POST(req: Request) {
       headers: {
         Authorization: `Client-ID ${accessKey}`,
       },
+      signal: AbortSignal.timeout(15_000),
     });
 
     if (!response.ok) {

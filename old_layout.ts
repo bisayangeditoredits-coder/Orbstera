@@ -1,160 +1,33 @@
-import type { DeckLayoutCategory, SlideElement } from '@/types';
-import type { DeckImageTask } from '@/lib/deck-image-generation';
-import { buildDeckImagePrompt } from '@/lib/ai/deck-generation-skill';
-import type { VisualBackgroundMode } from '@/lib/visual-themes';
-import {
-  DEFAULT_DECK_LAYOUT_CATEGORY,
-  getDeckLayoutCategoryOption,
-  normalizeDeckLayoutCategory,
-} from '@/lib/deck-layout-categories';
-import { regionToLeonardoPixels } from '@/lib/leonardo-dimensions';
-
-export const DECK_CANVAS_W = 1280;
-export const DECK_CANVAS_H = 720;
-
-/** Estimate Konva/PPTX-safe text box height from content length. */
-export function estimateTextBlockHeight(
-  text: string,
-  fontSize: number,
-  width: number,
-  lineHeight = 1.15,
-  minH = 72,
-  maxH = 180,
-): number {
-  const trimmed = text.trim();
-  if (!trimmed) return minH;
-  const charsPerLine = Math.max(10, Math.floor(width / (fontSize * 0.52)));
-  const lines = Math.max(1, Math.ceil(trimmed.length / charsPerLine));
-  return Math.min(maxH, Math.max(minH, Math.round(lines * fontSize * lineHeight + 6)));
-}
-
-export type AiSlideInput = {
-  id: string;
-  type?: string;
-  title?: string;
-  subtitle?: string;
-  bullets?: string[];
-  content?: { bullets?: string[] };
-  imagePrompt?: string;
-};
-
-export type BuildDeckSlideLayoutArgs = {
-  slide: AiSlideInput;
-  sIdx: number;
-  slideCount?: number;
-  layoutCategory?: DeckLayoutCategory | string;
-  palette: string[];
-  headingFont: string;
-  bodyFont: string;
-  uid: (prefix: string) => string;
-  existingElements?: SlideElement[];
-  backgroundMode?: VisualBackgroundMode;
-};
-
-export type BuildDeckSlideLayoutResult = {
-  elements: SlideElement[];
-  imageTasks: DeckImageTask[];
-};
-
-export function resolveDeckImagePrompt(
-  slide: AiSlideInput,
-  ctx?: {
-    slideIndex?: number;
-    slideCount?: number;
-    layoutHint?: string;
-    layoutCategory?: DeckLayoutCategory | string;
-    visualMood?: string;
-    imageryPalette?: string;
-    presentationType?: string;
-  },
-): string {
-  const explicit = typeof slide.imagePrompt === 'string' ? slide.imagePrompt.trim() : '';
-  return buildDeckImagePrompt({
-    basePrompt: explicit || undefined,
-    title: slide.title,
-    type: slide.type,
-    slideIndex: ctx?.slideIndex,
-    slideCount: ctx?.slideCount,
-    layoutHint: ctx?.layoutHint || slide.type,
-    layoutCategory: ctx?.layoutCategory,
-    visualMood: ctx?.visualMood,
-    imageryPalette: ctx?.imageryPalette,
-    presentationType: ctx?.presentationType,
-  });
-}
-
-const glassCard = (light: boolean) =>
-  light
-    ? {
-        fill: 'rgba(255, 255, 255, 0.96)',
-        stroke: 'rgba(255, 255, 255, 1)',
-        strokeWidth: 2,
-        cornerRadius: 32,
-        shadowColor: 'rgba(0, 30, 80, 0.08)',
-        shadowBlur: 48,
-        shadowOffsetY: 16,
-      }
-    : {
-        fill: 'rgba(255, 255, 255, 0.04)',
-        stroke: 'rgba(255, 255, 255, 0.12)',
-        strokeWidth: 1,
-        cornerRadius: 32,
-        shadowColor: 'rgba(0,0,0,0.6)',
-        shadowBlur: 64,
-        shadowOffsetY: 24,
-      };
-
-const bulletPill = (light: boolean) =>
-  light
-    ? {
-        fill: 'rgba(255, 255, 255, 0.98)',
-        stroke: 'rgba(0,0,0,0.03)',
-        strokeWidth: 1,
-        cornerRadius: 20,
-        shadowColor: 'rgba(0, 30, 80, 0.05)',
-        shadowBlur: 16,
-        shadowOffsetY: 6,
-      }
-    : {
-        fill: 'rgba(255, 255, 255, 0.05)',
-        stroke: 'rgba(255, 255, 255, 0.1)',
-        strokeWidth: 1,
-        cornerRadius: 20,
-        shadowColor: 'rgba(0,0,0,0.4)',
-        shadowBlur: 24,
-        shadowOffsetY: 8,
-      };
-
-function resolveContentVariant(category: DeckLayoutCategory, sIdx: number): 0 | 1 | 2 {
-  const rhythms: Record<DeckLayoutCategory, (0 | 1 | 2)[]> = {
-    editorial: [0, 2, 1, 0, 2],
-    bento: [2, 2, 1, 2, 0],
-    cinematic: [0, 0, 2, 0, 1],
-    corporate: [1, 2, 1, 1, 2],
-    pitch: [0, 2, 1, 2, 0],
-    product: [0, 2, 0, 1, 2],
-    data_story: [2, 1, 2, 2, 1],
-    timeline: [1, 2, 1, 0, 2],
-    minimal: [1, 1, 0, 1, 2],
-    luxury: [0, 1, 0, 2, 0],
-  };
-  const rhythm = rhythms[category] || rhythms[DEFAULT_DECK_LAYOUT_CATEGORY];
-  return rhythm[sIdx % rhythm.length];
-}
-
-function prefersImageBackground(category: DeckLayoutCategory, slideType?: string): boolean {
-  if (slideType === 'hero' || slideType === 'quote' || slideType === 'closing' || slideType === 'media') return true;
-  if (category === 'cinematic' || category === 'luxury' || category === 'product') return true;
-  if (category === 'corporate' || category === 'minimal' || category === 'data_story') return false;
-  return true;
-}
-
-/**
- * Gamma-style slide layouts: full-bleed backgrounds, glass cards, editorial hierarchy.
+﻿/**
+ * ORBSTERA ΓÇö Improved buildDeckSlideElements
+ *
+ * KEY FIXES vs the original:
+ * 1. `content` slide type is now EXPLICITLY handled with 3 distinct, properly designed layouts
+ *    (editorial-left, bento-grid, cinematic-overlay) instead of falling into the `else` branch.
+ * 2. Bullet overflow protection ΓÇö all bullet loops now compute a `safeMaxBullets` so content
+ *    never clips outside the 720px canvas height.
+ * 3. `split` layout: gap is calculated precisely so text panel and image panel never overlap.
+ * 4. Image aspect ratio for split slides: Leonardo pixels are forced to a clean portrait ratio
+ *    (9:16 portrait or 2:3) instead of the previous near-square that caused stretching in pptxgenjs.
+ * 5. `resolveContentVariant` result is now consumed meaningfully ΓÇö each variant renders a
+ *    visually distinct layout, not just minor x/fontSize tweaks.
+ * 6. `bullets` slide: startY is computed from actual title height, not a magic constant.
+ * 7. Stats slide: stat cards are vertically centered in the available space below the title.
+ * 8. Timeline: dots are centered on the line (y offset corrected from 328 ΓåÆ lineY - dotR).
+ * 9. Comparison slide: each column gets a colored header badge to distinguish left vs right.
+ * 10. Closing slide: CTA button shape added below subtitle for a more polished feel.
+ *
+ * Drop-in replacement for the `buildDeckSlideElements` function in
+ * `src/lib/deck-slide-layout.ts` (or wherever it currently lives).
+ * All helper imports (glassCard, bulletPill, estimateTextBlockHeight,
+ * regionToLeonardoPixels, resolveDeckImagePrompt, etc.) remain unchanged.
  */
-// ─── Constants ────────────────────────────────────────────────────────────────
 
-// Safe rendering zone — elements should never exceed this bottom edge
+// ΓöÇΓöÇΓöÇ Constants ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+const DECK_CANVAS_W = 1280;
+const DECK_CANVAS_H = 720;
+
+// Safe rendering zone ΓÇö elements should never exceed this bottom edge
 const SAFE_BOTTOM = DECK_CANVAS_H - 40;
 
 // Padding / gutter used throughout
@@ -162,13 +35,14 @@ const PAD = 64;         // outer horizontal padding
 const INNER_PAD = 32;   // padding inside cards/panels
 const GAP = 24;         // gap between rows/columns
 
-// ─── Utility: clamp bullet count so items never overflow the canvas ───────────
+// ΓöÇΓöÇΓöÇ Utility: clamp bullet count so items never overflow the canvas ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 function safeMaxBullets(startY: number, itemHeight: number, gap: number, hardMax = 6): number {
   const available = SAFE_BOTTOM - startY;
   const fits = Math.floor(available / (itemHeight + gap));
   return Math.max(1, Math.min(fits, hardMax));
 }
 
+// ΓöÇΓöÇΓöÇ Main export ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDeckSlideLayoutResult {
   const { slide, sIdx, slideCount, palette, headingFont, bodyFont, uid } = args;
   const layoutCategory = normalizeDeckLayoutCategory(args.layoutCategory);
@@ -212,7 +86,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
     layoutCategory,
   });
 
-  // ── Image task helpers ─────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Image task helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const pushImageTask = (task: Omit<DeckImageTask, 'prompt' | 'slideId'> & { prompt?: string }) => {
     imageTasks.push({
       slideId:      slide.id,
@@ -224,7 +98,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
     });
   };
 
-  // ── Background helpers ─────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Background helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const addSolidBackground = () => {
     elements.unshift({
       id: uid('el-bg-solid'),
@@ -302,11 +176,15 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
     }
   };
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   // HERO
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   if (isHero) {
-    addFullBleedBackground(0.52, 'typography');
+    if (layoutCategory === 'minimal' || layoutCategory === 'corporate') {
+      addSolidBackground();
+    } else {
+      addFullBleedBackground(layoutCategory === 'cinematic' ? 0.48 : 0.42, 'typography');
+    }
 
     const titleText    = slide.title?.trim() ?? '';
     const titleFontSize = titleText.length > 42 ? 64 : titleText.length > 28 ? 76 : 88;
@@ -324,6 +202,15 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
     const heroScrimH   = titleHeight + (slide.subtitle ? subHeight + 48 : 32) + 36;
 
     if (slide.title) {
+      elements.push({
+        id: uid('el-title-scrim'),
+        type: 'shape', shapeType: 'rect',
+        x: 48, y: titleY - 28,
+        width: DECK_CANVAS_W - 96, height: heroScrimH,
+        zIndex: currentZ++, visible: true,
+        shapeStyle: glassCard(light),
+        animation: { entrance: 'fadeIn', duration: 600, delay: 0 },
+      });
       elements.push({
         id: uid('el-title'),
         type: 'text',
@@ -354,9 +241,9 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       });
     }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   // SPLIT / MEDIA
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   } else if (isSplit) {
     addSolidBackground();
 
@@ -430,7 +317,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         type: 'text',
         x: textPanelX + INNER_PAD + 20, y: y + 14,
         width: PANEL_W - INNER_PAD * 2 - 40, height: BULLET_H - 20,
-        content: bullet.replace(/^•\s*/, ''),
+        content: bullet.replace(/^ΓÇó\s*/, ''),
         zIndex: currentZ++, visible: true,
         textStyle: {
           fontFamily: bodyFont, fontSize: 26,
@@ -441,7 +328,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       });
     });
 
-    // FIX: image panel — use portrait aspect ratio (9:16 cropped to panel dimensions)
+    // FIX: image panel ΓÇö use portrait aspect ratio (9:16 cropped to panel dimensions)
     // This avoids stretching in pptxgenjs since the generated image matches the panel shape.
     const imgId     = uid('el-image');
     const imgInsetX = imgPanelX + 16;
@@ -482,9 +369,9 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       visualProfile: 'cinematic',
     });
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   // QUOTE
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   } else if (isQuote) {
     addFullBleedBackground(0.36, 'cinematic');
 
@@ -526,7 +413,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
           type: 'text',
           x: 160, y: quoteY + quoteHeight + 32,
           width: quoteW, height: 48,
-          content: `— ${slide.subtitle}`,
+          content: `ΓÇö ${slide.subtitle}`,
           zIndex: currentZ++, visible: true,
           textStyle: {
             fontFamily: bodyFont, fontSize: 28,
@@ -538,11 +425,15 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       }
     }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   // CLOSING
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   } else if (isClosing) {
-    addFullBleedBackground(0.54, 'cinematic');
+    if (layoutCategory === 'minimal' || layoutCategory === 'corporate') {
+      addSolidBackground();
+    } else {
+      addFullBleedBackground(0.38, 'cinematic');
+    }
 
     if (slide.title) {
       const titleFontSize = 80;
@@ -617,9 +508,9 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       animation: { entrance: 'fadeIn', duration: 500, delay: 560 },
     });
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   // STATS
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   } else if (isStats) {
     addSolidBackground();
 
@@ -665,7 +556,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         animation: { entrance: 'zoomIn', duration: 520, delay: 120 + i * 90 },
       });
 
-      // Large metric value — vertically centred in upper half of card
+      // Large metric value ΓÇö vertically centred in upper half of card
       elements.push({
         id: uid(`el-stat-val-${i}`),
         type: 'text',
@@ -710,9 +601,9 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       }
     });
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   // TIMELINE
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   } else if (isTimeline) {
     addFullBleedBackground(0.3, 'cinematic');
 
@@ -793,7 +684,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         type: 'text',
         x: cx - stepW / 2 + 8, y: lineY + 32,
         width: stepW - 16, height: 160,
-        content: step.replace(/^•\s*/, ''),
+        content: step.replace(/^ΓÇó\s*/, ''),
         zIndex: currentZ++, visible: true,
         textStyle: {
           fontFamily: bodyFont, fontSize: 22,
@@ -804,9 +695,9 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       });
     });
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   // COMPARISON
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   } else if (isComparison) {
     addSolidBackground();
 
@@ -888,7 +779,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
           type: 'text',
           x: col.x + INNER_PAD, y: itemStartY + i * (itemH + 12),
           width: colW - INNER_PAD * 2, height: itemH,
-          content: `• ${item.replace(/^•\s*/, '')}`,
+          content: `ΓÇó ${item.replace(/^ΓÇó\s*/, '')}`,
           zIndex: currentZ++, visible: true,
           textStyle: {
             fontFamily: bodyFont, fontSize: 26,
@@ -900,9 +791,9 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       });
     });
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   // BULLETS
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   } else if (isBullets) {
     if (layoutCategory === 'corporate' || layoutCategory === 'minimal' || layoutCategory === 'data_story') {
       addSolidBackground();
@@ -954,7 +845,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         type: 'text',
         x: PAD + 24, y: y + 16,
         width: DECK_CANVAS_W - PAD * 2 - 48, height: BULLET_H - 24,
-        content: bullet.replace(/^•\s*/, ''),
+        content: bullet.replace(/^ΓÇó\s*/, ''),
         zIndex: currentZ++, visible: true,
         textStyle: {
           fontFamily: bodyFont, fontSize: 28,
@@ -965,13 +856,13 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       });
     });
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   // CONTENT (FIX: explicit handling with 3 properly distinct layouts)
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   } else if (isContent) {
     const contentVariant = resolveContentVariant(layoutCategory, sIdx);
 
-    // ── Variant 0: Editorial Left — title left-aligned, bullets as accent-bar rows ──
+    // ΓöÇΓöÇ Variant 0: Editorial Left ΓÇö title left-aligned, bullets as accent-bar rows ΓöÇΓöÇ
     if (contentVariant === 0) {
       if (prefersImageBackground(layoutCategory, slide.type)) {
         addFullBleedBackground(0.28, 'cinematic');
@@ -1043,7 +934,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
           type: 'text',
           x: PAD + 40, y: y + 16,
           width: DECK_CANVAS_W - PAD * 2 - 60, height: BULLET_H - 24,
-          content: bullet.replace(/^•\s*/, ''),
+          content: bullet.replace(/^ΓÇó\s*/, ''),
           zIndex: currentZ++, visible: true,
           textStyle: {
             fontFamily: bodyFont, fontSize: 29,
@@ -1054,7 +945,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         });
       });
 
-    // ── Variant 1: Bento Grid — 2×2 or 2×3 glass cards ──────────────────────
+    // ΓöÇΓöÇ Variant 1: Bento Grid ΓÇö 2├ù2 or 2├ù3 glass cards ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     } else if (contentVariant === 1) {
       addSolidBackground();
 
@@ -1121,7 +1012,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
           type: 'text',
           x: x + INNER_PAD, y: y + 60,
           width: cardW - INNER_PAD * 2, height: cardH - 80,
-          content: bullet.replace(/^•\s*/, ''),
+          content: bullet.replace(/^ΓÇó\s*/, ''),
           zIndex: currentZ++, visible: true,
           textStyle: {
             fontFamily: bodyFont,
@@ -1133,9 +1024,9 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         });
       });
 
-    // ── Variant 2: Cinematic Overlay — full-bleed image with centred glass content block ──
+    // ΓöÇΓöÇ Variant 2: Cinematic Overlay ΓÇö full-bleed image with centred glass content block ΓöÇΓöÇ
     } else {
-      addFullBleedBackground(0.48, 'cinematic');
+      addFullBleedBackground(0.22, 'cinematic');
 
       const blockW    = DECK_CANVAS_W - 200;
       const titleFontSize = 42;
@@ -1187,7 +1078,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
           type: 'text',
           x: blockX + INNER_PAD, y,
           width: titleW, height: BULLET_H,
-          content: `• ${bullet.replace(/^•\s*/, '')}`,
+          content: `ΓÇó ${bullet.replace(/^ΓÇó\s*/, '')}`,
           zIndex: currentZ++, visible: true,
           textStyle: {
             fontFamily: bodyFont, fontSize: 26,
@@ -1202,4 +1093,3 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
 
   return { elements, imageTasks };
 }
-

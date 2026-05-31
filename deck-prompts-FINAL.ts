@@ -391,14 +391,7 @@ Tasks:
 // BUILDER FUNCTIONS
 // ─────────────────────────────────────────────────────────────
 
-export function buildComposerSystemPrompt(
-  preflightBlock: string,
-  systemConstraints?: string,
-): string {
-  const constraintsBlock = systemConstraints?.trim()
-    ? `\n\nUSER VISUAL CONSTRAINTS (hints / explicit palette only — do not lock all slides to one layout):\n${systemConstraints.trim()}`
-    : '';
-
+export function buildComposerSystemPrompt(preflightBlock: string): string {
   return `You are Orbstera's Deck Composer — an EXECUTION ENGINE.
 
 ${GAMMA_PHILOSOPHY}
@@ -411,7 +404,7 @@ ${HEADLINE_RULES}
 ${COMPOSER_EXECUTION_RULES}
 
 ORCHESTRATION ORDERS (OBEY ABSOLUTELY):
-${preflightBlock}${constraintsBlock}
+${preflightBlock}
 
 Before outputting: verify slide count correct, every imagePrompt ≥ 40 chars and real scene,
 spine mapped 1:1, all full-bleed slides have overlayOpacity 0.45–0.58 and white text.
@@ -426,7 +419,6 @@ export function buildComposerUserPrompt(args: {
   language: string;
   styleMode?: string;
   layoutCategory?: string;
-  layoutCategoryExplicit?: boolean;
   imageSource?: 'ai' | 'unsplash' | 'none';
 }): string {
   const style =
@@ -439,10 +431,9 @@ export function buildComposerUserPrompt(args: {
       : args.imageSource === 'unsplash'
         ? '\nImage source: unsplash — imagePrompt must describe realistic stock-photo scenes (no AI art styles).'
         : '\nImage source: AI (FLUX) — imagePrompt must be vivid, specific, filmable, unique per slide. Include text-safe zone instruction.';
-  const layoutCategory =
-    args.layoutCategoryExplicit && args.layoutCategory?.trim()
-      ? `\nSuggested layout family (optional): ${args.layoutCategory}`
-      : '';
+  const layoutCategory = args.layoutCategory?.trim()
+    ? `\nLayout category (must shape slide structures AND image compositions): ${args.layoutCategory}`
+    : '';
 
   return `EXECUTE the deck JSON now.
 
@@ -462,7 +453,7 @@ LAYOUT VARIETY (mandatory — violations will be rejected):
 - Use ≥ 4 DISTINCT types from: split, content, stats, timeline, comparison, quote, bullets, media.
 - NEVER assign "content" or "split" to more than 35% of slides.
 - No 3 identical types in a row.
-- Choose root layoutCategory and per-slide layout independently for the best narrative (do not repeat one layout on every slide).
+- layoutCategory must be respected in every slide.layout field.
 
 READABILITY CHECKLIST (verify before outputting — every item must pass):
 □ Every full-bleed image slide: overlayOpacity between 0.45–0.58, never 0 or missing

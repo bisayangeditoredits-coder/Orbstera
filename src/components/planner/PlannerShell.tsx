@@ -35,7 +35,7 @@ function loadStoredSetup(topic: string): PlannerSetupPreferences | null {
     const raw = sessionStorage.getItem(plannerSetupStorageKey(topic));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PlannerSetupPreferences;
-    if (parsed.slideCount && parsed.colorPalette?.length) {
+    if (parsed.slideCount) {
       return {
         ...parsed,
         layoutCategory: parsed.layoutCategory || DEFAULT_DECK_LAYOUT_CATEGORY,
@@ -141,6 +141,9 @@ export function PlannerShell() {
                   colorPalette: prefs.colorPalette,
                   themeName: prefs.themeName,
                   layoutCategory: prefs.layoutCategory,
+                  themeExplicit: prefs.themeExplicit,
+                  paletteExplicit: prefs.paletteExplicit,
+                  layoutCategoryExplicit: prefs.layoutCategoryExplicit,
                 }
               : undefined,
           }),
@@ -368,9 +371,27 @@ export function PlannerShell() {
     }));
 
     const outlineBlock = formatOutlineForContext(annotatedSlides);
-    const prefsBlock = plannerPreferences
-      ? `[USER DECK PREFERENCES]\nSlides: ${config.slideCount}\nTheme: ${config.theme}\nLayout category: ${plannerPreferences.layoutCategory}\nArt style: ${config.artStyle}\nImage source: ${config.imageSource}\nColors: ${plannerPreferences.colorPalette.join(', ')}`
-      : `[USER DECK PREFERENCES]\nSlides: ${config.slideCount}\nTheme: ${config.theme}\nArt style: ${config.artStyle}\nImage source: ${config.imageSource}`;
+    const themeHint = config.theme
+      ? `Theme mood hint (optional): ${config.theme}`
+      : '';
+    const layoutHint = plannerPreferences?.layoutCategory
+      ? `Layout inspiration (optional): ${plannerPreferences.layoutCategory}`
+      : '';
+    const colorHint =
+      plannerPreferences?.paletteExplicit && plannerPreferences.colorPalette?.length
+        ? `Suggested colors (optional): ${plannerPreferences.colorPalette.join(', ')}`
+        : '';
+    const prefsBlock = [
+      `[USER DECK PREFERENCES]`,
+      `Slides: ${config.slideCount}`,
+      themeHint,
+      layoutHint,
+      colorHint,
+      `Art style: ${config.artStyle}`,
+      `Image source: ${config.imageSource}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
     const fullContext = [chatContext, prefsBlock, outlineBlock].filter(Boolean).join('\n\n');
 
     const slideCountForGen = config.slideCount;
@@ -394,8 +415,13 @@ export function PlannerShell() {
         outlineSlideCount: slideCountForGen,
         targetSlideCount: slideCountForGen,
         themeName: config.theme,
-        colorPalette: plannerPreferences?.colorPalette,
+        themeExplicit: true,
+        paletteExplicit: plannerPreferences?.paletteExplicit === true,
+        colorPalette: plannerPreferences?.paletteExplicit
+          ? plannerPreferences?.colorPalette
+          : undefined,
         layoutCategory: plannerPreferences?.layoutCategory,
+        layoutCategoryExplicit: plannerPreferences?.layoutCategoryExplicit === true,
         styleMode: config.artStyle,
         imageSource: config.imageSource,
       },

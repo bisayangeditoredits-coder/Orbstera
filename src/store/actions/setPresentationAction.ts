@@ -3,6 +3,7 @@ import { finalizeSlideMotion } from '@/lib/presentationMotion';
 import { runDeckImageTasks, type DeckImageTask } from '@/lib/deck-image-generation';
 import { buildDeckSlideElements, resolveDeckImagePrompt } from '@/lib/deck-slide-layout';
 import { buildSlideFromReferenceTemplate } from '@/lib/reference-templates/build-slide';
+import { useReferenceTemplatePackForDeck } from '@/lib/reference-templates/use-during-generation';
 import { resolveVisualTheme } from '@/lib/visual-themes';
 
 export const setPresentationAction = (set: any, get: any, data: any) => {
@@ -216,7 +217,10 @@ export const setPresentationAction = (set: any, get: any, data: any) => {
         `${prefix}-${sIdx}-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
 
       const refPack = get().editor.referenceTemplatePack;
-      const { elements, imageTasks: slideImageTasks } = refPack?.slides?.length
+      const { elements, imageTasks: slideImageTasks } = useReferenceTemplatePackForDeck(
+        refPack,
+        get().editor.isGenerating,
+      )
         ? buildSlideFromReferenceTemplate({
             pack: refPack,
             slideIndex: sIdx,

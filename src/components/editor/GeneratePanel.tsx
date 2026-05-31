@@ -8,6 +8,7 @@ import { SurveyModal } from './SurveyModal';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import type { DeckLayoutCategory, PresentationData } from '@/types';
 import { mergeOrchestrationMetadata, normalizePresentationPayload } from '@/lib/ai/orchestration';
+import { constraintsFromGenerateBody } from '@/lib/ai/generation-constraints';
 import { createEditorGeneratingShell } from '@/lib/editor-generating-shell';
 import {
   DECK_LAYOUT_CATEGORIES,
@@ -33,7 +34,6 @@ import {
 import { useCredits } from '@/hooks/useCredits';
 import { pollJobUntilDone } from '@/lib/client/poll-job';
 import { resolveVisualTheme } from '@/lib/visual-themes';
-import { fetchReferenceTemplatePack } from '@/lib/reference-templates/fetch-client';
 import { GenerationProgress } from './GenerationProgress';
 
 
@@ -284,8 +284,10 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const generateAbortRef = useRef<AbortController | null>(null);
+  const generateInFlightRef = useRef(false);
   const orchestrationMetaRef = useRef<Record<string, unknown> | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const activeJobIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -295,7 +297,10 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
 
   useEffect(() => {
     const layoutParam = searchParams.get('layout');
-    if (layoutParam) setSelectedLayoutCategory(normalizeDeckLayoutCategory(layoutParam));
+    if (layoutParam) {
+      setSelectedLayoutCategory(normalizeDeckLayoutCategory(layoutParam));
+      setLayoutExplicit(true);
+    }
   }, [searchParams]);
 
   const isPaid = userPlan === 'student_pro' || userPlan === 'pro' || userPlan === 'creator_pro';
@@ -317,9 +322,11 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
   const [expandDensity, setExpandDensity] = useState(true);
   const [expandLayout, setExpandLayout] = useState(true);
   const [selectedLayoutCategory, setSelectedLayoutCategory] = useState<DeckLayoutCategory>(DEFAULT_DECK_LAYOUT_CATEGORY);
+  const [layoutExplicit, setLayoutExplicit] = useState(false);
   const [selectedTone, setSelectedTone] = useState('Professional');
   const [expandTone, setExpandTone] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState('Obsidian Night');
+  const [themeExplicit, setThemeExplicit] = useState(false);
   const [expandTheme, setExpandTheme] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState('English');
   const [expandLanguage, setExpandLanguage] = useState(false);
@@ -523,35 +530,54 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
       setActiveTab(urlMode === 'enhance' ? 'enhance' : 'create');
     }
 
+    let autoTriggerTimer: ReturnType<typeof setTimeout> | undefined;
+
     if (copilotApproved) {
       hasAutoTriggered.current = true;
       const context = usePresentationStore.getState().editor.copilotContext;
       const finalPrompt = `[Copilot Approved Outline]\n\n${context}\n\nPlease generate a presentation matching this exact approved outline.`;
       setPrompt(finalPrompt);
-      setTimeout(() => {
+      autoTriggerTimer = setTimeout(() => {
         executeGenerate('replace', finalPrompt, true);
       }, 50);
     } else if (urlPrompt && urlMode !== 'enhance') {
       hasAutoTriggered.current = true;  // lock before async work
       setPrompt(urlPrompt);
       if (urlFileName) setSelectedFile({ name: urlFileName } as File);
-      setTimeout(() => {
+      autoTriggerTimer = setTimeout(() => {
         handleGenerateClick(urlPrompt);
       }, 50);
     } else if (urlFileName) {
       hasAutoTriggered.current = true;
       setSelectedFile({ name: urlFileName } as File);
-      setTimeout(() => {
+      autoTriggerTimer = setTimeout(() => {
         handleGenerateClick();
       }, 50);
     }
+
+    return () => {
+      if (autoTriggerTimer) clearTimeout(autoTriggerTimer);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isProfileLoading, searchParams]);
 
-  const handleCancelGenerate = useCallback(() => {
+  const handleCancelGenerate = useCallback(async () => {
+    const jobId = activeJobIdRef.current;
     generateAbortRef.current?.abort();
     generateAbortRef.current = null;
+    activeJobIdRef.current = null;
     setActiveJobId(null);
+    if (jobId) {
+      try {
+        await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+      } catch (e) {
+        console.warn('[GeneratePanel] job cancel request failed:', e);
+      }
+    }
+    generateInFlightRef.current = false;
     setEditorState({
       isGenerating: false,
       generationBlockingOverlay: false,
@@ -607,9 +633,11 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
     const targetPrompt = overridePrompt || prompt;
     if (activeTab === 'create') {
       const trimmed = targetPrompt.trim();
-      if (!trimmed || isLoading) return;
+      if (!trimmed || isLoading || generateInFlightRef.current) return;
+      generateInFlightRef.current = true;
 
       if (!bypassPlanner) {
+        generateInFlightRef.current = false;
         if (onClose) onClose();
         router.push(
           `/planner?topic=${encodeURIComponent(trimmed)}&slides=${slideCount}&layout=${selectedLayoutCategory}`,
@@ -628,21 +656,14 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
 
       if (appendMode === 'replace') {
         usePresentationStore.getState().initGenerationPlaceholders(effectiveSlideCountAtStart);
-        const visualTheme = handoffAtStart?.themeName
-          ? resolveVisualTheme(handoffAtStart.themeName)
-          : null;
-        const palette =
-          visualTheme?.colorPalette ??
-          (handoffAtStart?.colorPalette?.length ? handoffAtStart.colorPalette : undefined);
-        if (palette?.length) {
+        if (handoffAtStart?.paletteExplicit && handoffAtStart.colorPalette?.length) {
           const pres = usePresentationStore.getState().presentation;
           if (pres) {
             usePresentationStore.getState().setPresentation({
               ...pres,
-              colorPalette: [...palette],
-              theme: handoffAtStart?.themeName || pres.theme,
-              layoutCategory: handoffAtStart?.layoutCategory || selectedLayoutCategory,
-              fontPairing: visualTheme?.fontPairing ?? pres.fontPairing,
+              colorPalette: [...handoffAtStart.colorPalette],
+              theme: handoffAtStart.themeExplicit ? handoffAtStart.themeName || pres.theme : pres.theme,
+              layoutCategory: handoffAtStart.layoutCategory || pres.layoutCategory,
             });
           }
         }
@@ -689,22 +710,23 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
               ? handoff.outlineSlideCount
               : slideCount;
 
-        const layoutCategory = handoff?.layoutCategory || selectedLayoutCategory;
-        let referenceTemplatePack = null;
-        try {
-          referenceTemplatePack = await fetchReferenceTemplatePack({
-            prompt: trimmed,
-            layoutCategory,
-            signal: ac.signal,
-          });
-        } catch {
-          referenceTemplatePack = null;
-        }
+        const generationConstraints = constraintsFromGenerateBody({
+          theme: handoff?.themeExplicit ? handoff.themeName : themeExplicit ? selectedTheme : undefined,
+          themeExplicit: handoff?.themeExplicit === true || themeExplicit,
+          colorPalette: handoff?.paletteExplicit ? handoff.colorPalette : undefined,
+          paletteExplicit: handoff?.paletteExplicit === true,
+          layoutCategory: handoff?.layoutCategoryExplicit
+            ? handoff.layoutCategory
+            : layoutExplicit
+              ? selectedLayoutCategory
+              : undefined,
+          layoutCategoryExplicit: handoff?.layoutCategoryExplicit === true || layoutExplicit,
+          styleMode: handoff?.styleMode,
+          imageSource: handoff?.imageSource,
+        });
         setEditorState({
-          referenceTemplatePack,
-          orchestrationMessage: referenceTemplatePack
-            ? `Using "${referenceTemplatePack.packId.replace(/-/g, ' ')}" template layouts…`
-            : 'Connecting to AI…',
+          referenceTemplatePack: null,
+          orchestrationMessage: 'Connecting to AI…',
         });
 
         const res = await fetch('/api/generate', {
@@ -716,15 +738,14 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
             outlineSlideCount: handoff?.targetSlideCount ?? handoff?.outlineSlideCount,
             plannerSessionId: handoff?.sessionId ?? undefined,
             tone: selectedTone.toLowerCase().replace(/ & /g, '_'),
-            theme: handoff?.themeName || selectedTheme,
-            layoutCategory: handoff?.layoutCategory || selectedLayoutCategory,
-            colorPalette: handoff?.colorPalette?.length
-              ? handoff.colorPalette
-              : handoff?.themeName
-                ? [...resolveVisualTheme(handoff.themeName).colorPalette]
-                : undefined,
+            theme: generationConstraints.themeId,
+            themeExplicit: generationConstraints.themeExplicit,
+            colorPalette: generationConstraints.colorPalette,
+            paletteExplicit: generationConstraints.paletteExplicit,
+            layoutCategory: generationConstraints.layoutCategory,
+            layoutCategoryExplicit: generationConstraints.layoutCategoryExplicit,
             styleMode: handoff?.styleMode,
-            imageSource: handoff?.imageSource,
+            imageSource: handoff?.imageSource ?? 'ai',
             language: selectedLanguage,
           }),
           signal: ac.signal,
@@ -746,6 +767,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
               orchestrationPhase: '',
               activeModelLabel: '',
             });
+            generateInFlightRef.current = false;
             return;
           }
           throw new Error(errData.error || errData.message || 'Generation failed');
@@ -755,9 +777,11 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
           const queued = (await res.json()) as { jobId?: string };
           if (!queued.jobId) throw new Error('Missing job id');
           setActiveJobId(queued.jobId);
+          activeJobIdRef.current = queued.jobId;
           setEditorState({ deckGenerationLifecycle: 'building', orchestrationMessage: 'Queued…' });
           const job = await pollJobUntilDone(queued.jobId, {
             signal: ac.signal,
+            preferPolling: true,
             onProgress: (j) => {
               setEditorState({
                 orchestrationMessage:
@@ -773,6 +797,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
               (job.result || {}) as Record<string, unknown>,
               null,
             ),
+            { imageSource: handoff?.imageSource ?? 'ai', constraints: generationConstraints },
           );
           setEditorState({ orchestrationPhase: 'finishing', deckGenerationLifecycle: 'polishing' });
           try {
@@ -784,7 +809,13 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
             });
             if (pr.ok) {
               const polished = await pr.json();
-              finalData = normalizePresentationPayload(polished as Record<string, unknown>);
+              const polishedDeck = normalizePresentationPayload(polished as Record<string, unknown>, {
+                imageSource: handoff?.imageSource ?? 'ai',
+                constraints: generationConstraints,
+              });
+              if (polishedDeck.slides?.length) {
+                finalData = polishedDeck;
+              }
             }
           } catch (polishErr) {
             console.warn('Polish pass skipped:', polishErr);
@@ -828,6 +859,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
         const streamSlide = usePresentationStore.getState().streamSlide;
 
         while (true) {
+          if (ac.signal.aborted) break;
           const { done, value } = await reader.read();
           if (done) break;
 
@@ -977,7 +1009,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
                 title: inferredTitle,
                 theme: streamed?.theme || 'modern-dark',
                 layoutCategory: streamed?.layoutCategory || handoff?.layoutCategory || selectedLayoutCategory,
-                colorPalette: streamed?.colorPalette || ['#05050A', '#F8FAFC', '#38BDF8', '#94A3B8'],
+                colorPalette: streamed?.colorPalette,
                 fontPairing: streamed?.fontPairing || { heading: 'Space Grotesk', body: 'Inter' },
                 animationStyle: streamed?.animationStyle || 'cinematic-reveal',
                 slides: streamedSlides,
@@ -991,6 +1023,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
 
           let finalData = normalizePresentationPayload(
             mergeOrchestrationMetadata(parsedRaw, orchestrationMetaRef.current),
+            { imageSource: handoff?.imageSource ?? 'ai', constraints: generationConstraints },
           );
 
           setEditorState({ orchestrationPhase: 'finishing', deckGenerationLifecycle: 'polishing' });
@@ -1002,7 +1035,13 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
             });
             if (pr.ok) {
               const polished = await pr.json();
-              finalData = normalizePresentationPayload(polished as Record<string, unknown>);
+              const polishedDeck = normalizePresentationPayload(polished as Record<string, unknown>, {
+                imageSource: handoff?.imageSource ?? 'ai',
+                constraints: generationConstraints,
+              });
+              if (polishedDeck.slides?.length) {
+                finalData = polishedDeck;
+              }
             }
           } catch (polishErr) {
             console.warn('Polish pass skipped:', polishErr);
@@ -1045,6 +1084,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
         if (err instanceof DOMException && err.name === 'AbortError') return;
         setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
       } finally {
+        generateInFlightRef.current = false;
         if (activeTab === 'create') {
           setActiveJobId(null);
           if (createGenerationSucceeded) {
@@ -1519,7 +1559,10 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
                     <button
                       key={id}
                       type="button"
-                      onClick={() => setSelectedLayoutCategory(id)}
+                      onClick={() => {
+                        setSelectedLayoutCategory(id);
+                        setLayoutExplicit(true);
+                      }}
                       title={description}
                       className={`min-h-[58px] rounded-xl border px-2.5 py-2 text-left transition-all ${
                         active
