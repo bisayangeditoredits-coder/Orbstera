@@ -116,7 +116,12 @@ export const ART_STYLE_IMAGE_HINTS: Record<string, string> = {
 };
 
 export function resolveVisualTheme(themeId?: string | null): VisualThemePreset {
-  if (!themeId) return VISUAL_THEME_PRESETS['chimney-smoke'];
+  if (!themeId || themeId.trim().toLowerCase() === 'auto') {
+    // If "auto" or undefined, pick a random premium theme for variety
+    const autoThemes = ['coal', 'finesse', 'atacama', 'piano', 'bold-agency'];
+    const randomKey = autoThemes[Math.floor(Math.random() * autoThemes.length)];
+    return VISUAL_THEME_PRESETS[randomKey];
+  }
   const key = themeId.trim().toLowerCase();
   const aliases: Record<string, keyof typeof VISUAL_THEME_PRESETS> = {
     dark: 'coal',
@@ -139,7 +144,7 @@ export function resolveVisualTheme(themeId?: string | null): VisualThemePreset {
     'cyber-grid': 'atacama',
     'cyber grid': 'atacama',
   };
-  return VISUAL_THEME_PRESETS[key] ?? VISUAL_THEME_PRESETS[aliases[key]] ?? VISUAL_THEME_PRESETS['chimney-smoke'];
+  return VISUAL_THEME_PRESETS[key] ?? VISUAL_THEME_PRESETS[aliases[key]] ?? VISUAL_THEME_PRESETS['coal']; // Default to coal (dark premium) instead of chimney-smoke
 }
 
 export function resolveArtStyleHint(artStyle?: string | null): string {

@@ -174,6 +174,16 @@ const STYLE_TABS: { id: StyleTab; label: string }[] = [
 
 const ART_STYLES: ArtStyleDefinition[] = [
   {
+    id: 'auto',
+    label: 'Auto (AI)',
+    selectable: true,
+    renderCard: () => (
+      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
+        <Sparkles className="h-6 w-6 text-white/80" strokeWidth={1.5} />
+      </div>
+    ),
+  },
+  {
     id: 'scene',
     label: 'Scene',
     selectable: true,
@@ -241,9 +251,9 @@ export default function VisualsConfig({ initialSlideCount, onGenerate }: Visuals
   const [selectedSlideCount, setSelectedSlideCount] = useState(() =>
     nearestValidSlideCount(initialSlideCount || DEFAULT_SLIDE_COUNT),
   );
-  const [selectedTheme, setSelectedTheme] = useState('chimney-smoke');
+  const [selectedTheme, setSelectedTheme] = useState('auto');
   const [selectedImageSource, setSelectedImageSource] = useState<ImageSource>('ai');
-  const [selectedArtStyle, setSelectedArtStyle] = useState('scene');
+  const [selectedArtStyle, setSelectedArtStyle] = useState('auto');
   const [activeStyleTab, setActiveStyleTab] = useState<StyleTab>('suggested');
   const [imageDropdownOpen, setImageDropdownOpen] = useState(false);
 
@@ -312,6 +322,32 @@ export default function VisualsConfig({ initialSlideCount, onGenerate }: Visuals
           </p>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            {/* Auto Theme Card */}
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedTheme('auto')}
+                className={cn(
+                  'group relative w-full cursor-pointer overflow-hidden rounded-xl bg-gray-200/60 p-[3px] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+                  selectedTheme === 'auto' ? 'ring-2 ring-blue-600 ring-offset-2' : 'hover:shadow-md',
+                )}
+                aria-pressed={selectedTheme === 'auto'}
+                aria-label="Select Auto (AI) theme"
+              >
+                <div className="aspect-video w-full overflow-hidden rounded-[9px] shadow-sm flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
+                  <Sparkles className="h-8 w-8 text-white/80" strokeWidth={1.5} />
+                </div>
+              </button>
+              {selectedTheme === 'auto' ? (
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600">
+                  <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                  Auto (AI)
+                </span>
+              ) : (
+                <span className="text-xs text-gray-500">Auto (AI)</span>
+              )}
+            </div>
+
             {THEMES.map((theme) => {
               const isSelected = selectedTheme === theme.id;
 

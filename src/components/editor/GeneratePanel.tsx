@@ -535,7 +535,7 @@ function GeneratePanelInner({ onClose }: GeneratePanelProps) {
     if (copilotApproved) {
       hasAutoTriggered.current = true;
       const context = usePresentationStore.getState().editor.copilotContext;
-      const finalPrompt = `[Copilot Approved Outline]\n\n${context}\n\nPlease generate a presentation matching this exact approved outline.`;
+      const finalPrompt = `[Copilot Approved Outline]\n\n${context}\n\nCRITICAL INSTRUCTION: Generate a presentation matching this exact approved outline. You MUST strictly follow the aesthetic, stylistic, and vibe instructions from the [ORIGINAL USER PROMPT] above. The imagery, visual direction, and content tone MUST perfectly match what the user originally requested.`;
       setPrompt(finalPrompt);
       autoTriggerTimer = setTimeout(() => {
         executeGenerate('replace', finalPrompt, true);

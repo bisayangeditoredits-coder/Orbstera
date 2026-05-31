@@ -371,7 +371,7 @@ export function PlannerShell() {
     }));
 
     const outlineBlock = formatOutlineForContext(annotatedSlides);
-    const themeHint = config.theme
+    const themeHint = config.theme && config.theme !== 'auto'
       ? `Theme mood hint (optional): ${config.theme}`
       : '';
     const layoutHint = plannerPreferences?.layoutCategory
@@ -381,13 +381,16 @@ export function PlannerShell() {
       plannerPreferences?.paletteExplicit && plannerPreferences.colorPalette?.length
         ? `Suggested colors (optional): ${plannerPreferences.colorPalette.join(', ')}`
         : '';
+    const originalPrompt = messages[0]?.content || topic;
     const prefsBlock = [
+      `[ORIGINAL USER PROMPT (CORE AESTHETIC INTENT)]`,
+      originalPrompt,
       `[USER DECK PREFERENCES]`,
       `Slides: ${config.slideCount}`,
       themeHint,
       layoutHint,
       colorHint,
-      `Art style: ${config.artStyle}`,
+      config.artStyle !== 'auto' ? `Art style: ${config.artStyle}` : '',
       `Image source: ${config.imageSource}`,
     ]
       .filter(Boolean)
@@ -414,15 +417,15 @@ export function PlannerShell() {
         sessionId,
         outlineSlideCount: slideCountForGen,
         targetSlideCount: slideCountForGen,
-        themeName: config.theme,
-        themeExplicit: true,
+        themeName: config.theme === 'auto' ? undefined : config.theme,
+        themeExplicit: config.theme !== 'auto',
         paletteExplicit: plannerPreferences?.paletteExplicit === true,
         colorPalette: plannerPreferences?.paletteExplicit
           ? plannerPreferences?.colorPalette
           : undefined,
         layoutCategory: plannerPreferences?.layoutCategory,
         layoutCategoryExplicit: plannerPreferences?.layoutCategoryExplicit === true,
-        styleMode: config.artStyle,
+        styleMode: config.artStyle === 'auto' ? undefined : config.artStyle,
         imageSource: config.imageSource,
       },
     });

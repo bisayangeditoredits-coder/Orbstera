@@ -374,46 +374,79 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
   } else if (isSplit) {
     addSolidBackground();
 
-    // FIX: explicit column widths with a proper gap so panels never overlap
-    const PANEL_GAP   = 16;
-    const PANEL_W     = (DECK_CANVAS_W - PAD * 2 - PANEL_GAP) / 2;  // 568px each
-    const textPanelX  = flipSplit ? PAD + PANEL_W + PANEL_GAP : PAD;
-    const imgPanelX   = flipSplit ? PAD : PAD + PANEL_W + PANEL_GAP;
+    // True 50/50 Edge-to-Edge Split Layout (Gamma style)
+    const PANEL_W = DECK_CANVAS_W / 2; // Exactly 640px
+    const textPanelX = flipSplit ? PANEL_W : 0;
+    const imgPanelX = flipSplit ? 0 : PANEL_W;
 
+    // Image Panel (Full bleed on its half)
+    const imgId = uid('el-image');
     elements.push({
-      id: uid('el-split-glass'),
-      type: 'shape', shapeType: 'rect',
-      x: textPanelX, y: 48,
-      width: PANEL_W, height: DECK_CANVAS_H - 96,
+      id: imgId,
+      type: 'image', src: '',
+      aiImagePending: true,
+      x: imgPanelX, y: 0,
+      width: PANEL_W, height: DECK_CANVAS_H,
       zIndex: currentZ++, visible: true,
-      shapeStyle: glassCard(light),
-      animation: { entrance: 'fadeSlideLeft', duration: 650, delay: 0 },
+      animation: { entrance: 'fadeIn', duration: 850, delay: 0 },
     });
 
-    const titleFontSize = 44;
-    const titleHeight   = slide.title
-      ? estimateTextBlockHeight(slide.title, titleFontSize, PANEL_W - INNER_PAD * 2, 1.15, 90, 160)
+    const splitPixels = regionToLeonardoPixels(PANEL_W, DECK_CANVAS_H);
+    pushImageTask({
+      elementId: imgId,
+      w: splitPixels.width,
+      h: splitPixels.height,
+      visualProfile: 'cinematic',
+    });
+
+    // Text Panel Background (Solid fill over the global background)
+    elements.push({
+      id: uid('el-split-bg'),
+      type: 'shape', shapeType: 'rect',
+      x: textPanelX, y: 0,
+      width: PANEL_W, height: DECK_CANVAS_H,
+      zIndex: currentZ++, visible: true,
+      shapeStyle: { fill: bgColor, stroke: 'transparent' },
+      animation: { entrance: 'fadeIn', duration: 650, delay: 0 },
+    });
+
+    // Vertical Centering Math for Text Panel
+    const TEXT_PAD = 64;
+    const maxContentW = PANEL_W - TEXT_PAD * 2;
+    
+    const titleFontSize = 52;
+    const titleHeight = slide.title
+      ? estimateTextBlockHeight(slide.title, titleFontSize, maxContentW, 1.15, 90, 160)
       : 0;
-    const titleY        = 108;
-    const bulletsStartY = slide.title ? titleY + titleHeight + GAP : 160;
+    
+    const BULLET_H = 48;
+    const bulletSpacing = 16;
+    const maxBullets = 5;
+    const bulletCount = Math.min(mergedB.length, maxBullets);
+    const bulletsTotalH = bulletCount > 0 ? (bulletCount * BULLET_H) + ((bulletCount - 1) * bulletSpacing) : 0;
+    
+    const totalContentH = (titleHeight > 0 ? titleHeight + 32 : 0) + bulletsTotalH;
+    const startY = (DECK_CANVAS_H - totalContentH) / 2;
 
-    // Accent bar
-    elements.push({
-      id: uid('el-accent'),
-      type: 'shape', shapeType: 'rect',
-      x: textPanelX + INNER_PAD, y: 88,
-      width: 72, height: 5,
-      zIndex: currentZ++, visible: true,
-      shapeStyle: { fill: accent, stroke: 'transparent', cornerRadius: 3 },
-      animation: { entrance: 'reveal', duration: 500, delay: 120 },
-    });
+    let currentY = startY;
 
     if (slide.title) {
+      // Accent bar
+      elements.push({
+        id: uid('el-accent'),
+        type: 'shape', shapeType: 'rect',
+        x: textPanelX + TEXT_PAD, y: currentY - 24,
+        width: 80, height: 6,
+        zIndex: currentZ++, visible: true,
+        shapeStyle: { fill: accent, stroke: 'transparent', cornerRadius: 3 },
+        animation: { entrance: 'reveal', duration: 500, delay: 120 },
+      });
+
       elements.push({
         id: uid('el-title'),
         type: 'text',
-        x: textPanelX + INNER_PAD, y: titleY,
-        width: PANEL_W - INNER_PAD * 2, height: titleHeight,
+        x: textPanelX + TEXT_PAD, y: currentY,
+        width: maxContentW, height: titleHeight,
         content: slide.title,
         zIndex: currentZ++, visible: true,
         textStyle: {
@@ -423,18 +456,15 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         },
         animation: { entrance: 'fadeSlideLeft', duration: 650, delay: 160 },
       });
+      currentY += titleHeight + 32;
     }
 
-    const BULLET_H     = 58;
-    const maxBullets   = safeMaxBullets(bulletsStartY, BULLET_H, 16, 5);
-
     mergedB.slice(0, maxBullets).forEach((bullet, i) => {
-      const y = bulletsStartY + i * (BULLET_H + 16);
       elements.push({
         id: uid(`el-bullet-bg-${i}`),
         type: 'shape', shapeType: 'rect',
-        x: textPanelX + INNER_PAD, y,
-        width: PANEL_W - INNER_PAD * 2, height: BULLET_H,
+        x: textPanelX + TEXT_PAD, y: currentY,
+        width: maxContentW, height: BULLET_H,
         zIndex: currentZ++, visible: true,
         shapeStyle: bulletPill(light),
         animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 280 + i * 70 },
@@ -442,58 +472,18 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
       elements.push({
         id: uid(`el-bullet-${i}`),
         type: 'text',
-        x: textPanelX + INNER_PAD + 20, y: y + 14,
-        width: PANEL_W - INNER_PAD * 2 - 40, height: BULLET_H - 20,
+        x: textPanelX + TEXT_PAD + 20, y: currentY + 10,
+        width: maxContentW - 40, height: BULLET_H - 20,
         content: bullet.replace(/^•\s*/, ''),
         zIndex: currentZ++, visible: true,
         textStyle: {
-          fontFamily: bodyFont, fontSize: 26,
+          fontFamily: bodyFont, fontSize: 22,
           fontWeight: 'normal', color: textMuted,
           textAlign: 'left', lineHeight: 1.55,
         },
         animation: { entrance: 'fadeSlideLeft', duration: 500, delay: 320 + i * 70 },
       });
-    });
-
-    // FIX: image panel — use portrait aspect ratio (9:16 cropped to panel dimensions)
-    // This avoids stretching in pptxgenjs since the generated image matches the panel shape.
-    const imgId     = uid('el-image');
-    const imgInsetX = imgPanelX + 16;
-    const imgInsetY = 64;
-    const imgW      = PANEL_W - 32;
-    const imgH      = DECK_CANVAS_H - 128;
-
-    elements.push({
-      id: uid('el-split-frame'),
-      type: 'shape', shapeType: 'rect',
-      x: imgPanelX, y: 48,
-      width: PANEL_W, height: DECK_CANVAS_H - 96,
-      zIndex: currentZ++, visible: true,
-      shapeStyle: {
-        fill: 'rgba(255,255,255,0.02)',
-        stroke: 'rgba(255,255,255,0.14)',
-        strokeWidth: 1,
-        cornerRadius: 24,
-      },
-      animation: { entrance: 'slideRight', duration: 700, delay: 0 },
-    });
-    elements.push({
-      id: imgId,
-      type: 'image', src: '',
-      aiImagePending: true,
-      x: imgInsetX, y: imgInsetY,
-      width: imgW, height: imgH,
-      zIndex: currentZ++, visible: true,
-      animation: { entrance: 'zoomIn', duration: 850, delay: 200 },
-    });
-
-    // FIX: request portrait pixels matching the panel's aspect ratio
-    const splitPixels = regionToLeonardoPixels(imgW, imgH);
-    pushImageTask({
-      elementId: imgId,
-      w: splitPixels.width,
-      h: splitPixels.height,
-      visualProfile: 'cinematic',
+      currentY += BULLET_H + bulletSpacing;
     });
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1072,12 +1062,12 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         });
       });
 
-    // ── Variant 1: Bento Grid — 2×2 or 2×3 glass cards ──────────────────────
+    // ── Variant 1: Premium Bento Grid (Gamma Style) ──────────────────────
     } else if (contentVariant === 1) {
       addSolidBackground();
 
-      const titleFontSize = 44;
-      const titleH        = slide.title
+      const titleFontSize = 48;
+      const titleH = slide.title
         ? estimateTextBlockHeight(slide.title, titleFontSize, DECK_CANVAS_W - PAD * 2, 1.15, 56, 100)
         : 0;
 
@@ -1085,67 +1075,91 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
         elements.push({
           id: uid('el-title'),
           type: 'text',
-          x: PAD, y: 40,
+          x: PAD, y: 48,
           width: DECK_CANVAS_W - PAD * 2, height: titleH,
           content: slide.title,
           zIndex: currentZ++, visible: true,
           textStyle: {
             fontFamily: headingFont, fontSize: titleFontSize,
             fontWeight: 'bold', color: textPrimary,
-            textAlign: 'left', lineHeight: 1.15,
+            textAlign: 'center', lineHeight: 1.15,
           },
           animation: { entrance: 'fadeSlideUp', duration: 550, delay: 0 },
         });
       }
 
-      const gridTop   = 40 + titleH + GAP;
-      const numItems  = Math.min(mergedB.length, 4);
-      const cols      = numItems <= 2 ? numItems : 2;
-      const rows      = Math.ceil(numItems / cols);
-      const cardW     = (DECK_CANVAS_W - PAD * 2 - GAP * (cols - 1)) / cols;
-      const cardH     = (SAFE_BOTTOM - gridTop - GAP * (rows - 1)) / rows;
+      const gridTop = 48 + titleH + 32;
+      const numItems = Math.min(mergedB.length, 4);
+      const cols = numItems <= 2 ? numItems : 2;
+      const rows = Math.ceil(numItems / cols);
+      
+      const BENTO_GAP = 24;
+      const cardW = (DECK_CANVAS_W - PAD * 2 - BENTO_GAP * (cols - 1)) / cols;
+      const cardH = (SAFE_BOTTOM - gridTop - BENTO_GAP * (rows - 1)) / rows;
 
       mergedB.slice(0, numItems).forEach((bullet, i) => {
-        const col   = i % cols;
-        const row   = Math.floor(i / cols);
-        const x     = PAD + col * (cardW + GAP);
-        const y     = gridTop + row * (cardH + GAP);
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const x = PAD + col * (cardW + BENTO_GAP);
+        const y = gridTop + row * (cardH + BENTO_GAP);
 
+        // Solid Premium Card Background
         elements.push({
           id: uid(`el-bento-card-${i}`),
           type: 'shape', shapeType: 'rect',
           x, y, width: cardW, height: cardH,
           zIndex: currentZ++, visible: true,
-          shapeStyle: glassCard(light),
+          shapeStyle: {
+            fill: light ? '#FFFFFF' : '#111111',
+            stroke: light ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.08)',
+            strokeWidth: 1,
+            cornerRadius: 24,
+          },
           animation: { entrance: 'zoomIn', duration: 520, delay: 200 + i * 90 },
         });
-        // Card number badge
+
+        // Top Accent Strip
+        elements.push({
+          id: uid(`el-bento-strip-${i}`),
+          type: 'shape', shapeType: 'rect',
+          x, y, width: cardW, height: 6,
+          zIndex: currentZ++, visible: true,
+          shapeStyle: {
+            fill: accent, stroke: 'transparent',
+            cornerRadius: 0 // Will clip nicely or just sit on top
+          },
+          animation: { entrance: 'reveal', duration: 400, delay: 300 + i * 90 },
+        });
+
+        // Big Aesthetic Number
         elements.push({
           id: uid(`el-bento-num-${i}`),
           type: 'text',
-          x: x + INNER_PAD, y: y + 20,
-          width: 40, height: 32,
+          x: x + 32, y: y + 24,
+          width: 60, height: 48,
           content: String(i + 1).padStart(2, '0'),
           zIndex: currentZ++, visible: true,
           textStyle: {
-            fontFamily: headingFont, fontSize: 20,
+            fontFamily: headingFont, fontSize: 32,
             fontWeight: 'bold', color: accent,
             textAlign: 'left',
           },
           animation: { entrance: 'fadeIn', duration: 350, delay: 280 + i * 90 },
         });
+
+        // Bullet Text
         elements.push({
           id: uid(`el-bento-text-${i}`),
           type: 'text',
-          x: x + INNER_PAD, y: y + 60,
-          width: cardW - INNER_PAD * 2, height: cardH - 80,
+          x: x + 32, y: y + 72,
+          width: cardW - 64, height: cardH - 100,
           content: bullet.replace(/^•\s*/, ''),
           zIndex: currentZ++, visible: true,
           textStyle: {
             fontFamily: bodyFont,
-            fontSize: cardH > 200 ? 26 : 22,
-            color: textMuted,
-            textAlign: 'left', lineHeight: 1.6,
+            fontSize: cardH > 200 ? 24 : 20,
+            color: light ? '#333333' : '#F3F4F6',
+            textAlign: 'left', lineHeight: 1.5,
           },
           animation: { entrance: 'fadeIn', duration: 450, delay: 320 + i * 90 },
         });
