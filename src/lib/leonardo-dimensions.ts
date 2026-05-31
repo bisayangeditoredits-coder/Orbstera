@@ -10,35 +10,40 @@ export function snapDim(n: number, min = 512, max = 1568): number {
   );
 }
 
-/** Scale a region to Leonardo-friendly pixels while preserving aspect ratio. */
+export const VALID_SDXL_COMBINATIONS = [
+  { width: 1024, height: 1024 },
+  { width: 1456, height: 720 },
+  { width: 720, height: 1456 },
+  { width: 1248, height: 832 },
+  { width: 832, height: 1248 },
+  { width: 1184, height: 880 },
+  { width: 880, height: 1184 },
+  { width: 1104, height: 944 },
+  { width: 944, height: 1104 },
+  { width: 1568, height: 672 },
+  { width: 672, height: 1568 },
+  { width: 1392, height: 752 },
+  { width: 752, height: 1392 },
+] as const;
+
+/** Scale a region to Leonardo-friendly SDXL pixels while preserving aspect ratio. */
 export function regionToLeonardoPixels(regionW: number, regionH: number): { width: number; height: number } {
-  const ew = Math.max(32, regionW || 1024);
-  const eh = Math.max(32, regionH || 1024);
-  const aspectRatio = ew / eh;
-  let w: number;
-  let h: number;
+  const ew = Math.max(1, regionW || 1024);
+  const eh = Math.max(1, regionH || 1024);
+  const targetRatio = ew / eh;
 
-  if (ew >= eh) {
-    w = Math.min(1536, Math.max(512, Math.round(ew)));
-    h = Math.round(w / aspectRatio);
-    if (h > 1536) {
-      h = 1536;
-      w = Math.round(h * aspectRatio);
-    }
-  } else {
-    h = Math.min(1536, Math.max(512, Math.round(eh)));
-    w = Math.round(h * aspectRatio);
-    if (w > 1536) {
-      w = 1536;
-      h = Math.round(w / aspectRatio);
+  let bestFit = VALID_SDXL_COMBINATIONS[0];
+  let minDiff = Infinity;
+
+  for (const combo of VALID_SDXL_COMBINATIONS) {
+    const comboRatio = combo.width / combo.height;
+    // Logarithmic difference ensures 2:1 and 1:2 are treated symmetrically
+    const diff = Math.abs(Math.log(comboRatio) - Math.log(targetRatio));
+    if (diff < minDiff) {
+      minDiff = diff;
+      bestFit = combo;
     }
   }
 
-  if (w < 256 || h < 256) {
-    const minScale = Math.max(256 / w, 256 / h);
-    w = Math.round(w * minScale);
-    h = Math.round(h * minScale);
-  }
-
-  return { width: snapDim(w, 256), height: snapDim(h, 256) };
+  return { width: bestFit.width, height: bestFit.height };
 }
