@@ -32,7 +32,7 @@ export function regionToLeonardoPixels(regionW: number, regionH: number): { widt
   const eh = Math.max(1, regionH || 1024);
   const targetRatio = ew / eh;
 
-  let bestFit = VALID_SDXL_COMBINATIONS[0];
+  let bestFit: { readonly width: number; readonly height: number } = VALID_SDXL_COMBINATIONS[0];
   let minDiff = Infinity;
 
   for (const combo of VALID_SDXL_COMBINATIONS) {
