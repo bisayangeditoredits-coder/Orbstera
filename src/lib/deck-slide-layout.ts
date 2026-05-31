@@ -152,9 +152,9 @@ function prefersImageBackground(category: DeckLayoutCategory, slideType?: string
 /**
  * Gamma-style slide layouts: full-bleed backgrounds, glass cards, editorial hierarchy.
  */
-// ─── Constants ────────────────────────────────────────────────────────────────
 
-// Safe rendering zone — elements should never exceed this bottom edge
+
+// ─── Utility: clamp bullet count so items never overflow the canvas ───────────
 const SAFE_BOTTOM = DECK_CANVAS_H - 40;
 
 // Padding / gutter used throughout
@@ -169,6 +169,7 @@ function safeMaxBullets(startY: number, itemHeight: number, gap: number, hardMax
   return Math.max(1, Math.min(fits, hardMax));
 }
 
+// ─── Main export ──────────────────────────────────────────────────────────────
 export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDeckSlideLayoutResult {
   const { slide, sIdx, slideCount, palette, headingFont, bodyFont, uid } = args;
   const layoutCategory = normalizeDeckLayoutCategory(args.layoutCategory);
@@ -306,7 +307,11 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
   // HERO
   // ═══════════════════════════════════════════════════════════════════════════
   if (isHero) {
-    addFullBleedBackground(0.52, 'typography');
+    if (layoutCategory === 'minimal' || layoutCategory === 'corporate') {
+      addSolidBackground();
+    } else {
+      addFullBleedBackground(layoutCategory === 'cinematic' ? 0.48 : 0.42, 'typography');
+    }
 
     const titleText    = slide.title?.trim() ?? '';
     const titleFontSize = titleText.length > 42 ? 64 : titleText.length > 28 ? 76 : 88;
@@ -324,6 +329,15 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
     const heroScrimH   = titleHeight + (slide.subtitle ? subHeight + 48 : 32) + 36;
 
     if (slide.title) {
+      elements.push({
+        id: uid('el-title-scrim'),
+        type: 'shape', shapeType: 'rect',
+        x: 48, y: titleY - 28,
+        width: DECK_CANVAS_W - 96, height: heroScrimH,
+        zIndex: currentZ++, visible: true,
+        shapeStyle: glassCard(light),
+        animation: { entrance: 'fadeIn', duration: 600, delay: 0 },
+      });
       elements.push({
         id: uid('el-title'),
         type: 'text',
@@ -542,7 +556,11 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
   // CLOSING
   // ═══════════════════════════════════════════════════════════════════════════
   } else if (isClosing) {
-    addFullBleedBackground(0.54, 'cinematic');
+    if (layoutCategory === 'minimal' || layoutCategory === 'corporate') {
+      addSolidBackground();
+    } else {
+      addFullBleedBackground(0.38, 'cinematic');
+    }
 
     if (slide.title) {
       const titleFontSize = 80;
@@ -1135,7 +1153,7 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
 
     // ── Variant 2: Cinematic Overlay — full-bleed image with centred glass content block ──
     } else {
-      addFullBleedBackground(0.48, 'cinematic');
+      addFullBleedBackground(0.22, 'cinematic');
 
       const blockW    = DECK_CANVAS_W - 200;
       const titleFontSize = 42;
@@ -1202,4 +1220,3 @@ export function buildDeckSlideElements(args: BuildDeckSlideLayoutArgs): BuildDec
 
   return { elements, imageTasks };
 }
-

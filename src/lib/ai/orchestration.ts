@@ -64,7 +64,7 @@ export function buildComposerMessages(args: {
   imageSource?: 'ai' | 'unsplash' | 'none';
   systemConstraints?: string;
 }): { system: string; user: string } {
-  const system = buildComposerSystemPrompt(args.preflightSummary, args.systemConstraints);
+  const system = buildComposerSystemPrompt(args.preflightSummary);
   const user = buildComposerUserPrompt({
     userPrompt: args.userPrompt,
     refinedBrief: args.refinedBrief,
@@ -73,7 +73,6 @@ export function buildComposerMessages(args: {
     language: args.language,
     styleMode: args.styleMode,
     layoutCategory: args.layoutCategory,
-    layoutCategoryExplicit: args.layoutCategoryExplicit,
     imageSource: args.imageSource,
   });
 
