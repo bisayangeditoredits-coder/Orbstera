@@ -76,10 +76,14 @@ export async function POST(req: Request) {
     });
 
     if (!credit.ok) {
-      return NextResponse.json(
-        { error: 'INSUFFICIENT_CREDITS', message: `Not enough credits. Requires ${cost} credits.`, credits: credit.summary },
-        { status: 402 },
-      );
+      // Fallback to Pollinations for ALL users who run out of credits
+      const safePrompt = encodeURIComponent(prompt);
+      const pUrl = `https://image.pollinations.ai/prompt/${safePrompt}?width=1024&height=1024&seed=${Math.floor(Math.random() * 1000000)}&nologo=true`;
+      return NextResponse.json({ 
+        url: pUrl,
+        fallback: true,
+        provider: 'pollinations'
+      });
     }
 
     const recraftKey = process.env.RECRAFT_API_KEY?.trim();

@@ -100,15 +100,16 @@ export async function POST(req: Request) {
         idempotencyKey: requestId,
       });
       if (!credit.ok) {
-        return NextResponse.json(
-          {
-            error: 'INSUFFICIENT_CREDITS',
-            message: 'Not enough credits for image generation.',
-            credits: credit.summary,
-            required: imageCost,
-          },
-          { status: 402 },
-        );
+        // Fallback to Pollinations for ALL users who run out of credits
+        const safePrompt = encodeURIComponent(text);
+        const pUrl = `https://image.pollinations.ai/prompt/${safePrompt}?width=${w}&height=${h}&seed=${seed}&nologo=true`;
+        return NextResponse.json({
+          url: pUrl,
+          seed,
+          imageId: `fallback-${Date.now()}`,
+          provider: 'pollinations',
+          fallback: true,
+        });
       }
       creditsCharged = true;
     } else {
@@ -120,9 +121,19 @@ export async function POST(req: Request) {
         meta: { w, h, visualProfile, deckSlide: true, provider: 'leonardo' },
         idempotencyKey: requestId,
       });
-      if (credit.ok) {
-        creditsCharged = true;
+      if (!credit.ok) {
+        // Fallback to Pollinations for ALL users who run out of credits (even during deck generation)
+        const safePrompt = encodeURIComponent(text);
+        const pUrl = `https://image.pollinations.ai/prompt/${safePrompt}?width=${w}&height=${h}&seed=${seed}&nologo=true`;
+        return NextResponse.json({
+          url: pUrl,
+          seed,
+          imageId: `fallback-${Date.now()}`,
+          provider: 'pollinations',
+          fallback: true,
+        });
       }
+      creditsCharged = true;
     }
 
     const spend = await getSpendState({ supabase });
