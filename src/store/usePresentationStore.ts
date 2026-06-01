@@ -355,7 +355,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     generativeFillTarget: null,
     isDragging: false,
     isResizing: false,
-    zoom: 0.7,
+    zoom: 1,
     showGrid: false,
     snapToGrid: true,
     gridSize: 20,
