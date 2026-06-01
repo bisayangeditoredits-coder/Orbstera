@@ -134,11 +134,20 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Redirect authenticated users trying to hit the landing page directly, similar to Gamma.
+  // Allow explicit opt-out with ?home=true for the Home button.
+  if (pathname === '/' && user && request.nextUrl.searchParams.get('home') !== 'true') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    return applySecurityHeaders(NextResponse.redirect(url));
+  }
+
   return applySecurityHeaders(response);
 }
 
 export const config = {
   matcher: [
+    '/',
     '/editor',
     '/editor/:path*',
     '/dashboard',

@@ -8,6 +8,7 @@ import {
   ChevronDown,
   X,
   History,
+  Home,
 } from 'lucide-react';
 import type { DeckMeta } from '@/types/deck-meta';
 import { cn } from '@/lib/cn';
@@ -15,7 +16,7 @@ import { formatPlanLabel } from './dashboard-utils';
 import type { DashboardSection } from './dashboard-types';
 
 const NAV: {
-  id: DashboardSection | 'templates';
+  id: DashboardSection | 'templates' | 'home';
   label: string;
   icon: typeof LayoutDashboard;
   external?: boolean;
@@ -26,6 +27,7 @@ const NAV: {
   { id: 'decks', label: 'My Documents', icon: Layers },
   { id: 'planner-history', label: 'Chat History', icon: History },
   { id: 'templates', label: 'Templates', icon: LayoutTemplate, badge: 'Soon' },
+  { id: 'home', label: 'Home Page', icon: Home, external: true, href: '/?home=true' },
 ];
 
 type DashboardSidebarProps = {
@@ -40,8 +42,8 @@ type DashboardSidebarProps = {
   className?: string;
 };
 
-function isNavActive(section: DashboardSection, id: DashboardSection | 'templates'): boolean {
-  if (id === 'templates') return false;
+function isNavActive(section: DashboardSection, id: DashboardSection | 'templates' | 'home'): boolean {
+  if (id === 'templates' || id === 'home') return false;
   if (id === 'decks') return section === 'decks';
   if (id === 'planner-history') return section === 'planner-history';
   if (id === 'overview') return section === 'overview' || section === 'settings';
