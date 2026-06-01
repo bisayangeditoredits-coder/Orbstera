@@ -89,6 +89,7 @@ export async function POST(req: Request) {
     const imageAction = getImageCreditAction(plan, premiumRequested);
     const imageCost = getActionCreditCost(creditConfig, imageAction);
 
+    const seed = Math.floor(Math.random() * 1_000_000);
     let creditsCharged = false;
     if (!isDeckSlide) {
       const credit = await chargeCreditsBeforeJob({
@@ -149,8 +150,6 @@ export async function POST(req: Request) {
       hasClaidKey: false,
       hasPollinationsKey: false,
     });
-
-    const seed = Math.floor(Math.random() * 1_000_000);
     let url: string | undefined;
     let imageId: string | undefined;
     let provider: string | undefined;
