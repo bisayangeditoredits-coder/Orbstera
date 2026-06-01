@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useRef } from 'react';
 import { Sparkles } from 'lucide-react';
@@ -94,6 +94,15 @@ export function PlannerChat({ messages, loading, topic, onQuickReply }: PlannerC
         {messages.map((msg, i) => {
           const isLast = i === messages.length - 1;
           const isStreaming = loading && isLast && msg.role === 'assistant';
+          
+          if (
+            i === 0 &&
+            msg.role === 'user' &&
+            msg.content.includes('Please build a DETAILED slide-by-slide outline')
+          ) {
+            return null;
+          }
+
           return (
             <PlannerMessage
               key={i}

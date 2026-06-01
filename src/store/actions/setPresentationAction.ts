@@ -4,7 +4,7 @@ import { runDeckImageTasks, type DeckImageTask } from '@/lib/deck-image-generati
 import { buildDeckSlideElements, resolveDeckImagePrompt } from '@/lib/deck-slide-layout';
 import { buildImageTasksFromAiElements, validateAiElements } from '@/lib/ai/validate-ai-elements';
 import { buildSlideFromReferenceTemplate } from '@/lib/reference-templates/build-slide';
-import { useReferenceTemplatePackForDeck } from '@/lib/reference-templates/use-during-generation';
+import { shouldUseReferenceTemplatePackForDeck } from '@/lib/reference-templates/use-during-generation';
 import { resolveVisualTheme } from '@/lib/visual-themes';
 
 export const setPresentationAction = (set: any, get: any, data: any) => {
@@ -221,7 +221,7 @@ export const setPresentationAction = (set: any, get: any, data: any) => {
       const aiElements = slide.elements;
       const useAiLayout = validateAiElements(aiElements);
 
-      const { elements, imageTasks: slideImageTasks } = useReferenceTemplatePackForDeck(
+      const { elements, imageTasks: slideImageTasks } = shouldUseReferenceTemplatePackForDeck(
         refPack,
         get().editor.isGenerating,
       )

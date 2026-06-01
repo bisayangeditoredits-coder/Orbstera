@@ -5,7 +5,7 @@ import type { ReferenceTemplatePack } from './build-slide';
  * During live deck generation we use buildDeckSlideElements instead so backgrounds
  * and layouts render with FLUX/Leonardo image tasks.
  */
-export function useReferenceTemplatePackForDeck(
+export function shouldUseReferenceTemplatePackForDeck(
   pack: ReferenceTemplatePack | null | undefined,
   isGenerating: boolean,
 ): pack is ReferenceTemplatePack {

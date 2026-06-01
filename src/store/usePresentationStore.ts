@@ -6,7 +6,7 @@ import { runDeckImageTasks } from '@/lib/deck-image-generation';
 import { buildDeckSlideElements } from '@/lib/deck-slide-layout';
 import { buildImageTasksFromAiElements, validateAiElements } from '@/lib/ai/validate-ai-elements';
 import { buildSlideFromReferenceTemplate } from '@/lib/reference-templates/build-slide';
-import { useReferenceTemplatePackForDeck } from '@/lib/reference-templates/use-during-generation';
+import { shouldUseReferenceTemplatePackForDeck } from '@/lib/reference-templates/use-during-generation';
 import { resolveVisualTheme } from '@/lib/visual-themes';
 
 /** Cap undo stack size to limit RAM on large decks (structured clones per step). */
@@ -644,7 +644,7 @@ export const usePresentationStore = create<PresentationStore>((set, get) => ({
     const refPack = get().editor.referenceTemplatePack;
     const useAiLayout = validateAiElements(slideData.elements);
 
-    const { elements, imageTasks } = useReferenceTemplatePackForDeck(
+    const { elements, imageTasks } = shouldUseReferenceTemplatePackForDeck(
       refPack,
       get().editor.isGenerating,
     )

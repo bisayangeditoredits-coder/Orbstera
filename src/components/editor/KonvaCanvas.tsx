@@ -611,6 +611,8 @@ function ElementNode({
           ref={shapeRef as React.RefObject<Konva.Text>}
           {...commonProps}
           height={undefined}
+          perfectDrawEnabled={false}
+          hitStrokeWidth={0}
           opacity={isEditingText ? 0 : (el.opacity ?? 1)}
           text={el.content || ''}
           fontFamily={el.textStyle?.fontFamily || 'Inter'}
@@ -813,6 +815,8 @@ function ElementNode({
           {activeMedia && (
             <KonvaImage
               image={activeMedia}
+              perfectDrawEnabled={false}
+              hitStrokeWidth={0}
               x={0}
               y={0}
               width={el.width}
@@ -1049,6 +1053,8 @@ function ElementNode({
               fill={fill}
               stroke={stroke}
               strokeWidth={strokeWidth}
+              perfectDrawEnabled={false}
+              hitStrokeWidth={0}
             />
           </Group>
         );
@@ -1063,6 +1069,8 @@ function ElementNode({
               fill={fill}
               stroke={stroke}
               strokeWidth={strokeWidth}
+              perfectDrawEnabled={false}
+              hitStrokeWidth={0}
             />
           </Group>
         );
@@ -1081,6 +1089,8 @@ function ElementNode({
               fill={fill}
               stroke={stroke}
               strokeWidth={strokeWidth}
+              perfectDrawEnabled={false}
+              hitStrokeWidth={0}
             />
           </Group>
         );
@@ -1095,6 +1105,8 @@ function ElementNode({
               stroke={c}
               strokeWidth={strokeWidth || 4}
               lineCap="round"
+              perfectDrawEnabled={false}
+              hitStrokeWidth={0}
             />
           </Group>
         );
@@ -1110,6 +1122,8 @@ function ElementNode({
               strokeWidth={strokeWidth}
               scaleX={el.width / 100}
               scaleY={el.height / 100}
+              perfectDrawEnabled={false}
+              hitStrokeWidth={0}
             />
           </Group>
         );
@@ -1126,6 +1140,8 @@ function ElementNode({
               strokeWidth={sw}
               pointerLength={Math.min(18, el.height * 0.45)}
               pointerWidth={Math.min(18, el.height * 0.7)}
+              perfectDrawEnabled={false}
+              hitStrokeWidth={0}
             />
           </Group>
         );
@@ -1139,6 +1155,8 @@ function ElementNode({
           stroke={stroke}
           strokeWidth={strokeWidth}
           cornerRadius={cornerRadius}
+          perfectDrawEnabled={false}
+          hitStrokeWidth={0}
         />
       );
     }
@@ -1151,6 +1169,8 @@ function ElementNode({
         stroke="#475569"
         strokeWidth={1}
         dash={[6, 3]}
+        perfectDrawEnabled={false}
+        hitStrokeWidth={0}
       />
     );
   };
@@ -1177,11 +1197,12 @@ function SlideBackground({
 
   return (
     <>
-      <Rect name={SLIDE_BG_NAME} x={0} y={0} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} fill={bg} />
+      <Rect name={SLIDE_BG_NAME} x={0} y={0} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} fill={bg} perfectDrawEnabled={false} hitStrokeWidth={0} />
 
       {bgImageUrl && bgImg && (
         <KonvaImage
           image={bgImg}
+          perfectDrawEnabled={false}
           x={0}
           y={0}
           width={CANVAS_WIDTH}

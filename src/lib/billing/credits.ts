@@ -69,12 +69,12 @@ export function normalizePlanTier(p: unknown): PlanTier {
  * Monthly list price (USD) for paid tiers.
  *
  * Pricing structure (budget-first):
- *   Student Pro  $9/mo  → net ~$8.43 after fees → $4.21 AI budget → $4.21 profit (50%)
- *   Creator Pro  $22/mo → net ~$21.04 after fees → $10.52 AI budget → $10.52 profit (50%)
+ *   Student Pro  $9/mo  → net ~$8.43 after fees → fixed $3.00 profit → $5.43 AI budget
+ *   Creator Pro  $22/mo → net ~$21.04 after fees → fixed $5.00 profit → $16.04 AI budget
  *
- * usdPerCredit = $0.008 (calibrated to real GPT-5.5 + FLUX cost per action)
- *   Student Pro credits : $4.21 / $0.008 = 526 cr  → max real AI spend $4.21
- *   Creator Pro credits : $10.52 / $0.008 = 1,315 cr → max real AI spend $10.52
+ * usdPerCredit = $0.0025 (calibrated to scale up credits without blowing margins)
+ *   Student Pro credits : $5.43 / $0.0025 = 2172 cr  → max real AI spend $5.43
+ *   Creator Pro credits : $16.04 / $0.0025 = 6416 cr → max real AI spend $16.04
  */
 export const PLAN_PRICING_USD: Partial<Record<PlanTier, number>> = {
   student_pro: 9,
@@ -114,45 +114,45 @@ export function getPlanMonthlyCredits(planId: unknown, config?: CreditConfig): n
 
 /**
  * Credit action costs — calibrated so that: cost × usdPerCredit ≈ real OpenRouter price.
- * Formula: credits = realCostUSD / usdPerCredit (= realCostUSD / 0.008)
+ * Formula: credits = realCostUSD / usdPerCredit (= realCostUSD / 0.0025)
  *
  * Real costs (OpenRouter, May 2026):
- *   deck_small  ~$0.38  (GPT-5.5 compose ~$0.22 + Claude Sonnet structure + coach)  → 48 cr
- *   deck_medium ~$0.65  (GPT-5.5 compose ~$0.42 + structure + coach)                → 82 cr
- *   deck_large  ~$1.80  (GPT-5.5 compose ~$1.20 + Claude Opus polish + images)      → 225 cr
- *   deck_polish ~$0.65  (Claude Sonnet/Opus refine)                                  → 80 cr
- *   magic_edit  ~$0.02  (Claude Sonnet short call)                                   → 2 cr
- *   rewrite     ~$0.008 (Gemini Flash short call)                                    → 1 cr
- *   image_std   ~$0.04  (FLUX 1.1 Pro)                                               → 5 cr
- *   image_prem  ~$0.06  (FLUX Ultra)                                                 → 8 cr
- *   genfill_free ~$0.04 (FLUX 1.1 Pro basic)                                         → 5 cr
- *   genfill_pro  ~$0.06 (FLUX Kontext Pro)                                           → 8 cr
- *   genfill_cre  ~$0.09 (FLUX Kontext Max)                                           → 12 cr
- *   anim_enhance ~$0.016 (Gemini Flash)                                              → 2 cr
+ *   deck_small  ~$0.38  (GPT-5.5 compose ~$0.22 + Claude Sonnet structure + coach)  → 152 cr
+ *   deck_medium ~$0.65  (GPT-5.5 compose ~$0.42 + structure + coach)                → 260 cr
+ *   deck_large  ~$1.80  (GPT-5.5 compose ~$1.20 + Claude Opus polish + images)      → 720 cr
+ *   deck_polish ~$0.65  (Claude Sonnet/Opus refine)                                  → 260 cr
+ *   magic_edit  ~$0.02  (Claude Sonnet short call)                                   → 8 cr
+ *   rewrite     ~$0.008 (Gemini Flash short call)                                    → 4 cr
+ *   image_std   ~$0.04  (FLUX 1.1 Pro)                                               → 16 cr
+ *   image_prem  ~$0.06  (FLUX Ultra)                                                 → 24 cr
+ *   genfill_free ~$0.04 (FLUX 1.1 Pro basic)                                         → 16 cr
+ *   genfill_pro  ~$0.06 (FLUX Kontext Pro)                                           → 24 cr
+ *   genfill_cre  ~$0.09 (FLUX Kontext Max)                                           → 36 cr
+ *   anim_enhance ~$0.016 (Gemini Flash)                                              → 6 cr
  */
 const DEFAULT_CONFIG: CreditConfig = {
   monthly: { ...PLAN_MONTHLY_CREDITS },
   costs: {
-    deck_small: 48,
-    deck_medium: 82,
-    deck_large: 225,
-    deck_polish: 80,
-    magic_edit: 2,
-    rewrite: 1,
-    image_standard: 5,
-    image_premium: 8,
-    genfill_free: 5,     // FLUX 1.1 Pro — same cost as image_standard
-    genfill_pro: 8,      // FLUX Kontext Pro
-    genfill_creator: 12, // FLUX Kontext Max
-    animation_enhance: 2,
-    recraft_v2_raster: 3,
-    recraft_v3_vector: 10,
+    deck_small: 152,
+    deck_medium: 260,
+    deck_large: 720,
+    deck_polish: 260,
+    magic_edit: 8,
+    rewrite: 4,
+    image_standard: 16,
+    image_premium: 24,
+    genfill_free: 16,     // FLUX 1.1 Pro — same cost as image_standard
+    genfill_pro: 24,      // FLUX Kontext Pro
+    genfill_creator: 36, // FLUX Kontext Max
+    animation_enhance: 6,
+    recraft_v2_raster: 10,
+    recraft_v3_vector: 32,
   },
-  // $0.008 per credit = calibrated to real GPT-5.5 / FLUX API costs
-  // If a user exhausts ALL credits, your max spend = credits × 0.008:
-  //   Free        150 cr × $0.008 = $1.20  (but free models = $0 actual)
-  //   Student Pro 526 cr × $0.008 = $4.21  ← guaranteed AI budget cap
-  //   Creator Pro 1315 cr × $0.008 = $10.52 ← guaranteed AI budget cap
+  // $0.0025 per credit = calibrated to real GPT-5.5 / FLUX API costs
+  // If a user exhausts ALL credits, your max spend = credits × 0.0025:
+  //   Free        300 cr × $0.0025 = $0.75  (but free models = $0 actual)
+  //   Student Pro 2172 cr × $0.0025 = $5.43  ← guaranteed AI budget cap
+  //   Creator Pro 6416 cr × $0.0025 = $16.04 ← guaranteed AI budget cap
   usdPerCredit: CREDIT_USD_PER_CREDIT_DEFAULT,
 };
 

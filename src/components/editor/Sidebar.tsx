@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePresentationStore } from '@/store/usePresentationStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -435,7 +435,7 @@ export function Sidebar({ drawerOpen = true, onAfterSlideSelect }: SidebarProps)
   const editor = { isGenerating, deckGenerationLifecycle, generationBuildReveal, generationTargetSlides, orchestrationPhase, activeModelLabel, orchestrationMessage, freeTasteActive, freeTasteImagesRemaining };
 
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const slides = presentation?.slides || [];
+  const slides = useMemo(() => presentation?.slides || [], [presentation?.slides]);
   const colors = presentation?.colorPalette || ['#05050A', '#FFFFFF', '#7B61FF', '#C0C0D0'];
   const isLiveGenerating = editor.isGenerating && editor.deckGenerationLifecycle !== 'idle';
   const buildRevealActive = Boolean(editor.generationBuildReveal && editor.isGenerating);
