@@ -349,13 +349,7 @@ export function CanvasArea() {
   }, [containerSize, setEditorState]);
 
 
-  const baseFitScale =
-    containerSize.w <= PAD * 2 || containerSize.h <= PAD * 2
-      ? 0.01
-      : Math.min(
-          (containerSize.w - PAD * 2) / CANVAS_WIDTH,
-          (containerSize.h - PAD * 2) / CANVAS_HEIGHT,
-        );
+  const baseFitScale = 1;
   const effectiveScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, baseFitScale * zoom));
 
   const scaledW = CANVAS_WIDTH  * effectiveScale;
